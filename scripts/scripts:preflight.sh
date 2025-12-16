@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "== Preflight: py_compile =="
+python -m py_compile $(find . -name "*.py" -not -path "./.venv/*")
+
+echo "== Preflight: pytest =="
+pytest -q
+
+echo "== Preflight: OK =="

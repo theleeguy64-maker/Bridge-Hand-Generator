@@ -1,0 +1,32 @@
+Bridge Hand Generator – TODO Update
+
+NEW ITEM ADDED (Agreed)
+
+C10. Improve wizard guidance text around exclusion determination (what is being excluded and when)
+Status: TODO
+Type: UX / Explanatory text
+Risk: Low
+Scope: profile_wizard.py (text only)
+
+Problem:
+- Users are unclear about:
+  • When exclusions are applied (during hand matching / generation attempts)
+  • What “shape” means (S/H/D/C counts) and that it must sum to 13
+  • How exclusions interact with seat + chosen sub-profile selection
+
+Proposed improvements:
+- When entering exclusions, display a short explanation:
+  “Exclusions are checked after a hand matches the chosen sub-profile; if excluded, the generator rejects the hand and retries.”
+- Clarify that shapes are S/H/D/C suit counts (e.g. 4333) and must sum to 13.
+- Clarify that exclusions target a specific seat + sub-profile index.
+
+Non-goals:
+- No schema change
+- No validation logic change
+- No generator change
+
+Acceptance criteria:
+- A first-time user can correctly predict:
+  • what hands will be rejected
+  • which seat/sub-profile the exclusion applies to
+  • what input format is required

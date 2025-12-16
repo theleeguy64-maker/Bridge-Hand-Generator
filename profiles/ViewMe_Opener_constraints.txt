@@ -1,0 +1,12 @@
+
+=== Full Profile Details ===
+Name        : ViewMe
+Description : Test profile
+Tag         : Opener
+Dealer      : N
+Author      : Test
+Version     : 0.1
+File        : /private/var/folders/0h/jj2dv6215zg7zk895kv_h28w0000gn/T/pytest-of-leeguy/pytest-65/test_view_and_optional_print_p0/ViewMe.json
+Dealing ord.: ['N', 'E', 'S', 'W']
+
+Seat profiles (in dealing order):

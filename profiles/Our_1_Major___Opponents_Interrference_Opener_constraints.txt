@@ -1,0 +1,90 @@
+
+=== Full Profile Details ===
+Name        : Our 1 Major & Opponents Interrference
+Description : After we open 1 Major BBO Opponets interfer with Cappelletti
+Tag         : Opener
+Dealer      : N
+Author      : Lee
+Version     : 0.2
+File        : /Users/leeguy/Applications/BridgeHandGenerator/Exec/profiles/Our_1_Major_&_Opponents_Interference_v0.2.json
+Dealing ord.: ['N', 'E', 'S', 'W']
+
+Seat profiles (in dealing order):
+
+--- Seat N ---
+Number of sub-profiles: 1
+
+  Sub-profile 1:
+    Standard constraints:
+      Total HCP: 12–18 (for entire hand)
+        Spades: cards 0–13, HCP 0–37
+        Hearts: cards 0–13, HCP 0–37
+        Diamonds: cards 0–4, HCP 0–5
+        Clubs: cards 0–4, HCP 0–5
+    Random Suit: 1 of [S,H] must meet:
+      #1: cards 5–6, HCP 4–9
+
+--- Seat E ---
+Number of sub-profiles: 3
+
+  Sub-profile 1:
+    Weight: 33.4%
+    Standard constraints:
+      Total HCP: 10–15 (for entire hand)
+        Spades: cards 0–6, HCP 0–37
+        Hearts: cards 0–6, HCP 0–37
+        Diamonds: cards 0–6, HCP 0–37
+        Clubs: cards 0–6, HCP 0–37
+    Random Suit: 1 of [S,H] must meet:
+      #1: cards 5–6, HCP 2–10
+
+  Sub-profile 2:
+    Weight: 33.3%
+    Standard constraints:
+      Total HCP: 12–15 (for entire hand)
+        Spades: cards 0–5, HCP 0–37
+        Hearts: cards 0–5, HCP 0–37
+        Diamonds: cards 0–5, HCP 0–37
+        Clubs: cards 0–5, HCP 0–37
+    Opponent Contingent-Suit constraint:
+      Opponent seat: N
+      Suit: cards 0–1, HCP 0–2
+
+  Sub-profile 3:
+    Weight: 33.3%
+    Standard constraints:
+      Total HCP: 10–15 (for entire hand)
+        Spades: cards 0–6, HCP 0–37
+        Hearts: cards 0–6, HCP 0–37
+        Diamonds: cards 0–6, HCP 0–37
+        Clubs: cards 0–6, HCP 0–37
+    Random Suit: 1 of [D,C] must meet:
+      #1: cards 6–6, HCP 3–37
+
+--- Seat S ---
+Number of sub-profiles: 1
+
+  Sub-profile 1:
+    Standard constraints:
+      Total HCP: 5–14 (for entire hand)
+        Spades: cards 0–13, HCP 0–37
+        Hearts: cards 0–13, HCP 0–37
+        Diamonds: cards 0–13, HCP 0–37
+        Clubs: cards 0–13, HCP 0–37
+    Partner Contingent constraint:
+      Partner seat: N
+      Suit: cards 2–4, HCP 0–37
+
+--- Seat W ---
+Number of sub-profiles: 1
+
+  Sub-profile 1:
+    Standard constraints:
+      Total HCP: 0–37 (for entire hand)
+        Spades: cards 0–13, HCP 0–37
+        Hearts: cards 0–13, HCP 0–37
+        Diamonds: cards 0–13, HCP 0–37
+        Clubs: cards 0–13, HCP 0–37
+    Opponent Contingent-Suit constraint:
+      Opponent seat: N
+      Suit: cards 1–4, HCP 0–3

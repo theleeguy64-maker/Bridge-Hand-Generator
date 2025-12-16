@@ -1,0 +1,18 @@
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# Runtime output
+out/
+pytest_run/
+
+# IDEs
+.vscode/
+.idea/

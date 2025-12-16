@@ -1,0 +1,29 @@
+Bridge Hand Generator – TODO Update
+
+NEW ITEM ADDED (Agreed)
+
+C9. Move exclusions editing into per-seat constraints flow (wizard UX)
+Status: TODO
+Type: UX / Flow improvement
+Risk: Low–Medium (wizard flow only)
+Scope: profile_wizard.py only
+
+Problem:
+- Exclusions are currently edited as a single group after seat constraints.
+- Users naturally expect exclusions to be configured while editing the relevant seat/sub-profile.
+- Current flow is confusing because it asks for “Exclusion seat [W]” even though user just edited a specific seat.
+
+Proposed UX:
+- During seat editing (e.g., after finishing constraints for seat W), offer:
+  “Add / edit exclusions for seat W? (y/N)”
+- Then prompt for sub-profile index within that seat and exclusion type (shapes/rule).
+- Keep storage model unchanged: profile.subprofile_exclusions remains a global list.
+
+Non-goals:
+- No schema change
+- No validation change
+- No generator/orchestrator change
+
+Acceptance criteria:
+- User can add/edit/remove exclusions for the current seat without being asked to re-select the seat.
+- Existing exclusions for that seat are discoverable in the same flow.
