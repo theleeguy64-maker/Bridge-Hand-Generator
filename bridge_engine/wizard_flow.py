@@ -56,7 +56,8 @@ from .cli_prompts import (
 from .wizard_constants import SUITS
 from . import wizard_io as wiz_io
 
-from .hand_profile import validate_profile as _validate_profile_fallback
+from .hand_profile_validate import validate_profile as _validate_profile_fallback
+from .hand_profile_model import OpponentContingentSuitData
 
 import sys
 
@@ -648,6 +649,42 @@ def _prompt_partner_contingent_constraint(
 
     return PartnerContingentConstraint(
         partner_seat=partner_seat,
+        suit_range=suit_range,
+    )
+
+def _build_opponent_contingent_constraint(
+    existing: Optional[OpponentContingentSuitData] = None,
+) -> Optional[OpponentContingentSuitData]:
+    """
+    Build / edit an Opponent Contingent-Suit constraint.
+
+    This mirrors the partner-contingent flow, but targets an opponent seat and a SuitRange.
+    """
+    print("\nOpponent Contingent-Suit constraint:")
+
+    want = _yes_no(
+        "Add / edit opponent contingent-suit constraint? (y/N): ",
+        default=(existing is not None),
+    )
+    if not want:
+        return existing if existing is not None else None
+
+    default_opp = existing.opponent_seat if existing is not None else "E"
+    opponent_seat = _input_choice(
+        "Opponent seat (N/E/S/W)",
+        options=["N", "E", "S", "W"],
+        default=default_opp,
+    )
+
+    # Use the same SuitRange prompt helper used elsewhere in this wizard.
+    # (This should exist because you saw: 'Define SuitRange for Clubs:' etc.)
+    suit_range = _prompt_suit_range(
+        "Suit",
+        existing.suit_range if existing is not None else None,
+    )
+
+    return OpponentContingentSuitData(
+        opponent_seat=opponent_seat,
         suit_range=suit_range,
     )
 

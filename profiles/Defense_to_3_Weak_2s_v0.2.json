@@ -1,6 +1,6 @@
 {
   "profile_name": "Defense to 3 Weak 2s",
-  "description": "Defense to Weak 2s with Multiple Hand Types",
+  "description": "Defense to Weak 2s with Multiple Overcaller Hand Types and action in 2nd and 4th Hand [todo]",
   "dealer": "W",
   "hand_dealing_order": [
     "W",
@@ -76,25 +76,25 @@
               "min_cards": 2,
               "max_cards": 5,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
             },
             "hearts": {
               "min_cards": 2,
               "max_cards": 5,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
             },
             "diamonds": {
               "min_cards": 2,
               "max_cards": 5,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
             },
             "clubs": {
               "min_cards": 2,
               "max_cards": 5,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
             },
             "total_min_hcp": 15,
             "total_max_hcp": 18
@@ -118,25 +118,25 @@
               "min_cards": 0,
               "max_cards": 6,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
             },
             "hearts": {
               "min_cards": 0,
               "max_cards": 6,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
             },
             "diamonds": {
               "min_cards": 0,
               "max_cards": 6,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
             },
             "clubs": {
               "min_cards": 0,
               "max_cards": 6,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
             },
             "total_min_hcp": 12,
             "total_max_hcp": 20
@@ -217,25 +217,25 @@
               "min_cards": 0,
               "max_cards": 7,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
             },
             "hearts": {
               "min_cards": 0,
               "max_cards": 7,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
             },
             "diamonds": {
               "min_cards": 0,
               "max_cards": 7,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
             },
             "clubs": {
               "min_cards": 0,
               "max_cards": 7,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
             },
             "total_min_hcp": 12,
             "total_max_hcp": 20
@@ -273,19 +273,19 @@
               "min_cards": 0,
               "max_cards": 13,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
             },
             "hearts": {
               "min_cards": 0,
               "max_cards": 13,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
             },
             "diamonds": {
               "min_cards": 0,
               "max_cards": 13,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
             },
             "clubs": {
               "min_cards": 0,
@@ -309,44 +309,194 @@
         {
           "standard": {
             "spades": {
-              "min_cards": 0,
-              "max_cards": 13,
+              "min_cards": 2,
+              "max_cards": 5,
               "min_hcp": 0,
               "max_hcp": 37
             },
             "hearts": {
-              "min_cards": 0,
-              "max_cards": 13,
+              "min_cards": 2,
+              "max_cards": 5,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
+            },
+            "diamonds": {
+              "min_cards": 2,
+              "max_cards": 5,
+              "min_hcp": 0,
+              "max_hcp": 10
+            },
+            "clubs": {
+              "min_cards": 2,
+              "max_cards": 5,
+              "min_hcp": 0,
+              "max_hcp": 10
+            },
+            "total_min_hcp": 15,
+            "total_max_hcp": 18
+          },
+          "random_suit_constraint": null,
+          "partner_contingent_constraint": null,
+          "opponents_contingent_suit_constraint": {
+            "opponent_seat": "W",
+            "suit_range": {
+              "min_cards": 2,
+              "max_cards": 4,
+              "min_hcp": 4,
+              "max_hcp": 10
+            }
+          },
+          "weight_percent": 25.0
+        },
+        {
+          "standard": {
+            "spades": {
+              "min_cards": 0,
+              "max_cards": 6,
+              "min_hcp": 0,
+              "max_hcp": 10
+            },
+            "hearts": {
+              "min_cards": 0,
+              "max_cards": 6,
+              "min_hcp": 0,
+              "max_hcp": 10
             },
             "diamonds": {
               "min_cards": 0,
-              "max_cards": 13,
+              "max_cards": 6,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
             },
             "clubs": {
               "min_cards": 0,
-              "max_cards": 13,
+              "max_cards": 6,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 10
             },
-            "total_min_hcp": 0,
-            "total_max_hcp": 37
+            "total_min_hcp": 12,
+            "total_max_hcp": 20
+          },
+          "random_suit_constraint": {
+            "required_suits_count": 2,
+            "allowed_suits": [
+              "S",
+              "H",
+              "D",
+              "C"
+            ],
+            "suit_ranges": [
+              {
+                "min_cards": 5,
+                "max_cards": 6,
+                "min_hcp": 3,
+                "max_hcp": 7
+              },
+              {
+                "min_cards": 4,
+                "max_cards": 5,
+                "min_hcp": 3,
+                "max_hcp": 7
+              }
+            ],
+            "pair_overrides": []
+          },
+          "partner_contingent_constraint": null,
+          "opponents_contingent_suit_constraint": null,
+          "weight_percent": 25.0
+        },
+        {
+          "standard": {
+            "spades": {
+              "min_cards": 0,
+              "max_cards": 5,
+              "min_hcp": 0,
+              "max_hcp": 6
+            },
+            "hearts": {
+              "min_cards": 0,
+              "max_cards": 5,
+              "min_hcp": 0,
+              "max_hcp": 6
+            },
+            "diamonds": {
+              "min_cards": 0,
+              "max_cards": 5,
+              "min_hcp": 0,
+              "max_hcp": 6
+            },
+            "clubs": {
+              "min_cards": 0,
+              "max_cards": 5,
+              "min_hcp": 0,
+              "max_hcp": 6
+            },
+            "total_min_hcp": 12,
+            "total_max_hcp": 20
           },
           "random_suit_constraint": null,
-          "partner_contingent_constraint": {
-            "partner_seat": "W",
+          "partner_contingent_constraint": null,
+          "opponents_contingent_suit_constraint": {
+            "opponent_seat": "W",
             "suit_range": {
               "min_cards": 0,
-              "max_cards": 2,
+              "max_cards": 1,
               "min_hcp": 0,
-              "max_hcp": 37
+              "max_hcp": 2
             }
           },
+          "weight_percent": 25.0
+        },
+        {
+          "standard": {
+            "spades": {
+              "min_cards": 0,
+              "max_cards": 7,
+              "min_hcp": 0,
+              "max_hcp": 10
+            },
+            "hearts": {
+              "min_cards": 0,
+              "max_cards": 7,
+              "min_hcp": 0,
+              "max_hcp": 10
+            },
+            "diamonds": {
+              "min_cards": 0,
+              "max_cards": 7,
+              "min_hcp": 0,
+              "max_hcp": 10
+            },
+            "clubs": {
+              "min_cards": 0,
+              "max_cards": 7,
+              "min_hcp": 0,
+              "max_hcp": 10
+            },
+            "total_min_hcp": 12,
+            "total_max_hcp": 20
+          },
+          "random_suit_constraint": {
+            "required_suits_count": 1,
+            "allowed_suits": [
+              "S",
+              "H",
+              "D",
+              "C"
+            ],
+            "suit_ranges": [
+              {
+                "min_cards": 6,
+                "max_cards": 7,
+                "min_hcp": 3,
+                "max_hcp": 10
+              }
+            ],
+            "pair_overrides": []
+          },
+          "partner_contingent_constraint": null,
           "opponents_contingent_suit_constraint": null,
-          "weight_percent": 100.0
+          "weight_percent": 25.0
         }
       ]
     }

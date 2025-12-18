@@ -145,8 +145,8 @@ def _renumber_boards(boards: Iterable[str], start_at: int = 1) -> List[str]:
 def combine_lin_files(
     input_paths: List[Path],
     output_path: Path,
-    weights: List[float] | None = None,
     seed: int | None = None,
+    weights: List[float] | None = None,
 ) -> int:
     """
     Combine multiple LIN files into a single LIN file.
@@ -155,12 +155,17 @@ def combine_lin_files(
       * Each input file is parsed into an ordered list of boards.
       * We keep an index per file.
       * While any file has remaining boards:
-          - randomly choose one of the files that still has boards (optionally weighted by per-file weights)
+          - randomly choose one of the files that still has boards
+            (optionally weighted by the given per-file weights)
           - take its next board (preserving within-file order)
       * Finally, renumber the boards so they are 1..N in order and
         write them to output_path.
 
-    Returns the number of boards written.
+    The optional `weights` parameter is a list of non-negative numbers
+    (one per input file). They are treated as relative weights; they do
+    not need to sum to 1 or 100. If `weights` is None, has the wrong
+    length, or all weights are zero/negative, we fall back to equal
+    weighting across files.
     """
     rng = random.Random(seed)
 
@@ -171,27 +176,53 @@ def combine_lin_files(
         boards = _split_lin_into_boards(text)
         per_file_boards.append(boards)
 
-    # Optional: per-file weights for selection during consolidation
-    if weights is None:
-        weights = [1.0 for _ in input_paths]
+    # Current index for each file
+    indices = [0 for _ in per_file_boards]
+
+    # Normalise / validate weights
+    file_weights: List[float]
+    if not input_paths:
+        return 0
+
+    if weights is None or len(weights) != len(input_paths):
+        # Default: equal weights
+        file_weights = [1.0 for _ in input_paths]
     else:
-        if len(weights) != len(input_paths):
-            raise ValueError(
-                f"weights length {len(weights)} must match input_paths length {len(input_paths)}"
-            )
         cleaned: List[float] = []
         for w in weights:
             try:
-                wf = float(w)
+                w_f = float(w)
             except (TypeError, ValueError):
-                raise ValueError(f"weights must be numeric, got {w!r}")
-            if wf <= 0.0:
-                raise ValueError(f"weights must be > 0, got {wf}")
-            cleaned.append(wf)
-        weights = cleaned
+                w_f = 0.0
+            if w_f < 0.0:
+                w_f = 0.0
+            cleaned.append(w_f)
+        if all(w <= 0.0 for w in cleaned):
+            # All zero/negative → fall back to equal weighting
+            file_weights = [1.0 for _ in input_paths]
+        else:
+            file_weights = cleaned
 
-    # Current index for each file
-    indices = [0 for _ in per_file_boards]
+    def _weighted_choice_index(available_indices: List[int]) -> int:
+        """
+        Choose a file index from `available_indices` using file_weights.
+
+        If the total active weight is <= 0 (should not happen after the
+        cleaning above), fall back to uniform random choice.
+        """
+        active_weights = [file_weights[i] for i in available_indices]
+        total = sum(active_weights)
+        if total <= 0.0:
+            return rng.choice(available_indices)
+
+        r = rng.random() * total
+        accum = 0.0
+        for idx, w in zip(available_indices, active_weights):
+            accum += w
+            if r < accum:
+                return idx
+        # Fallback due to floating-point edge cases
+        return available_indices[-1]
 
     combined: List[str] = []
 
@@ -199,9 +230,7 @@ def combine_lin_files(
     remaining_files = [i for i, boards in enumerate(per_file_boards) if boards]
 
     while remaining_files:
-        # Weighted choice among remaining files
-        rem_weights = [weights[i] for i in remaining_files]
-        fi = rng.choices(remaining_files, weights=rem_weights, k=1)[0]
+        fi = _weighted_choice_index(remaining_files)
         bi = indices[fi]
         combined.append(per_file_boards[fi][bi])
         indices[fi] += 1
@@ -217,8 +246,7 @@ def combine_lin_files(
     output_path.write_text("\n\n".join(combined) + "\n", encoding="utf-8")
 
     return len(combined)
-
-
+    
 def run_lin_combiner() -> None:
     """
     Interactive LIN combiner used by orchestrator.main_menu().
@@ -302,36 +330,33 @@ def run_lin_combiner() -> None:
     for p in chosen_files:
         print(f"  - {p.name}")
 
-    # 5b) Optional weights for chosen files (default 1 each)
-    weights: List[float] = [1.0 for _ in chosen_files]
-    w_raw = input(
-        "\nOptional weights for chosen files (comma-separated, e.g. 1,2,1). "
-        "Press Enter for equal weights: "
-    ).strip()
-    if w_raw:
-        parts = [p for p in w_raw.replace(" ", "").split(",") if p]
-        if len(parts) != len(chosen_files):
+    # 5b) Optional weighted selection (F4)
+    file_weights: List[float] | None = None
+    if chosen_files:
+        use_weights = input(
+            "\nUse weighted selection by source file? [y/N]: "
+        ).strip().lower()
+        if use_weights.startswith("y"):
             print(
-                f"Weight count must match chosen files ({len(chosen_files)}); "
-                "using equal weights."
+                "Enter relative weights for each file "
+                "(they do NOT need to sum to 100)."
             )
-        else:
-            parsed: List[float] = []
-            ok = True
-            for p in parts:
-                try:
-                    wf = float(p)
-                except ValueError:
-                    ok = False
+            file_weights = []
+            for p in chosen_files:
+                while True:
+                    raw_w = input(f"  Weight for {p.name} [1]: ").strip()
+                    if not raw_w:
+                        raw_w = "1"
+                    try:
+                        w = float(raw_w)
+                    except ValueError:
+                        print(f"    Invalid number {raw_w!r}; please enter a numeric weight.")
+                        continue
+                    if w < 0.0:
+                        print("    Weight must be non-negative.")
+                        continue
+                    file_weights.append(w)
                     break
-                if wf <= 0.0:
-                    ok = False
-                    break
-                parsed.append(wf)
-            if not ok:
-                print("Invalid weights (must be numeric > 0); using equal weights.")
-            else:
-                weights = parsed
 
     # 6) Ask for output filename
     default_output = "combined.lin"
@@ -353,8 +378,8 @@ def run_lin_combiner() -> None:
         combine_lin_files(
             input_paths=chosen_files,
             output_path=output_path,
-            weights=weights,
             seed=seed,
+            file_weights=file_weights,
         )
     except Exception as exc:
         print(f"\nERROR: failed to combine LIN files: {exc}")

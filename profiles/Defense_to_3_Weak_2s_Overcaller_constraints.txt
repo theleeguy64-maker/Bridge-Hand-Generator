@@ -1,14 +1,14 @@
-3
 
 === Full Profile Details ===
 Name        : Defense to 3 Weak 2s
-Description : Defense to Weak 2s with Multiple Hand Types
+Description : Defense to Weak 2s with Multiple Overcaller Hand Types and action in 2nd and 4th Hand [todo]
 Tag         : Overcaller
 Dealer      : W
 Author      : Lee
-Version     : 0.2
+Version     : 0.5
 File        : /Users/leeguy/Applications/BridgeHandGenerator/Exec/profiles/Defense_to_3_Weak_2s_v0.2.json
 Dealing ord.: ['W', 'N', 'S', 'E']
+Rotate deals: True
 
 Seat profiles (in dealing order):
 
@@ -32,10 +32,10 @@ Number of sub-profiles: 4
     Weight: 25.0%
     Standard constraints:
       Total HCP: 15–18 (for entire hand)
-        Spades: cards 2–5, HCP 0–37
-        Hearts: cards 2–5, HCP 0–37
-        Diamonds: cards 2–5, HCP 0–37
-        Clubs: cards 2–5, HCP 0–37
+        Spades: cards 2–5, HCP 0–10
+        Hearts: cards 2–5, HCP 0–10
+        Diamonds: cards 2–5, HCP 0–10
+        Clubs: cards 2–5, HCP 0–10
     Opponent Contingent-Suit constraint:
       Opponent seat: W
       Suit: cards 2–4, HCP 4–10
@@ -44,10 +44,10 @@ Number of sub-profiles: 4
     Weight: 25.0%
     Standard constraints:
       Total HCP: 12–20 (for entire hand)
-        Spades: cards 0–6, HCP 0–37
-        Hearts: cards 0–6, HCP 0–37
-        Diamonds: cards 0–6, HCP 0–37
-        Clubs: cards 0–6, HCP 0–37
+        Spades: cards 0–6, HCP 0–10
+        Hearts: cards 0–6, HCP 0–10
+        Diamonds: cards 0–6, HCP 0–10
+        Clubs: cards 0–6, HCP 0–10
     Random Suit: 2 of [S,H,D,C] must meet:
       #1: cards 5–6, HCP 3–7
       #2: cards 4–5, HCP 3–7
@@ -68,10 +68,10 @@ Number of sub-profiles: 4
     Weight: 25.0%
     Standard constraints:
       Total HCP: 12–20 (for entire hand)
-        Spades: cards 0–7, HCP 0–37
-        Hearts: cards 0–7, HCP 0–37
-        Diamonds: cards 0–7, HCP 0–37
-        Clubs: cards 0–7, HCP 0–37
+        Spades: cards 0–7, HCP 0–10
+        Hearts: cards 0–7, HCP 0–10
+        Diamonds: cards 0–7, HCP 0–10
+        Clubs: cards 0–7, HCP 0–10
     Random Suit: 1 of [S,H,D,C] must meet:
       #1: cards 6–7, HCP 3–37
 
@@ -81,21 +81,57 @@ Number of sub-profiles: 1
   Sub-profile 1:
     Standard constraints:
       Total HCP: 8–17 (for entire hand)
-        Spades: cards 0–13, HCP 0–37
-        Hearts: cards 0–13, HCP 0–37
-        Diamonds: cards 0–13, HCP 0–37
+        Spades: cards 0–13, HCP 0–10
+        Hearts: cards 0–13, HCP 0–10
+        Diamonds: cards 0–13, HCP 0–10
         Clubs: cards 0–13, HCP 0–37
 
 --- Seat E ---
-Number of sub-profiles: 1
+Number of sub-profiles: 4
 
   Sub-profile 1:
+    Weight: 25.0%
     Standard constraints:
-      Total HCP: 0–37 (for entire hand)
-        Spades: cards 0–13, HCP 0–37
-        Hearts: cards 0–13, HCP 0–37
-        Diamonds: cards 0–13, HCP 0–37
-        Clubs: cards 0–13, HCP 0–37
-    Partner Contingent constraint:
-      Partner seat: W
-      Suit: cards 0–2, HCP 0–37
+      Total HCP: 15–18 (for entire hand)
+        Spades: cards 2–5, HCP 0–37
+        Hearts: cards 2–5, HCP 0–10
+        Diamonds: cards 2–5, HCP 0–10
+        Clubs: cards 2–5, HCP 0–10
+    Opponent Contingent-Suit constraint:
+      Opponent seat: W
+      Suit: cards 2–4, HCP 4–10
+
+  Sub-profile 2:
+    Weight: 25.0%
+    Standard constraints:
+      Total HCP: 12–20 (for entire hand)
+        Spades: cards 0–6, HCP 0–10
+        Hearts: cards 0–6, HCP 0–10
+        Diamonds: cards 0–6, HCP 0–10
+        Clubs: cards 0–6, HCP 0–10
+    Random Suit: 2 of [S,H,D,C] must meet:
+      #1: cards 5–6, HCP 3–7
+      #2: cards 4–5, HCP 3–7
+
+  Sub-profile 3:
+    Weight: 25.0%
+    Standard constraints:
+      Total HCP: 12–20 (for entire hand)
+        Spades: cards 0–5, HCP 0–6
+        Hearts: cards 0–5, HCP 0–6
+        Diamonds: cards 0–5, HCP 0–6
+        Clubs: cards 0–5, HCP 0–6
+    Opponent Contingent-Suit constraint:
+      Opponent seat: W
+      Suit: cards 0–1, HCP 0–2
+
+  Sub-profile 4:
+    Weight: 25.0%
+    Standard constraints:
+      Total HCP: 12–20 (for entire hand)
+        Spades: cards 0–7, HCP 0–10
+        Hearts: cards 0–7, HCP 0–10
+        Diamonds: cards 0–7, HCP 0–10
+        Clubs: cards 0–7, HCP 0–10
+    Random Suit: 1 of [S,H,D,C] must meet:
+      #1: cards 6–7, HCP 3–10

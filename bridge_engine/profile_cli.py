@@ -390,7 +390,8 @@ def _print_full_profile_details_impl(profile: HandProfile, path: Path) -> None:
     print(f"Version     : {getattr(profile, 'version', '')}")
     print(f"File        : {path}")
     print(f"Dealing ord.: {profile.hand_dealing_order}")
-
+    print(f"Rotate deals: {getattr(profile, 'rotate_deals_by_default', True)}")
+    
     print("\nSeat profiles (in dealing order):")
     for seat in profile.hand_dealing_order:
         sp = profile.seat_profiles.get(seat)
@@ -585,7 +586,10 @@ def edit_profile_action() -> None:
         new_dealer = prompt_choice(
             "Dealer seat", ["N", "E", "S", "W"], profile.dealer
         )
-
+        rotate_default = _yes_no(
+            "Rotate deals by default when generating boards?",
+            default=getattr(profile, "rotate_deals_by_default", True),
+        )
         # Edit hand dealing order (must be a permutation of N,E,S,W starting with dealer)
         current_order = profile.hand_dealing_order
         default_order_str = " ".join(current_order)
