@@ -534,14 +534,27 @@ def _build_single_constrained_deal(
             chosen_subprofile_indices[responder] = opener_idx
 
     # Partnerships: NS and EW
-    _apply_pair_coupling("N", "S")
+    # For NS, ask the HandProfile which seat "drives" the partnership.
+    # ns_driver_seat() is currently implemented to preserve Phase 2
+    # behaviour (North drives) unless future metadata says otherwise.
+    try:
+        ns_driver = profile.ns_driver_seat()
+    except AttributeError:
+        # Older HandProfile instances without the helper:
+        # keep the original "N drives, S responds" behaviour.
+        ns_driver = "N"
+
+    if ns_driver not in ("N", "S"):
+        # Defensive: if someone ever mis-sets ns_role_mode, fall back.
+        ns_driver = "N"
+
+    ns_responder = "S" if ns_driver == "N" else "N"
+    _apply_pair_coupling(ns_driver, ns_responder)
+
+    # EW still behaves as before: E is opener, W responder.
     _apply_pair_coupling("E", "W")
 
-    board_attempts = 0
-    while board_attempts < MAX_BOARD_ATTEMPTS:
-         board_attempts += 1
-
-    board_attempts = 0
+    board_attempts = 0    
     while board_attempts < MAX_BOARD_ATTEMPTS:
         board_attempts += 1
 
