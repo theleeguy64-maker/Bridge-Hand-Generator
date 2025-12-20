@@ -13,8 +13,8 @@ It implements:
   • A main menu:
         1) Profile management
         2) Deal generation
-        3) Exit
-        4) LIN tools - Combine LIN files
+        3) LIN tools - Combine LIN files
+        4) Exit
 
   • "Session bundles" for deal generation:
         - User picks a saved profile from disk
@@ -348,15 +348,28 @@ def _run_profile_management() -> None:
 def run_deal_generation() -> None:
     _run_deal_generation_session()
 
+def _print_main_menu(include_lin: bool) -> None:
+    """
+    Helper to print the main menu.
+
+    include_lin=False → legacy 3-option menu (used by tests via _main_menu)
+    include_lin=True  → full 4-option menu with LIN tools.
+    """
+    print("=== Bridge Hand Generator ===")
+    print("1) Profile management")
+    print("2) Deal generation")
+    if include_lin:
+        print("3) LIN tools - Combine LIN files")
+        print("4) Exit")
+    else:
+        print("3) Exit")
 
 def run_profile_menu() -> None:
     _run_profile_management()
 
-
 # ---------------------------------------------------------------------------
 # Main menus
 # ---------------------------------------------------------------------------
-
 
 def main_menu() -> None:
     """
@@ -368,23 +381,22 @@ def main_menu() -> None:
         print("=== Bridge Hand Generator ===")
         print("1) Profile management")
         print("2) Deal generation")
-        print("3) Exit")
-        print("4) LIN tools - Combine LIN files")
+        print("3) LIN tools - Combine LIN files")
+        print("4) Exit")
 
-        choice = input("Choose [1-4]: ").strip() or "3"
+        choice = input("Choose [1-4]: ").strip() or "4"
 
         if choice == "1":
             _run_profile_management()
         elif choice == "2":
             _run_deal_generation_session()
         elif choice == "3":
+            lin_tools.run_lin_combiner()
+        elif choice == "4":
             print("Goodbye.")
             break
-        elif choice == "4":
-            lin_tools.run_lin_combiner()
         else:
             print("Invalid choice, please try again.")
-
 
 def _main_menu() -> None:
     """
@@ -411,7 +423,6 @@ def _main_menu() -> None:
             break
         else:
             print("Invalid choice, please try again.")
-
 
 if __name__ == "__main__":  # pragma: no cover
     main_menu()

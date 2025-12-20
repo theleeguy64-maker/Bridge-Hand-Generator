@@ -617,8 +617,14 @@ class HandProfile:
         Free text author (optional, default empty).
     version
         Free text version string (e.g. "0.2", optional, default empty).
-    """
+   
+    Full hand profile for one scenario.
 
+    NOTE: ns_role_mode is a Phase-3 field controlling who “drives” the
+    N-S partnership. For now it is metadata-only; generator logic still
+    behaves as in Phase 2 when this is left at the default.
+    """
+    
     profile_name: str
     description: str
     dealer: str
@@ -627,7 +633,9 @@ class HandProfile:
     seat_profiles: Dict[str, SeatProfile]
     author: str = ""
     version: str = ""
-    rotate_deals_by_default: bool = True 
+    rotate_deals_by_default: bool = True
+    # "north_drives" (default), "south_drives", or "random_driver".
+    ns_role_mode: str = "north_drives"
     subprofile_exclusions: List["SubprofileExclusionData"] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -668,6 +676,8 @@ class HandProfile:
                 seat: sp.to_dict() for seat, sp in self.seat_profiles.items()
             },
             "rotate_deals_by_default": getattr(self, "rotate_deals_by_default", True),
+            # NEW: persist NS role mode, defaulting for legacy HandProfile objects
+            "ns_role_mode": getattr(self, "ns_role_mode", "north_drives"),
             "subprofile_exclusions": [e.to_dict() for e in self.subprofile_exclusions],
         }
 
@@ -679,6 +689,7 @@ class HandProfile:
         Backwards compatible:
         - seat_profiles are rebuilt via SeatProfile.from_dict
         - rotate_deals_by_default defaults to True if missing
+        - ns_role_mode defaults to "north_drives" if missing
         """
         seat_profiles_dict = {
             seat: SeatProfile.from_dict(sp_data)
@@ -688,8 +699,7 @@ class HandProfile:
             SubprofileExclusionData.from_dict(d)
             for d in data.get("subprofile_exclusions", [])
         ]
-        subprofile_exclusions=exclusions,
-            
+
         return cls(
             profile_name=str(data["profile_name"]),
             description=str(data.get("description", "")),
@@ -699,6 +709,7 @@ class HandProfile:
             seat_profiles=seat_profiles_dict,
             author=str(data.get("author", "")),
             version=str(data.get("version", "")),
-            rotate_deals_by_default=data.get("rotate_deals_by_default", True),        
+            rotate_deals_by_default=data.get("rotate_deals_by_default", True),
+            ns_role_mode=str(data.get("ns_role_mode", "north_drives")),
+            subprofile_exclusions=exclusions,
         )
-

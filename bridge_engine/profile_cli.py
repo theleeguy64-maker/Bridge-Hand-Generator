@@ -29,6 +29,8 @@ from __future__ import annotations
 
 import json
 import sys
+import io
+from contextlib import redirect_stdout
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from .cli_io import _yes_no as _yes_no  # keep name for tests to monkeypatch
@@ -523,32 +525,36 @@ def view_and_optional_print_profile_action() -> None:
     if print_full:
         _print_full_profile_details(profile, path)
 
-    # Optional: export full profile details (same format) to TXT in profiles/
+    # Optional: export full profile details to TXT under out/profile_constraints/
     export_txt = prompt_yes_no(
-        "\nWrite full profile details (same format) to TXT in profiles/ ?",
+        "\nWrite full profile details to TXT under out/profile_constraints/?",
         default=False,
     )
     if export_txt:
-        import io
-        from contextlib import redirect_stdout
-
-        profiles_dir = Path("profiles")
-        profiles_dir.mkdir(parents=True, exist_ok=True)
-
         name = (getattr(profile, "profile_name", "profile") or "profile").strip()
         tag = (getattr(profile, "tag", "Tag") or "Tag").strip()
 
-        safe_name = "".join(c if (c.isalnum() or c in ("-", "_")) else "_" for c in name)
-        safe_tag = "".join(c if (c.isalnum() or c in ("-", "_")) else "_" for c in tag)
+        safe_name = "".join(
+            c if (c.isalnum() or c in ("-", "_")) else "_" for c in name
+        )
+        safe_tag = "".join(
+            c if (c.isalnum() or c in ("-", "_")) else "_" for c in tag
+        )
 
-        out_path = profiles_dir / f"{safe_name}_{safe_tag}_constraints.txt"
+        # Write constraints to out/profile_constraints (created if needed)
+        out_root = (
+            Path(__file__).resolve().parent.parent / "out" / "profile_constraints"
+        )
+        out_root.mkdir(parents=True, exist_ok=True)
+
+        out_path = out_root / f"{safe_name}_{safe_tag}_constraints.txt"
 
         buf = io.StringIO()
         with redirect_stdout(buf):
             _print_full_profile_details_impl(profile, path)
 
         out_path.write_text(buf.getvalue(), encoding="utf-8")
-        print(f"Wrote TXT profile details to: {out_path}")
+        print(f"\nWrote full profile details to: {out_path}")
 
 def edit_profile_action() -> None:
     """
@@ -586,36 +592,44 @@ def edit_profile_action() -> None:
         new_dealer = prompt_choice(
             "Dealer seat", ["N", "E", "S", "W"], profile.dealer
         )
-        rotate_default = _yes_no(
-            "Rotate deals by default when generating boards?",
-            default=getattr(profile, "rotate_deals_by_default", True),
-        )
-        # Edit hand dealing order (must be a permutation of N,E,S,W starting with dealer)
-        current_order = profile.hand_dealing_order
-        default_order_str = " ".join(current_order)
-        print(f"Current hand dealing order: {current_order}")
-        while True:
-            raw_order = _input_with_default(
-                "Hand dealing order (4 seats, e.g. 'W N S E')",
-                default_order_str,
-            )
-            parts = raw_order.replace(",", " ").upper().split()
-            if len(parts) != 4 or set(parts) != {"N", "E", "S", "W"}:
-                print("  ERROR: please enter each of N, E, S, W exactly once.")
-                continue
-            if parts[0] != new_dealer:
-                print(
-                    f"  ERROR: dealing order must start with the dealer ({new_dealer})."
-                )
-                continue
-            new_hand_dealing_order = parts
-            break
 
-        new_author = _input_with_default(
-            "Author", getattr(profile, "author", "") or "Lee"
+        print(f"Current hand dealing order: {profile.hand_dealing_order}")
+        hd_default = " ".join(profile.hand_dealing_order)
+        raw_order = _input_with_default(
+            "Hand dealing order (4 seats, e.g. 'N E S W')", hd_default
         )
+        parts = raw_order.split()
+        if len(parts) != 4 or set(parts) != {"N", "E", "S", "W"}:
+            print("Invalid dealing order; keeping existing order.")
+            new_hand_dealing_order = profile.hand_dealing_order
+        else:
+            new_hand_dealing_order = parts
+
+        new_author = _input_with_default("Author", getattr(profile, "author", ""))
         new_version = _input_with_default(
-            "Version", getattr(profile, "version", "") or "0.1"
+            "Version", getattr(profile, "version", "")
+        )
+
+        # Rotate flag
+        rotate_default = _yes_no(
+            "Rotate deals by default?",
+            getattr(profile, "rotate_deals_by_default", True),
+        )
+
+        # NS role mode (who usually drives the auction for NS?)
+        existing_ns_mode = getattr(profile, "ns_role_mode", "north_drives")
+        ns_default_label = (
+            "North usually drives"
+            if existing_ns_mode == "north_drives"
+            else "South usually drives"
+        )
+        ns_label = prompt_choice(
+            "NS role mode (who usually drives the auction for NS?)",
+            ["North usually drives", "South usually drives"],
+            ns_default_label,
+        )
+        new_ns_role_mode = (
+            "north_drives" if ns_label.startswith("North") else "south_drives"
         )
 
         updated = HandProfile(
@@ -627,27 +641,23 @@ def edit_profile_action() -> None:
             seat_profiles=profile.seat_profiles,
             author=new_author,
             version=new_version,
+            rotate_deals_by_default=rotate_default,
+            ns_role_mode=new_ns_role_mode,
         )
 
-        # Validate
-        validate_profile(updated)
+        _save_profile(path, updated)
+        print(f"\nUpdated profile saved to {path}")
+    else:
+        # Constraints-only edit
+        try:
+            updated = edit_constraints_interactive(profile)
+        except ProfileError as exc:
+            print(f"ERROR while editing constraints: {exc}")
+            return
 
-        if prompt_yes_no("Save changes to this profile?", True):
-            new_path = _profile_path_for(updated)
-            _save_profile_to_path(updated, new_path)
-        return
-
-    # Constraints-only edit
-    try:
-        updated = edit_constraints_interactive(profile)
-    except ProfileError as exc:
-        print(f"ERROR while editing constraints: {exc}")
-        return
-
-    if prompt_yes_no("Save updated constraints to this profile?", True):
-        new_path = _profile_path_for(updated)
-        _save_profile_to_path(updated, new_path)
-
+        if prompt_yes_no("Save updated constraints to this profile?", True):
+            _save_profile(path, updated)
+            print(f"\nUpdated profile saved to {path}")
 
 def delete_profile_action() -> None:
     profiles = _load_profiles()
@@ -661,7 +671,6 @@ def delete_profile_action() -> None:
             print(f"Deleted {path}")
         except OSError as exc:
             print(f"Failed to delete {path}: {exc}")
-
 
 def save_as_new_version_action() -> None:
     """

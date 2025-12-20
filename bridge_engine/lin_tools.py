@@ -118,29 +118,41 @@ def _split_lin_into_boards(text: str) -> List[str]:
         boards.append("qx|" + part)
     return boards
 
+# Match any "Board <number>" label inside a board chunk.
+_BOARD_LABEL_RE = re.compile(r"Board\s+\d+", re.IGNORECASE)
 
-_BOARD_AH_RE = re.compile(r"ah\|Board\s+\d+\|")
 
-
-def _renumber_boards(boards: Iterable[str], start_at: int = 1) -> List[str]:
+def _renumber_boards(boards: List[str], start_at: int = 1) -> List[str]:
     """
-    Renumber the 'Board N' annotations in each board chunk so they are
-    sequential starting from start_at.
+    Given a list of raw board strings, rewrite the first "Board <n>"
+    label in each one so that the boards are numbered sequentially
+    starting at `start_at`.
 
-    This only touches the 'ah|Board N|' tag (if present) and leaves
-    everything else unchanged.
+    This is intentionally liberal: many LIN producers put the label
+    inside an 'ah|' tag (e.g. 'ah|Board 13|'), but others may not.
+    We just rewrite the first 'Board <number>' we see in each board.
     """
     renumbered: List[str] = []
     num = start_at
-    for board in boards:
-        def repl(_match: re.Match) -> str:
-            return f"ah|Board {num}|"
 
-        new_board = _BOARD_AH_RE.sub(repl, board)
+    for board in boards:
+        label = f"Board {num}"
+
+        # Replace the first "Board <number>" if present.
+        def repl(_match: re.Match) -> str:  # type: ignore[override]
+            return label
+
+        new_board, count = _BOARD_LABEL_RE.subn(repl, board, count=1)
+
+        # If we somehow didn't find a Board label at all, just leave
+        # the board unchanged rather than risking mangling the LIN.
+        if count == 0:
+            new_board = board
+
         renumbered.append(new_board)
         num += 1
-    return renumbered
 
+    return renumbered
 
 def combine_lin_files(
     input_paths: List[Path],
@@ -292,39 +304,53 @@ def run_lin_combiner() -> None:
 
     latest_files = select_latest_per_group(all_lin_files)
 
-    # 4) Show list of candidate files (latest per logical group)
-    print("\nAvailable LIN files (latest per logical group):")
-    for idx, p in enumerate(latest_files, start=1):
-        print(f"  {idx}) {p.name}")
+    # Require at least 2 candidate files for combining
+    if len(latest_files) < 2:
+        print(
+            f"\nFound only {len(latest_files)} eligible LIN file(s) in {base_dir}. "
+            "You need at least 2 to run the combiner."
+        )
+        return
 
-    # 5) Let user choose which ones to include
-    raw = input(
-        "Enter numbers to include (exact format x,y,z, e.g. 1,3,7) or press Enter to include ALL: "
-        "or press Enter to include ALL: "
-    ).strip()
+    # 4 + 5) Show list and let user choose (must select at least 2)
+    while True:
+        print("\nAvailable LIN files (latest per logical group):")
+        for idx, p in enumerate(latest_files, start=1):
+            print(f"  {idx}) {p.name}")
 
-    if not raw:
-        chosen_files = latest_files
-    else:
-        indices = set()
-        for part in raw.replace(" ", "").split(","):
-            if not part:
+        raw = input(
+            "\nEnter numbers to include (exact format x,y,z, e.g. 1,3,7) "
+            "or press Enter to include ALL: "
+        ).strip()
+
+        if not raw:
+            chosen_files = latest_files
+        else:
+            indices = set()
+            for part in raw.replace(" ", "").split(","):
+                if not part:
+                    continue
+                try:
+                    i = int(part)
+                except ValueError:
+                    print(f"Ignoring invalid entry: {part!r}")
+                    continue
+                if 1 <= i <= len(latest_files):
+                    indices.add(i)
+                else:
+                    print(f"Ignoring out-of-range entry: {part!r}")
+
+            if not indices:
+                print("No valid selections made; please try again.")
                 continue
-            try:
-                i = int(part)
-            except ValueError:
-                print(f"Ignoring invalid entry: {part!r}")
-                continue
-            if 1 <= i <= len(latest_files):
-                indices.add(i)
-            else:
-                print(f"Ignoring out-of-range entry: {part!r}")
 
-        if not indices:
-            print("No valid selections made; aborting.")
-            return
+            chosen_files = [latest_files[i - 1] for i in sorted(indices)]
 
-        chosen_files = [latest_files[i - 1] for i in sorted(indices)]
+        if len(chosen_files) < 2:
+            print("You must select at least 2 files to combine. Please choose again.")
+            continue
+
+        break
 
     print("\nYou chose these files:")
     for p in chosen_files:
@@ -338,8 +364,11 @@ def run_lin_combiner() -> None:
         ).strip().lower()
         if use_weights.startswith("y"):
             print(
-                "Enter relative weights for each file "
-                "(they do NOT need to sum to 100)."
+                "Enter a *relative* weight for each file. "
+                "Higher numbers mean that file's boards are used more often.\n"
+                "For example, weights 1,2,1 make the second file appear about twice "
+                "as often as each of the others. Weights do NOT need to sum to 100; "
+                "a weight of 0 means 'never use this file'."
             )
             file_weights = []
             for p in chosen_files:
@@ -364,7 +393,7 @@ def run_lin_combiner() -> None:
     output_path = base_dir / out_name
 
     # 7) Optional seed
-    seed_str = input("Random seed for shuffling (blank for none): ").strip()
+    seed_str = input("Random seed for shuffling (integer 1 to 2 billion or blank for none): ").strip()
     seed = None
     if seed_str:
         try:
@@ -379,7 +408,7 @@ def run_lin_combiner() -> None:
             input_paths=chosen_files,
             output_path=output_path,
             seed=seed,
-            file_weights=file_weights,
+            weights=file_weights,
         )
     except Exception as exc:
         print(f"\nERROR: failed to combine LIN files: {exc}")
