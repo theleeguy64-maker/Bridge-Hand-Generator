@@ -587,11 +587,9 @@ class SeatProfile:
         )
 
 
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------
 # HandProfile (whole profile)
-# ---------------------------------------------------------------------------
-
-
+# -----------------------------------------------------------------------
     
 @dataclass
 class HandProfile:
@@ -658,6 +656,35 @@ class HandProfile:
             )
         if self.tag not in ("Opener", "Overcaller"):
             raise ProfileError("tag must be 'Opener' or 'Overcaller'.")
+
+    # NEW helper: single place that defines the NS “driver” seat
+    def ns_driver_seat(self) -> str:
+        """
+        Return 'N' or 'S' to indicate who usually drives the auction for NS.
+
+        For Phase 3 scaffolding:
+        - 'north_drives'       -> 'N'
+        - 'south_drives'       -> 'S'
+        - 'random_driver'      -> currently treated as 'N' to preserve Phase 2
+                                  behaviour; generator logic will be updated in
+                                  a later step.
+        - any unknown/garbage  -> fallback to 'N' as a safe default.
+        """
+        mode = getattr(self, "ns_role_mode", "north_drives")
+
+        if mode == "south_drives":
+            return "S"
+
+        if mode == "north_drives":
+            return "N"
+
+        if mode == "random_driver":
+            # Phase 3 behaviour to be implemented later; for now we keep
+            # existing semantics by behaving like north_drives.
+            return "N"
+
+        # Unknown value – fail safe and behave like legacy.
+        return "N"
 
     # ------------------------------------------------------------------
     # Persistence helpers (JSON-friendly dicts)
