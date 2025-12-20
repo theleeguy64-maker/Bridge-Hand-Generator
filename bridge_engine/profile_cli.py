@@ -215,7 +215,6 @@ def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
 # Menu actions
 # ---------------------------------------------------------------------------
 
-
 def _choose_profile(
     profiles: List[Tuple[Path, HandProfile]]
 ) -> Optional[Tuple[Path, HandProfile]]:
@@ -393,6 +392,14 @@ def _print_full_profile_details_impl(profile: HandProfile, path: Path) -> None:
     print(f"File        : {path}")
     print(f"Dealing ord.: {profile.hand_dealing_order}")
     print(f"Rotate deals: {getattr(profile, 'rotate_deals_by_default', True)}")
+    
+    ns_mode = getattr(profile, "ns_role_mode", "north_drives")
+    ns_mode_pretty = {
+        "north_drives": "North usually drives",
+        "south_drives": "South usually drives",
+        "random_driver": "Random between N/S",
+    }.get(ns_mode, ns_mode)
+    print(f"NS mode: {ns_mode_pretty}")
     
     print("\nSeat profiles (in dealing order):")
     for seat in profile.hand_dealing_order:
