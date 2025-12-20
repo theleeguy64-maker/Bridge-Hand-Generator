@@ -449,8 +449,8 @@ def _match_seat(
 # Constrained board construction (C1)
 # ---------------------------------------------------------------------------
 def _build_single_constrained_deal(
+    rng: random.Random,    
     profile: HandProfile,
-    rng: random.Random,
     board_number: int,
 ) -> Deal:
 

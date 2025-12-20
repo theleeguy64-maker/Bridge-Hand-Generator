@@ -117,10 +117,9 @@ def test_f3_ns_coupling_default_mode_still_works() -> None:
     profile = _make_ns_coupling_profile()  # uses default ns_role_mode
     rng = random.Random(1234)
 
-    deal = _build_single_constrained_deal(profile, rng, board_number=1)
+    deal = _build_single_constrained_deal(rng, profile, board_number=1)
     assert deal is not None
-
-
+    
 def test_f3_ns_coupling_north_drives_metadata_is_accepted() -> None:
     """
     Smoke test: ns_role_mode='north_drives' is accepted end-to-end.
@@ -132,9 +131,8 @@ def test_f3_ns_coupling_north_drives_metadata_is_accepted() -> None:
     profile = _make_ns_coupling_profile(ns_role_mode="north_drives")
     rng = random.Random(5678)
 
-    deal = _build_single_constrained_deal(profile, rng, board_number=1)
+    deal = _build_single_constrained_deal(rng, profile, board_number=1)
     assert deal is not None
-
 
 def test_f3_ns_coupling_south_or_random_modes_do_not_crash() -> None:
     """
@@ -148,5 +146,5 @@ def test_f3_ns_coupling_south_or_random_modes_do_not_crash() -> None:
         profile = _make_ns_coupling_profile(ns_role_mode=mode)
         rng = random.Random(9999)
 
-        deal = _build_single_constrained_deal(profile, rng, board_number=1)
+        deal = _build_single_constrained_deal(rng, profile, board_number=1)
         assert deal is not None
