@@ -448,12 +448,12 @@ def _match_seat(
 # ---------------------------------------------------------------------------
 # Constrained board construction (C1)
 # ---------------------------------------------------------------------------
-
 def _build_single_constrained_deal(
-    rng: random.Random,
     profile: HandProfile,
+    rng: random.Random,
     board_number: int,
 ) -> Deal:
+
     """
     Attempt to build a single constrained deal for the given board number.
 
@@ -493,65 +493,61 @@ def _build_single_constrained_deal(
             chosen_subprofile_indices[seat] = idx
  
     # ------------------------------------------------------------------
-    # F3: Opener → responder sub-profile coupling (schema-free)
+    # F3: Opener → responder sub-profile coupling (NS driver/follower)
     #
     # If a partnership has multiple sub-profiles on both seats AND the counts
-    # match, force the responder's chosen sub-profile index to equal the opener's.
+    # match, force the responder's chosen sub-profile index to equal the
+    # opener's.
     #
-    # "Opener" is defined as the seat dealt earlier in hand_dealing_order.
-    # This keeps behavior deterministic without adding any new profile fields.
+    # For NS, the *driver* seat is chosen by HandProfile.ns_driver_seat(...)
+    # (which in turn consults ns_role_mode). For EW we keep the fixed
+    # E-opens / W-responds behaviour from Phase 2.
+    #
+    # Rotation is a post-dealing concern and is unaffected by this coupling.
     # ------------------------------------------------------------------
-    order_pos: Dict[Seat, int] = {
-        s: i for i, s in enumerate(profile.hand_dealing_order)
-    }
 
-    def _apply_pair_coupling(a: Seat, b: Seat) -> None:
-        spa = profile.seat_profiles.get(a)
-        spb = profile.seat_profiles.get(b)
-        if spa is None or spb is None:
+    def _apply_pair_coupling(opener: Seat, responder: Seat) -> None:
+        opener_sp = profile.seat_profiles.get(opener)
+        resp_sp = profile.seat_profiles.get(responder)
+        if opener_sp is None or resp_sp is None:
             return
-        if not spa.subprofiles or not spb.subprofiles:
+        if not opener_sp.subprofiles or not resp_sp.subprofiles:
             return
 
         # Only couple when both sides have >1 and counts match (unambiguous).
-        if len(spa.subprofiles) <= 1 and len(spb.subprofiles) <= 1:
+        if len(opener_sp.subprofiles) <= 1 and len(resp_sp.subprofiles) <= 1:
             return
-        if len(spa.subprofiles) != len(spb.subprofiles):
+        if len(opener_sp.subprofiles) != len(resp_sp.subprofiles):
             return
-
-        opener: Seat = a if order_pos.get(a, 10**9) <= order_pos.get(b, 10**9) else b
-        responder: Seat = b if opener == a else a
 
         opener_idx = chosen_subprofile_indices.get(opener)
         if opener_idx is None:
             return
 
-        rsp = profile.seat_profiles.get(responder)
-        if rsp is None or not rsp.subprofiles:
-            return
-        if 0 <= opener_idx < len(rsp.subprofiles):
-            chosen_subprofiles[responder] = rsp.subprofiles[opener_idx]
+        if 0 <= opener_idx < len(resp_sp.subprofiles):
+            chosen_subprofiles[responder] = resp_sp.subprofiles[opener_idx]
             chosen_subprofile_indices[responder] = opener_idx
 
     # Partnerships: NS and EW
     # For NS, ask the HandProfile which seat "drives" the partnership.
-    # ns_driver_seat() is currently implemented to preserve Phase 2
-    # behaviour (North drives) unless future metadata says otherwise.
     try:
-        ns_driver = profile.ns_driver_seat()
+        ns_driver = profile.ns_driver_seat(rng)
+    except TypeError:
+        # Backwards compat: helper without rng parameter.
+        ns_driver = profile.ns_driver_seat()  # type: ignore[call-arg]
     except AttributeError:
-        # Older HandProfile instances without the helper:
-        # keep the original "N drives, S responds" behaviour.
+        # Very old HandProfile instances without the helper:
+        # original “N drives, S responds” semantics.
         ns_driver = "N"
 
     if ns_driver not in ("N", "S"):
-        # Defensive: if someone ever mis-sets ns_role_mode, fall back.
+        # Defensive: if ns_role_mode is mis-set, fall back.
         ns_driver = "N"
 
-    ns_responder = "S" if ns_driver == "N" else "N"
+    ns_responder: Seat = "S" if ns_driver == "N" else "N"
     _apply_pair_coupling(ns_driver, ns_responder)
 
-    # EW still behaves as before: E is opener, W responder.
+    # EW: keep legacy behaviour – East is opener, West is responder.
     _apply_pair_coupling("E", "W")
 
     board_attempts = 0    

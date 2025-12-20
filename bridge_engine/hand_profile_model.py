@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+import random 
 
 class ProfileError(Exception):
     """Raised when a hand profile or its constraints are invalid."""
@@ -397,6 +398,19 @@ class SubProfile:
     opponents_contingent_suit_constraint: Optional[OpponentContingentSuitData] = None
     weight_percent: float = 0.0
 
+    # Phase 3: NS role classification for this subprofile relative to its seat.
+    # Values:
+    #   "driver"   – this subprofile is a candidate opener pattern for N-S
+    #   "follower" – this subprofile is a candidate responder pattern for N-S
+    #   "neutral"  – not tied to driver/follower logic (default, E/W, misc)
+    #
+    # Invariants (for the full design, *not yet enforced* here):
+    #   * For the N seat, each SubProfile is either "driver" or "follower"
+    #     (no other values once fully migrated).
+    #   * N_driver and N_follower sets are mutually exclusive.
+    #   * For E/W seats this stays "neutral".
+    ns_role_for_seat: str = "neutral"
+
     def __post_init__(self) -> None:
         active = [
             self.random_suit_constraint is not None,
@@ -429,6 +443,9 @@ class SubProfile:
                 else None
             ),
             "weight_percent": self.weight_percent,
+            # default defensively to "neutral" in case of older objects
+            "ns_role_for_seat": getattr(self, "ns_role_for_seat", "neutral"),
+       
         }
 
     @classmethod
@@ -454,7 +471,10 @@ class SubProfile:
                 if oc_data is not None
                 else None
             ),
-            weight_percent=weight_percent,
+            weight_percent=float(data.get("weight_percent", 0.0)),
+            # NEW: subprofile-level NS role metadata
+            ns_role_for_seat=str(data.get("ns_role_for_seat", "neutral")),
+       
         )
 
 
@@ -657,35 +677,86 @@ class HandProfile:
         if self.tag not in ("Opener", "Overcaller"):
             raise ProfileError("tag must be 'Opener' or 'Overcaller'.")
 
-    # NEW helper: single place that defines the NS “driver” seat
-    def ns_driver_seat(self) -> str:
+    def ns_driver_seat(self, rng: Optional[random.Random] = None) -> Seat:
         """
-        Return 'N' or 'S' to indicate who usually drives the auction for NS.
+        Decide which NS seat is the 'driver' for this profile.
 
-        For Phase 3 scaffolding:
-        - 'north_drives'       -> 'N'
-        - 'south_drives'       -> 'S'
-        - 'random_driver'      -> currently treated as 'N' to preserve Phase 2
-                                  behaviour; generator logic will be updated in
-                                  a later step.
-        - any unknown/garbage  -> fallback to 'N' as a safe default.
+        For now, this is primarily metadata that F3 uses to choose which
+        NS seat is treated as the opener when coupling subprofiles.
+
+        Modes:
+        - "north_drives"   -> always "N"
+        - "south_drives"   -> always "S"
+        - "random_driver"  -> "N" or "S", using provided rng if available,
+                              otherwise a deterministic fallback to "N"
+
+        Any unexpected value falls back to "N".
         """
         mode = getattr(self, "ns_role_mode", "north_drives")
 
-        if mode == "south_drives":
-            return "S"
-
         if mode == "north_drives":
             return "N"
-
+        if mode == "south_drives":
+            return "S"
         if mode == "random_driver":
-            # Phase 3 behaviour to be implemented later; for now we keep
-            # existing semantics by behaving like north_drives.
-            return "N"
+            if rng is None:
+                # Keep behaviour deterministic if no RNG is supplied.
+                return "N"
+            return rng.choice(["N", "S"])
 
-        # Unknown value – fail safe and behave like legacy.
+        # Defensive fallback for unknown modes.
         return "N"
+        
+    def ns_role_buckets(self) -> Dict[str, Dict[str, List["SubProfile"]]]:
+        """
+        Group N/S subprofiles by their NS-role for that seat.
 
+        Returns a mapping like:
+
+        {
+            "N": {
+                "driver":   [SubProfile, ...],
+                "follower": [SubProfile, ...],
+                "neutral":  [SubProfile, ...],
+            },
+            "S": {
+                "driver":   [...],
+                "follower": [...],
+                "neutral":  [...],
+            },
+        }
+
+        Seats that are missing from seat_profiles are omitted.
+
+        Notes
+        -----
+        - Uses SubProfile.ns_role_for_seat if present.
+        - Any missing/falsey/unknown value is treated as "neutral".
+        - This is metadata-only; it does not change any generator behaviour.
+        """
+        buckets: Dict[str, Dict[str, List["SubProfile"]]] = {}
+
+        for seat in ("N", "S"):
+            seat_profile = self.seat_profiles.get(seat)
+            if seat_profile is None:
+                continue
+
+            seat_buckets: Dict[str, List["SubProfile"]] = {
+                "driver": [],
+                "follower": [],
+                "neutral": [],
+            }
+
+            for sub in seat_profile.subprofiles:
+                # Default to neutral for legacy/unspecified values
+                role = getattr(sub, "ns_role_for_seat", "neutral") or "neutral"
+                if role not in ("driver", "follower", "neutral"):
+                    role = "neutral"
+                seat_buckets[role].append(sub)
+
+            buckets[seat] = seat_buckets
+
+        return buckets
     # ------------------------------------------------------------------
     # Persistence helpers (JSON-friendly dicts)
     # ------------------------------------------------------------------

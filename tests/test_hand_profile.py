@@ -1,6 +1,8 @@
 from __future__ import annotations
+from dataclasses import replace
 
 import pytest
+import random
 
 from bridge_engine.hand_profile import (
     SuitRange,
@@ -143,6 +145,95 @@ def test_standard_constraints_bad_total_hcp_range_raises() -> None:
             total_max_hcp=10,
         )
 
+# New tests for NS role metadata helpers
+def test_ns_driver_seat_defaults_to_north(make_valid_profile) -> None:
+    """
+    If ns_role_mode is not explicitly set, ns_driver_seat()
+    should default to North (backwards compatible).
+    """
+    profile = make_valid_profile()
+    # Default ns_role_mode on the model is "north_drives"
+    assert profile.ns_driver_seat() == "N"
+
+
+def test_ns_driver_seat_respects_ns_role_mode(make_valid_profile) -> None:
+    """
+    ns_driver_seat() should reflect ns_role_mode when explicitly set.
+    """
+    profile = make_valid_profile()
+
+    # South drives → S
+    profile.ns_role_mode = "south_drives"
+    assert profile.ns_driver_seat() == "S"
+
+    # North drives → N
+    profile.ns_role_mode = "north_drives"
+    assert profile.ns_driver_seat() == "N"
+
+    # Any unknown / future value should safely fall back to North
+    profile.ns_role_mode = "something_weird"
+    assert profile.ns_driver_seat() == "N"
+
+def test_ns_role_buckets_all_neutral_for_legacy_profiles(make_valid_profile) -> None:
+    """
+    For existing profiles (no ns_role_for_seat metadata),
+    ns_role_buckets() should classify all N/S subprofiles as neutral.
+    """
+    profile = make_valid_profile()
+
+    buckets = profile.ns_role_buckets()
+
+    for seat in ("N", "S"):
+        seat_buckets = buckets.get(seat)
+        # We expect a bucket entry for each NS seat
+        assert seat_buckets is not None
+        assert seat_buckets["driver"] == []
+        assert seat_buckets["follower"] == []
+        # Legacy profiles should still have at least one neutral subprofile
+        assert len(seat_buckets["neutral"]) >= 1
+
+def test_ns_role_mode_default_and_roundtrip(make_valid_profile) -> None:
+    profile = make_valid_profile()
+    # default on freshly-created profiles
+    assert profile.ns_role_mode == "north_drives"
+    assert profile.ns_driver_seat() == "N"
+
+    # round-trip via dict
+    data = profile.to_dict()
+    rebuilt = HandProfile.from_dict(data)
+    assert rebuilt.ns_role_mode == "north_drives"
+    assert rebuilt.ns_driver_seat() == "N"
+
+def test_ns_role_mode_defaults_for_legacy_dict(make_valid_profile) -> None:
+    profile = make_valid_profile()
+    data = profile.to_dict()
+
+    # Simulate an old on-disk profile with no ns_role_mode
+    data.pop("ns_role_mode", None)
+    data["schema_version"] = 0
+
+    validated = validate_profile(data)
+    assert validated.ns_role_mode == "north_drives"
+    assert validated.ns_driver_seat() == "N"
+
+def test_ns_driver_seat_south_drives(make_valid_profile) -> None:
+    profile = make_valid_profile()
+    profile = replace(profile, ns_role_mode="south_drives")
+    assert profile.ns_driver_seat() == "S"
+
+def test_ns_driver_seat_random_driver_only_ns(make_valid_profile) -> None:
+    profile = make_valid_profile()
+    profile = replace(profile, ns_role_mode="random_driver")
+
+    rng = random.Random(12345)
+    for _ in range(20):
+        seat = profile.ns_driver_seat(rng)
+        assert seat in ("N", "S")
+
+def test_ns_driver_seat_invalid_mode_falls_back_to_n(make_valid_profile) -> None:
+    profile = make_valid_profile()
+    profile = replace(profile, ns_role_mode="totally_bogus")
+    assert profile.ns_driver_seat() == "N"
 
 def test_rotate_default_on_new_profile_is_true(make_valid_profile) -> None:
     """
