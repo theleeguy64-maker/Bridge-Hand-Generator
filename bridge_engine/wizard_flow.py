@@ -18,7 +18,7 @@ profiles so that both the CLI and tests can rely on a single behaviour.
 #   - clear_screen()
 # 
 # Builder / flow helpers patched by tests:
-#   - _build_seat_profile(seat: str)
+#   - _build_Opponent seat_profile(seat: str)
 #   - _build_profile(existing: Optional[HandProfile] = None)
 #   - create_profile_interactive()
 #   - edit_constraints_interactive(existing: HandProfile)
@@ -93,9 +93,45 @@ def _input_int(prompt: str, default: int, minimum: int, maximum: int, show_range
         prompt, default=default, minimum=minimum, maximum=maximum, show_range_suffix=show_range_suffix
     )
 
-def _input_choice(prompt: str, options, default=None):
-    return _pw_attr("_input_choice", wiz_io._input_choice)(prompt, options, default)
+def _input_choice(
+    prompt: str,
+    options: Sequence[str],
+    default: Optional[str] = None,
+) -> str:
+    """
+    Prompt the user to choose from options.
 
+    - Case-insensitive input (e.g. 'w' → 'W')
+    - Returns the canonical option string from `options`.
+    """
+    if not options:
+        raise ValueError("_input_choice requires at least one option")
+
+    # Build a map from normalised key -> canonical option
+    norm_map = {opt.upper(): opt for opt in options}
+    default_norm = default.upper() if default is not None else None
+
+    options_str = "/".join(options)
+    while True:
+        raw = wiz_io.prompt_str(
+            f"{prompt} ({options_str})"
+            + (f" [{default}]" if default is not None else "")
+            + ": ",
+            default=default if default is not None else "",
+        )
+        key = raw.strip().upper()
+
+        # Empty input → default (if any) or first option
+        if not key:
+            if default_norm is not None and default_norm in norm_map:
+                return norm_map[default_norm]
+            return options[0]
+
+        if key in norm_map:
+            return norm_map[key]
+
+        print(f"Please enter one of: {options_str}")
+    
 def _input_float_with_default(prompt: str, default: float) -> float:
     return _pw_attr("_input_float_with_default", wiz_io._input_float_with_default)(prompt, default)
 
@@ -540,27 +576,26 @@ def _prompt_suit_range(
         "  Min cards",
         0,
         13,
-        default=default_min_cards,
+        default_min_cards,
     )
     max_cards = prompt_int(
         "  Max cards",
         0,
         13,
-        default=default_max_cards,
+        default_max_cards,
     )
     min_hcp = prompt_int(
         "  Min HCP",
         0,
         10,
-        default=default_min_hcp,
+        default_min_hcp,
     )
     max_hcp = prompt_int(
         "  Max HCP",
         0,
         10,
-        default=default_max_hcp,
+        default_max_hcp,
     )
-
     return SuitRange(
         min_cards=min_cards,
         max_cards=max_cards,

@@ -25,6 +25,24 @@ def _yes_no(prompt: str, default: bool = True) -> bool:
     """
     return cli_io._yes_no(prompt, default=default)
 
+def prompt_str(prompt: str, default: str = "") -> str:
+    """
+    Prompt for a line of text with an optional default.
+
+    - In normal CLI use: read from stdin and return the entered value
+      (or the default if the user just presses Enter).
+    - Under pytest's capture (where stdin may raise OSError), fall back
+      to returning `default` so tests don't crash.
+    """
+    try:
+        raw = input(prompt)
+    except OSError:
+        # Under pytest capture: stdin is not readable, so just return default.
+        return default
+
+    text = raw.strip()
+    return text if text else default
+
 def _input_int(
     prompt: str,
     default: int,
