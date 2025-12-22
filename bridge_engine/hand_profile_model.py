@@ -397,7 +397,8 @@ class SubProfile:
     partner_contingent_constraint: Optional[PartnerContingentData] = None
     opponents_contingent_suit_constraint: Optional[OpponentContingentSuitData] = None
     weight_percent: float = 0.0
-
+    ns_role_usage: str = "any"
+       
     # Phase 3: NS role classification for this subprofile relative to its seat.
     # Values:
     #   "driver"   – this subprofile is a candidate opener pattern for N-S
@@ -448,36 +449,38 @@ class SubProfile:
        
         }
 
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SubProfile":
-        rsc_data = data.get("random_suit_constraint")
-        pc_data = data.get("partner_contingent_constraint")
-        oc_data = data.get("opponents_contingent_suit_constraint")
-        weight_percent = float(data.get("weight_percent", 0.0))
-        return cls(
-            standard=StandardSuitConstraints.from_dict(data["standard"]),
-            random_suit_constraint=(
-                RandomSuitConstraintData.from_dict(rsc_data)
-                if rsc_data is not None
-                else None
-            ),
-            partner_contingent_constraint=(
-                PartnerContingentData.from_dict(pc_data)
-                if pc_data is not None
-                else None
-            ),
-            opponents_contingent_suit_constraint=(
-                OpponentContingentSuitData.from_dict(oc_data)
-                if oc_data is not None
-                else None
-            ),
-            weight_percent=float(data.get("weight_percent", 0.0)),
-            # NEW: subprofile-level NS role metadata
-            ns_role_for_seat=str(data.get("ns_role_for_seat", "neutral")),
-       
-        )
+@classmethod
+def from_dict(cls, data: Dict[str, Any]) -> "SubProfile":
+    rsc_data = data.get("random_suit_constraint")
+    pc_data = data.get("partner_contingent_constraint")
+    oc_data = data.get("opponents_contingent_suit_constraint")
+    weight_percent = float(data.get("weight_percent", 0.0))
 
-
+    return cls(
+        standard=StandardSuitConstraints.from_dict(data["standard"]),
+        random_suit_constraint=(
+            RandomSuitConstraintData.from_dict(rsc_data)
+            if rsc_data is not None
+            else None
+        ),
+        partner_contingent_constraint=(
+            PartnerContingentData.from_dict(pc_data)
+            if pc_data is not None
+            else None
+        ),
+        opponents_contingent_suit_constraint=(
+            OpponentContingentSuitData.from_dict(oc_data)
+            if oc_data is not None
+            else None
+        ),
+        weight_percent=weight_percent,
+        # NEW: subprofile-level NS role metadata.
+        # Backwards-compatible: legacy JSON that doesn't have this key
+        # will default to "any".
+        # Allowed values: "any", "driver_only", "follower_only".
+        ns_role_usage=str(data.get("ns_role_usage", "any")),
+    )
+    
 @dataclass(frozen=True)
 class SubprofileExclusionClause:
     group: str      # "ANY", "MAJOR", "MINOR"
@@ -497,76 +500,109 @@ class SubprofileExclusionClause:
 
 
 @dataclass(frozen=True)
-class SubprofileExclusionData:
-    seat: str
-    subprofile_index: int  # 1-based
-    excluded_shapes: Optional[List[str]] = None
-    clauses: Optional[List[SubprofileExclusionClause]] = None
+class SubProfile:
+    """
+    A single sub-profile for one seat.
+
+    At most one of
+      - random_suit_constraint
+      - partner_contingent_constraint
+      - opponents_contingent_suit_constraint
+    may be present, or none (Standard-only).
+
+    Phase 3: ns_role_usage controls how this subprofile is used when NS
+    driver/follower semantics are enabled on the HandProfile. For E/W seats
+    this should effectively remain "any".
+    """
+
+    standard: StandardSuitConstraints
+    random_suit_constraint: Optional[RandomSuitConstraintData] = None
+    partner_contingent_constraint: Optional[PartnerContingentData] = None
+    opponents_contingent_suit_constraint: Optional[OpponentContingentSuitData] = None
+    weight_percent: float = 0.0
+
+    # Phase 3: NS role classification for this subprofile (for N/S seats).
+    #
+    # Allowed values:
+    #   - "any"           – usable whether the seat is NS driver or follower
+    #   - "driver_only"   – only usable when this seat is the NS driver
+    #   - "follower_only" – only usable when this seat is the NS follower
+    #
+    # For legacy profiles and for EW seats, this defaults to "any".
+    ns_role_usage: str = "any"
 
     def to_dict(self) -> Dict[str, Any]:
-        out: Dict[str, Any] = {
-            "seat": self.seat,
-            "subprofile_index": self.subprofile_index,
+        return {
+            "standard": self.standard.to_dict(),
+            "random_suit_constraint": (
+                self.random_suit_constraint.to_dict()
+                if self.random_suit_constraint is not None
+                else None
+            ),
+            "partner_contingent_constraint": (
+                self.partner_contingent_constraint.to_dict()
+                if self.partner_contingent_constraint is not None
+                else None
+            ),
+            "opponents_contingent_suit_constraint": (
+                self.opponents_contingent_suit_constraint.to_dict()
+                if self.opponents_contingent_suit_constraint is not None
+                else None
+            ),
+            "weight_percent": self.weight_percent,
+            # JSON field name for Phase 3 metadata.
+            "ns_role_usage": getattr(self, "ns_role_usage", "any"),
         }
-        if self.excluded_shapes is not None:
-            out["excluded_shapes"] = list(self.excluded_shapes)
-        if self.clauses is not None:
-            out["clauses"] = [c.to_dict() for c in self.clauses]
-        return out
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SubprofileExclusionData":
-        clauses_data = data.get("clauses")
+    def from_dict(cls, data: Dict[str, Any]) -> "SubProfile":
+        """
+        Backwards compatible loader for SubProfile, including Phase 3 metadata.
+
+        Supports both:
+          - new-style "ns_role_usage" (preferred)
+          - earlier experimental "ns_role_for_seat" (mapped to usage)
+        """
+        rsc_data = data.get("random_suit_constraint")
+        pc_data = data.get("partner_contingent_constraint")
+        oc_data = data.get("opponents_contingent_suit_constraint")
+
+        # Resolve NS role usage with legacy key support.
+        if "ns_role_usage" in data:
+            ns_role_usage = str(data["ns_role_usage"])
+        elif "ns_role_for_seat" in data:
+            legacy_role = str(data["ns_role_for_seat"]).lower()
+            if legacy_role == "driver":
+                ns_role_usage = "driver_only"
+            elif legacy_role == "follower":
+                ns_role_usage = "follower_only"
+            else:
+                # "neutral" or anything else → "any"
+                ns_role_usage = "any"
+        else:
+            ns_role_usage = "any"
+
         return cls(
-            seat=str(data["seat"]),
-            subprofile_index=int(data["subprofile_index"]),
-            excluded_shapes=data.get("excluded_shapes"),
-            clauses=[SubprofileExclusionClause.from_dict(d) for d in clauses_data] if clauses_data else None,
+            standard=StandardSuitConstraints.from_dict(data["standard"]),
+            random_suit_constraint=(
+                RandomSuitConstraintData.from_dict(rsc_data)
+                if rsc_data is not None
+                else None
+            ),
+            partner_contingent_constraint=(
+                PartnerContingentData.from_dict(pc_data)
+                if pc_data is not None
+                else None
+            ),
+            opponents_contingent_suit_constraint=(
+                OpponentContingentSuitData.from_dict(oc_data)
+                if oc_data is not None
+                else None
+            ),
+            weight_percent=float(data.get("weight_percent", 0.0)),
+            ns_role_usage=ns_role_usage,
         )
-
-    def validate(self, profile: "HandProfile") -> None:
-        if self.seat not in ("N", "E", "S", "W"):
-            raise ProfileError(f"Invalid seat in exclusion: {self.seat}")
-
-        sp = profile.seat_profiles.get(self.seat)
-        if sp is None:
-            raise ProfileError(f"Seat {self.seat} not present in profile")
-
-        if not (1 <= self.subprofile_index <= len(sp.subprofiles)):
-            raise ProfileError(
-                f"Invalid subprofile_index={self.subprofile_index} for seat {self.seat}"
-            )
-
-        if self.excluded_shapes and self.clauses:
-            raise ProfileError("Exclusion may specify either excluded_shapes or clauses, not both")
-        if not self.excluded_shapes and not self.clauses:
-            raise ProfileError("Exclusion must specify excluded_shapes or clauses")
-
-        if self.excluded_shapes:
-            seen: set[str] = set()
-            for s in self.excluded_shapes:
-                if s in seen:
-                    raise ProfileError(f"Duplicate excluded shape: {s}")
-                seen.add(s)
-                if not (isinstance(s, str) and len(s) == 4 and s.isdigit()):
-                    raise ProfileError(f"Invalid shape: {s}")
-                digits = [int(c) for c in s]
-                if sum(digits) != 13:
-                    raise ProfileError(f"Shape does not sum to 13: {s}")
-
-        if self.clauses:
-            if not (1 <= len(self.clauses) <= 2):
-                raise ProfileError("Exclusion may have at most 2 clauses")
-
-            for c in self.clauses:
-                if c.group not in ("ANY", "MAJOR", "MINOR"):
-                    raise ProfileError(f"Invalid group: {c.group}")
-                if not (0 <= c.length_eq <= 13):
-                    raise ProfileError(f"Invalid length_eq: {c.length_eq}")
-                max_count = 4 if c.group == "ANY" else 2
-                if not (0 <= c.count <= max_count):
-                    raise ProfileError(f"Invalid count {c.count} for group {c.group}")
-
+        
 @dataclass(frozen=True)
 class SeatProfile:
     """
@@ -707,56 +743,63 @@ class HandProfile:
         # Defensive fallback for unknown modes.
         return "N"
         
-    def ns_role_buckets(self) -> Dict[str, Dict[str, List["SubProfile"]]]:
+    def ns_role_buckets(self) -> Dict[Seat, Dict[str, List[SubProfile]]]:
         """
-        Group N/S subprofiles by their NS-role for that seat.
+        For NS seats only, group subprofiles into three buckets by ns_role_usage:
 
-        Returns a mapping like:
+          - "driver":   subprofiles usable when the seat is the NS driver
+          - "follower": subprofiles usable when the seat is the NS follower
+          - "neutral":  subprofiles usable in either role (or with no metadata)
 
-        {
-            "N": {
-                "driver":   [SubProfile, ...],
-                "follower": [SubProfile, ...],
-                "neutral":  [SubProfile, ...],
-            },
-            "S": {
-                "driver":   [...],
-                "follower": [...],
-                "neutral":  [...],
-            },
-        }
-
-        Seats that are missing from seat_profiles are omitted.
-
-        Notes
-        -----
-        - Uses SubProfile.ns_role_for_seat if present.
-        - Any missing/falsey/unknown value is treated as "neutral".
-        - This is metadata-only; it does not change any generator behaviour.
+        EW seats are currently treated as neutral for Phase 3; we still
+        return empty bucket dicts for completeness.
         """
-        buckets: Dict[str, Dict[str, List["SubProfile"]]] = {}
+        buckets: Dict[Seat, Dict[str, List[SubProfile]]] = {}
 
         for seat in ("N", "S"):
-            seat_profile = self.seat_profiles.get(seat)
-            if seat_profile is None:
-                continue
-
-            seat_buckets: Dict[str, List["SubProfile"]] = {
+            sp = self.seat_profiles.get(seat)
+            seat_buckets: Dict[str, List[SubProfile]] = {
                 "driver": [],
                 "follower": [],
                 "neutral": [],
             }
 
-            for sub in seat_profile.subprofiles:
-                # Default to neutral for legacy/unspecified values
-                role = getattr(sub, "ns_role_for_seat", "neutral") or "neutral"
-                if role not in ("driver", "follower", "neutral"):
-                    role = "neutral"
-                seat_buckets[role].append(sub)
+            if sp is not None:
+                for sub in sp.subprofiles:
+                    # Preferred Phase 3 field.
+                    usage = getattr(sub, "ns_role_usage", None)
+
+                    if usage is None:
+                        # Legacy experimental metadata: ns_role_for_seat
+                        legacy_role = getattr(sub, "ns_role_for_seat", "neutral")
+                        legacy_role = str(legacy_role).lower()
+                        if legacy_role == "driver":
+                            seat_buckets["driver"].append(sub)
+                        elif legacy_role == "follower":
+                            seat_buckets["follower"].append(sub)
+                        else:
+                            seat_buckets["neutral"].append(sub)
+                        continue
+
+                    usage_lc = str(usage).lower()
+                    if usage_lc == "driver_only":
+                        seat_buckets["driver"].append(sub)
+                    elif usage_lc == "follower_only":
+                        seat_buckets["follower"].append(sub)
+                    else:
+                        # "any" or anything else we treat as neutral.
+                        seat_buckets["neutral"].append(sub)
 
             buckets[seat] = seat_buckets
 
-        return buckets
+        # Ensure EW are present with empty buckets so callers don't need
+        # special cases.
+        for seat in ("E", "W"):
+            if seat not in buckets:
+                buckets[seat] = {"driver": [], "follower": [], "neutral": []}
+
+        return buckets    
+        
     # ------------------------------------------------------------------
     # Persistence helpers (JSON-friendly dicts)
     # ------------------------------------------------------------------

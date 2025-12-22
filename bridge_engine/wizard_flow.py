@@ -155,8 +155,40 @@ def _input_choice(
 
         print(f"Please enter one of: {options_str}")
     
-def _input_float_with_default(prompt: str, default: float) -> float:
-    return _pw_attr("_input_float_with_default", wiz_io._input_float_with_default)(prompt, default)
+def _input_float_with_default(
+    prompt: str,
+    default: float,
+    *,
+    min_value: float = 0.0,
+    max_value: float = 100.0,
+) -> float:
+    """
+    Prompt for a float with a default and optional min/max bounds.
+
+    Accepts keyword arguments min_value / max_value so that existing call
+    sites like _input_float_with_default(..., min_value=0.0, max_value=100.0)
+    continue to work.
+
+    Returns a validated float.
+    """
+    while True:
+        raw = _input_with_default(prompt, str(default))
+
+        # Allow empty → default, in case callers bypass _input_with_default
+        if raw.strip() == "":
+            return default
+
+        try:
+            value = float(raw)
+        except ValueError:
+            print("Please enter a numeric value.")
+            continue
+
+        if value < min_value or value > max_value:
+            print(f"Please enter a value between {min_value} and {max_value}.")
+            continue
+
+        return value
 
 def clear_screen() -> None:
     return _pw_attr("clear_screen", wiz_io.clear_screen)()
@@ -491,6 +523,31 @@ def _build_suit_range_for_prompt(
         min_hcp=min_hcp_val,
         max_hcp=max_hcp_val,
     )
+
+def _autosave_profile_draft(
+    profile: "HandProfile",
+    original_path: Optional[Path],
+) -> None:
+    """
+    Best-effort autosave of an in-progress profile edit.
+
+    Behaviour:
+      - Only runs when we know the original JSON path (editing an existing profile).
+      - Writes to a sibling `<stem>_TEST.json` file next to the original.
+      - Uses profile.to_dict(), so it stays consistent with normal save logic.
+      - Any exception is printed as a warning; the wizard continues.
+    """
+    # No original on-disk file (e.g. brand new profile) → nothing to autosave.
+    if original_path is None:
+        return
+
+    draft_path = original_path.with_name(original_path.stem + "_TEST.json")
+
+    try:
+        payload = profile.to_dict()
+        draft_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    except Exception as exc:  # pragma: no cover – best-effort only
+        print(f"⚠️ Autosave failed for {draft_path}: {exc}")
 
 from typing import List, Optional, Sequence  # keep this near the top of the file
 
@@ -1261,30 +1318,34 @@ def _build_profile(existing: Optional[HandProfile] = None) -> dict:
             current_all=subprofile_exclusions,
         )
 
-        # NEW: autosave after each seat so you don't lose work if it crashes later.
-        try:
-            snapshot = HandProfile(
-                profile_name=profile_name,
-                description=description,
-                dealer=dealer,
-                hand_dealing_order=hand_dealing_order,
-                tag=tag,
-                seat_profiles=dict(seat_profiles),  # shallow copy so far
-                author=author,
-                version=version,
-                rotate_deals_by_default=rotate_by_default,
-                # keep defaults/metas consistent
-                ns_role_mode=getattr(existing, "ns_role_mode", "north_drives")
+            # --- Autosave draft after each seat (best-effort) ---
+    try:
+        # Build a snapshot HandProfile so we can save a draft JSON.
+        snapshot = HandProfile(
+            profile_name=profile_name,
+            description=description,
+            dealer=dealer,
+            hand_dealing_order=hand_dealing_order,
+            tag=tag,
+            seat_profiles=seat_profiles,
+            author=author,
+            version=version,
+            rotate_deals_by_default=rotate_by_default,
+            # Metadata for NS driver/follower – default north_drives if missing
+            ns_role_mode=(
+                getattr(existing, "ns_role_mode", "north_drives")
                 if existing is not None
-                else "north_drives",
-                subprofile_exclusions=list(
-                    getattr(existing, "subprofile_exclusions", [])
-                ),
-            )
-            _autosave_profile_draft(snapshot)
-        except Exception as exc:
-            print(f"⚠️ Autosave failed after seat {seat}: {exc}")
-
+                else "north_drives"
+            ),
+            # Keep any existing exclusions; wizard may add more elsewhere
+            subprofile_exclusions=list(
+                getattr(existing, "subprofile_exclusions", [])
+            ),
+        )
+        _autosave_profile_draft(snapshot)
+    except Exception as exc:  # pragma: no cover – autosave is best-effort
+        print(f"⚠️ Autosave failed after seat {seat}: {exc}")        
+                    
     # ----- Final kwargs dict for HandProfile -----
     ns_role_mode = (
         getattr(existing, "ns_role_mode", "north_drives")
@@ -1326,18 +1387,28 @@ def create_profile_interactive() -> HandProfile:
     profile = _build_profile(existing=None)
     return profile
 
-def edit_constraints_interactive(existing: HandProfile) -> HandProfile:
+def edit_constraints_interactive(
+    existing: HandProfile,
+    profile_path: Optional[Path] = None,
+) -> HandProfile:
     """
     Top-level helper for editing only the constraints of an existing profile.
 
     Metadata (name, description, tag, author, version) are preserved from
     the existing profile. Dealer and dealing order are also preserved.
+
+    If profile_path is provided, the wizard will autosave a draft
+    '<original_name>_TEST.json' after each seat is edited.
     """
     clear_screen()
     print("=== Edit Constraints for Profile ===")
     print(f"Profile: {existing.profile_name}")
     print(f"Dealer : {existing.dealer}")
-    print(f"Order  : {existing.hand_dealing_order}")
+    print(f"Order  : {list(existing.hand_dealing_order)}\n")
 
-    updated = _build_profile(existing=existing)
-    return updated
+    # IMPORTANT: pass original_path through so autosave knows where to write
+    kwargs = _build_profile(existing=existing, original_path=profile_path)
+
+    profile = HandProfile(**kwargs)
+    validate_profile(profile)
+    return profile
