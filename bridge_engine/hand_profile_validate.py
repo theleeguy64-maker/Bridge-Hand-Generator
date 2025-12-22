@@ -158,6 +158,84 @@ def _normalise_subprofile_weights(raw: Dict[str, Any]) -> None:
         # Last one takes the slack so we hit 100.0 exactly.
         sub_list[-1]["weight_percent"] = 100.0 - running
 
+def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
+    """
+    Ensure that for each NS seat and each role that can occur under
+    ns_role_mode, there is at least one compatible SubProfile.
+
+    ns_role_usage semantics (per SubProfile):
+      - "any"           → can be used whether the seat is driver or follower
+      - "driver_only"   → only usable when this seat is the NS driver
+      - "follower_only" → only usable when this seat is the NS follower
+
+    This guarantees that F3 (or any future NS-role-aware logic) can always
+    pick at least one eligible subprofile for N and S for every role the
+    profile configuration might require.
+
+    Backwards-compatible:
+      - If ns_role_mode is missing → treated as "north_drives".
+      - If a SubProfile has no ns_role_usage → treated as "any".
+      - If a seat has no subprofiles → skipped.
+    """
+
+    # Only relevant if N or S actually has subprofiles.
+    ns_seats: list[Seat] = [
+        seat
+        for seat in ("N", "S")
+        if seat in profile.seat_profiles
+        and getattr(profile.seat_profiles[seat], "subprofiles", None)
+    ]
+    if not ns_seats:
+        return
+
+    # Normalise ns_role_mode with backwards-compatible default.
+    mode = getattr(profile, "ns_role_mode", "north_drives") or "north_drives"
+    if mode not in ("north_drives", "south_drives", "random_driver"):
+        # Defensive: unknown future mode → assume both roles possible.
+        mode = "random_driver"
+
+    def roles_for(seat: Seat) -> set[str]:
+        """Return roles ('driver', 'follower') that this seat may take."""
+        if seat not in ("N", "S"):
+            return set()
+
+        if mode == "north_drives":
+            # N drives, S follows.
+            return {"driver"} if seat == "N" else {"follower"}
+        if mode == "south_drives":
+            # S drives, N follows.
+            return {"driver"} if seat == "S" else {"follower"}
+
+        # random_driver (or unknown mapped to it):
+        # either N or S may be driver or follower.
+        return {"driver", "follower"}
+
+    def has_compatible_usage(sub: SubProfile, allowed: tuple[str, str]) -> bool:
+        usage = getattr(sub, "ns_role_usage", "any") or "any"
+        return usage in allowed
+
+    for seat in ("N", "S"):
+        sp = profile.seat_profiles.get(seat)
+        if sp is None or not getattr(sp, "subprofiles", None):
+            continue
+
+        roles = roles_for(seat)
+        if not roles:
+            continue
+
+        for role in sorted(roles):
+            if role == "driver":
+                allowed = ("any", "driver_only")
+            else:
+                allowed = ("any", "follower_only")
+
+            if not any(has_compatible_usage(sub, allowed) for sub in sp.subprofiles):
+                raise ProfileError(
+                    "Invalid NS role configuration: seat "
+                    f"{seat} may act as {role} under ns_role_mode={mode!r}, "
+                    "but no subprofile has ns_role_usage in "
+                    f"{allowed}."
+                )
 
 def _validate_partner_contingent(profile: HandProfile) -> None:
     """
@@ -300,5 +378,10 @@ def validate_profile(data: Any) -> HandProfile:
     # -----------------------------------
     _validate_partner_contingent(profile)
     _validate_opponent_contingent(profile)
+    _validate_ns_role_usage_coverage(profile)
+
+    # Validate subprofile exclusions (if present)
+    for exc in getattr(profile, "subprofile_exclusions", []):
+        exc.validate(profile)
 
     return profile

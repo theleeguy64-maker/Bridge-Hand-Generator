@@ -40,6 +40,7 @@ profiles so that both the CLI and tests can rely on a single behaviour.
 from __future__ import annotations
 
 import inspect
+import json
 from dataclasses import asdict
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -92,6 +93,28 @@ def _input_int(prompt: str, default: int, minimum: int, maximum: int, show_range
     return _pw_attr("_input_int", wiz_io._input_int)(
         prompt, default=default, minimum=minimum, maximum=maximum, show_range_suffix=show_range_suffix
     )
+
+def _autosave_draft_profile(path: Path, profile: HandProfile) -> None:
+    try:
+        if not hasattr(profile, "to_dict"):
+            return  # in tests, Dummy objects or strings – just skip
+        data = profile.to_dict()
+        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    except Exception as exc:  # pragma: no cover
+        print(f"⚠️ Autosave failed for {path}: {exc}")
+
+    test_path = profiles_dir / f"{safe_name}_TEST.json"
+
+    try:
+        data = profile.to_dict() if hasattr(profile, "to_dict") else profile.__dict__
+        text = json.dumps(data, indent=2)
+        profiles_dir.mkdir(parents=True, exist_ok=True)
+        test_path.write_text(text, encoding="utf-8")
+        # You could add a very quiet debug print if you like:
+        # print(f"[autosave] wrote {test_path}")
+    except Exception as exc:
+        # Never let autosave kill the wizard
+        print(f"⚠️ Autosave failed for {test_path}: {exc}")
 
 def _input_choice(
     prompt: str,
@@ -219,7 +242,7 @@ def _build_exclusion_rule(
             SubprofileExclusionClause(group=group, length_eq=length_eq, count=count)
         )
 
-        if idx < max_clauses and not _yes_no("Add a second clause? (y/N): ", default=False):
+        if idx < max_clauses and not _yes_no("Add a second clause? ", default=False):
             break
 
     return SubprofileExclusionData(
@@ -228,6 +251,16 @@ def _build_exclusion_rule(
         excluded_shapes=None,
         clauses=clauses,
     )
+
+# Near other small helpers in wizard_flow.py
+
+def _default_dealing_order_for_dealer(dealer: Seat) -> list[Seat]:
+    """Return a sensible default dealing order given a dealer."""
+    base: list[Seat] = ["N", "E", "S", "W"]
+    if dealer not in base:
+        return base
+    idx = base.index(dealer)
+    return base[idx:] + base[:idx]
 
 def _edit_subprofile_exclusions(
     existing: Optional[HandProfile],
@@ -242,14 +275,14 @@ def _edit_subprofile_exclusions(
             return list(current)
     if existing is not None and getattr(existing, "subprofile_exclusions", None):
         # Default: keep existing unless user explicitly edits
-        if not _yes_no("Edit sub-profile exclusions? (y/N): ", default=False):
+        if not _yes_no("Edit sub-profile exclusions? ", default=False):
             return list(existing.subprofile_exclusions)
 
-        if _yes_no("Start from existing exclusions? (Y/n): ", default=True):
+        if _yes_no("Start from existing exclusions? ", default=True):
             current = list(existing.subprofile_exclusions)
 
         # Optional delete pass
-        if current and _yes_no("Remove any existing exclusion entries? (y/N): ", default=False):
+        if current and _yes_no("Remove any existing exclusion entries?  ", default=False):
             while current:
                 print("\nCurrent exclusions:")
                 for i, e in enumerate(current, start=1):
@@ -276,7 +309,7 @@ def _edit_subprofile_exclusions(
 
     else:
         # No existing exclusions; ask if user wants to add any.
-        if not _yes_no("Add any sub-profile exclusions? (y/N): ", default=False):
+        if not _yes_no("Add any sub-profile exclusions? ", default=False):
             return []
 
     # Add loop
@@ -285,7 +318,7 @@ def _edit_subprofile_exclusions(
         sp = seat_profiles.get(seat)
         if sp is None or not getattr(sp, "subprofiles", None):
             print(f"Seat {seat} has no sub-profiles; cannot attach exclusions.")
-            if not _yes_no("Add another exclusion? (y/N): ", default=False):
+            if not _yes_no("Add another exclusion? ", default=False):
                 break
             continue
 
@@ -299,7 +332,7 @@ def _edit_subprofile_exclusions(
         exc = _build_exclusion_rule(seat=seat, subprofile_index=sub_idx)
         current.append(exc)
 
-        if not _yes_no("Add another exclusion? (y/N): ", default=False):
+        if not _yes_no("Add another exclusion? ", default=False):
             break
 
     return current
@@ -329,7 +362,7 @@ def _edit_subprofile_exclusions_for_seat(
     # If no existing for this seat, optionally skip
     default_edit = True if this_seat else False
     if not _yes_no(
-        f"Add/edit sub-profile exclusions for seat {seat}? (y/N): ",
+        f"Add/edit sub-profile exclusions for seat {seat}? ",
         default=default_edit,
     ):
         return current_all
@@ -343,7 +376,7 @@ def _edit_subprofile_exclusions_for_seat(
 
         # Simple edit loop: remove entries
         while True:
-            if not _yes_no("Remove any exclusion for this seat? (y/N): ", default=False):
+            if not _yes_no("Remove any exclusion for this seat? ", default=False):
                 break
             n = _input_int(
                 f"Which exclusion # to remove (1–{len(this_seat)})",
@@ -375,7 +408,7 @@ def _edit_subprofile_exclusions_for_seat(
 
         this_seat.append(exc)
 
-        if not _yes_no("Add another exclusion for this seat? (y/N): ", default=False):
+        if not _yes_no("Add another exclusion for this seat? ", default=False):
             break
 
     return other + this_seat
@@ -698,7 +731,7 @@ def _build_opponent_contingent_constraint(
     print("\nOpponent Contingent-Suit constraint:")
 
     want = _yes_no(
-        "Add / edit opponent contingent-suit constraint? (y/N): ",
+        "Add / edit opponent contingent-suit constraint? ",
         default=(existing is not None),
     )
     if not want:
@@ -1045,7 +1078,7 @@ def _assign_subprofile_weights_interactive(
         label = " (default)" if all(dw == defaults[0] for dw in defaults) else ""
         print(f"  Sub-profile {idx}: {w:.1f}% of deals{label}")
 
-    if not _yes_no("Do you want to edit these weights?", default=False):
+    if not _yes_no("Do you want to edit these weights? ", default=False):
         # Keep defaults (but we still need to write them back into the new objects).
         total = sum(defaults)
         # If total is 0 (it really shouldn't be), fall back to equal weights.
@@ -1100,7 +1133,7 @@ def _assign_subprofile_weights_interactive(
 
         break
 
-def _build_profile(existing: Optional[HandProfile] = None) -> HandProfile:
+def _build_profile(existing: Optional[HandProfile] = None) -> dict:
     """
     Core interactive flow to build (or rebuild) a HandProfile.
 
@@ -1109,7 +1142,8 @@ def _build_profile(existing: Optional[HandProfile] = None) -> HandProfile:
       • edit_constraints_interactive() (existing is a HandProfile)
     """
 
-    # Rotation is metadata; always have a value on all paths
+    # Rotation is metadata; always have a value on all paths.
+    # For existing profiles, default comes from existing.rotate_deals_by_default.
     rotate_by_default = getattr(existing, "rotate_deals_by_default", True)
 
     # ----- Metadata (and rotation flag) -----
@@ -1119,7 +1153,7 @@ def _build_profile(existing: Optional[HandProfile] = None) -> HandProfile:
         description = existing.description
         tag = existing.tag
         dealer = existing.dealer
-        hand_dealing_order = existing.hand_dealing_order
+        hand_dealing_order = list(existing.hand_dealing_order)
         author = getattr(existing, "author", "")
         version = getattr(existing, "version", "")
 
@@ -1146,18 +1180,32 @@ def _build_profile(existing: Optional[HandProfile] = None) -> HandProfile:
             "N",
         )
 
-        default_order = ["N", "E", "S", "W"]
-        print(f"Default dealing order is {default_order} (starting from dealer).")
-        if _yes_no("Use default dealing order?", default=True):
+        # Dealing order: default is a rotation of N,E,S,W starting from the dealer.
+        base_order = ["N", "E", "S", "W"]
+        if dealer in base_order:
+            idx = base_order.index(dealer)
+            default_order = base_order[idx:] + base_order[:idx]
+        else:
+            # Defensive fallback if dealer is somehow weird
+            default_order = base_order
+
+        pretty_default = "".join(default_order)
+        print(
+            f"Default dealing order (starting from dealer {dealer}) is {pretty_default}."
+        )
+
+        if _yes_no("Use default dealing order? ", default=True):
             hand_dealing_order = default_order
         else:
             order_str = _input_with_default(
                 "Enter custom dealing order as 4 letters (e.g. NESW): ",
-                "".join(default_order),
+                pretty_default,
             )
             order = [c.upper() for c in order_str.strip()]
             if len(order) != 4 or set(order) != {"N", "E", "S", "W"}:
-                print("Invalid dealing order; falling back to default NESW.")
+                print(
+                    f"Invalid dealing order; falling back to default {pretty_default}."
+                )
                 hand_dealing_order = default_order
             else:
                 hand_dealing_order = order
@@ -1173,7 +1221,6 @@ def _build_profile(existing: Optional[HandProfile] = None) -> HandProfile:
 
     # ----- Seat profiles (constraints) -----
     seat_profiles: Dict[str, SeatProfile] = {}
-
 
     subprofile_exclusions: List[SubprofileExclusionData] = list(
         getattr(existing, "subprofile_exclusions", []) if existing else []
@@ -1214,23 +1261,61 @@ def _build_profile(existing: Optional[HandProfile] = None) -> HandProfile:
             current_all=subprofile_exclusions,
         )
 
-    # ----- Construct final HandProfile -----
-    profile = _pw_attr("HandProfile", HandProfile)(
-        profile_name=profile_name,
-        description=description,
-        dealer=dealer,
-        hand_dealing_order=hand_dealing_order,
-        tag=tag,
-        seat_profiles=seat_profiles,
-        author=author,
-        version=version,
-        rotate_deals_by_default=rotate_by_default,
-        subprofile_exclusions=subprofile_exclusions,
+        # NEW: autosave after each seat so you don't lose work if it crashes later.
+        try:
+            snapshot = HandProfile(
+                profile_name=profile_name,
+                description=description,
+                dealer=dealer,
+                hand_dealing_order=hand_dealing_order,
+                tag=tag,
+                seat_profiles=dict(seat_profiles),  # shallow copy so far
+                author=author,
+                version=version,
+                rotate_deals_by_default=rotate_by_default,
+                # keep defaults/metas consistent
+                ns_role_mode=getattr(existing, "ns_role_mode", "north_drives")
+                if existing is not None
+                else "north_drives",
+                subprofile_exclusions=list(
+                    getattr(existing, "subprofile_exclusions", [])
+                ),
+            )
+            _autosave_profile_draft(snapshot)
+        except Exception as exc:
+            print(f"⚠️ Autosave failed after seat {seat}: {exc}")
+
+    # ----- Final kwargs dict for HandProfile -----
+    ns_role_mode = (
+        getattr(existing, "ns_role_mode", "north_drives")
+        if existing is not None
+        else "north_drives"
+    )
+    subprofile_exclusions = list(
+        getattr(existing, "subprofile_exclusions", []),
     )
 
-    _validate_profile(profile)
+    return {
+        "profile_name": profile_name,
+        "description": description,
+        "dealer": dealer,
+        "hand_dealing_order": hand_dealing_order,
+        "tag": tag,
+        "seat_profiles": seat_profiles,
+        "author": author,
+        "version": version,
+        "rotate_deals_by_default": rotate_by_default,
+        "ns_role_mode": (
+            getattr(existing, "ns_role_mode", "north_drives")
+            if existing is not None
+            else "north_drives"
+        ),
+        "subprofile_exclusions": list(
+            getattr(existing, "subprofile_exclusions", [])
+        ),
+    }
     return profile
-
+    
 def create_profile_interactive() -> HandProfile:
     """
     Top-level helper for creating a new profile interactively.
