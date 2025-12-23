@@ -43,7 +43,7 @@ import inspect
 import json
 from dataclasses import asdict
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from . import cli_io
 
@@ -61,6 +61,75 @@ from .hand_profile_validate import validate_profile as _validate_profile_fallbac
 from .hand_profile_model import OpponentContingentSuitData
 
 import sys
+
+def _suggest_dealing_order(
+    tag: str,
+    dealer: str,
+    ns_role_mode: str = "north_drives",
+) -> List[str]:
+    """
+    Suggest a default hand_dealing_order for the profile creation wizard.
+
+    Today this is only special-cased for North-centric training drills.
+    For everything else we fall back to the simple "rotate N,E,S,W
+    starting from the dealer" rule.
+
+    This is *metadata-only* – it just chooses a default; users can still
+    override via custom input.
+    """
+    tag_norm = (tag or "").strip().lower()
+    dealer_norm = (dealer or "").strip().upper()
+    mode = (ns_role_mode or "north_drives").strip().lower()
+
+    base_order = ["N", "E", "S", "W"]
+
+    def rotate_from_dealer() -> List[str]:
+        if dealer_norm in base_order:
+            idx = base_order.index(dealer_norm)
+            return base_order[idx:] + base_order[:idx]
+        # Defensive fallback
+        return base_order
+
+    # ---- Special cases: North-centric training drills ----
+    #
+    # 1) Tag = "Opener": our side opens
+    #    We only special-case when dealer is North.
+    #
+    #    - ns_role_mode = "north_drives":
+    #        N (driver), S (partner), then E, W
+    #        => N S E W
+    #    - ns_role_mode = "south_drives":
+    #        S (driver), N (partner), then W, E
+    #        => S N W E
+    if tag_norm == "opener":
+        if dealer_norm == "N":
+            if mode == "north_drives":
+                return ["N", "S", "E", "W"]
+            if mode == "south_drives":
+                return ["S", "N", "W", "E"]
+        # Other dealers with tag="Opener": simple dealer rotation
+        return rotate_from_dealer()
+
+    # 2) Tag = "Overcaller": opponents open, we overcall.
+    #    We special-case the classic "West opens, North overcalls" drills:
+    #
+    #    - ns_role_mode = "north_drives":
+    #        W (opener), N (our driver), S, E
+    #        => W N S E
+    #    - ns_role_mode = "south_drives":
+    #        W (opener), S (our driver), N, E
+    #        => W S N E
+    if tag_norm == "overcaller":
+        if dealer_norm == "W":
+            if mode == "north_drives":
+                return ["W", "N", "S", "E"]
+            if mode == "south_drives":
+                return ["W", "S", "N", "E"]
+        # Other dealers with tag="Overcaller": simple dealer rotation
+        return rotate_from_dealer()
+
+    # Fallback for any other future tags / modes:
+    return rotate_from_dealer()
 
 def _validate_profile(profile) -> None:
     return _pw_attr("validate_profile", _validate_profile_fallback)(profile)
@@ -1094,6 +1163,7 @@ def _build_seat_profile(
     _assign_subprofile_weights_interactive(seat, subprofiles, existing)
 
     return SeatProfile(seat=seat, subprofiles=subprofiles)
+    
 def _assign_subprofile_weights_interactive(
     seat: str,
     subprofiles: list[SubProfile],
@@ -1190,7 +1260,97 @@ def _assign_subprofile_weights_interactive(
 
         break
 
-def _build_profile(existing: Optional[HandProfile] = None) -> dict:
+def _suggest_dealing_order(
+    tag: str,
+    dealer: str,
+    ns_role_mode: str = "north_drives",
+) -> List[str]:
+    """
+    Suggest a default hand_dealing_order for the profile creation wizard.
+
+    Today this is only special-cased for North-centric training drills.
+    For everything else we fall back to the simple "rotate N,E,S,W
+    starting from the dealer" rule.
+
+    This is *metadata-only* – it just chooses a default; users can still
+    override via custom input.
+    """
+    tag_norm = (tag or "").strip().lower()
+    dealer_norm = (dealer or "").strip().upper()
+    mode = (ns_role_mode or "north_drives").strip().lower()
+
+    base_order = ["N", "E", "S", "W"]
+
+    def rotate_from_dealer() -> List[str]:
+        if dealer_norm in base_order:
+            idx = base_order.index(dealer_norm)
+            return base_order[idx:] + base_order[:idx]
+        # Defensive fallback
+        return base_order
+
+    # ---- Special cases: North-centric training drills ----
+    #
+    # 1) Tag = "Opener": our side opens.
+    #    We only special-case when dealer is North.
+    #
+    #    - ns_role_mode = "north_drives":
+    #        N (driver), S (partner), then E, W
+    #        => N S E W
+    #    - ns_role_mode = "south_drives":
+    #        S (driver), N (partner), then W, E
+    #        => S N W E
+    if tag_norm == "opener":
+        if dealer_norm == "N":
+            if mode == "north_drives":
+                return ["N", "S", "E", "W"]
+            if mode == "south_drives":
+                return ["S", "N", "W", "E"]
+        # Other dealers with tag="Opener": simple dealer rotation
+        return rotate_from_dealer()
+
+    # 2) Tag = "Overcaller": opponents open, we overcall.
+    #    Classic case: West opens, North overcalls.
+    #
+    #    - ns_role_mode = "north_drives":
+    #        W (opener), N (our driver), S, E
+    #        => W N S E
+    #    - ns_role_mode = "south_drives":
+    #        W (opener), S (our driver), N, E
+    #        => W S N E
+    if tag_norm == "overcaller":
+        if dealer_norm == "W":
+            if mode == "north_drives":
+                return ["W", "N", "S", "E"]
+            if mode == "south_drives":
+                return ["W", "S", "N", "E"]
+        # Other dealers with tag="Overcaller": simple dealer rotation
+        return rotate_from_dealer()
+
+    # Fallback for any other future tags / modes:
+    return rotate_from_dealer()
+
+
+def _autosave_profile_draft(profile: HandProfile, original_path: Path) -> None:
+    """
+    Best-effort autosave of an in-progress profile edit.
+
+    Writes a '<basename>_TEST.json' next to the original profile JSON.
+    """
+    try:
+        base = original_path.with_suffix("")  # strip .json
+        draft_path = base.with_name(base.name + "_TEST").with_suffix(".json")
+    except Exception:
+        # If anything odd about the path, don't autosave.
+        return
+
+    raw = profile.to_dict()
+    draft_path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
+
+
+def _build_profile(
+    existing: Optional[HandProfile] = None,
+    original_path: Optional[Path] = None,
+) -> Dict[str, Any]:
     """
     Core interactive flow to build (or rebuild) a HandProfile.
 
@@ -1199,8 +1359,13 @@ def _build_profile(existing: Optional[HandProfile] = None) -> dict:
       • edit_constraints_interactive() (existing is a HandProfile)
     """
 
+    # Route interaction helpers through profile_wizard when tests monkeypatch there.
+    input_with_default = _pw_attr("_input_with_default", _input_with_default)
+    input_choice = _pw_attr("_input_choice", _input_choice)
+    yes_no = _pw_attr("_yes_no", _yes_no)
+    seat_builder = _pw_attr("_build_seat_profile", _build_seat_profile)
+
     # Rotation is metadata; always have a value on all paths.
-    # For existing profiles, default comes from existing.rotate_deals_by_default.
     rotate_by_default = getattr(existing, "rotate_deals_by_default", True)
 
     # ----- Metadata (and rotation flag) -----
@@ -1215,63 +1380,62 @@ def _build_profile(existing: Optional[HandProfile] = None) -> dict:
         version = getattr(existing, "version", "")
 
         # Tests expect a *prompt* here, with default taken from existing
-        rotate_by_default = _yes_no(
+        rotate_by_default = yes_no(
             "Rotate deals by default?",
             default=rotate_by_default,
         )
 
     else:
         # Fresh profile creation – fully interactive
-        profile_name = _input_with_default("Profile name: ", "New profile")
-        description = _input_with_default("Description: ", "")
+        profile_name = input_with_default("Profile name: ", "New profile")
+        description = input_with_default("Description: ", "")
 
-        tag = _input_choice(
+        tag = input_choice(
             "Tag [Opener/Overcaller]: ",
             ["Opener", "Overcaller"],
             "Opener",
         )
 
-        dealer = _input_choice(
+        dealer = input_choice(
             "Dealer seat [N/E/S/W]: ",
             ["N", "E", "S", "W"],
             "N",
         )
 
-        # Dealing order: default is a rotation of N,E,S,W starting from the dealer.
-        base_order = ["N", "E", "S", "W"]
-        if dealer in base_order:
-            idx = base_order.index(dealer)
-            default_order = base_order[idx:] + base_order[:idx]
-        else:
-            # Defensive fallback if dealer is somehow weird
-            default_order = base_order
-
+        # Use NS role mode "north_drives" as the creation-time default.
+        default_order = _suggest_dealing_order(
+            tag=tag,
+            dealer=dealer,
+            ns_role_mode="north_drives",
+        )
         pretty_default = "".join(default_order)
         print(
-            f"Default dealing order (starting from dealer {dealer}) is {pretty_default}."
+            f"Default dealing order (starting from dealer {dealer}) "
+            f"is {pretty_default}."
         )
 
-        if _yes_no("Use default dealing order? ", default=True):
+        if yes_no("Use default dealing order? ", default=True):
             hand_dealing_order = default_order
         else:
-            order_str = _input_with_default(
+            order_str = input_with_default(
                 "Enter custom dealing order as 4 letters (e.g. NESW): ",
                 pretty_default,
             )
             order = [c.upper() for c in order_str.strip()]
             if len(order) != 4 or set(order) != {"N", "E", "S", "W"}:
                 print(
-                    f"Invalid dealing order; falling back to default {pretty_default}."
+                    f"Invalid dealing order; falling back to default "
+                    f"{pretty_default}."
                 )
                 hand_dealing_order = default_order
             else:
                 hand_dealing_order = order
 
-        author = _input_with_default("Author: ", "")
-        version = _input_with_default("Version: ", "0.1")
+        author = input_with_default("Author: ", "")
+        version = input_with_default("Version: ", "0.1")
 
         # Tests expect this exact prompt & default=True in the create flow
-        rotate_by_default = _yes_no(
+        rotate_by_default = yes_no(
             "Rotate deals by default?",
             default=True,
         )
@@ -1291,7 +1455,7 @@ def _build_profile(existing: Optional[HandProfile] = None) -> dict:
             existing_seat_profile = existing.seat_profiles.get(seat)
 
             # In edit flow, tests fake _yes_no here to *skip* editing seats.
-            if not _yes_no(
+            if not yes_no(
                 f"Do you want to edit constraints for seat {seat}?",
                 default=True,
             ):
@@ -1300,13 +1464,11 @@ def _build_profile(existing: Optional[HandProfile] = None) -> dict:
                 continue
 
             # EDIT FLOW: call _build_seat_profile with (seat, existing)
-            new_seat_profile = _pw_attr("_build_seat_profile", _build_seat_profile)(
-                seat, existing_seat_profile
-            )
+            new_seat_profile = seat_builder(seat, existing_seat_profile)
         else:
             # CREATE FLOW: tests monkeypatch _build_seat_profile(seat) with a
             # single-arg stub, so we MUST call it with exactly one argument.
-            new_seat_profile = _pw_attr("_build_seat_profile", _build_seat_profile)(seat)
+            new_seat_profile = seat_builder(seat)
 
         seat_profiles[seat] = new_seat_profile
 
@@ -1318,42 +1480,36 @@ def _build_profile(existing: Optional[HandProfile] = None) -> dict:
             current_all=subprofile_exclusions,
         )
 
-            # --- Autosave draft after each seat (best-effort) ---
-    try:
-        # Build a snapshot HandProfile so we can save a draft JSON.
-        snapshot = HandProfile(
-            profile_name=profile_name,
-            description=description,
-            dealer=dealer,
-            hand_dealing_order=hand_dealing_order,
-            tag=tag,
-            seat_profiles=seat_profiles,
-            author=author,
-            version=version,
-            rotate_deals_by_default=rotate_by_default,
-            # Metadata for NS driver/follower – default north_drives if missing
-            ns_role_mode=(
-                getattr(existing, "ns_role_mode", "north_drives")
-                if existing is not None
-                else "north_drives"
-            ),
-            # Keep any existing exclusions; wizard may add more elsewhere
-            subprofile_exclusions=list(
-                getattr(existing, "subprofile_exclusions", [])
-            ),
-        )
-        _autosave_profile_draft(snapshot)
-    except Exception as exc:  # pragma: no cover – autosave is best-effort
-        print(f"⚠️ Autosave failed after seat {seat}: {exc}")        
-                    
+        # --- Autosave draft after each seat (best-effort) ---
+        if original_path is not None:
+            try:
+                ns_role_mode = (
+                    getattr(existing, "ns_role_mode", "north_drives")
+                    if existing is not None
+                    else "north_drives"
+                )
+                snapshot = HandProfile(
+                    profile_name=profile_name,
+                    description=description,
+                    dealer=dealer,
+                    hand_dealing_order=list(hand_dealing_order),
+                    tag=tag,
+                    seat_profiles=seat_profiles,
+                    author=author,
+                    version=version,
+                    rotate_deals_by_default=rotate_by_default,
+                    ns_role_mode=ns_role_mode,
+                    subprofile_exclusions=list(subprofile_exclusions),
+                )
+                _autosave_profile_draft(snapshot, original_path)
+            except Exception as exc:  # pragma: no cover – autosave is best-effort
+                print(f"⚠️ Autosave failed after seat {seat}: {exc}")
+
     # ----- Final kwargs dict for HandProfile -----
     ns_role_mode = (
         getattr(existing, "ns_role_mode", "north_drives")
         if existing is not None
         else "north_drives"
-    )
-    subprofile_exclusions = list(
-        getattr(existing, "subprofile_exclusions", []),
     )
 
     return {
@@ -1366,17 +1522,10 @@ def _build_profile(existing: Optional[HandProfile] = None) -> dict:
         "author": author,
         "version": version,
         "rotate_deals_by_default": rotate_by_default,
-        "ns_role_mode": (
-            getattr(existing, "ns_role_mode", "north_drives")
-            if existing is not None
-            else "north_drives"
-        ),
-        "subprofile_exclusions": list(
-            getattr(existing, "subprofile_exclusions", [])
-        ),
+        "ns_role_mode": ns_role_mode,
+        "subprofile_exclusions": list(subprofile_exclusions),
     }
-    return profile
-    
+        
 def create_profile_interactive() -> HandProfile:
     """
     Top-level helper for creating a new profile interactively.
@@ -1384,7 +1533,9 @@ def create_profile_interactive() -> HandProfile:
     clear_screen()
     print("=== Create New Profile ===")
     print()
-    profile = _build_profile(existing=None)
+    kwargs = wizard_flow._build_profile(existing=None)
+    profile = HandProfile(**kwargs)
+    validate_profile(profile)
     return profile
 
 def edit_constraints_interactive(
@@ -1406,9 +1557,7 @@ def edit_constraints_interactive(
     print(f"Dealer : {existing.dealer}")
     print(f"Order  : {list(existing.hand_dealing_order)}\n")
 
-    # IMPORTANT: pass original_path through so autosave knows where to write
-    kwargs = _build_profile(existing=existing, original_path=profile_path)
-
+    kwargs = wizard_flow._build_profile(existing=existing, original_path=profile_path)
     profile = HandProfile(**kwargs)
     validate_profile(profile)
     return profile
