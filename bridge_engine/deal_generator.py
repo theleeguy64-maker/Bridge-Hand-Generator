@@ -445,7 +445,7 @@ def _match_seat(
     return False, None
 
 
-# ---------------------------------------------------------------------------
+# -------------------------------------    dealing_order:--------------------------------------
 # Constrained board construction (C1)
 # ---------------------------------------------------------------------------
 def _build_single_constrained_deal(
@@ -469,28 +469,98 @@ def _build_single_constrained_deal(
     """
     dealing_order: List[Seat] = list(profile.hand_dealing_order)
 
+    # ------------------------------------------------------------------
+    # NS driver/follower semantics for subprofile selection
+    #
+    # We derive a per-board NS driver seat from ns_role_mode, then
+    # treat the other NS seat as follower. SubProfile.ns_role_usage
+    # is interpreted as:
+    #   - "any"           → allowed in both roles
+    #   - "driver_only"   → only when this seat is the driver
+    #   - "follower_only" → only when this seat is the follower
+    #
+    # Validation guarantees that for each NS seat and each possible
+    # role that can actually occur, there is at least one eligible
+    # subprofile; here we just filter and fall back defensively
+    # if something slips through.
+    # ------------------------------------------------------------------
+    ns_driver: Seat
+    try:
+        # Newer HandProfile.ns_driver_seat signatures may accept rng.
+        ns_driver = profile.ns_driver_seat(rng)  # type: ignore[arg-type]
+    except TypeError:
+        # Older helper without rng parameter.
+        ns_driver = profile.ns_driver_seat()  # type: ignore[call-arg]
+    except AttributeError:
+        # Very old profiles: default to North driving.
+        ns_driver = "N"
+
+    if ns_driver not in ("N", "S"):
+        ns_driver = "N"
+    ns_follower: Seat = "S" if ns_driver == "N" else "N"
+
+    ns_role_by_seat: Dict[Seat, str] = {
+        ns_driver: "driver",
+        ns_follower: "follower",
+    }
+
     # Pre-select one SubProfile per seat (if any) for this entire deal
     chosen_subprofiles: Dict[Seat, Optional[SubProfile]] = {}
     chosen_subprofile_indices: Dict[Seat, Optional[int]] = {}
+
     for seat in ("N", "E", "S", "W"):
         sp = profile.seat_profiles.get(seat)
         if sp is None or not sp.subprofiles:
             chosen_subprofiles[seat] = None
             chosen_subprofile_indices[seat] = None
-        else:
-            # Phase 2: weighted subprofile choice using weight_percent
-            weights = [float(sub.weight_percent) for sub in sp.subprofiles]
+            continue
 
-            # If the total weight is zero (e.g. profile never validated),
-            # fall back to the original uniform random choice so legacy tests
-            # and ad-hoc profiles still work.
-            if not weights or sum(weights) <= 0.0:
-                idx = rng.randrange(len(sp.subprofiles))
+        all_subs = list(sp.subprofiles)
+
+        # Seat-specific eligibility filter for NS based on driver/follower.
+        if seat in ("N", "S"):
+            seat_role = ns_role_by_seat.get(seat)
+            if seat_role == "driver":
+                eligible_indices = [
+                    i
+                    for i, sub in enumerate(all_subs)
+                    if getattr(sub, "ns_role_usage", "any")
+                    in ("any", "driver_only")
+                ]
+            elif seat_role == "follower":
+                eligible_indices = [
+                    i
+                    for i, sub in enumerate(all_subs)
+                    if getattr(sub, "ns_role_usage", "any")
+                    in ("any", "follower_only")
+                ]
             else:
-                idx = _weighted_choice_index(rng, weights)
+                # Defensive: if we somehow don't have a role, don't filter.
+                eligible_indices = list(range(len(all_subs)))
+        else:
+            # EW unaffected by ns_role_usage.
+            eligible_indices = list(range(len(all_subs)))
 
-            chosen_subprofiles[seat] = sp.subprofiles[idx]
-            chosen_subprofile_indices[seat] = idx
+        # Extra defensive fallback: if validation has somehow allowed a
+        # configuration with no eligible subprofiles, revert to "any".
+        if not eligible_indices:
+            eligible_indices = list(range(len(all_subs)))
+
+        # Phase 2/3: weighted subprofile choice using weight_percent,
+        # restricted to the eligible indices for this seat.
+        weights = [float(all_subs[i].weight_percent) for i in eligible_indices]
+
+        # If the total weight is zero (e.g. profile never validated),
+        # fall back to the original uniform random choice so legacy tests
+        # and ad-hoc profiles still work.
+        if not weights or sum(weights) <= 0.0:
+            idx = eligible_indices[rng.randrange(len(eligible_indices))]
+        else:
+            rel_idx = _weighted_choice_index(rng, weights)
+            idx = eligible_indices[rel_idx]
+
+        chosen_subprofiles[seat] = all_subs[idx]
+        chosen_subprofile_indices[seat] = idx
  
     # ------------------------------------------------------------------
     # F3: Opener → responder sub-profile coupling (NS driver/follower)
