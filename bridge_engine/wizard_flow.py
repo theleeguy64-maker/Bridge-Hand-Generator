@@ -1136,7 +1136,8 @@ def _assign_subprofile_weights_interactive(
         ]
 
 def _build_seat_profile(
-    seat: str, existing: Optional[SeatProfile] = None
+    seat: str,
+    existing: Optional[SeatProfile] = None,
 ) -> SeatProfile:
     print(f"\n--- Seat {seat} ---")
 
@@ -1159,11 +1160,80 @@ def _build_seat_profile(
         sub = _build_subprofile_for_seat(seat, existing_sub)
         subprofiles.append(sub)
 
-    # New: ask about weighting if there is more than one sub-profile.
+    # Weighting UI (already working)
     _assign_subprofile_weights_interactive(seat, subprofiles, existing)
 
+    # NEW: NS driver/follower usage UI (N/S only)
+    _assign_ns_role_usage_interactive(seat, subprofiles, existing)
+
     return SeatProfile(seat=seat, subprofiles=subprofiles)
-    
+
+def _assign_ns_role_usage_interactive(
+    seat: str,
+    subprofiles: list[SubProfile],
+    existing_seat_profile: Optional[SeatProfile],
+) -> None:
+    """
+    Optional UI to tag N/S sub-profiles as:
+      - 'any'           (default)
+      - 'driver_only'
+      - 'follower_only'
+
+    Only applies to N/S. E/W are always treated as 'any' in NS driver logic.
+    """
+    # Only NS can be driver/follower in the current semantics.
+    if seat not in ("N", "S"):
+        return
+
+    if not subprofiles:
+        return
+
+    # Start from existing values if we have them, else default to "any".
+    existing_usage: list[str] = []
+    if existing_seat_profile is not None:
+        for sp in existing_seat_profile.subprofiles:
+            existing_usage.append(getattr(sp, "ns_role_usage", "any"))
+
+    n = len(subprofiles)
+    if not existing_usage:
+        defaults = ["any"] * n
+    else:
+        # Extend/truncate to match the new count.
+        defaults = (existing_usage + ["any"] * n)[:n]
+
+    print(f"\nNS role usage for seat {seat}:")
+    for idx, role in enumerate(defaults, start=1):
+        print(f"  Sub-profile {idx}: {role}")
+
+    # Let the user opt in; default is 'no' so beginners aren't bothered.
+    if not _yes_no(
+        "Do you want to edit driver/follower roles for these sub-profiles? ",
+        default=False,
+    ):
+        # Just write defaults back into the new objects.
+        for sub, usage in zip(subprofiles, defaults, strict=False):
+            object.__setattr__(sub, "ns_role_usage", usage)
+        return
+
+    # User wants to edit them.
+    valid_options = {"any", "driver_only", "follower_only"}
+
+    for idx, default_usage in enumerate(defaults, start=1):
+        prompt = (
+            f"  NS role usage for sub-profile {idx} "
+            "(any/driver_only/follower_only)"
+        )
+        while True:
+            raw = _input_with_default(
+                prompt + f" [{default_usage}]: ",
+                default_usage,
+            )
+            value = raw.strip().lower()
+            if value in valid_options:
+                break
+            print("Please enter one of: any, driver_only, follower_only")
+        object.__setattr__(subprofiles[idx - 1], "ns_role_usage", value)
+
 def _assign_subprofile_weights_interactive(
     seat: str,
     subprofiles: list[SubProfile],
@@ -1200,7 +1270,17 @@ def _assign_subprofile_weights_interactive(
         # Extend/truncate existing weights to match new subprofile count.
         defaults = (existing_weights + [0.0] * n)[:n]
 
+    # New: ask about weighting if there is more than one sub-profile.
+    _assign_subprofile_weights_interactive(seat, subprofiles, existing)
+
+    # NEW: for N/S seats, optionally mark each subprofile as driver/follower/any.
+    _assign_ns_role_usage_interactive(seat, subprofiles, existing)
+
+    return SeatProfile(seat=seat, subprofiles=subprofiles)
+
     print(f"\nSub-profile weighting for seat {seat}:")
+    
+    
     for idx, w in enumerate(defaults, start=1):
         label = " (default)" if all(dw == defaults[0] for dw in defaults) else ""
         print(f"  Sub-profile {idx}: {w:.1f}% of deals{label}")
@@ -1379,6 +1459,9 @@ def _build_profile(
         author = getattr(existing, "author", "")
         version = getattr(existing, "version", "")
 
+        # NEW: carry ns_role_mode straight through for constraints-only edits.
+        ns_role_mode = getattr(existing, "ns_role_mode", "north_drives")
+
         # Tests expect a *prompt* here, with default taken from existing
         rotate_by_default = yes_no(
             "Rotate deals by default?",
@@ -1401,7 +1484,34 @@ def _build_profile(
             ["N", "E", "S", "W"],
             "N",
         )
-
+        
+        # NEW: choose ns_role_mode interactively (creation only).
+        # We only bother when this is an NS-training style tag; otherwise
+        # we quietly default to north_drives.
+        ns_role_mode = "north_drives"
+        tag_norm = (tag or "").strip().lower()
+        if tag_norm in ("opener", "overcaller"):
+            # Default label based on default mode (north_drives).
+            default_label = "North usually drives"
+            ns_label = input_choice(
+                "NS role mode (who usually drives the auction for NS?)",
+                [
+                    "North usually drives",
+                    "South usually drives",
+                    "Random between North/South",
+                    "No explicit driver (symmetric)",
+                ],
+                default_label,
+            )
+            if ns_label.startswith("North"):
+                ns_role_mode = "north_drives"
+            elif ns_label.startswith("South"):
+                ns_role_mode = "south_drives"
+            elif ns_label.startswith("Random"):
+                ns_role_mode = "random_driver"
+            else:
+                ns_role_mode = "no_driver"
+        
         # Use NS role mode "north_drives" as the creation-time default.
         default_order = _suggest_dealing_order(
             tag=tag,
@@ -1506,7 +1616,9 @@ def _build_profile(
                 print(f"⚠️ Autosave failed after seat {seat}: {exc}")
 
     # ----- Final kwargs dict for HandProfile -----
-    ns_role_mode = (
+    # ns_role_mode should already be set in both branches above; this is just
+    # a defensive fallback for legacy/odd callers.
+    ns_role_mode = locals().get("ns_role_mode") or (
         getattr(existing, "ns_role_mode", "north_drives")
         if existing is not None
         else "north_drives"
