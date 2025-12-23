@@ -469,21 +469,23 @@ def _build_single_constrained_deal(
     """
     dealing_order: List[Seat] = list(profile.hand_dealing_order)
 
-    # ------------------------------------------------------------------
-    # NS driver/follower semantics for subprofile selection
-    #
-    # We derive a per-board NS driver seat from ns_role_mode, then
-    # treat the other NS seat as follower. SubProfile.ns_role_usage
-    # is interpreted as:
-    #   - "any"           → allowed in both roles
-    #   - "driver_only"   → only when this seat is the driver
-    #   - "follower_only" → only when this seat is the follower
-    #
-    # Validation guarantees that for each NS seat and each possible
-    # role that can actually occur, there is at least one eligible
-    # subprofile; here we just filter and fall back defensively
-    # if something slips through.
-    # ------------------------------------------------------------------
+        # ------------------------------------------------------------------
+        # NS driver/follower semantics + sub-profile index matching
+        #
+        # We derive a per-board NS driver seat from ns_role_mode, then
+        # treat the other NS seat as follower. SubProfile.ns_role_usage
+        # is interpreted as:
+        #   - "any"           → allowed in both roles
+        #   - "driver_only"   → only when this seat is the driver
+        #   - "follower_only" → only when this seat is the follower
+        #
+        # The older behaviour called “F3 coupling” in the tests is now
+        # described as NS sub-profile index matching: once the driver
+        # seat has chosen a sub-profile index, the follower seat uses
+        # the same index when picking its own sub-profile. That behaviour
+        # is still in place; later upgrades may make it conditional on
+        # ns_role_mode (e.g. disabled when an explicit driver is set).
+        # -----------------------------------------------------------------
     ns_driver: Seat
     try:
         # Newer HandProfile.ns_driver_seat signatures may accept rng.
@@ -563,7 +565,7 @@ def _build_single_constrained_deal(
         chosen_subprofile_indices[seat] = idx
  
     # ------------------------------------------------------------------
-    # F3: Opener → responder sub-profile coupling (NS driver/follower)
+    # NS sub-profile index matching: tie N/S sub-profile indices together
     #
     # If a partnership has multiple sub-profiles on both seats AND the counts
     # match, force the responder's chosen sub-profile index to equal the

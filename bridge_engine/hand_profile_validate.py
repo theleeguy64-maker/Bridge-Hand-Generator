@@ -168,9 +168,7 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
       - "driver_only"   → only usable when this seat is the NS driver
       - "follower_only" → only usable when this seat is the NS follower
 
-    This guarantees that F3 (or any future NS-role-aware logic) can always
-    pick at least one eligible subprofile for N and S for every role the
-    profile configuration might require.
+    # NS sub-profile index matching: tie N/S sub-profile indices together.
 
     Backwards-compatible:
       - If ns_role_mode is missing → treated as "north_drives".
@@ -359,22 +357,37 @@ def validate_profile(data: Any) -> HandProfile:
     # -----------------------------------
     schema_version = int(raw.get("schema_version", 0) or 0)
     if schema_version == 0:
+        # Legacy profiles: backfill missing metadata fields with sensible defaults.
         raw.setdefault("rotate_deals_by_default", True)
         raw.setdefault("subprofile_exclusions", [])
         raw.setdefault("ns_role_mode", "north_drives")
 
     # -----------------------------------
-    # 3. Subprofile weight normalisation
+    # 3. ns_role_mode sanity (including 'no_driver')
+    # -----------------------------------
+    mode = str(raw.get("ns_role_mode", "north_drives") or "north_drives")
+    allowed_modes = {
+        "north_drives",
+        "south_drives",
+        "random_driver",
+        "no_driver",  # NEW mode
+    }
+    if mode not in allowed_modes:
+        raise ProfileError(f"Unsupported ns_role_mode value: {mode!r}")
+    raw["ns_role_mode"] = mode
+
+    # -----------------------------------
+    # 4. Subprofile weight normalisation
     # -----------------------------------
     _normalise_subprofile_weights(raw)
 
     # -----------------------------------
-    # 4. Build HandProfile from normalised dict
+    # 5. Build HandProfile from normalised dict
     # -----------------------------------
     profile = HandProfile.from_dict(raw)
 
     # -----------------------------------
-    # 5. Structural validations that rely on HandProfile objects
+    # 6. Structural validations that rely on HandProfile objects
     # -----------------------------------
     _validate_partner_contingent(profile)
     _validate_opponent_contingent(profile)

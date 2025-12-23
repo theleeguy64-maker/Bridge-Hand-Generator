@@ -11,6 +11,11 @@ from bridge_engine.hand_profile_validate import validate_profile
 from bridge_engine.deal_generator import _build_single_constrained_deal  # ok: tests already import internals
 
 def test_f3_couples_responder_to_opener_by_index():
+    """
+    NS sub-profile index matching: the responder (South) should use the
+    same sub-profile index as the opener (North), once North’s index has
+    been chosen by weighted random selection.
+    """
     std = _standard_all_open()
 
     # Two subprofiles on N and S; weights on N force choice of index 0.
@@ -21,7 +26,7 @@ def test_f3_couples_responder_to_opener_by_index():
 
     profile = HandProfile(
         profile_name="TEST_F3_NS",
-        description="F3 opener→responder coupling test",
+        description="NS sub-profile index matching test",
         dealer="N",
         tag="Opener",
         seat_profiles={
@@ -33,9 +38,13 @@ def test_f3_couples_responder_to_opener_by_index():
     )
 
     validated = validate_profile(profile)
+    rng = random.Random(1234)
 
-    rng = random.Random(123)
-    deal = _build_single_constrained_deal(rng=rng, profile=validated, board_number=1)
+    deal = _build_single_constrained_deal(rng, validated, board_number=1)
+
+    # We don’t assert exact hands here, only that the coupling logic ran
+    # without violating any invariants and produced a valid deal.
+    assert deal is not None
 
     # The coupling is enforced via chosen_subprofile_indices, but that isn't returned.
     # So we assert indirectly: since N is forced to index 0 (100%), S must also be index 0.
@@ -112,8 +121,10 @@ def test_f3_ns_coupling_default_mode_still_works() -> None:
     Smoke test: with no explicit ns_role_mode, we still get a valid deal.
 
     This locks in that introducing ns_role_mode metadata does not break
-    the default (Phase 2) behaviour of the generator.
+    the default (Phase 2) behaviour of the generator or the NS
+    sub-profile index matching logic (formerly “F3 coupling”).
     """
+    
     profile = _make_ns_coupling_profile()  # uses default ns_role_mode
     rng = random.Random(1234)
 
@@ -125,9 +136,10 @@ def test_f3_ns_coupling_north_drives_metadata_is_accepted() -> None:
     Smoke test: ns_role_mode='north_drives' is accepted end-to-end.
 
     For now, we only assert that the generator runs without error. When
-    we later give ns_role_mode behavioural semantics, we can extend this
-    to check which side actually drives.
+    we later refine NS driver/follower semantics and sub-profile index
+    matching, we can extend this to check which side actually drives.
     """
+    
     profile = _make_ns_coupling_profile(ns_role_mode="north_drives")
     rng = random.Random(5678)
 
@@ -140,8 +152,10 @@ def test_f3_ns_coupling_south_or_random_modes_do_not_crash() -> None:
 
     Today, these may behave the same as the default from the generator's
     perspective. This test simply guarantees that introducing these
-    metadata values will not crash deal generation.
+    ns_role_mode values does not crash deal generation or the NS
+    sub-profile index matching behaviour (formerly “F3 coupling”).
     """
+    
     for mode in ("south_drives", "random_driver"):
         profile = _make_ns_coupling_profile(ns_role_mode=mode)
         rng = random.Random(9999)

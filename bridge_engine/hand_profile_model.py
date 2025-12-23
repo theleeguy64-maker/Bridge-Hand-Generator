@@ -713,36 +713,84 @@ class HandProfile:
         if self.tag not in ("Opener", "Overcaller"):
             raise ProfileError("tag must be 'Opener' or 'Overcaller'.")
 
-    def ns_driver_seat(self, rng: Optional[random.Random] = None) -> Seat:
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "HandProfile":
         """
-        Decide which NS seat is the 'driver' for this profile.
+        Build a HandProfile from a JSON-like dict.
 
-        For now, this is primarily metadata that F3 uses to choose which
-        NS seat is treated as the opener when coupling subprofiles.
+        This is the single entry point used by validate_profile() and
+        by the test fixtures in tests/conftest.py.
+        """
+
+        # Seat profiles: each value is a SeatProfile dict.
+        seat_profiles_dict = data.get("seat_profiles", {})
+        seat_profiles: Dict[Seat, SeatProfile] = {}
+        for seat, sp_data in seat_profiles_dict.items():
+            seat_profiles[seat] = SeatProfile.from_dict(sp_data)
+
+        # Subprofile exclusions (optional for legacy profiles).
+        exclusions_raw = data.get("subprofile_exclusions", [])
+        exclusions: List[SubprofileExclusionData] = [
+            SubprofileExclusionData.from_dict(e) for e in exclusions_raw
+        ]
+
+        return cls(
+            profile_name=str(data["profile_name"]),
+            description=str(data.get("description", "")),
+            dealer=str(data["dealer"]),
+            hand_dealing_order=list(data["hand_dealing_order"]),
+            tag=str(data["tag"]),
+            seat_profiles=seat_profiles,
+            author=str(data.get("author", "")),
+            version=str(data.get("version", "")),
+            # Legacy profiles may omit this – default to True.
+            rotate_deals_by_default=bool(
+                data.get("rotate_deals_by_default", True)
+            ),
+            # Keep whatever string is present; validate_profile is responsible
+            # for rejecting unsupported values on JSON input.
+            ns_role_mode=str(data.get("ns_role_mode", "north_drives")),
+            subprofile_exclusions=exclusions,
+        )
+
+    def ns_driver_seat(
+        self,
+        rng: Optional[random.Random] = None,
+    ) -> Optional[Seat]:
+        """
+        Return the *preferred* NS driver seat implied by ns_role_mode.
+
+        This is metadata for UI / tests. The deal generator still does
+        its own per-board driver choice and will fall back to 'N' if
+        this returns anything other than 'N' or 'S'.
 
         Modes:
-        - "north_drives"   -> always "N"
-        - "south_drives"   -> always "S"
-        - "random_driver"  -> "N" or "S", using provided rng if available,
-                              otherwise a deterministic fallback to "N"
-
-        Any unexpected value falls back to "N".
+          - 'north_drives'  -> 'N'
+          - 'south_drives'  -> 'S'
+          - 'random_driver' -> if rng is given, random.choice(['N', 'S']);
+                                otherwise 'N' as a simple metadata default.
+          - 'no_driver'     -> None (explicit: “no fixed driver”)
+          - anything else   -> None (unknown / legacy values treated
+                               as “no driver” at metadata level)
         """
-        mode = getattr(self, "ns_role_mode", "north_drives")
+
+        mode = (getattr(self, "ns_role_mode", "north_drives") or "north_drives").lower()
 
         if mode == "north_drives":
             return "N"
         if mode == "south_drives":
             return "S"
         if mode == "random_driver":
-            if rng is None:
-                # Keep behaviour deterministic if no RNG is supplied.
-                return "N"
-            return rng.choice(["N", "S"])
+            if rng is not None:
+                return rng.choice(["N", "S"])
+            # Metadata-only fallback when no RNG is supplied.
+            return "N"
+        if mode == "no_driver":
+            return None
 
-        # Defensive fallback for unknown modes.
-        return "N"
-        
+        # Unknown / legacy ns_role_mode → treat as 'no driver' in metadata.
+        return None
+               
     def ns_role_buckets(self) -> Dict[Seat, Dict[str, List[SubProfile]]]:
         """
         For NS seats only, group subprofiles into three buckets by ns_role_usage:

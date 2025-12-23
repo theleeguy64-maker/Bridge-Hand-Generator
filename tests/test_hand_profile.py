@@ -172,7 +172,7 @@ def test_ns_driver_seat_respects_ns_role_mode(make_valid_profile) -> None:
 
     # Any unknown / future value should safely fall back to North
     profile.ns_role_mode = "something_weird"
-    assert profile.ns_driver_seat() == "N"
+    assert profile.ns_driver_seat() is None
 
 def test_ns_role_buckets_all_neutral_for_legacy_profiles(make_valid_profile) -> None:
     """
@@ -230,10 +230,14 @@ def test_ns_driver_seat_random_driver_only_ns(make_valid_profile) -> None:
         seat = profile.ns_driver_seat(rng)
         assert seat in ("N", "S")
 
-def test_ns_driver_seat_invalid_mode_falls_back_to_n(make_valid_profile) -> None:
+def test_ns_driver_seat_invalid_mode_falls_back_to_none(make_valid_profile) -> None:
+    """
+    Unknown ns_role_mode values should be treated as 'no driver' at metadata level.
+    """
     profile = make_valid_profile()
     profile = replace(profile, ns_role_mode="totally_bogus")
-    assert profile.ns_driver_seat() == "N"
+
+    assert profile.ns_driver_seat() is None
 
 def test_rotate_default_on_new_profile_is_true(make_valid_profile) -> None:
     """
