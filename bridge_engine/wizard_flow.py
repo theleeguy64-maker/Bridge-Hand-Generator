@@ -1157,17 +1157,88 @@ def _build_seat_profile(
         existing_sub = None
         if existing is not None and idx - 1 < len(existing.subprofiles):
             existing_sub = existing.subprofiles[idx - 1]
-        sub = _build_subprofile_for_seat(seat, existing_sub)
+
+        sub = _build_subprofile(seat, existing_sub)
         subprofiles.append(sub)
 
-    # Weighting UI (already working)
+    # Weighting UI (already in place)
     _assign_subprofile_weights_interactive(seat, subprofiles, existing)
 
-    # NEW: NS driver/follower usage UI (N/S only)
+    # NEW: NS driver/follower role usage UI for N/S seats.
     _assign_ns_role_usage_interactive(seat, subprofiles, existing)
 
     return SeatProfile(seat=seat, subprofiles=subprofiles)
 
+def _assign_ns_role_usage_interactive(
+    seat: str,
+    subprofiles: list[SubProfile],
+    existing_seat_profile: Optional[SeatProfile],
+) -> None:
+    """
+    Interactive UI for NS driver/follower role usage on a seat's sub-profiles.
+
+    Only applies to North/South seats. For each sub-profile we allow the user
+    to choose how it should be used when NS driver/follower semantics apply:
+
+        - "any"           → usable whether this seat is driver or follower
+        - "driver_only"   → only when this seat is the driver
+        - "follower_only" → only when this seat is the follower
+
+    Existing profiles:
+      - If editing, we start from the current ns_role_usage for each subprofile.
+      - If missing, we default to "any".
+    """
+    # Only NS seats participate in driver/follower roles.
+    if seat not in ("N", "S"):
+        return
+
+    if not subprofiles:
+        return
+
+    print(f"\nNS driver/follower role usage for seat {seat}:")
+
+    # Quick opt-out so existing workflows are still fast.
+    if not _yes_no(
+        "Do you want to set driver/follower role usage "
+        "for these sub-profiles? ",
+        default=False,
+    ):
+        return
+
+    # Preload any existing usages if we're editing.
+    existing_usages: list[Optional[str]] = []
+    if existing_seat_profile is not None:
+        for sp in existing_seat_profile.subprofiles:
+            existing_usages.append(getattr(sp, "ns_role_usage", None))
+
+    allowed_values = ["any", "driver_only", "follower_only"]
+
+    for idx, sub in enumerate(subprofiles, start=1):
+        # Seed from existing seat profile (same index) if available.
+        existing_usage: Optional[str] = None
+        if existing_usages and idx - 1 < len(existing_usages):
+            existing_usage = existing_usages[idx - 1]
+
+        # Or from the new subprofile object, or default to "any".
+        default_usage = (
+            getattr(sub, "ns_role_usage", None)
+            or existing_usage
+            or "any"
+        )
+
+        prompt = (
+            f"  Sub-profile {idx}: role usage "
+            "[any/driver_only/follower_only]: "
+        )
+        chosen = _input_choice(
+            prompt,
+            allowed_values,
+            default_usage,
+        )
+
+        # SubProfile is frozen, so use object.__setattr__.
+        object.__setattr__(sub, "ns_role_usage", chosen)
+    
 def _assign_ns_role_usage_interactive(
     seat: str,
     subprofiles: list[SubProfile],
