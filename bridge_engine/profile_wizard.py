@@ -45,6 +45,7 @@ from .wizard_flow import (  # type: ignore
     _build_suit_range_for_prompt,
     _build_standard_constraints,
     _build_seat_profile,
+    _build_profile,
 )
 
 from . import wizard_flow
@@ -71,6 +72,34 @@ def create_profile_interactive() -> HandProfile:
     # existing save / filename logic can use `profile` as before
     return profile
 
+def create_profile_from_existing_constraints(existing: HandProfile) -> HandProfile:
+    """
+    Create a new profile that reuses all constraints from `existing`
+    (seat_profiles + subprofile_exclusions) but lets the user enter new
+    metadata fields (name, description, tag, dealer, dealing order,
+    author, version, rotate_deals_by_default).
+
+    This is intended for “new standard profile” flows built from a
+    base template; constraint tweaks are done later via
+    edit_constraints_interactive().
+    """
+    clear_screen()
+    print("=== Create New Profile (from template) ===")
+    print()
+    print(f"Starting from template: {existing.profile_name}")
+    print()
+
+    # Metadata-only – constraints come entirely from `existing`.
+    kwargs = _build_profile(
+        existing=existing,
+        original_path=None,
+        constraints_mode="metadata_only",
+    )
+
+    profile = HandProfile(**kwargs)
+    validate_profile(profile)
+    return profile
+    
 def edit_constraints_interactive(existing: HandProfile) -> HandProfile:
     print("\n=== Edit Constraints for Profile ===")
     print(f"Profile: {existing.profile_name}")

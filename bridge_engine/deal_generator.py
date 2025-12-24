@@ -486,26 +486,56 @@ def _build_single_constrained_deal(
         # is still in place; later upgrades may make it conditional on
         # ns_role_mode (e.g. disabled when an explicit driver is set).
         # -----------------------------------------------------------------
-    ns_driver: Seat
-    try:
-        # Newer HandProfile.ns_driver_seat signatures may accept rng.
-        ns_driver = profile.ns_driver_seat(rng)  # type: ignore[arg-type]
-    except TypeError:
-        # Older helper without rng parameter.
-        ns_driver = profile.ns_driver_seat()  # type: ignore[call-arg]
-    except AttributeError:
-        # Very old profiles: default to North driving.
-        ns_driver = "N"
+        
+    # NS driver/follower semantics for subprofile selection
+    #
+    # ns_role_mode controls how (and whether) we treat one NS seat as a
+    # "driver" and the other as "follower".
+    #
+    # For most modes ("north_drives", "south_drives", "random_driver"),
+    # we keep the existing index-matching behaviour (formerly F3
+    # coupling): one NS seat is the driver and the partner follows the
+    # same subprofile index.
+    #
+    # For ns_role_mode == "no_driver_no_index" we *disable* NS driver
+    # semantics entirely. N and S will each pick subprofiles
+    # independently, just like E/W, with no index matching.
+    # ------------------------------------------------------------------
+    mode = (getattr(profile, "ns_role_mode", "north_drives") or "north_drives").lower()
 
-    if ns_driver not in ("N", "S"):
-        ns_driver = "N"
-    ns_follower: Seat = "S" if ns_driver == "N" else "N"
+    ns_role_by_seat: Dict[Seat, str] = {}
 
-    ns_role_by_seat: Dict[Seat, str] = {
-        ns_driver: "driver",
-        ns_follower: "follower",
-    }
+    if mode != "no_driver_no_index":
+        # Normal driver/follower behaviour for all modes *except*
+        # "no_driver_no_index".
+        ns_driver: Seat
+        try:
+            # Newer HandProfile.ns_driver_seat signatures may accept rng.
+            ns_driver = profile.ns_driver_seat(rng)  # type: ignore[arg-type]
+        except TypeError:
+            # Older helper without rng parameter.
+            ns_driver = profile.ns_driver_seat()  # type: ignore[call-arg]
+        except AttributeError:
+            # Very old profiles: default to North driving.
+            ns_driver = "N"
 
+        if ns_driver not in ("N", "S"):
+            ns_driver = "N"
+
+        ns_follower: Seat = "S" if ns_driver == "N" else "N"
+
+        ns_role_by_seat = {
+            ns_driver: "driver",
+            ns_follower: "follower",
+        }
+
+    # NOTE:
+    # - For mode == "no_driver_no_index", ns_role_by_seat stays empty.
+    #   Later selection code that looks up ns_role_by_seat.get(seat)
+    #   will see None for both N and S and should fall back to the
+    #   generic "independent weighted subprofile selection" path,
+    #   effectively turning off NS index matching.
+    
     # Pre-select one SubProfile per seat (if any) for this entire deal
     chosen_subprofiles: Dict[Seat, Optional[SubProfile]] = {}
     chosen_subprofile_indices: Dict[Seat, Optional[int]] = {}

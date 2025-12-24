@@ -1151,93 +1151,30 @@ def _build_seat_profile(
         default=default_subprofiles,
     )
 
-    subprofiles: list[SubProfile] = []
+    subprofiles: List[SubProfile] = []
     for idx in range(1, num_sub + 1):
         print(f"\nSub-profile {idx} for seat {seat}:\n")
         existing_sub = None
         if existing is not None and idx - 1 < len(existing.subprofiles):
             existing_sub = existing.subprofiles[idx - 1]
-
-        sub = _build_subprofile(seat, existing_sub)
+        sub = _build_subprofile_for_seat(seat, existing_sub)
         subprofiles.append(sub)
 
-    # Weighting UI (already in place)
-    _assign_subprofile_weights_interactive(seat, subprofiles, existing)
+    # First, handle weighting (returns a new list).
+    subprofiles = _assign_subprofile_weights_interactive(
+        seat,
+        subprofiles,
+        existing,
+    )
 
-    # NEW: NS driver/follower role usage UI for N/S seats.
-    _assign_ns_role_usage_interactive(seat, subprofiles, existing)
+    # Then, for N/S seats, mark ns_role_usage on each subprofile.
+    _assign_ns_role_usage_interactive(
+        seat,
+        subprofiles,
+        existing,
+    )
 
     return SeatProfile(seat=seat, subprofiles=subprofiles)
-
-def _assign_ns_role_usage_interactive(
-    seat: str,
-    subprofiles: list[SubProfile],
-    existing_seat_profile: Optional[SeatProfile],
-) -> None:
-    """
-    Interactive UI for NS driver/follower role usage on a seat's sub-profiles.
-
-    Only applies to North/South seats. For each sub-profile we allow the user
-    to choose how it should be used when NS driver/follower semantics apply:
-
-        - "any"           → usable whether this seat is driver or follower
-        - "driver_only"   → only when this seat is the driver
-        - "follower_only" → only when this seat is the follower
-
-    Existing profiles:
-      - If editing, we start from the current ns_role_usage for each subprofile.
-      - If missing, we default to "any".
-    """
-    # Only NS seats participate in driver/follower roles.
-    if seat not in ("N", "S"):
-        return
-
-    if not subprofiles:
-        return
-
-    print(f"\nNS driver/follower role usage for seat {seat}:")
-
-    # Quick opt-out so existing workflows are still fast.
-    if not _yes_no(
-        "Do you want to set driver/follower role usage "
-        "for these sub-profiles? ",
-        default=False,
-    ):
-        return
-
-    # Preload any existing usages if we're editing.
-    existing_usages: list[Optional[str]] = []
-    if existing_seat_profile is not None:
-        for sp in existing_seat_profile.subprofiles:
-            existing_usages.append(getattr(sp, "ns_role_usage", None))
-
-    allowed_values = ["any", "driver_only", "follower_only"]
-
-    for idx, sub in enumerate(subprofiles, start=1):
-        # Seed from existing seat profile (same index) if available.
-        existing_usage: Optional[str] = None
-        if existing_usages and idx - 1 < len(existing_usages):
-            existing_usage = existing_usages[idx - 1]
-
-        # Or from the new subprofile object, or default to "any".
-        default_usage = (
-            getattr(sub, "ns_role_usage", None)
-            or existing_usage
-            or "any"
-        )
-
-        prompt = (
-            f"  Sub-profile {idx}: role usage "
-            "[any/driver_only/follower_only]: "
-        )
-        chosen = _input_choice(
-            prompt,
-            allowed_values,
-            default_usage,
-        )
-
-        # SubProfile is frozen, so use object.__setattr__.
-        object.__setattr__(sub, "ns_role_usage", chosen)
     
 def _assign_ns_role_usage_interactive(
     seat: str,
@@ -1304,112 +1241,6 @@ def _assign_ns_role_usage_interactive(
                 break
             print("Please enter one of: any, driver_only, follower_only")
         object.__setattr__(subprofiles[idx - 1], "ns_role_usage", value)
-
-def _assign_subprofile_weights_interactive(
-    seat: str,
-    subprofiles: list[SubProfile],
-    existing_seat_profile: SeatProfile | None,
-) -> None:
-    """
-    Ask the user whether they want to edit weights for sub-profiles on a seat.
-
-    Rules:
-      - No negatives.
-      - Input is in percent, at most one decimal.
-      - For legacy profiles (all weights 0.0) we treat them as 1/n each.
-      - If the total is within ±2% of 100, normalise to exactly 100 by
-        scaling proportionally.
-      - Otherwise we reject and re-prompt.
-    """
-    if len(subprofiles) <= 1:
-        # Nothing to weight.
-        return
-
-    # Start from existing weights if present, otherwise equal weights.
-    existing_weights: list[float] = []
-    if existing_seat_profile is not None:
-        for sp in existing_seat_profile.subprofiles:
-            existing_weights.append(getattr(sp, "weight_percent", 0.0))
-
-    # If all existing weights are zero or we don't have them,
-    # default to equal weights 1/n.
-    n = len(subprofiles)
-    if not existing_weights or all(w == 0.0 for w in existing_weights):
-        base_default = round(100.0 / n, 1)
-        defaults = [base_default for _ in range(n)]
-    else:
-        # Extend/truncate existing weights to match new subprofile count.
-        defaults = (existing_weights + [0.0] * n)[:n]
-
-    # New: ask about weighting if there is more than one sub-profile.
-    _assign_subprofile_weights_interactive(seat, subprofiles, existing)
-
-    # NEW: for N/S seats, optionally mark each subprofile as driver/follower/any.
-    _assign_ns_role_usage_interactive(seat, subprofiles, existing)
-
-    return SeatProfile(seat=seat, subprofiles=subprofiles)
-
-    print(f"\nSub-profile weighting for seat {seat}:")
-    
-    
-    for idx, w in enumerate(defaults, start=1):
-        label = " (default)" if all(dw == defaults[0] for dw in defaults) else ""
-        print(f"  Sub-profile {idx}: {w:.1f}% of deals{label}")
-
-    if not _yes_no("Do you want to edit these weights? ", default=False):
-        # Keep defaults (but we still need to write them back into the new objects).
-        total = sum(defaults)
-        # If total is 0 (it really shouldn't be), fall back to equal weights.
-        if total <= 0.0:
-            normalised = [round(100.0 / n, 1) for _ in range(n)]
-        else:
-            normalised = [round(100.0 * w / total, 1) for w in defaults]
-        for sub, w in zip(subprofiles, normalised, strict=False):
-            object.__setattr__(sub, "weight_percent", w)
-        return
-
-    # User wants to enter custom weights.
-    while True:
-        weights: list[float] = []
-        for idx, default_w in enumerate(defaults, start=1):
-            prompt = (
-                f"  Weight for sub-profile {idx} as % of deals "
-                f"(0–100, at most one decimal)"
-            )
-            w = _input_float_with_default(
-                prompt,
-                default=default_w,
-                min_value=0.0,
-                max_value=100.0,
-                decimal_places=1,
-            )
-            weights.append(w)
-
-        total = sum(weights)
-        if total <= 0.0:
-            print("Total weight must be greater than 0. Please re-enter.")
-            continue
-
-        # Check closeness to 100.
-        if abs(total - 100.0) > 2.0:
-            print(
-                f"Total weight {total:.1f}% is too far from 100% "
-                "(must be within ±2% of 100). Please re-enter."
-            )
-            continue
-
-        # Normalise to exactly 100.0, proportionally.
-        normalised = [round(100.0 * w / total, 1) for w in weights]
-
-        # Adjust last element to fix any rounding drift so that sum == 100.0 exactly.
-        drift = round(100.0 - sum(normalised), 1)
-        normalised[-1] = round(normalised[-1] + drift, 1)
-
-        for sub, w in zip(subprofiles, normalised, strict=False):
-            # SubProfile is frozen, so use object.__setattr__.
-            object.__setattr__(sub, "weight_percent", w)
-
-        break
 
 def _suggest_dealing_order(
     tag: str,
@@ -1501,6 +1332,7 @@ def _autosave_profile_draft(profile: HandProfile, original_path: Path) -> None:
 def _build_profile(
     existing: Optional[HandProfile] = None,
     original_path: Optional[Path] = None,
+    constraints_mode: str = "full",
 ) -> Dict[str, Any]:
     """
     Core interactive flow to build (or rebuild) a HandProfile.
@@ -1508,6 +1340,11 @@ def _build_profile(
     Used by:
       • create_profile_interactive()   (existing is None)
       • edit_constraints_interactive() (existing is a HandProfile)
+
+    constraints_mode:
+      - "full": current behaviour (edit constraints seat-by-seat)
+      - "metadata_only": reuse existing constraints without asking
+        per-seat questions; only metadata is edited.
     """
 
     # Route interaction helpers through profile_wizard when tests monkeypatch there.
@@ -1529,9 +1366,6 @@ def _build_profile(
         hand_dealing_order = list(existing.hand_dealing_order)
         author = getattr(existing, "author", "")
         version = getattr(existing, "version", "")
-
-        # NEW: carry ns_role_mode straight through for constraints-only edits.
-        ns_role_mode = getattr(existing, "ns_role_mode", "north_drives")
 
         # Tests expect a *prompt* here, with default taken from existing
         rotate_by_default = yes_no(
@@ -1555,35 +1389,8 @@ def _build_profile(
             ["N", "E", "S", "W"],
             "N",
         )
-        
-        # NEW: choose ns_role_mode interactively (creation only).
-        # We only bother when this is an NS-training style tag; otherwise
-        # we quietly default to north_drives.
-        ns_role_mode = "north_drives"
-        tag_norm = (tag or "").strip().lower()
-        if tag_norm in ("opener", "overcaller"):
-            # Default label based on default mode (north_drives).
-            default_label = "North usually drives"
-            ns_label = input_choice(
-                "NS role mode (who usually drives the auction for NS?)",
-                [
-                    "North usually drives",
-                    "South usually drives",
-                    "Random between North/South",
-                    "No explicit driver (symmetric)",
-                ],
-                default_label,
-            )
-            if ns_label.startswith("North"):
-                ns_role_mode = "north_drives"
-            elif ns_label.startswith("South"):
-                ns_role_mode = "south_drives"
-            elif ns_label.startswith("Random"):
-                ns_role_mode = "random_driver"
-            else:
-                ns_role_mode = "no_driver"
-        
-        # Use NS role mode "north_drives" as the creation-time default.
+
+        # Use the existing NS-role-aware dealing-order suggestion.
         default_order = _suggest_dealing_order(
             tag=tag,
             dealer=dealer,
@@ -1631,11 +1438,21 @@ def _build_profile(
     for seat in hand_dealing_order:
         print(f"\n--- Editing constraints for seat {seat} ---")
 
+        # --- Metadata-only mode: reuse existing constraints, no questions ---
+        if constraints_mode == "metadata_only" and existing is not None:
+            existing_seat_profile = existing.seat_profiles.get(seat)
+            if existing_seat_profile is not None:
+                seat_profiles[seat] = existing_seat_profile
+            # In metadata-only mode we keep subprofile_exclusions as-is
+            # and skip autosave.
+            continue
+
+        # --- Full constraints-editing mode (existing behaviour) ---
         existing_seat_profile: Optional[SeatProfile] = None
         if existing is not None:
             existing_seat_profile = existing.seat_profiles.get(seat)
 
-            # In edit flow, tests fake _yes_no here to *skip* editing seats.
+            # In edit flow, tests fake yes_no here to *skip* editing seats.
             if not yes_no(
                 f"Do you want to edit constraints for seat {seat}?",
                 default=True,
@@ -1665,9 +1482,9 @@ def _build_profile(
         if original_path is not None:
             try:
                 ns_role_mode = (
-                    getattr(existing, "ns_role_mode", "north_drives")
+                    getattr(existing, "ns_role_mode", "no_driver_no_index")
                     if existing is not None
-                    else "north_drives"
+                    else "no_driver_no_index"
                 )
                 snapshot = HandProfile(
                     profile_name=profile_name,
@@ -1687,12 +1504,10 @@ def _build_profile(
                 print(f"⚠️ Autosave failed after seat {seat}: {exc}")
 
     # ----- Final kwargs dict for HandProfile -----
-    # ns_role_mode should already be set in both branches above; this is just
-    # a defensive fallback for legacy/odd callers.
-    ns_role_mode = locals().get("ns_role_mode") or (
-        getattr(existing, "ns_role_mode", "north_drives")
+    ns_role_mode = (
+        getattr(existing, "ns_role_mode", "no_driver_no_index")
         if existing is not None
-        else "north_drives"
+        else "no_driver_no_index"
     )
 
     return {
@@ -1712,13 +1527,108 @@ def _build_profile(
 def create_profile_interactive() -> HandProfile:
     """
     Top-level helper for creating a new profile interactively.
+
+    New behaviour:
+      • Ask ONLY for profile metadata (name, tag, dealer, order, author, version,
+        rotate flag).
+      • Automatically attach standard "open" constraints to all four seats
+        (N, E, S, W) – one sub-profile per seat, weight 100%, ns_role_usage="any".
+      • NS role metadata defaults to "no_driver_no_index".
+      • Users can later refine constraints via edit_constraints_interactive().
     """
     clear_screen()
     print("=== Create New Profile ===")
     print()
-    kwargs = wizard_flow._build_profile(existing=None)
-    profile = HandProfile(**kwargs)
-    validate_profile(profile)
+
+    # ---- Metadata prompts (same feel as before) ---------------------------
+    profile_name = _input_with_default("Profile name: ", "New profile")
+    description = _input_with_default("Description: ", "")
+
+    tag = _input_choice(
+        "Tag [Opener/Overcaller]: ",
+        ["Opener", "Overcaller"],
+        "Opener",
+    )
+
+    dealer = _input_choice(
+        "Dealer seat [N/E/S/W]: ",
+        ["N", "E", "S", "W"],
+        "N",
+    )
+
+    # New default NS role mode for fresh profiles.
+    ns_role_mode = "no_driver_no_index"
+
+    # Suggest dealing order based on tag/dealer/ns_role_mode
+    default_order = _suggest_dealing_order(
+        tag=tag,
+        dealer=dealer,
+        ns_role_mode=ns_role_mode,
+    )
+    pretty_default = "".join(default_order)
+    print(
+        f"Default dealing order (starting from dealer {dealer}) "
+        f"is {pretty_default}."
+    )
+
+    if _yes_no("Use default dealing order? ", default=True):
+        hand_dealing_order = default_order
+    else:
+        order_str = _input_with_default(
+            "Enter custom dealing order as 4 letters (e.g. NESW): ",
+            pretty_default,
+        )
+        order = [c.upper() for c in order_str.strip()]
+        if len(order) != 4 or set(order) != {"N", "E", "S", "W"}:
+            print(
+                f"Invalid dealing order; falling back to default "
+                f"{pretty_default}."
+            )
+            hand_dealing_order = default_order
+        else:
+            hand_dealing_order = order
+
+    author = _input_with_default("Author: ", "")
+    version = _input_with_default("Version: ", "0.1")
+    rotate_by_default = _yes_no("Rotate deals by default? ", default=True)
+
+    # ---- Standard constraints for all seats -------------------------------
+    seat_profiles: Dict[str, SeatProfile] = {}
+
+    for seat in ("N", "E", "S", "W"):
+        # Completely open "standard" ranges:
+        std = StandardSuitConstraints()
+        sub = SubProfile(
+            standard=std,
+            random_suit_constraint=None,
+            partner_contingent_constraint=None,
+            opponents_contingent_suit_constraint=None,
+            weight_percent=100.0,
+            ns_role_usage="any",
+        )
+        seat_profiles[seat] = SeatProfile(seat=seat, subprofiles=[sub])
+
+    # No exclusions on a fresh standard profile
+    subprofile_exclusions: List[SubprofileExclusionData] = []
+
+    # Build the HandProfile via the same indirection tests use
+    hp_cls = _pw_attr("HandProfile", HandProfile)
+    profile = hp_cls(
+        profile_name=profile_name,
+        description=description,
+        dealer=dealer,
+        hand_dealing_order=hand_dealing_order,
+        tag=tag,
+        seat_profiles=seat_profiles,
+        author=author,
+        version=version,
+        rotate_deals_by_default=rotate_by_default,
+        ns_role_mode=ns_role_mode,
+        subprofile_exclusions=subprofile_exclusions,
+    )
+
+    # Run normal validation so new profiles behave like edited/loaded ones.
+    _validate_profile(profile)
     return profile
 
 def edit_constraints_interactive(

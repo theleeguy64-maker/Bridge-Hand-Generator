@@ -747,9 +747,13 @@ class HandProfile:
             rotate_deals_by_default=bool(
                 data.get("rotate_deals_by_default", True)
             ),
-            # Keep whatever string is present; validate_profile is responsible
-            # for rejecting unsupported values on JSON input.
-            ns_role_mode=str(data.get("ns_role_mode", "north_drives")),
+            # Missing ns_role_mode in raw dict ⇒ treat as "no driver, no index".
+            # validate_profile is responsible for rejecting unsupported values
+            # when loading from arbitrary JSON.
+            ns_role_mode=str(
+                data.get("ns_role_mode", "no_driver_no_index")
+                or "no_driver_no_index"
+            ),
             subprofile_exclusions=exclusions,
         )
 
@@ -758,37 +762,43 @@ class HandProfile:
         rng: Optional[random.Random] = None,
     ) -> Optional[Seat]:
         """
-        Return the *preferred* NS driver seat implied by ns_role_mode.
+        Return a *metadata-level* preferred NS driver seat implied by ns_role_mode.
 
-        This is metadata for UI / tests. The deal generator still does
-        its own per-board driver choice and will fall back to 'N' if
-        this returns anything other than 'N' or 'S'.
+        This helper is used for UI / tests and is distinct from the per-board
+        driver choice used by the deal generator.
 
-        Modes:
-          - 'north_drives'  -> 'N'
-          - 'south_drives'  -> 'S'
-          - 'random_driver' -> if rng is given, random.choice(['N', 'S']);
-                                otherwise 'N' as a simple metadata default.
-          - 'no_driver'     -> None (explicit: “no fixed driver”)
-          - anything else   -> None (unknown / legacy values treated
-                               as “no driver” at metadata level)
+        Semantics:
+
+        - "north_drives"       -> "N"
+        - "south_drives"       -> "S"
+        - "random_driver":
+            * if rng is provided, return rng.choice(["N", "S"])
+            * if rng is None, return "N" (stable deterministic default)
+        - "no_driver_no_index" -> None (explicit “no fixed driver” for legacy/default)
+        - "no_driver"          -> None (explicit no-driver mode)
+        - anything else        -> None (defensive fallback for unknown values)
         """
-
-        mode = (getattr(self, "ns_role_mode", "north_drives") or "north_drives").lower()
+        mode = (
+            getattr(self, "ns_role_mode", "no_driver_no_index")
+            or "no_driver_no_index"
+        ).lower()
 
         if mode == "north_drives":
             return "N"
         if mode == "south_drives":
             return "S"
         if mode == "random_driver":
-            if rng is not None:
-                return rng.choice(["N", "S"])
-            # Metadata-only fallback when no RNG is supplied.
-            return "N"
-        if mode == "no_driver":
+            if rng is None:
+                # Metadata-only usage without RNG: just pick N deterministically.
+                return "N"
+            return rng.choice(["N", "S"])
+        if mode in ("no_driver", "no_driver_no_index"):
             return None
 
-        # Unknown / legacy ns_role_mode → treat as 'no driver' in metadata.
+        # Unknown / future values: treat as “no driver”
+        return None
+
+        # Unknown / future values: treat as “no driver”
         return None
                
     def ns_role_buckets(self) -> Dict[Seat, Dict[str, List[SubProfile]]]:
@@ -899,6 +909,5 @@ class HandProfile:
             author=str(data.get("author", "")),
             version=str(data.get("version", "")),
             rotate_deals_by_default=data.get("rotate_deals_by_default", True),
-            ns_role_mode=str(data.get("ns_role_mode", "north_drives")),
-            subprofile_exclusions=exclusions,
+            ns_role_mode=str(data.get("ns_role_mode", "no_driver_no_index")),            subprofile_exclusions=exclusions,
         )

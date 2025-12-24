@@ -360,17 +360,21 @@ def validate_profile(data: Any) -> HandProfile:
         # Legacy profiles: backfill missing metadata fields with sensible defaults.
         raw.setdefault("rotate_deals_by_default", True)
         raw.setdefault("subprofile_exclusions", [])
-        raw.setdefault("ns_role_mode", "north_drives")
+        # Backwards-compat behaviour for NS roles:
+        # older JSON with no ns_role_mode should behave like
+        # "no driver, no index matching" between N and S.
+        raw.setdefault("ns_role_mode", "no_driver_no_index")
 
     # -----------------------------------
-    # 3. ns_role_mode sanity (including 'no_driver')
+    # 3. ns_role_mode sanity (including 'no_driver_no_index')
     # -----------------------------------
-    mode = str(raw.get("ns_role_mode", "north_drives") or "north_drives")
+    mode = str(raw.get("ns_role_mode", "no_driver_no_index") or "no_driver_no_index")
     allowed_modes = {
         "north_drives",
         "south_drives",
         "random_driver",
-        "no_driver",  # NEW mode
+        "no_driver",          # optional legacy alias, safe to keep
+        "no_driver_no_index", # explicit “no driver, no index matching”
     }
     if mode not in allowed_modes:
         raise ProfileError(f"Unsupported ns_role_mode value: {mode!r}")

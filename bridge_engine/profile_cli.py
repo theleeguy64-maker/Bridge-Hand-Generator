@@ -48,12 +48,13 @@ from .hand_profile import (
     validate_profile,
 )
 
-
 from .profile_wizard import (
     create_profile_interactive,
     edit_constraints_interactive,
 )
 
+from . import profile_store
+from . import profile_wizard
 
 PROFILE_DIR_NAME = "profiles"
 SUITS: List[str] = ["S", "H", "D", "C"]
@@ -245,6 +246,24 @@ def _choose_profile(
     print("Invalid choice.")
     return None
 
+def _create_profile_from_base_template() -> None:
+    """
+    Create a new profile using a standard base template.
+
+    For now we hard-code Base_v1.0, but this could later be a menu with
+    Base_va / Base_vb, etc.
+    """
+    base_entry = profile_store.find_profile_by_name("Base_v1.0")
+    if base_entry is None:
+        print("ERROR: Base_v1.0 template not found; falling back to full wizard.")
+        profile = profile_wizard.create_profile_interactive()
+    else:
+        base_profile = base_entry.profile
+        profile = profile_wizard.create_profile_from_existing_constraints(base_profile)
+
+    # Whatever save logic you already use after create_profile_interactive()
+    profile_store.save_profile(profile)
+    print(f"Saved new profile: {profile.profile_name}")
 
 def list_profiles_action() -> None:
     profiles = _load_profiles()

@@ -145,15 +145,14 @@ def test_standard_constraints_bad_total_hcp_range_raises() -> None:
             total_max_hcp=10,
         )
 
-# New tests for NS role metadata helpers
-def test_ns_driver_seat_defaults_to_north(make_valid_profile) -> None:
+def test_ns_driver_seat_defaults_to_no_driver(make_valid_profile) -> None:
     """
-    If ns_role_mode is not explicitly set, ns_driver_seat()
-    should default to North (backwards compatible).
+    If ns_role_mode is not explicitly set in legacy data, we treat it as
+    'no_driver_no_index' and ns_driver_seat() returns None.
     """
     profile = make_valid_profile()
-    # Default ns_role_mode on the model is "north_drives"
-    assert profile.ns_driver_seat() == "N"
+    assert profile.ns_role_mode == "no_driver_no_index"
+    assert profile.ns_driver_seat() is None
 
 
 def test_ns_driver_seat_respects_ns_role_mode(make_valid_profile) -> None:
@@ -193,28 +192,38 @@ def test_ns_role_buckets_all_neutral_for_legacy_profiles(make_valid_profile) -> 
         assert len(seat_buckets["neutral"]) >= 1
 
 def test_ns_role_mode_default_and_roundtrip(make_valid_profile) -> None:
-    profile = make_valid_profile()
-    # default on freshly-created profiles
-    assert profile.ns_role_mode == "north_drives"
-    assert profile.ns_driver_seat() == "N"
+    """
+    For freshly-created profiles, ns_role_mode should default to
+    'no_driver_no_index', and at the metadata level that means
+    ns_driver_seat() returns None (no fixed NS driver).
 
-    # round-trip via dict
-    data = profile.to_dict()
-    rebuilt = HandProfile.from_dict(data)
-    assert rebuilt.ns_role_mode == "north_drives"
-    assert rebuilt.ns_driver_seat() == "N"
+    A to_dict / from_dict round-trip must preserve both the mode
+    string and the ns_driver_seat() behaviour.
+    """
+    profile = make_valid_profile()
+
+    # Default on freshly-created profiles
+    assert profile.ns_role_mode == "no_driver_no_index"
+    assert profile.ns_driver_seat() is None
+
+    # Round-trip via to_dict / from_dict
+    raw = profile.to_dict()
+    rebuilt = HandProfile.from_dict(raw)
+
+    assert rebuilt.ns_role_mode == "no_driver_no_index"
+    assert rebuilt.ns_driver_seat() is None
 
 def test_ns_role_mode_defaults_for_legacy_dict(make_valid_profile) -> None:
+    """
+    If a legacy dict has no ns_role_mode key, HandProfile.from_dict()
+    should treat it as 'no_driver_no_index'.
+    """
     profile = make_valid_profile()
-    data = profile.to_dict()
+    raw = profile.to_dict()
+    raw.pop("ns_role_mode", None)
 
-    # Simulate an old on-disk profile with no ns_role_mode
-    data.pop("ns_role_mode", None)
-    data["schema_version"] = 0
-
-    validated = validate_profile(data)
-    assert validated.ns_role_mode == "north_drives"
-    assert validated.ns_driver_seat() == "N"
+    restored = HandProfile.from_dict(raw)
+    assert restored.ns_role_mode == "no_driver_no_index"
 
 def test_ns_driver_seat_south_drives(make_valid_profile) -> None:
     profile = make_valid_profile()
