@@ -171,9 +171,11 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
     # NS sub-profile index matching: tie N/S sub-profile indices together.
 
     Backwards-compatible:
-      - If ns_role_mode is missing → treated as "north_drives".
-      - If a SubProfile has no ns_role_usage → treated as "any".
-      - If a seat has no subprofiles → skipped.
+        - If ns_role_mode is missing → treated as "north_drives".
+        - If ns_role_mode is "no_driver_no_index" → skip NS role coverage checks.
+        - If ns_role_mode is unknown/future → treat as "no_driver_no_index" (skip).
+        - If a SubProfile has no ns_role_usage → treated as "any".
+        - If a seat has no subprofiles → skipped.
     """
 
     # Only relevant if N or S actually has subprofiles.
@@ -187,10 +189,24 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
         return
 
     # Normalise ns_role_mode with backwards-compatible default.
+    #
+    # Modes:
+    #   - north_drives / south_drives / random_driver  → enforce ns_role_usage coverage
+    #   - no_driver_no_index                           → no driver semantics, skip checks
+    #
+    # Back-compat:
+    #   - missing/blank ns_role_mode → treated as "north_drives" (legacy behavior)
+    #   - unknown/future values      → treated as "no_driver_no_index" (lenient)
     mode = getattr(profile, "ns_role_mode", "north_drives") or "north_drives"
+    mode = (mode or "").strip()
+
+    if mode == "no_driver_no_index":
+        return
+
     if mode not in ("north_drives", "south_drives", "random_driver"):
-        # Defensive: unknown future mode → assume both roles possible.
-        mode = "random_driver"
+        # Defensive: unknown future mode → disable NS role semantics rather than
+        # failing profile creation.
+        return
 
     def roles_for(seat: Seat) -> set[str]:
         """Return roles ('driver', 'follower') that this seat may take."""

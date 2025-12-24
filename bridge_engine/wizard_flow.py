@@ -34,14 +34,13 @@ profiles so that both the CLI and tests can rely on a single behaviour.
 # 
 # If you refactor internals, preserve these names or update tests accordingly.
 
-
 # file: bridge_engine/profile_wizard.py
 
 from __future__ import annotations
 
 import inspect
 import json
-from dataclasses import asdict
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -58,7 +57,16 @@ from .wizard_constants import SUITS
 from . import wizard_io as wiz_io
 
 from .hand_profile_validate import validate_profile as _validate_profile_fallback
-from .hand_profile_model import OpponentContingentSuitData
+
+from .hand_profile_model import (
+    HandProfile,
+    SeatProfile,
+    SubProfile,
+    SubprofileExclusionData,
+    StandardSuitConstraints,
+    SuitRange,
+    OpponentContingentSuitData,
+)
 
 import sys
 
@@ -513,6 +521,39 @@ def _edit_subprofile_exclusions_for_seat(
             break
 
     return other + this_seat
+
+# NEW: helper for auto-standard constraints on brand-new profiles
+def _make_default_standard_seat_profile(seat: str) -> SeatProfile:
+    """
+    Build a simple 'all-open' standard SeatProfile with a single sub-profile.
+
+    Used when creating a brand-new profile: user supplies only metadata and
+    we attach standard constraints automatically.
+
+    Defaults mirror the interactive wizard's defaults:
+      - Total HCP: 0–37
+      - Per suit: 0–6 cards, 0–10 HCP
+      - No random / partner / opponent constraints
+      - Weighting: left at 0.0; validate_profile() will normalise to 100%
+      - NS seats default ns_role_usage to 'any'
+    """
+    std = StandardSuitConstraints(
+        total_min_hcp=0,
+        total_max_hcp=37,
+        spades=SuitRange(min_cards=0, max_cards=6, min_hcp=0, max_hcp=10),
+        hearts=SuitRange(min_cards=0, max_cards=6, min_hcp=0, max_hcp=10),
+        diamonds=SuitRange(min_cards=0, max_cards=6, min_hcp=0, max_hcp=10),
+        clubs=SuitRange(min_cards=0, max_cards=6, min_hcp=0, max_hcp=10),
+    )
+
+    sub_kwargs: dict[str, object] = {}
+    
+    sub = SubProfile(
+        standard=std,
+        **sub_kwargs,
+    )
+
+    return SeatProfile(seat=seat, subprofiles=[sub])
 
 def _build_suit_range_for_prompt(
     label: str,
@@ -1328,11 +1369,9 @@ def _autosave_profile_draft(profile: HandProfile, original_path: Path) -> None:
     raw = profile.to_dict()
     draft_path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
 
-
 def _build_profile(
     existing: Optional[HandProfile] = None,
     original_path: Optional[Path] = None,
-    constraints_mode: str = "full",
 ) -> Dict[str, Any]:
     """
     Core interactive flow to build (or rebuild) a HandProfile.
@@ -1341,10 +1380,19 @@ def _build_profile(
       • create_profile_interactive()   (existing is None)
       • edit_constraints_interactive() (existing is a HandProfile)
 
-    constraints_mode:
-      - "full": current behaviour (edit constraints seat-by-seat)
-      - "metadata_only": reuse existing constraints without asking
-        per-seat questions; only metadata is edited.
+    NEW BEHAVIOUR:
+      - For brand-new profiles (existing is None):
+          * Ask ONLY for metadata (name, tag, dealer, etc.).
+          * Automatically attach standard constraints for all four seats:
+              - 1 sub-profile per seat
+              - Standard 'all-open' ranges
+              - No non-standard constraints or exclusions
+              - N/S ns_role_usage = 'no_driver_no_index'
+          * No constraints wizard prompts.
+      - For edits (existing is not None):
+          * Preserve the full constraints wizard behaviour, including
+            seat-by-seat editing, subprofile weights, NS role usage, and
+            autosave of _TEST.json drafts.
     """
 
     # Route interaction helpers through profile_wizard when tests monkeypatch there.
@@ -1358,7 +1406,7 @@ def _build_profile(
 
     # ----- Metadata (and rotation flag) -----
     if existing is not None:
-        # Reuse all metadata from existing
+        # EDIT FLOW: reuse metadata from existing profile
         profile_name = existing.profile_name
         description = existing.description
         tag = existing.tag
@@ -1367,14 +1415,14 @@ def _build_profile(
         author = getattr(existing, "author", "")
         version = getattr(existing, "version", "")
 
-        # Tests expect a *prompt* here, with default taken from existing
+        # Tests expect a prompt here, with default taken from existing
         rotate_by_default = yes_no(
             "Rotate deals by default?",
             default=rotate_by_default,
         )
 
     else:
-        # Fresh profile creation – fully interactive
+        # CREATE FLOW: metadata-only UI
         profile_name = input_with_default("Profile name: ", "New profile")
         description = input_with_default("Description: ", "")
 
@@ -1390,11 +1438,11 @@ def _build_profile(
             "N",
         )
 
-        # Use the existing NS-role-aware dealing-order suggestion.
+        # Use ns_role_mode='no_driver_no_index' as the creation-time default
         default_order = _suggest_dealing_order(
             tag=tag,
             dealer=dealer,
-            ns_role_mode="north_drives",
+            ns_role_mode="no_driver_no_index",
         )
         pretty_default = "".join(default_order)
         print(
@@ -1428,46 +1476,57 @@ def _build_profile(
             default=True,
         )
 
-    # ----- Seat profiles (constraints) -----
-    seat_profiles: Dict[str, SeatProfile] = {}
+        # ----- NEW: auto-build standard constraints for all seats -----
+        seat_profiles: Dict[str, SeatProfile] = {}
+        for seat in hand_dealing_order:
+            seat_profiles[seat] = _make_default_standard_seat_profile(seat)
 
+        # Brand-new profile: no exclusions yet
+        subprofile_exclusions: List[SubprofileExclusionData] = []
+
+        # Default ns_role_mode for new profiles
+        ns_role_mode = "no_driver_no_index"
+
+        # We do NOT autosave draft files for brand-new profiles here; the
+        # profile will be validated and saved via profile_cli.
+        return {
+            "profile_name": profile_name,
+            "description": description,
+            "dealer": dealer,
+            "hand_dealing_order": hand_dealing_order,
+            "tag": tag,
+            "seat_profiles": seat_profiles,
+            "author": author,
+            "version": version,
+            "rotate_deals_by_default": rotate_by_default,
+            "ns_role_mode": ns_role_mode,
+            "subprofile_exclusions": subprofile_exclusions,
+        }
+
+    # ------------------------------------------------------------------
+    # EDIT FLOW (existing is not None): full constraints wizard
+    # ------------------------------------------------------------------
+    seat_profiles: Dict[str, SeatProfile] = {}
     subprofile_exclusions: List[SubprofileExclusionData] = list(
-        getattr(existing, "subprofile_exclusions", []) if existing else []
+        getattr(existing, "subprofile_exclusions", []) or []
     )
 
     for seat in hand_dealing_order:
         print(f"\n--- Editing constraints for seat {seat} ---")
 
-        # --- Metadata-only mode: reuse existing constraints, no questions ---
-        if constraints_mode == "metadata_only" and existing is not None:
-            existing_seat_profile = existing.seat_profiles.get(seat)
+        existing_seat_profile: Optional[SeatProfile] = existing.seat_profiles.get(seat)
+
+        # In edit flow, tests fake _yes_no here to *skip* editing seats.
+        if not yes_no(
+            f"Do you want to edit constraints for seat {seat}?",
+            default=True,
+        ):
             if existing_seat_profile is not None:
                 seat_profiles[seat] = existing_seat_profile
-            # In metadata-only mode we keep subprofile_exclusions as-is
-            # and skip autosave.
             continue
 
-        # --- Full constraints-editing mode (existing behaviour) ---
-        existing_seat_profile: Optional[SeatProfile] = None
-        if existing is not None:
-            existing_seat_profile = existing.seat_profiles.get(seat)
-
-            # In edit flow, tests fake yes_no here to *skip* editing seats.
-            if not yes_no(
-                f"Do you want to edit constraints for seat {seat}?",
-                default=True,
-            ):
-                if existing_seat_profile is not None:
-                    seat_profiles[seat] = existing_seat_profile
-                continue
-
-            # EDIT FLOW: call _build_seat_profile with (seat, existing)
-            new_seat_profile = seat_builder(seat, existing_seat_profile)
-        else:
-            # CREATE FLOW: tests monkeypatch _build_seat_profile(seat) with a
-            # single-arg stub, so we MUST call it with exactly one argument.
-            new_seat_profile = seat_builder(seat)
-
+        # EDIT FLOW: call _build_seat_profile with (seat, existing)
+        new_seat_profile = seat_builder(seat, existing_seat_profile)
         seat_profiles[seat] = new_seat_profile
 
         subprofile_exclusions = _edit_subprofile_exclusions_for_seat(
@@ -1481,10 +1540,10 @@ def _build_profile(
         # --- Autosave draft after each seat (best-effort) ---
         if original_path is not None:
             try:
-                ns_role_mode = (
-                    getattr(existing, "ns_role_mode", "no_driver_no_index")
-                    if existing is not None
-                    else "no_driver_no_index"
+                ns_role_mode = getattr(
+                    existing,
+                    "ns_role_mode",
+                    "no_driver_no_index",
                 )
                 snapshot = HandProfile(
                     profile_name=profile_name,
@@ -1503,12 +1562,8 @@ def _build_profile(
             except Exception as exc:  # pragma: no cover – autosave is best-effort
                 print(f"⚠️ Autosave failed after seat {seat}: {exc}")
 
-    # ----- Final kwargs dict for HandProfile -----
-    ns_role_mode = (
-        getattr(existing, "ns_role_mode", "no_driver_no_index")
-        if existing is not None
-        else "no_driver_no_index"
-    )
+    # ----- Final kwargs dict for HandProfile (edit flow) -----
+    ns_role_mode = getattr(existing, "ns_role_mode", "no_driver_no_index")
 
     return {
         "profile_name": profile_name,
@@ -1522,8 +1577,7 @@ def _build_profile(
         "rotate_deals_by_default": rotate_by_default,
         "ns_role_mode": ns_role_mode,
         "subprofile_exclusions": list(subprofile_exclusions),
-    }
-        
+    }        
 def create_profile_interactive() -> HandProfile:
     """
     Top-level helper for creating a new profile interactively.

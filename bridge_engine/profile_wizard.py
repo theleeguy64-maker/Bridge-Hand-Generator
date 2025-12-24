@@ -8,6 +8,8 @@ Design goals:
 """
 
 from __future__ import annotations
+from pathlib import Path
+
 from dataclasses import replace
 from typing import Optional
 
@@ -18,11 +20,16 @@ from typing import Optional
 
 from .hand_profile_model import HandProfile
 from .hand_profile import HandProfile, validate_profile  # type: ignore
+from .hand_profile_validate import validate_profile
 
 # ---- I/O seams (tests monkeypatch these) ------------------------------------
 
 # These are imported from wizard_io but re-exported here so tests can patch
 # `bridge_engine.profile_wizard._input_int` and wizard code will see it.
+
+from . import wizard_flow
+from .cli_io import clear_screen
+
 from .wizard_io import (  # type: ignore
     clear_screen,
     _input_with_default,
@@ -65,13 +72,37 @@ except Exception:
     pass
 
 def create_profile_interactive() -> HandProfile:
-    print("\n=== Create New Profile ===\n")
-    kwargs = wizard_flow._build_profile(existing=None)
-    profile = HandProfile(**kwargs)
-    validate_profile(profile)
-    # existing save / filename logic can use `profile` as before
-    return profile
+    """
+    Top-level helper for creating a new profile interactively.
 
+    New profile behaviour:
+
+      • User answers *metadata only* (name, description, tag, dealer,
+        order, author, version, rotate flag).
+      • Wizard attaches Base-style standard constraints in the background.
+      • NS behaviour defaults to 'no_driver_no_index' so there is
+        NO NS driver semantics and NO index matching until you
+        explicitly edit the profile later.
+    """
+    clear_screen()
+    print("=== Create New Profile ===")
+    print()
+
+    # Build all kwargs (metadata + default standard constraints)
+    kwargs = wizard_flow._build_profile(existing=None)
+
+    # 🔒 Force backwards-compatible NS default for brand-new profiles:
+    # treat them as "no driver / no index" unless explicitly changed later.
+    kwargs["ns_role_mode"] = "no_driver_no_index"
+
+    # Construct profile object from kwargs
+    profile = HandProfile(**kwargs)
+
+    # Validate (this may normalise weights etc., but ns_role_mode is now fixed)
+    validate_profile(profile)
+
+    return profile
+            
 def create_profile_from_existing_constraints(existing: HandProfile) -> HandProfile:
     """
     Create a new profile that reuses all constraints from `existing`
