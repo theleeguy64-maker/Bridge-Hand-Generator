@@ -28,7 +28,6 @@ profiles so that both the CLI and tests can rely on a single behaviour.
 #   - validate_profile
 # 
 # Behavioral guarantees relied on by tests:
-#   - Wizard asks "Rotate deals by default?" with default=True
 #   - rotate_deals_by_default is passed into HandProfile(...)
 #   - Accepting defaults bypasses optional prompts
 # 
@@ -1361,7 +1360,7 @@ def _autosave_profile_draft(profile: HandProfile, original_path: Path) -> None:
     """
     try:
         base = original_path.with_suffix("")  # strip .json
-        draft_path = base.with_name(base.name + "_TEST").with_suffix(".json")
+        draft_path = base.with_name(base.name + "_TEST.json")
     except Exception:
         # If anything odd about the path, don't autosave.
         return
@@ -1401,9 +1400,9 @@ def _build_profile(
     yes_no = _pw_attr("_yes_no", _yes_no)
     seat_builder = _pw_attr("_build_seat_profile", _build_seat_profile)
 
-    # Rotation is metadata; always have a value on all paths.
-    rotate_by_default = getattr(existing, "rotate_deals_by_default", True)
-
+    # Rotation is metadata; constraints edit must preserve existing value (default True).
+    rotate_flag = getattr(existing, "rotate_deals_by_default", True)
+    
     # ----- Metadata (and rotation flag) -----
     if existing is not None:
         # EDIT FLOW: reuse metadata from existing profile
@@ -1414,12 +1413,6 @@ def _build_profile(
         hand_dealing_order = list(existing.hand_dealing_order)
         author = getattr(existing, "author", "")
         version = getattr(existing, "version", "")
-
-        # Tests expect a prompt here, with default taken from existing
-        rotate_by_default = yes_no(
-            "Rotate deals by default?",
-            default=rotate_by_default,
-        )
 
     else:
         # CREATE FLOW: metadata-only UI
@@ -1470,12 +1463,6 @@ def _build_profile(
         author = input_with_default("Author: ", "")
         version = input_with_default("Version: ", "0.1")
 
-        # Tests expect this exact prompt & default=True in the create flow
-        rotate_by_default = yes_no(
-            "Rotate deals by default?",
-            default=True,
-        )
-
         # ----- NEW: auto-build standard constraints for all seats -----
         seat_profiles: Dict[str, SeatProfile] = {}
         for seat in hand_dealing_order:
@@ -1498,7 +1485,7 @@ def _build_profile(
             "seat_profiles": seat_profiles,
             "author": author,
             "version": version,
-            "rotate_deals_by_default": rotate_by_default,
+            "rotate_deals_by_default": rotate_flag,
             "ns_role_mode": ns_role_mode,
             "subprofile_exclusions": subprofile_exclusions,
         }
@@ -1554,7 +1541,7 @@ def _build_profile(
                     seat_profiles=seat_profiles,
                     author=author,
                     version=version,
-                    rotate_deals_by_default=rotate_by_default,
+                    rotate_deals_by_default=rotate_flag,
                     ns_role_mode=ns_role_mode,
                     subprofile_exclusions=list(subprofile_exclusions),
                 )
@@ -1574,10 +1561,11 @@ def _build_profile(
         "seat_profiles": seat_profiles,
         "author": author,
         "version": version,
-        "rotate_deals_by_default": rotate_by_default,
+        "rotate_deals_by_default": rotate_flag,
         "ns_role_mode": ns_role_mode,
         "subprofile_exclusions": list(subprofile_exclusions),
-    }        
+    }   
+         
 def create_profile_interactive() -> HandProfile:
     """
     Top-level helper for creating a new profile interactively.
@@ -1644,7 +1632,6 @@ def create_profile_interactive() -> HandProfile:
 
     author = _input_with_default("Author: ", "")
     version = _input_with_default("Version: ", "0.1")
-    rotate_by_default = _yes_no("Rotate deals by default? ", default=True)
 
     # ---- Standard constraints for all seats -------------------------------
     seat_profiles: Dict[str, SeatProfile] = {}
@@ -1676,7 +1663,7 @@ def create_profile_interactive() -> HandProfile:
         seat_profiles=seat_profiles,
         author=author,
         version=version,
-        rotate_deals_by_default=rotate_by_default,
+        rotate_deals_by_default=rotate_flag,
         ns_role_mode=ns_role_mode,
         subprofile_exclusions=subprofile_exclusions,
     )
@@ -1704,7 +1691,7 @@ def edit_constraints_interactive(
     print(f"Dealer : {existing.dealer}")
     print(f"Order  : {list(existing.hand_dealing_order)}\n")
 
-    kwargs = wizard_flow._build_profile(existing=existing, original_path=profile_path)
+    kwargs = _build_profile(existing=existing, original_path=profile_path)
     profile = HandProfile(**kwargs)
     validate_profile(profile)
     return profile

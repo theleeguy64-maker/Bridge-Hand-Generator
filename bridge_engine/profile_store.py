@@ -23,7 +23,7 @@ def test_profile_path_for_canonical(canonical: Path) -> Path:
       profiles/Foo_Profile_v0.3.json
       -> profiles/Foo_Profile_v0.3_TEST.json
     """
-    return canonical.with_name(canonical.stem + "_TEST.json")
+    return canonical.with_name(canonical.name.replace(".json", "_TEST.json"))
 
 def autosave_profile_draft(
     profile: HandProfile,

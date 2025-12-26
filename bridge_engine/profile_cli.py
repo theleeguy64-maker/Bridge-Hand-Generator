@@ -56,6 +56,8 @@ from .profile_wizard import (
 from . import profile_store
 from . import profile_wizard
 
+from .wizard_flow import edit_constraints_interactive as edit_constraints_interactive_flow
+
 PROFILE_DIR_NAME = "profiles"
 SUITS: List[str] = ["S", "H", "D", "C"]
 
@@ -458,6 +460,37 @@ def _print_full_profile_details_impl(profile: HandProfile, path: Path) -> None:
                 
         _print_subprofile_exclusions(profile, seat, indent="  ")
 
+def _parse_hand_dealing_order(s: str) -> list[str] | None:
+    """
+    Parse a hand dealing order from user input.
+    Accepts formats like: "N E S W", "nesw", "w,n,e,s", "W N E S".
+    Returns a list like ["N","E","S","W"] or None if invalid.
+    """
+    if s is None:
+        return None
+    raw = s.strip().upper()
+    if not raw:
+        return None
+
+    # Split on whitespace/commas if present; otherwise treat as a 4-letter string.
+    if any(ch in raw for ch in (" ", ",", "\t")):
+        parts = [p for p in raw.replace(",", " ").split() if p]
+    else:
+        parts = list(raw)
+
+    if len(parts) != 4:
+        return None
+    if set(parts) != {"N", "E", "S", "W"}:
+        return None
+    return parts
+
+def _default_clockwise_order_starting_with(dealer: str) -> list[str]:
+    base = ["N", "E", "S", "W"]
+    dealer = (dealer or "").strip().upper()
+    if dealer not in base:
+        return base
+    i = base.index(dealer)
+    return base[i:] + base[:i]
 
 def _print_full_profile_details(profile: HandProfile, path: Path) -> None:
     """Print full details of a profile, including constraints."""
@@ -604,7 +637,9 @@ def edit_profile_action() -> None:
     mode = _input_int("Choose [1-2]", default=1, minimum=1, maximum=2)
 
     if mode == 1:
+        # ------------------------
         # Metadata-only edit
+        # ------------------------
         new_name = _input_with_default("Profile name", profile.profile_name)
         new_desc = _input_with_default("Description", profile.description)
         new_tag = (
@@ -615,54 +650,86 @@ def edit_profile_action() -> None:
             )
             .capitalize()
         )
-        new_dealer = prompt_choice(
-            "Dealer seat", ["N", "E", "S", "W"], profile.dealer
-        )
+        new_dealer = prompt_choice("Dealer seat", ["N", "E", "S", "W"], profile.dealer).upper()
 
+        # Dealing order (robust parsing + invariant enforcement)
         print(f"Current hand dealing order: {profile.hand_dealing_order}")
-        hd_default = " ".join(profile.hand_dealing_order)
-        raw_order = _input_with_default(
-            "Hand dealing order (4 seats, e.g. 'N E S W')", hd_default
-        )
-        parts = raw_order.split()
-        if len(parts) != 4 or set(parts) != {"N", "E", "S", "W"}:
-            print("Invalid dealing order; keeping existing order.")
-            new_hand_dealing_order = profile.hand_dealing_order
-        else:
-            new_hand_dealing_order = parts
+        order_in = input(
+            "Hand dealing order (4 seats, e.g. 'N E S W' or 'NESW') "
+            f"[{' '.join(profile.hand_dealing_order)}]: "
+        ).strip()
+
+        new_order = None
+        if order_in:
+            parsed = _parse_hand_dealing_order(order_in)
+            if parsed is None:
+                print(
+                    "Invalid dealing order input; will keep current "
+                    "(but will be adjusted if dealer changed)."
+                )
+            else:
+                new_order = parsed
+
+        if new_order is None:
+            new_order = list(profile.hand_dealing_order)
+
+        dealer = (new_dealer or profile.dealer or "N").strip().upper()
+
+        if new_order[0] != dealer:
+            if dealer in new_order:
+                i = new_order.index(dealer)
+                new_order = new_order[i:] + new_order[:i]
+                print(f"Adjusted dealing order to start with dealer {dealer}: {new_order}")
+            else:
+                new_order = _default_clockwise_order_starting_with(dealer)
+                print(f"Replaced dealing order with default starting with dealer {dealer}: {new_order}")
 
         new_author = _input_with_default("Author", getattr(profile, "author", ""))
-        new_version = _input_with_default(
-            "Version", getattr(profile, "version", "")
-        )
+        new_version = _input_with_default("Version", getattr(profile, "version", ""))
 
-        # Rotate flag
         rotate_default = _yes_no(
             "Rotate deals by default?",
             getattr(profile, "rotate_deals_by_default", True),
         )
 
-        # NS role mode (who usually drives the auction for NS?)
-        existing_ns_mode = getattr(profile, "ns_role_mode", "north_drives")
-        ns_default_label = (
-            "North usually drives"
-            if existing_ns_mode == "north_drives"
-            else "South usually drives"
+        # NS role mode (5 options)
+        existing_ns_mode = getattr(profile, "ns_role_mode", None) or "no_driver_no_index"
+        ns_mode_options = [
+            ("north_drives", "North usually drives"),
+            ("south_drives", "South usually drives"),
+            ("random_driver", "Random driver (per board)"),
+            ("no_driver", "No Driver"),
+            ("no_driver_no_index", "No driver / no index matching"),
+        ]
+
+        ns_default_label = next(
+            (label for m, label in ns_mode_options if m == existing_ns_mode),
+            "No driver / no index matching",
         )
-        ns_label = prompt_choice(
-            "NS role mode (who usually drives the auction for NS?)",
-            ["North usually drives", "South usually drives"],
-            ns_default_label,
+
+        print("NS role mode (who usually drives the auction for NS?)")
+        for i, (_, label) in enumerate(ns_mode_options, start=1):
+            print(f"  {i}) {label}")
+
+        default_idx = next(
+            (i for i, (_, label) in enumerate(ns_mode_options, start=1) if label == ns_default_label),
+            len(ns_mode_options),
         )
-        new_ns_role_mode = (
-            "north_drives" if ns_label.startswith("North") else "south_drives"
+
+        choice = _input_int(
+            f"Choose [1-{len(ns_mode_options)}]",
+            default=default_idx,
+            minimum=1,
+            maximum=len(ns_mode_options),
         )
+
+        new_ns_role_mode = ns_mode_options[choice - 1][0]
 
         updated = HandProfile(
             profile_name=new_name,
             description=new_desc,
             dealer=new_dealer,
-            hand_dealing_order=new_hand_dealing_order,
+            hand_dealing_order=new_order,
             tag=new_tag,
             seat_profiles=profile.seat_profiles,
             author=new_author,
@@ -671,18 +738,20 @@ def edit_profile_action() -> None:
             ns_role_mode=new_ns_role_mode,
         )
 
-        _save_profile(path, updated)
+        _save_profile_to_path(updated, path)
         print(f"\nUpdated profile saved to {path}")
-    else:
+
+    else:        # ------------------------
         # Constraints-only edit
+        # ------------------------
         try:
-            updated = edit_constraints_interactive(profile)
+            updated = edit_constraints_interactive_flow(profile, profile_path=path)
         except ProfileError as exc:
             print(f"ERROR while editing constraints: {exc}")
             return
 
         if prompt_yes_no("Save updated constraints to this profile?", True):
-            _save_profile(path, updated)
+            _save_profile_to_path(updated, path)
             print(f"\nUpdated profile saved to {path}")
 
 def delete_profile_action() -> None:

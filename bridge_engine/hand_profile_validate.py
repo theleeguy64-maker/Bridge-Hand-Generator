@@ -72,7 +72,6 @@ def _extract_seat_names_from_constraint(constraint: Any) -> List[str]:
 
     return seats
 
-
 def _normalise_subprofile_weights(raw: Dict[str, Any]) -> None:
     """
     In-place normalisation of subprofile weights on a raw profile dict.
@@ -200,7 +199,7 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
     mode = getattr(profile, "ns_role_mode", "north_drives") or "north_drives"
     mode = (mode or "").strip()
 
-    if mode == "no_driver_no_index":
+    if mode in ("no_driver", "no_driver_no_index"):
         return
 
     if mode not in ("north_drives", "south_drives", "random_driver"):
@@ -384,16 +383,16 @@ def validate_profile(data: Any) -> HandProfile:
     # -----------------------------------
     # 3. ns_role_mode sanity (including 'no_driver_no_index')
     # -----------------------------------
-    mode = str(raw.get("ns_role_mode", "no_driver_no_index") or "no_driver_no_index")
+    mode = str(raw.get("ns_role_mode", "no_driver_no_index") or "no_driver_no_index").strip()
     allowed_modes = {
         "north_drives",
         "south_drives",
         "random_driver",
-        "no_driver",          # optional legacy alias, safe to keep
-        "no_driver_no_index", # explicit “no driver, no index matching”
+        "no_driver",          # no driver roles, but index matching ON
+        "no_driver_no_index", # no driver roles, and index matching OFF
     }
     if mode not in allowed_modes:
-        raise ProfileError(f"Unsupported ns_role_mode value: {mode!r}")
+        mode = "no_driver_no_index"
     raw["ns_role_mode"] = mode
 
     # -----------------------------------
