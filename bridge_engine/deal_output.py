@@ -147,23 +147,26 @@ def _format_single_board_text(board: Deal) -> List[str]:
     lines.append(f"Vulnerability: {board.vulnerability}")
     lines.append("")  # blank line
 
+    # --- New NS indent behaviour (+6 spaces vs previous) ---
+    NS_EXTRA = 6
+    NS_HEADER_INDENT = 11 + NS_EXTRA   # was 11 ("           ")
+    NS_SUIT_INDENT = 8 + NS_EXTRA      # was 8 (default in _format_vertical_hand)
+
     # North
-    lines.append("           North")
-    lines.extend(_format_vertical_hand(board.hands["N"]))
+    lines.append(" " * NS_HEADER_INDENT + "North")
+    lines.extend(_format_vertical_hand(board.hands["N"], indent=NS_SUIT_INDENT))
     lines.append("")
 
-    # West / East pair
+    # West / East pair (unchanged)
     lines.extend(_format_horizontal_pair(board.hands["W"], board.hands["E"]))
     lines.append("")
 
     # South
-    lines.append("           South")
-    lines.extend(_format_vertical_hand(board.hands["S"]))
+    lines.append(" " * NS_HEADER_INDENT + "South")
+    lines.extend(_format_vertical_hand(board.hands["S"], indent=NS_SUIT_INDENT))
     lines.append("")
 
     return lines
-
-
 def _convert_to_formatted_deals(
     profile: HandProfile, deals: Sequence[Deal]
 ) -> List[str]:

@@ -281,13 +281,61 @@ def list_profiles_action() -> None:
             f"tag={profile.tag}, dealer={profile.dealer})"
         )
 
+def draft_tools_action() -> None:
+    profiles_dir = _profiles_dir()  # or however profile_cli resolves profiles/
+    drafts = profile_store.list_drafts(profiles_dir)
+
+    if not drafts:
+        print("\nNo draft *_TEST.json files found.")
+        return
+
+    print("\nDraft *_TEST.json files:")
+    for i, p in enumerate(drafts, start=1):
+        print(f"  {i}) {p.name}")
+
+    print("\nActions:")
+    print("  1) Delete one draft")
+    print("  2) Delete ALL drafts")
+    print("  3) Cancel")
+
+    action = _input_int("Choose [1-3]", default=3, minimum=1, maximum=3, show_range_suffix=False)
+    if action == 3:
+        return
+
+    if action == 2:
+        if prompt_yes_no("Really delete ALL draft *_TEST.json files?", False):
+            deleted = 0
+            for p in drafts:
+                try:
+                    p.unlink()
+                    deleted += 1
+                except OSError as exc:
+                    print(f"Failed to delete {p.name}: {exc}")
+            print(f"Deleted {deleted} draft(s).")
+        return
+
+    # action == 1
+    idx = _input_int(
+        f"Which draft? [1-{len(drafts)}]",
+        default=1,
+        minimum=1,
+        maximum=len(drafts),
+        show_range_suffix=False,
+    )
+    p = drafts[idx - 1]
+    if prompt_yes_no(f"Delete draft {p.name}?", False):
+        try:
+            p.unlink()
+            print(f"Deleted {p.name}")
+        except OSError as exc:
+            print(f"Failed to delete {p.name}: {exc}")
 
 def create_profile_action() -> None:
     profile = create_profile_interactive()
     if prompt_yes_no("Save this new profile?", True):
         path = _profile_path_for(profile)
         _save_profile_to_path(profile, path)
-
+        profile_store.delete_draft_for_canonical(path)
 
 def _print_suit_range(label: str, r: SuitRange, indent: str = "") -> None:
     print(
@@ -695,10 +743,16 @@ def edit_profile_action() -> None:
         # NS role mode (5 options)
         existing_ns_mode = getattr(profile, "ns_role_mode", None) or "no_driver_no_index"
         ns_mode_options = [
-            ("north_drives", "North usually drives"),
-            ("south_drives", "South usually drives"),
-            ("random_driver", "Random driver (per board)"),
-            ("no_driver", "No Driver"),
+            ("north_drives", "North almost always drives"),
+            ("south_drives", "South almost always drives"),
+            (
+                "random_driver",
+                "Random driver (per board) – N or S is randomly assigned to drive the hand",
+            ),
+            (
+                "no_driver",
+                "No Driver – neither N or S explicitly drives, but SubProfile [index] matching applies",
+            ),
             ("no_driver_no_index", "No driver / no index matching"),
         ]
 
@@ -707,7 +761,7 @@ def edit_profile_action() -> None:
             "No driver / no index matching",
         )
 
-        print("NS role mode (who usually drives the auction for NS?)")
+        print("NS role mode (who probably drives the auction for NS?)")
         for i, (_, label) in enumerate(ns_mode_options, start=1):
             print(f"  {i}) {label}")
 
@@ -721,6 +775,7 @@ def edit_profile_action() -> None:
             default=default_idx,
             minimum=1,
             maximum=len(ns_mode_options),
+            show_range_suffix=False,
         )
 
         new_ns_role_mode = ns_mode_options[choice - 1][0]
@@ -739,7 +794,11 @@ def edit_profile_action() -> None:
         )
 
         _save_profile_to_path(updated, path)
+        profile_store.delete_draft_for_canonical(path)
         print(f"\nUpdated profile saved to {path}")
+
+        _save_profile_to_path(new_profile, path)
+        profile_store.delete_draft_for_canonical(path)
 
     else:        # ------------------------
         # Constraints-only edit
@@ -812,6 +871,7 @@ def run_profile_manager() -> None:
         print("5) Delete profile")
         print("6) Save profile as new version")
         print("7) Exit")
+        print("8) Draft tools (recover/delete *_TEST.json drafts)")
 
         choice = _input_int("Choose [1-7] (default 7)", default=7, minimum=1, maximum=7)
 
@@ -839,10 +899,11 @@ def run_profile_manager() -> None:
             delete_profile_action()
         elif choice == 6:
             save_as_new_version_action()
+        elif choice == 8:
+            draft_tools_action()
         else:
             print("Exiting Profile Manager.")
             break
-
 
 def main() -> None:
     """Entry point so orchestrator can call profile_cli.main()."""

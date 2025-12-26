@@ -25,6 +25,31 @@ def test_profile_path_for_canonical(canonical: Path) -> Path:
     """
     return canonical.with_name(canonical.name.replace(".json", "_TEST.json"))
 
+def is_draft_path(path: Path) -> bool:
+    # Treat anything ending ..._TEST.json as a draft
+    return path.name.endswith("_TEST.json")
+
+def draft_path_for_canonical(canonical: Path) -> Path:
+    # canonical: Foo_v0.1.json  -> Foo_v0.1_TEST.json
+    return canonical.with_name(canonical.stem + "_TEST.json")
+
+def delete_draft_for_canonical(canonical: Path) -> bool:
+    """
+    Delete the draft sibling for a canonical profile path.
+    Returns True if a file was deleted, False if none existed.
+    """
+    draft = draft_path_for_canonical(canonical)
+    if draft.exists():
+        draft.unlink()
+        return True
+    return False
+
+def list_drafts(profiles_dir: Path) -> List[Path]:
+    """
+    Return all *_TEST.json draft files in profiles_dir.
+    """
+    return sorted(profiles_dir.glob("*_TEST.json"))
+
 def autosave_profile_draft(
     profile: HandProfile,
     canonical_path: Path,
@@ -89,14 +114,19 @@ def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
 
 def _load_profiles(base_dir: Path | None = None) -> List[Tuple[Path, HandProfile]]:
     """
-    Load all profiles from disk and return a list of (path, HandProfile).
+    Load all *canonical* profiles from disk (ignores *_TEST.json drafts)
+    and return a list of (path, HandProfile).
     """
     profiles: List[Tuple[Path, HandProfile]] = []
     dir_path = _profiles_dir(base_dir)
+
     for json_path in sorted(dir_path.glob("*.json")):
+        # Hide autosave drafts from normal profile listing.
+        if json_path.name.endswith("_TEST.json"):
+            continue
+
         raw = json.loads(json_path.read_text())
-        # If you have a dedicated constructor, use it here. For now,
-        # we assume HandProfile(**raw) works with your dataclass.
         profile = HandProfile(**raw)
         profiles.append((json_path, profile))
+
     return profiles
