@@ -211,8 +211,6 @@ def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
     data = profile.to_dict()
     with path.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, sort_keys=False)
-    print(f"Profile saved to {path}")
-
 
 # ---------------------------------------------------------------------------
 # Menu actions
@@ -332,8 +330,12 @@ def draft_tools_action() -> None:
 
 def create_profile_action() -> None:
     profile = create_profile_interactive()
-    print("\n(Rotate set to Y and NS role mode set to Any)")
+
     print()
+    print("Rotate set to Yes and NS role mode set to Any")
+    print()
+    print("Metadata can be chnaged in 'Edit Profile'")
+
     if prompt_yes_no("Save this new profile?", True):
         path = _profile_path_for(profile)
         _save_profile_to_path(profile, path)
@@ -684,7 +686,16 @@ def edit_profile_action() -> None:
     print("\nEdit mode:")
     print("  1) Edit metadata only")
     print("  2) Edit constraints only")
-    mode = _input_int("Choose [1-2]", default=1, minimum=1, maximum=2)
+    mode = _input_int(
+        "Choose [1-2]",
+        default=1,
+        minimum=1,
+        maximum=2,
+        show_range_suffix=False,
+    )
+    
+    
+    print()
 
     if mode == 1:
         # ------------------------

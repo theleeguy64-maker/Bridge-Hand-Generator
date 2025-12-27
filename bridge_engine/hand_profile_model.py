@@ -871,12 +871,12 @@ class HandProfile:
             "tag": self.tag,
             "author": self.author,
             "version": self.version,
+            "rotate_deals_by_default": getattr(self, "rotate_deals_by_default", True),
+            # NEW: persist NS role mode, defaulting for legacy HandProfile objects
+            "ns_role_mode": getattr(self, "ns_role_mode", "north_drives"),         
             "seat_profiles": {
                 seat: sp.to_dict() for seat, sp in self.seat_profiles.items()
             },
-            "rotate_deals_by_default": getattr(self, "rotate_deals_by_default", True),
-            # NEW: persist NS role mode, defaulting for legacy HandProfile objects
-            "ns_role_mode": getattr(self, "ns_role_mode", "north_drives"),
             "subprofile_exclusions": [e.to_dict() for e in self.subprofile_exclusions],
         }
 
