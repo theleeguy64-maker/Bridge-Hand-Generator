@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime
 import random
+from . import cli_prompts
 
 DEFAULT_SEED = 778899  # canonical project-wide deterministic default seed
 
@@ -137,7 +138,7 @@ def run_setup(
 
     ask_seed_choice : bool
         If True, interactively ask the user:
-            "Use default seed? (y/n)"
+            "Use default seed?"
         If False, follow use_seeded_default.
 
     use_seeded_default : bool
@@ -165,7 +166,7 @@ def run_setup(
 
     # Handle seed choice
     if ask_seed_choice:
-        ans = input("Use default seeded run? (y/n): ").strip().lower()
+        use_default_seeded = cli_prompts.prompt_yes_no("Use default seeded run?", default=True)
         if ans.startswith("y"):
             seed = DEFAULT_SEED
             seeded_flag = True
