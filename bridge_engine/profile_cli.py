@@ -332,6 +332,8 @@ def draft_tools_action() -> None:
 
 def create_profile_action() -> None:
     profile = create_profile_interactive()
+    print("\n(Rotate set to Y and NS role mode set to Any)")
+    print()
     if prompt_yes_no("Save this new profile?", True):
         path = _profile_path_for(profile)
         _save_profile_to_path(profile, path)
@@ -796,9 +798,7 @@ def edit_profile_action() -> None:
         _save_profile_to_path(updated, path)
         profile_store.delete_draft_for_canonical(path)
         print(f"\nUpdated profile saved to {path}")
-
-        _save_profile_to_path(new_profile, path)
-        profile_store.delete_draft_for_canonical(path)
+        return
 
     else:        # ------------------------
         # Constraints-only edit
@@ -812,6 +812,7 @@ def edit_profile_action() -> None:
         if prompt_yes_no("Save updated constraints to this profile?", True):
             _save_profile_to_path(updated, path)
             print(f"\nUpdated profile saved to {path}")
+        return
 
 def delete_profile_action() -> None:
     profiles = _load_profiles()
@@ -870,10 +871,16 @@ def run_profile_manager() -> None:
         print("4) Edit profile")
         print("5) Delete profile")
         print("6) Save profile as new version")
-        print("7) Exit")
-        print("8) Draft tools (recover/delete *_TEST.json drafts)")
+        print("7) Draft tools (recover/delete *_TEST.json drafts)")
+        print("8) Exit")
 
-        choice = _input_int("Choose [1-7] (default 7)", default=7, minimum=1, maximum=7)
+        choice = _input_int(
+            "Choose [1-8] (default 8)",
+            default=8,
+            minimum=1,
+            maximum=8,
+            show_range_suffix=False,
+        )
 
         if choice == 1:
             list_profiles_action()
@@ -899,11 +906,14 @@ def run_profile_manager() -> None:
             delete_profile_action()
         elif choice == 6:
             save_as_new_version_action()
-        elif choice == 8:
+        elif choice == 7:
             draft_tools_action()
         else:
             print("Exiting Profile Manager.")
             break
+
+def draft_tools_action() -> None:
+    print("\nDraft tools are not implemented yet.")
 
 def main() -> None:
     """Entry point so orchestrator can call profile_cli.main()."""

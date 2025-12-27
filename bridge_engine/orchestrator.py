@@ -355,6 +355,7 @@ def _print_main_menu(include_lin: bool) -> None:
     include_lin=False → legacy 3-option menu (used by tests via _main_menu)
     include_lin=True  → full 4-option menu with LIN tools.
     """
+    print()
     print("=== Bridge Hand Generator ===")
     print("1) Profile management")
     print("2) Deal generation")
@@ -378,13 +379,14 @@ def main_menu() -> None:
     Includes the LIN tools option.
     """
     while True:
+        print()
         print("=== Bridge Hand Generator ===")
         print("1) Profile management")
         print("2) Deal generation")
         print("3) LIN tools - Combine LIN files")
         print("4) Exit")
 
-        choice = input("Choose [1-4]: ").strip() or "4"
+        choice = input("Choose [1-4] [4]: ").strip() or "4"
 
         if choice == "1":
             _run_profile_management()

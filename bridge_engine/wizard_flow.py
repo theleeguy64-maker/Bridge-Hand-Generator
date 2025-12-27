@@ -44,6 +44,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from . import cli_io
+from . import profile_store
 
 from .cli_prompts import (
     prompt_choice,
@@ -171,27 +172,27 @@ def _input_int(prompt: str, default: int, minimum: int, maximum: int, show_range
     )
 
 def _autosave_draft_profile(path: Path, profile: HandProfile) -> None:
+    """
+    Best-effort autosave draft writer.
+
+    IMPORTANT:
+      - `path` is the CANONICAL path
+      - Must write to *_TEST.json next to canonical
+      - Draft JSON must have profile_name ending in " TEST"
+      - Must NOT mutate the in-memory profile object
+    """
     try:
+        # In tests you sometimes pass Dummy objects / strings; skip.
         if not hasattr(profile, "to_dict"):
-            return  # in tests, Dummy objects or strings – just skip
-        data = profile.to_dict()
-        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-    except Exception as exc:  # pragma: no cover
+            return
+
+        # Delegate draft writing to profile_store (adds " TEST" in JSON metadata,
+        # writes sibling *_TEST.json, and does NOT mutate `profile`).
+        profile_store.autosave_profile_draft(profile, canonical_path=path)
+
+    except Exception as exc:  # pragma: no cover – best-effort only
         print(f"⚠️ Autosave failed for {path}: {exc}")
-
-    test_path = profiles_dir / f"{safe_name}_TEST.json"
-
-    try:
-        data = profile.to_dict() if hasattr(profile, "to_dict") else profile.__dict__
-        text = json.dumps(data, indent=2)
-        profiles_dir.mkdir(parents=True, exist_ok=True)
-        test_path.write_text(text, encoding="utf-8")
-        # You could add a very quiet debug print if you like:
-        # print(f"[autosave] wrote {test_path}")
-    except Exception as exc:
-        # Never let autosave kill the wizard
-        print(f"⚠️ Autosave failed for {test_path}: {exc}")
-
+        
 def _input_choice(
     prompt: str,
     options: Sequence[str],
@@ -643,22 +644,28 @@ def _autosave_profile_draft(
     Behaviour:
       - Only runs when we know the original JSON path (editing an existing profile).
       - Writes to a sibling `<stem>_TEST.json` file next to the original.
-      - Uses profile.to_dict(), so it stays consistent with normal save logic.
+      - Draft JSON must have profile_name ending in " TEST"
+      - Must NOT mutate the in-memory profile object.
       - Any exception is printed as a warning; the wizard continues.
     """
-    # No original on-disk file (e.g. brand new profile) → nothing to autosave.
     if original_path is None:
         return
 
-    draft_path = original_path.with_name(original_path.stem + "_TEST.json")
-
     try:
-        payload = profile.to_dict()
-        draft_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    except Exception as exc:  # pragma: no cover – best-effort only
-        print(f"⚠️ Autosave failed for {draft_path}: {exc}")
+        # In some tests this may be a dummy; if it can't serialize, just skip.
+        if not hasattr(profile, "to_dict"):
+            return
 
-from typing import List, Optional, Sequence  # keep this near the top of the file
+        # Delegate to centralized draft behavior:
+        # - writes sibling <stem>_TEST.json
+        # - writes JSON metadata profile_name with trailing " TEST"
+        # - does NOT mutate `profile`
+        from . import profile_store
+
+        profile_store.autosave_profile_draft(profile, canonical_path=original_path)
+
+    except Exception as exc:  # pragma: no cover – best-effort only
+        print(f"⚠️ Autosave failed for {original_path}: {exc}")
 
 def _parse_suit_list(
     prompt: str,
@@ -1351,23 +1358,22 @@ def _suggest_dealing_order(
     # Fallback for any other future tags / modes:
     return rotate_from_dealer()
 
-
 def _autosave_profile_draft(profile: HandProfile, original_path: Path) -> None:
     """
     Best-effort autosave of an in-progress profile edit.
 
-    Writes a '<basename>_TEST.json' next to the original profile JSON.
+    Draft rules (centralized in profile_store):
+      - Writes sibling '<stem>_TEST.json'
+      - JSON metadata profile_name ends with ' TEST'
+      - Does NOT mutate the in-memory HandProfile
     """
     try:
-        base = original_path.with_suffix("")  # strip .json
-        draft_path = base.with_name(base.name + "_TEST.json")
+        from . import profile_store
+        profile_store.autosave_profile_draft(profile, canonical_path=original_path)
     except Exception:
-        # If anything odd about the path, don't autosave.
+        # Never let autosave kill the wizard
         return
-
-    raw = profile.to_dict()
-    draft_path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
-
+                
 def _build_profile(
     existing: Optional[HandProfile] = None,
     original_path: Optional[Path] = None,
