@@ -166,10 +166,14 @@ def run_setup(
 
     # Handle seed choice
     if ask_seed_choice:
-        use_default_seeded = cli_prompts.prompt_yes_no("Use default seeded run?", default=True)
-        if ans.startswith("y"):
+        use_default_seeded = cli_prompts.prompt_yes_no(
+            "Use default seeded run?",
+            default=True,
+        )
+        if use_default_seeded:
             seed = DEFAULT_SEED
             seeded_flag = True
+            
         else:
             seed = random.randint(1, 2**31 - 1)
             seeded_flag = False
@@ -180,7 +184,7 @@ def run_setup(
         else:
             seed = random.randint(1, 2**31 - 1)
             seeded_flag = False
-
+            
     # Apply seed
     random.seed(seed)
 
