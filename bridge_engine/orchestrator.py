@@ -173,7 +173,6 @@ def _choose_profile_for_session() -> HandProfile | None:
         version = getattr(profile, "version", "")
         version_str = f"v{version}" if version else "(no version)"
         print(f"  {idx}) {profile.profile_name} ({version_str}, tag={tag}, dealer={dealer})")
-        print(f"      File: {path.name}")
 
     while True:
         raw = input(
