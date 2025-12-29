@@ -104,20 +104,34 @@ def _build_deck() -> List[Card]:
 
 
 def _compute_suit_analysis(hand: List[Card]) -> SuitAnalysis:
+    """
+    Compute per-suit card lists and HCP, plus total HCP, for a 13-card hand.
+
+    This is intentionally very cheap: it should be safe to call on every
+    candidate hand during matching.
+    """
+    # Local dicts to avoid repeated global lookups and construction
     cards_by_suit: Dict[str, List[Card]] = {"S": [], "H": [], "D": [], "C": []}
     hcp_by_suit: Dict[str, int] = {"S": 0, "H": 0, "D": 0, "C": 0}
+
+    hcp_map = HCP_MAP  # local alias for speed
     total_hcp = 0
 
     for card in hand:
+        # Expect "RS" format (rank + suit). Be defensive but cheap.
         if len(card) != 2:
-            # Defensive, but we expect all cards to be rank+suit
             continue
+
         rank = card[0]
         suit = card[1]
-        if suit not in cards_by_suit:
+
+        suit_cards = cards_by_suit.get(suit)
+        if suit_cards is None:
+            # Unknown suit – defensive guard, but shouldn't happen.
             continue
-        cards_by_suit[suit].append(card)
-        value = HCP_MAP.get(rank, 0)
+
+        suit_cards.append(card)
+        value = hcp_map.get(rank, 0)
         hcp_by_suit[suit] += value
         total_hcp += value
 
@@ -246,7 +260,6 @@ def _match_partner_contingent(
     count = len(analysis.cards_by_suit[suit])
     hcp = analysis.hcp_by_suit[suit]
     return sr.min_cards <= count <= sr.max_cards and sr.min_hcp <= hcp <= sr.max_hcp
-
 
 def _match_subprofile(
     analysis: SuitAnalysis,
@@ -533,129 +546,122 @@ def _build_single_constrained_deal(
     # - For mode == "no_driver_no_index", ns_role_by_seat stays empty.
     #   Later selection code that looks up ns_role_by_seat.get(seat)
     #   will see None for both N and S and should fall back to the
-    #   generic "independent weighted subprofile selection" path,
-    #   effectively turning off NS index matching.
-    
-    # Pre-select one SubProfile per seat (if any) for this entire deal
-    chosen_subprofiles: Dict[Seat, Optional[SubProfile]] = {}
-    chosen_subprofile_indices: Dict[Seat, Optional[int]] = {}
+    #   generic "independent weighted subprofile selection" path.
 
-    for seat in ("N", "E", "S", "W"):
-        sp = profile.seat_profiles.get(seat)
-        if sp is None or not sp.subprofiles:
-            chosen_subprofiles[seat] = None
-            chosen_subprofile_indices[seat] = None
-            continue
+    def _select_subprofiles_for_board() -> Tuple[Dict[Seat, Optional[SubProfile]], Dict[Seat, Optional[int]]]:
+        """
+        Choose one SubProfile per seat for *this board attempt*,
+        applying NS/EW coupling and ns_role_usage filtering.
+        """
+        chosen_subprofiles: Dict[Seat, Optional[SubProfile]] = {}
+        chosen_subprofile_indices: Dict[Seat, Optional[int]] = {}
 
-        all_subs = list(sp.subprofiles)
+        for seat in ("N", "E", "S", "W"):
+            sp = profile.seat_profiles.get(seat)
+            if sp is None or not sp.subprofiles:
+                chosen_subprofiles[seat] = None
+                chosen_subprofile_indices[seat] = None
+                continue
 
-        # Seat-specific eligibility filter for NS based on driver/follower.
-        if seat in ("N", "S"):
-            seat_role = ns_role_by_seat.get(seat)
-            if seat_role == "driver":
-                eligible_indices = [
-                    i
-                    for i, sub in enumerate(all_subs)
-                    if getattr(sub, "ns_role_usage", "any")
-                    in ("any", "driver_only")
-                ]
-            elif seat_role == "follower":
-                eligible_indices = [
-                    i
-                    for i, sub in enumerate(all_subs)
-                    if getattr(sub, "ns_role_usage", "any")
-                    in ("any", "follower_only")
-                ]
+            all_subs = list(sp.subprofiles)
+
+            # Seat-specific eligibility filter for NS based on driver/follower.
+            if seat in ("N", "S"):
+                seat_role = ns_role_by_seat.get(seat)
+                if seat_role == "driver":
+                    eligible_indices = [
+                        i
+                        for i, sub in enumerate(all_subs)
+                        if getattr(sub, "ns_role_usage", "any") in ("any", "driver_only")
+                    ]
+                elif seat_role == "follower":
+                    eligible_indices = [
+                        i
+                        for i, sub in enumerate(all_subs)
+                        if getattr(sub, "ns_role_usage", "any") in ("any", "follower_only")
+                    ]
+                else:
+                    # No driver/follower semantics: don't filter NS subprofiles.
+                    eligible_indices = list(range(len(all_subs)))
             else:
-                # Defensive: if we somehow don't have a role, don't filter.
+                # EW unaffected by ns_role_usage.
                 eligible_indices = list(range(len(all_subs)))
-        else:
-            # EW unaffected by ns_role_usage.
-            eligible_indices = list(range(len(all_subs)))
 
-        # Extra defensive fallback: if validation has somehow allowed a
-        # configuration with no eligible subprofiles, revert to "any".
-        if not eligible_indices:
-            eligible_indices = list(range(len(all_subs)))
+            # Extra defensive fallback: if validation has somehow allowed a
+            # configuration with no eligible subprofiles, revert to "any".
+            if not eligible_indices:
+                eligible_indices = list(range(len(all_subs)))
 
-        # Phase 2/3: weighted subprofile choice using weight_percent,
-        # restricted to the eligible indices for this seat.
-        weights = [float(all_subs[i].weight_percent) for i in eligible_indices]
+            # Weighted subprofile choice using weight_percent,
+            # restricted to the eligible indices for this seat.
+            weights = [float(all_subs[i].weight_percent) for i in eligible_indices]
 
-        # If the total weight is zero (e.g. profile never validated),
-        # fall back to the original uniform random choice so legacy tests
-        # and ad-hoc profiles still work.
-        if not weights or sum(weights) <= 0.0:
-            idx = eligible_indices[rng.randrange(len(eligible_indices))]
-        else:
-            rel_idx = _weighted_choice_index(rng, weights)
-            idx = eligible_indices[rel_idx]
+            # If the total weight is zero (e.g. profile never validated),
+            # fall back to uniform choice so legacy/hand-written profiles
+            # still work.
+            if not weights or sum(weights) <= 0.0:
+                idx = eligible_indices[rng.randrange(len(eligible_indices))]
+            else:
+                rel_idx = _weighted_choice_index(rng, weights)
+                idx = eligible_indices[rel_idx]
 
-        chosen_subprofiles[seat] = all_subs[idx]
-        chosen_subprofile_indices[seat] = idx
- 
-    # ------------------------------------------------------------------
-    # NS sub-profile index matching: tie N/S sub-profile indices together
-    #
-    # If a partnership has multiple sub-profiles on both seats AND the counts
-    # match, force the responder's chosen sub-profile index to equal the
-    # opener's.
-    #
-    # For NS, the *driver* seat is chosen by HandProfile.ns_driver_seat(...)
-    # (which in turn consults ns_role_mode). For EW we keep the fixed
-    # E-opens / W-responds behaviour from Phase 2.
-    #
-    # Rotation is a post-dealing concern and is unaffected by this coupling.
-    # ------------------------------------------------------------------
+            chosen_subprofiles[seat] = all_subs[idx]
+            chosen_subprofile_indices[seat] = idx
 
-    def _apply_pair_coupling(opener: Seat, responder: Seat) -> None:
-        opener_sp = profile.seat_profiles.get(opener)
-        resp_sp = profile.seat_profiles.get(responder)
-        if opener_sp is None or resp_sp is None:
-            return
-        if not opener_sp.subprofiles or not resp_sp.subprofiles:
-            return
+        # ------------------------------------------------------------------
+        # NS + EW sub-profile index coupling (F3 semantics)
+        # ------------------------------------------------------------------
 
-        # Only couple when both sides have >1 and counts match (unambiguous).
-        if len(opener_sp.subprofiles) <= 1 and len(resp_sp.subprofiles) <= 1:
-            return
-        if len(opener_sp.subprofiles) != len(resp_sp.subprofiles):
-            return
+        def _apply_pair_coupling(opener: Seat, responder: Seat) -> None:
+            opener_sp = profile.seat_profiles.get(opener)
+            resp_sp = profile.seat_profiles.get(responder)
+            if opener_sp is None or resp_sp is None:
+                return
+            if not opener_sp.subprofiles or not resp_sp.subprofiles:
+                return
 
-        opener_idx = chosen_subprofile_indices.get(opener)
-        if opener_idx is None:
-            return
+            # Only couple when both sides have >1 and counts match (unambiguous).
+            if len(opener_sp.subprofiles) <= 1 and len(resp_sp.subprofiles) <= 1:
+                return
+            if len(opener_sp.subprofiles) != len(resp_sp.subprofiles):
+                return
 
-        if 0 <= opener_idx < len(resp_sp.subprofiles):
-            chosen_subprofiles[responder] = resp_sp.subprofiles[opener_idx]
-            chosen_subprofile_indices[responder] = opener_idx
+            opener_idx = chosen_subprofile_indices.get(opener)
+            if opener_idx is None:
+                return
 
-    # Partnerships: NS and EW
-    # For NS, ask the HandProfile which seat "drives" the partnership.
-    try:
-        ns_driver = profile.ns_driver_seat(rng)
-    except TypeError:
-        # Backwards compat: helper without rng parameter.
-        ns_driver = profile.ns_driver_seat()  # type: ignore[call-arg]
-    except AttributeError:
-        # Very old HandProfile instances without the helper:
-        # original “N drives, S responds” semantics.
-        ns_driver = "N"
+            if 0 <= opener_idx < len(resp_sp.subprofiles):
+                chosen_subprofiles[responder] = resp_sp.subprofiles[opener_idx]
+                chosen_subprofile_indices[responder] = opener_idx
 
-    if ns_driver not in ("N", "S"):
-        # Defensive: if ns_role_mode is mis-set, fall back.
-        ns_driver = "N"
+        # Partnerships: NS and EW
+        # For NS, ask the HandProfile which seat "drives" the partnership.
+        try:
+            ns_driver = profile.ns_driver_seat(rng)
+        except TypeError:
+            # Backwards compat: helper without rng parameter.
+            ns_driver = profile.ns_driver_seat()  # type: ignore[call-arg]
+        except AttributeError:
+            # Very old HandProfile instances without the helper:
+            # original “N drives, S responds” semantics.
+            ns_driver = "N"
 
-    ns_responder: Seat = "S" if ns_driver == "N" else "N"
-    _apply_pair_coupling(ns_driver, ns_responder)
+        if ns_driver not in ("N", "S"):
+            ns_driver = "N"
 
-    # EW: keep legacy behaviour – East is opener, West is responder.
-    _apply_pair_coupling("E", "W")
+        ns_responder: Seat = "S" if ns_driver == "N" else "N"
+        _apply_pair_coupling(ns_driver, ns_responder)
 
-    board_attempts = 0    
+        # EW: keep legacy behaviour – East is opener, West is responder.
+        _apply_pair_coupling("E", "W")
+
+        return chosen_subprofiles, chosen_subprofile_indices
+
+    board_attempts = 0
+
     while board_attempts < MAX_BOARD_ATTEMPTS:
         board_attempts += 1
-
+        chosen_subprofiles, chosen_subprofile_indices = _select_subprofiles_for_board()
         deck = _build_deck()
         rng.shuffle(deck)
         remaining = list(deck)
@@ -668,11 +674,8 @@ def _build_single_constrained_deal(
             seat_profile = profile.seat_profiles.get(seat)
             sub_for_seat = chosen_subprofiles.get(seat)
 
-            # How many cards to draw: always 13
             if idx < 3:
-                # Seats 0,1,2: we choose 13 from the current remaining cards.
-                # For hand 1: unlimited tries (bounded by MAX_BOARD_ATTEMPTS).
-                # For hand 2 & 3: up to MAX_ATTEMPTS_HAND_2_3 tries.
+                # Seats 0,1,2: draw from remaining with a bounded inner loop.
                 max_attempts = (
                     MAX_BOARD_ATTEMPTS  # effectively unbounded for seat 0
                     if idx == 0
@@ -685,7 +688,6 @@ def _build_single_constrained_deal(
 
                 while attempts < max_attempts:
                     attempts += 1
-                    # Sample 13 cards from remaining
                     if len(remaining) < 13:
                         matched_seat = False
                         break
@@ -715,19 +717,20 @@ def _build_single_constrained_deal(
                     success_for_board = False
                     break
 
-                # Commit chosen hand: remove cards from remaining
+                # Commit chosen hand
                 hands[seat] = chosen_hand
                 for card in chosen_hand:
-                    remaining.remove(card)  # will raise if card missing, which is fine
+                    remaining.remove(card)
 
                 if chosen_random_suits_for_seat is not None:
                     random_suit_choices[seat] = chosen_random_suits_for_seat
 
             else:
-                # idx == 3: last seat gets remaining 13 cards
+                # Final seat: must take the remaining 13 cards in one shot.
                 if len(remaining) != 13:
                     success_for_board = False
                     break
+
                 candidate = list(remaining)
                 matched, chosen = _match_seat(
                     profile=profile,
