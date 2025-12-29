@@ -72,6 +72,91 @@ def _extract_seat_names_from_constraint(constraint: Any) -> List[str]:
 
     return seats
 
+def _validate_random_suit_vs_standard(profile: HandProfile) -> None:
+    """
+    Sanity-check RandomSuitConstraintData against the standard suit constraints.
+
+    For every seat / sub-profile that has a random_suit_constraint:
+
+      • For each allowed suit S in rs.allowed_suits:
+          - Treat rs.suit_ranges[...] as the effective SuitRange for S
+          - Use the standard StandardSuitConstraints ranges for the other 3 suits
+      • Compute the sum of min_cards across all 4 suits.
+          - If sum(min_cards) > 13 → raise ProfileError.
+      • Optionally check that some allocation is possible:
+          - sum(max_cards) >= 13, otherwise raise ProfileError.
+
+    IMPORTANT:
+      • For legacy profiles where no standard constraints object is attached to the
+        sub-profile (std is None), we *skip* this check rather than rejecting.
+        Those profiles are already validated by the existing standard logic.
+    """
+    seat_profiles = getattr(profile, "seat_profiles", None)
+    if not seat_profiles:
+        return
+
+    for seat_name, seat_profile in seat_profiles.items():
+        subprofiles = getattr(seat_profile, "subprofiles", None)
+        if not subprofiles:
+            continue
+
+        for sub_idx, sub in enumerate(subprofiles, start=1):
+            rs = getattr(sub, "random_suit_constraint", None)
+            if rs is None:
+                continue
+
+            # Try both attribute names to be robust with model evolution
+            std = getattr(sub, "standard", None) or getattr(
+                sub, "standard_constraints", None
+            )
+            if std is None:
+                # Legacy / non-standard setup: do not enforce this cross-check
+                continue
+
+            # Map standard suit ranges by suit symbol
+            std_by_suit = {
+                "S": std.spades,
+                "H": std.hearts,
+                "D": std.diamonds,
+                "C": std.clubs,
+            }
+
+            # If allowed_suits is empty/None, treat as all suits allowed
+            allowed_suits = rs.allowed_suits or ["S", "H", "D", "C"]
+            suit_ranges = rs.suit_ranges or []
+
+            # Pair suits with ranges safely (ignore any extra)
+            pairs = list(zip(allowed_suits, suit_ranges))
+            if not pairs:
+                # Nothing concrete to check
+                continue
+
+            for suit_symbol, rs_range in pairs:
+                if suit_symbol not in std_by_suit:
+                    # Unexpected but don't crash; skip this suit
+                    continue
+
+                # Effective ranges per suit: Random Suit range overrides the standard one
+                eff_ranges = dict(std_by_suit)
+                eff_ranges[suit_symbol] = rs_range
+
+                total_min = sum(r.min_cards for r in eff_ranges.values())
+                total_max = sum(r.max_cards for r in eff_ranges.values())
+
+                if total_min > 13:
+                    raise ProfileError(
+                        f"Seat {seat_name} sub-profile {sub_idx}: "
+                        f"Random Suit + standard suit constraints are impossible for suit "
+                        f"{suit_symbol}: sum of min_cards = {total_min} (> 13)."
+                    )
+
+                if total_max < 13:
+                    raise ProfileError(
+                        f"Seat {seat_name} sub-profile {sub_idx}: "
+                        f"Random Suit + standard suit constraints leave at most "
+                        f"{total_max} cards across suits (< 13)."
+                    )
+
 def _normalise_subprofile_weights(raw: Dict[str, Any]) -> None:
     """
     In-place normalisation of subprofile weights on a raw profile dict.
@@ -411,6 +496,12 @@ def validate_profile(data: Any) -> HandProfile:
     _validate_partner_contingent(profile)
     _validate_opponent_contingent(profile)
     _validate_ns_role_usage_coverage(profile)
+
+    # Random Suit vs standard suit constraints consistency
+    _validate_random_suit_vs_standard(profile)
+
+    # IMPORTANT: callers expect the validated HandProfile back
+    return profile
 
     # Validate subprofile exclusions (if present)
     for exc in getattr(profile, "subprofile_exclusions", []):

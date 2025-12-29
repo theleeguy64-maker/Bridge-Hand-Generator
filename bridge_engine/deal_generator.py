@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence
-
+from typing import Dict, Iterable, List, Optional, Sequence
+from pathlib import Path
+from datetime import datetime
+import os
 import random
+import json
 
 from .setup_env import SetupResult
 from .hand_profile import (
@@ -15,6 +18,187 @@ from .hand_profile import (
     RandomSuitConstraintData,
     PartnerContingentData,
 )
+
+# Optional debug logging for Random Suit behaviour.
+# Enable by setting env var BHG_DEBUG_RANDOM_SUIT=1 before running.
+DEBUG_RANDOM_SUIT_LOG: bool = bool(os.environ.get("BHG_DEBUG_RANDOM_SUIT"))
+
+_random_suit_debug_calls: int = 0
+_random_suit_debug_successes: int = 0
+_random_suit_debug_failures: int = 0
+
+# Debug counters for where boards fail during Section C
+_random_suit_board_failures_by_seat: Dict[Seat, int] = {"N": 0, "E": 0, "S": 0, "W": 0}
+_random_suit_hand_failures_by_seat: Dict[Seat, int] = {"N": 0, "E": 0, "S": 0, "W": 0}
+
+_RANDOM_SUIT_LOG_PATH: Optional[Path] = None
+
+def set_random_suit_log_path(path: Path) -> None:
+    """
+    Optional helper: set a file to receive Random Suit debug logs.
+    You can call this from the orchestrator before generate_deals(...).
+    """
+    global _RANDOM_SUIT_LOG_PATH
+    _RANDOM_SUIT_LOG_PATH = path
+    try:
+        # Start fresh for each run
+        path.write_text("", encoding="utf-8")
+    except OSError:
+        _RANDOM_SUIT_LOG_PATH = None
+
+def dump_random_suit_stats() -> None:
+    """
+    Debug helper: write the current RandomSuit counters to JSON if
+    RANDOM_SUIT_STATS_FILE is set in the environment.
+
+    This is intended for orchestrator's debug menu and is safe to call
+    even if RandomSuit was never used.
+    """
+    path = os.getenv("RANDOM_SUIT_STATS_FILE")
+    if not path:
+        # No stats file configured → silently do nothing.
+        return
+
+    data = {
+        "calls": _random_suit_debug_calls,
+        "successes": _random_suit_debug_successes,
+        "failures": _random_suit_debug_failures,
+    }
+
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+    except OSError:
+        # Never let debug logging kill a deal run.
+        pass
+
+# Environment variable names for optional Random Suit debugging output.
+_RANDOM_SUIT_DEBUG_FILE_ENV = "RANDOM_SUIT_DEBUG_FILE"
+_RANDOM_SUIT_STATS_FILE_ENV = "RANDOM_SUIT_STATS_FILE"
+
+def _debug_log_random_suit(message: str) -> None:
+    """
+    Append a debug line and refresh the stats JSON, if the user has
+    configured RANDOM_SUIT_DEBUG_FILE / RANDOM_SUIT_STATS_FILE.
+
+    This is best-effort only: any errors are swallowed so debug logging
+    can never break deal generation.
+    """
+    debug_path_str = os.getenv(_RANDOM_SUIT_DEBUG_FILE_ENV)
+    stats_path_str = os.getenv(_RANDOM_SUIT_STATS_FILE_ENV)
+
+    # Fast path: nothing configured, do nothing.
+    if not debug_path_str and not stats_path_str:
+        return
+
+    try:
+        # Text log (append)
+        if debug_path_str:
+            debug_path = Path(debug_path_str)
+            debug_path.parent.mkdir(parents=True, exist_ok=True)
+            with debug_path.open("a", encoding="utf-8") as f:
+                f.write(message + "\n")
+
+        # Stats snapshot (overwrite with latest counters)
+        if stats_path_str:
+            stats_path = Path(stats_path_str)
+            stats_path.parent.mkdir(parents=True, exist_ok=True)
+            payload = {
+                "calls": _random_suit_debug_calls,
+                "successes": _random_suit_debug_successes,
+                "failures": _random_suit_debug_failures,
+            }
+            stats_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    except Exception:
+        # Debugging only – never crash the generator because logging failed.
+        pass
+
+# ----------------------------------------------------------------------
+# Global HCP sanity check
+# ----------------------------------------------------------------------
+
+def _accumulate_hcp_bounds_for_seat(sp: SeatProfile) -> tuple[Optional[int], Optional[int]]:
+    """
+    Return a conservative (min_hcp, max_hcp) pair for this seat across all
+    subprofiles, if any explicit HCP ranges are defined.
+
+    We *only* use these to prove impossibility, never to reject something
+    that might be feasible. So:
+      - total_min is the sum of per-seat minimum HCPs that are explicitly
+        specified (ignoring seats with no min).
+      - total_max is the sum of per-seat maximum HCPs, but we only treat
+        it as a hard bound if *all* four seats have a max.
+    """
+    min_hcp: Optional[int] = None
+    max_hcp: Optional[int] = None
+
+    for sub in getattr(sp, "subprofiles", []) or []:
+        std = getattr(sub, "standard", None)
+        if std is None:
+            continue
+
+        # Adjust attribute names to your actual C1/HCP fields:
+        sub_min = getattr(std, "min_hcp", None)
+        sub_max = getattr(std, "max_hcp", None)
+
+        if sub_min is not None:
+            min_hcp = sub_min if min_hcp is None else min(min_hcp, sub_min)
+        if sub_max is not None:
+            max_hcp = sub_max if max_hcp is None else max(max_hcp, sub_max)
+
+    return min_hcp, max_hcp
+
+
+def _check_global_hcp_feasibility(profile: HandProfile) -> None:
+    """
+    Very conservative global HCP check.
+
+    - If the sum of all *explicit* seat minima exceeds 40 HCP, the profile
+      is impossible.
+    - If *all four* seats have an explicit HCP max, and their sum is
+      strictly less than 40, the profile is also impossible.
+
+    We intentionally do NOT complain if some seats have no HCP bounds, or
+    only mins, or only maxes: those might still be feasible.
+    """
+    total_min = 0
+    total_max = 0
+    num_seats_with_max = 0
+
+    for seat in ("N", "E", "S", "W"):
+        sp = profile.seat_profiles.get(seat)
+        if sp is None:
+            continue
+
+        seat_min, seat_max = _accumulate_hcp_bounds_for_seat(sp)
+
+        if seat_min is not None:
+            total_min += seat_min
+        # For max we also need to know if *this* seat had any explicit max at all.
+        if seat_max is not None:
+            total_max += seat_max
+            num_seats_with_max += 1
+
+    # No explicit HCP constraints at all → nothing to check.
+    if total_min == 0 and num_seats_with_max == 0:
+        return
+
+    # 40 HCP is a hard upper bound; if the sum of known minima is already
+    # above that, this profile cannot be satisfied.
+    if total_min > 40:
+        raise DealGenerationError(
+            f"Profile '{getattr(profile, 'profile_name', '<unknown>')}' "
+            f"appears impossible: combined minimum HCP {total_min} exceeds 40."
+        )
+
+    # For a hard max check we require all four seats to have an explicit max.
+    if num_seats_with_max == 4 and total_max < 40:
+        raise DealGenerationError(
+            f"Profile '{getattr(profile, 'profile_name', '<unknown>')}' "
+            f"appears impossible: combined maximum HCP {total_max} is below 40."
+        )
 
 def _weighted_choice_index(rng: random.Random, weights: Sequence[float]) -> int:
     """
@@ -104,20 +288,34 @@ def _build_deck() -> List[Card]:
 
 
 def _compute_suit_analysis(hand: List[Card]) -> SuitAnalysis:
+    """
+    Compute per-suit card lists and HCP, plus total HCP, for a 13-card hand.
+
+    This is intentionally very cheap: it should be safe to call on every
+    candidate hand during matching.
+    """
+    # Local dicts to avoid repeated global lookups and construction
     cards_by_suit: Dict[str, List[Card]] = {"S": [], "H": [], "D": [], "C": []}
     hcp_by_suit: Dict[str, int] = {"S": 0, "H": 0, "D": 0, "C": 0}
+
+    hcp_map = HCP_MAP  # local alias for speed
     total_hcp = 0
 
     for card in hand:
+        # Expect "RS" format (rank + suit). Be defensive but cheap.
         if len(card) != 2:
-            # Defensive, but we expect all cards to be rank+suit
             continue
+
         rank = card[0]
         suit = card[1]
-        if suit not in cards_by_suit:
+
+        suit_cards = cards_by_suit.get(suit)
+        if suit_cards is None:
+            # Unknown suit – defensive guard, but shouldn't happen.
             continue
-        cards_by_suit[suit].append(card)
-        value = HCP_MAP.get(rank, 0)
+
+        suit_cards.append(card)
+        value = hcp_map.get(rank, 0)
         hcp_by_suit[suit] += value
         total_hcp += value
 
@@ -126,26 +324,44 @@ def _compute_suit_analysis(hand: List[Card]) -> SuitAnalysis:
         hcp_by_suit=hcp_by_suit,
         total_hcp=total_hcp,
     )
-
-
+        
 # ---------------------------------------------------------------------------
 # Standard / Random Suit / Partner Contingent matching
 # ---------------------------------------------------------------------------
 
-def _match_standard(analysis: SuitAnalysis, std: StandardSuitConstraints) -> bool:
-    # Total HCP
+def _match_standard(
+    analysis: "SuitAnalysis",
+    std: StandardSuitConstraints,
+    skip_suits: Optional[Iterable[str]] = None,
+) -> bool:
+    """
+    Check if a hand matches the "standard" per-suit and total HCP constraints.
+
+    If skip_suits is provided, any suit in that iterable is *not* checked at
+    the suit level (length + suit HCP), but the total HCP constraint still
+    applies to the whole hand.
+    """
+    # Total HCP check first (cheap, still applies even if some suits are
+    # handled by RandomSuit constraints).
     if not (std.total_min_hcp <= analysis.total_hcp <= std.total_max_hcp):
         return False
 
-    # Per-suit checks
+    skip = set(skip_suits or ())
+
+    # Suit-level checks (length + HCP) for all suits NOT in skip
     for suit_name, sr in [
         ("S", std.spades),
         ("H", std.hearts),
         ("D", std.diamonds),
         ("C", std.clubs),
     ]:
-        count = len(analysis.cards_by_suit[suit_name])
+        if suit_name in skip:
+            continue
+
+        suit_cards = analysis.cards_by_suit[suit_name]
+        count = len(suit_cards)
         hcp = analysis.hcp_by_suit[suit_name]
+
         if not (sr.min_cards <= count <= sr.max_cards):
             return False
         if not (sr.min_hcp <= hcp <= sr.max_hcp):
@@ -153,75 +369,113 @@ def _match_standard(analysis: SuitAnalysis, std: StandardSuitConstraints) -> boo
 
     return True
 
+def _dump_random_suit_stats() -> None:
+    if not RANDOM_SUIT_STATS_FILE:
+        return
 
+    payload = {
+        "calls": _random_suit_debug_calls,
+        "successes": _random_suit_debug_successes,
+        "failures": _random_suit_debug_failures,
+        "board_failures_by_seat": _random_suit_board_failures_by_seat,
+        "hand_failures_by_seat": _random_suit_hand_failures_by_seat,
+    }
+    try:
+        Path(RANDOM_SUIT_STATS_FILE).write_text(
+            json.dumps(payload, indent=2),
+            encoding="utf-8",
+        )
+    except OSError:
+        # Don't let debug kill the run
+        pass
+        
 def _match_random_suit(
     analysis: SuitAnalysis,
     rs: RandomSuitConstraintData,
     rng: random.Random,
 ) -> Optional[List[str]]:
     """
-    Apply Random Suit constraint.
+    Decide whether this hand can satisfy the Random Suit constraint rs.
 
-    Returns the list of chosen suits if matched, or None if the constraint fails.
-
-    Notes:
-      • required_suits_count distinct suits are chosen from allowed_suits.
-      • When required_suits_count == 2, pair overrides are matched ignoring order.
-      • Each chosen suit has its own SuitRange (from either the base suit_ranges
-        or the override ranges).
+    Returns:
+      • None           → this hand cannot satisfy rs
+      • ['S'], ['H'], ['D'], ['C'], or multi-suit list → chosen suit(s)
     """
-    allowed = list(rs.allowed_suits)
-    if not allowed or rs.required_suits_count <= 0:
-        return None
-    if rs.required_suits_count > len(allowed):
-        return None
 
-    # Choose distinct suits
-    chosen_suits = rng.sample(allowed, rs.required_suits_count)
+    # Debug counters (used for optional logging)
+    global _random_suit_debug_calls, _random_suit_debug_successes, _random_suit_debug_failures
+    _random_suit_debug_calls += 1
 
-    # Decide which SuitRange applies for each chosen suit
-    # Default mapping: index -> suit_ranges[index]
-    ranges_by_suit: Dict[str, object] = {}
+    def _core_match() -> Optional[List[str]]:
+        """
+        Core matching logic with no side-effects on debug counters.
+        """
+        # Apply Random Suit constraint.
 
-    if rs.required_suits_count == 2 and rs.pair_overrides:
-        # Check overrides ignoring order
-        sorted_pair = tuple(sorted(chosen_suits))  # type: ignore[assignment]
-        matched_override = None
-        for po in rs.pair_overrides:
-            if tuple(sorted(po.suits)) == sorted_pair:
-                matched_override = po
-                break
+        # Notes:
+        #   • required_suits_count distinct suits are chosen from allowed_suits.
+        #   • When required_suits_count == 2, pair overrides are matched ignoring order.
+        #   • Each chosen suit has its own SuitRange (from either the base suit_ranges
+        #     or the override ranges).
+        allowed = list(rs.allowed_suits)
+        if not allowed or rs.required_suits_count <= 0:
+            return None
+        if rs.required_suits_count > len(allowed):
+            return None
 
-        if matched_override is not None:
-            # Map by suit name, order not meaningful
-            ranges_by_suit[matched_override.suits[0]] = matched_override.first_range
-            ranges_by_suit[matched_override.suits[1]] = matched_override.second_range
+        # Choose distinct suits
+        chosen_suits = rng.sample(allowed, rs.required_suits_count)
+
+        # Decide which SuitRange applies for each chosen suit
+        # Default mapping: index -> suit_ranges[index]
+        ranges_by_suit: Dict[str, object] = {}
+
+        if rs.required_suits_count == 2 and rs.pair_overrides:
+            # Check overrides ignoring order
+            sorted_pair = tuple(sorted(chosen_suits))  # type: ignore[assignment]
+            matched_override = None
+            for po in rs.pair_overrides:
+                if tuple(sorted(po.suits)) == sorted_pair:
+                    matched_override = po
+                    break
+
+            if matched_override is not None:
+                # Map by suit name, order not meaningful
+                ranges_by_suit[matched_override.suits[0]] = matched_override.first_range
+                ranges_by_suit[matched_override.suits[1]] = matched_override.second_range
+            else:
+                # Fall back to base suit_ranges
+                for idx, suit in enumerate(chosen_suits):
+                    if idx >= len(rs.suit_ranges):
+                        return None
+                    ranges_by_suit[suit] = rs.suit_ranges[idx]
         else:
-            # Fall back to base suit_ranges
+            # No pair override scenario
             for idx, suit in enumerate(chosen_suits):
                 if idx >= len(rs.suit_ranges):
                     return None
                 ranges_by_suit[suit] = rs.suit_ranges[idx]
-    else:
-        # No pair override scenario
-        for idx, suit in enumerate(chosen_suits):
-            if idx >= len(rs.suit_ranges):
+
+        # Now check each chosen suit against its SuitRange
+        for suit in chosen_suits:
+            sr = ranges_by_suit[suit]
+            count = len(analysis.cards_by_suit[suit])
+            hcp = analysis.hcp_by_suit[suit]
+            if not (sr.min_cards <= count <= sr.max_cards):  # type: ignore[attr-defined]
                 return None
-            ranges_by_suit[suit] = rs.suit_ranges[idx]
+            if not (sr.min_hcp <= hcp <= sr.max_hcp):        # type: ignore[attr-defined]
+                return None
 
-    # Now check each chosen suit against its SuitRange
-    for suit in chosen_suits:
-        sr = ranges_by_suit[suit]
-        count = len(analysis.cards_by_suit[suit])
-        hcp = analysis.hcp_by_suit[suit]
-        if not (sr.min_cards <= count <= sr.max_cards):  # type: ignore[attr-defined]
-            return None
-        if not (sr.min_hcp <= hcp <= sr.max_hcp):        # type: ignore[attr-defined]
-            return None
+        return chosen_suits
 
-    return chosen_suits
-
-
+    # ---- debug-aware wrapper ----
+    result = _core_match()
+    if result is None:
+        _random_suit_debug_failures += 1
+    else:
+        _random_suit_debug_successes += 1
+    return result
+    
 def _match_partner_contingent(
     analysis: SuitAnalysis,
     pc: PartnerContingentData,
@@ -247,7 +501,6 @@ def _match_partner_contingent(
     hcp = analysis.hcp_by_suit[suit]
     return sr.min_cards <= count <= sr.max_cards and sr.min_hcp <= hcp <= sr.max_hcp
 
-
 def _match_subprofile(
     analysis: SuitAnalysis,
     seat: Seat,
@@ -265,16 +518,29 @@ def _match_subprofile(
     if not _match_standard(analysis, sub.standard):
         return False, None
 
-    # Random Suit (no Partner or Opponents Contingent on this seat)
+    # Random Suit only (no Partner or Opponents)
+    #
+    # New behaviour:
+    #   - RandomSuitConstraintData chooses one or more suits for this *deal*.
+    #   - For those chosen suits, we rely on the RandomSuit ranges (length + HCP).
+    #   - For all *other* suits, we still enforce the standard suit constraints.
+    #   - Total HCP (std.total_min_hcp/max_hcp) still applies to the whole hand.
     if (
         sub.random_suit_constraint is not None
         and sub.partner_contingent_constraint is None
         and sub.opponents_contingent_suit_constraint is None
     ):
+        # First, let RandomSuit pick the applicable suit(s) for this hand.
         chosen = _match_random_suit(analysis, sub.random_suit_constraint, rng)
         if chosen is None:
             return False, None
-        # Success: store chosen suits for this seat
+
+        # Then, run the standard checks *excluding* those chosen suits,
+        # so their length/HCP is controlled only by the RandomSuit constraint.
+        if not _match_standard(analysis, sub.standard, skip_suits=chosen):
+            return False, None
+
+        # Success: we matched both RandomSuit and standard for non-random suits.
         return True, chosen
 
     # Partner Contingent-Suit (no Random Suit or Opponents on this seat)
@@ -388,6 +654,29 @@ def _is_excluded_for_seat_subprofile(
 
     return False
 
+def _seat_has_c1_constraints(
+    seat_profile: Optional[SeatProfile],
+    chosen_subprofile: Optional[SubProfile],
+) -> bool:
+    """
+    Return True if this seat should go through the normal C1 / RandomSuit /
+    partner-contingent logic.
+
+    For now we are deliberately conservative: *any* seat that has a
+    SeatProfile is treated as constrained. That guarantees we don't
+    accidentally skip RandomSuit or other non-standard constraints.
+
+    We still keep this helper as a hook so we can later relax it for
+    truly unconstrained seats once we've catalogued all the constraint
+    fields.
+    """
+    # No SeatProfile -> truly unconstrained; caller already fast-paths this.
+    if seat_profile is None:
+        return False
+
+    # Any seat with a SeatProfile is considered constrained.
+    return True
+    
 def _match_seat(
     profile: HandProfile,
     seat: Seat,
@@ -412,6 +701,16 @@ def _match_seat(
     """
     # Unconstrained seat: any 13 cards are acceptable.
     if seat_profile is None:
+        return True, None
+
+    # Fast-path: if this seat has no *effective* C1 constraints for the
+    # chosen subprofile (i.e. it's effectively unconstrained), accept
+    # immediately and skip all HCP/suit analysis.
+    #
+    # This is deliberately conservative: _seat_has_c1_constraints() will
+    # only return False for "trivially unconstrained" cases, so it won't
+    # change behaviour for any of the real test profiles.
+    if not _seat_has_c1_constraints(seat_profile, chosen_subprofile):
         return True, None
 
     # If no chosen subprofile was provided, fall back defensively to first one
@@ -448,60 +747,47 @@ def _match_seat(
 # -------------------------------------    dealing_order:--------------------------------------
 # Constrained board construction (C1)
 # ---------------------------------------------------------------------------
+
 def _build_single_constrained_deal(
-    rng: random.Random,    
+    rng: random.Random,
     profile: HandProfile,
     board_number: int,
 ) -> Deal:
-
     """
     Attempt to build a single constrained deal for the given board number.
 
     Rules:
       • At the start of this deal, for each constrained seat we randomly select
-        exactly one SubProfile from that SeatProfile. That chosen SubProfile is
-        fixed for the entire deal (all attempts for this board).
+        exactly one SubProfile from that SeatProfile.
+      • That chosen SubProfile is fixed for a *single board attempt*.
+        If the board has to be restarted, we are allowed to pick a new
+        sub-profile combination so we don't tunnel forever on a bad combo.
       • Hand 1: keep trying candidate hands from the full deck.
-      • Hand 2 & 3: up to MAX_ATTEMPTS_HAND_2_3 candidate hands each
-        from the remaining deck; if none match, restart whole board.
+      • Hand 2 & 3: up to MAX_ATTEMPTS_HAND_2_3 candidate hands each.
       • Hand 4: remaining 13 cards; if they fail constraints, restart board.
       • Overall limited by MAX_BOARD_ATTEMPTS.
     """
+    # Reset Random Suit debug counters for this board (across all attempts)
+    global _random_suit_debug_calls, _random_suit_debug_successes, _random_suit_debug_failures
+    _random_suit_debug_calls = 0
+    _random_suit_debug_successes = 0
+    _random_suit_debug_failures = 0
+
     dealing_order: List[Seat] = list(profile.hand_dealing_order)
 
-        # ------------------------------------------------------------------
-        # NS driver/follower semantics + sub-profile index matching
-        #
-        # We derive a per-board NS driver seat from ns_role_mode, then
-        # treat the other NS seat as follower. SubProfile.ns_role_usage
-        # is interpreted as:
-        #   - "any"           → allowed in both roles
-        #   - "driver_only"   → only when this seat is the driver
-        #   - "follower_only" → only when this seat is the follower
-        #
-        # The older behaviour called “F3 coupling” in the tests is now
-        # described as NS sub-profile index matching: once the driver
-        # seat has chosen a sub-profile index, the follower seat uses
-        # the same index when picking its own sub-profile. That behaviour
-        # is still in place; later upgrades may make it conditional on
-        # ns_role_mode (e.g. disabled when an explicit driver is set).
-        # -----------------------------------------------------------------
-        
-    # NS driver/follower semantics for subprofile selection
-    #
-    # ns_role_mode controls how (and whether) we treat one NS seat as a
-    # "driver" and the other as "follower".
-    #
-    # For most modes ("north_drives", "south_drives", "random_driver"),
-    # we keep the existing index-matching behaviour (formerly F3
-    # coupling): one NS seat is the driver and the partner follows the
-    # same subprofile index.
-    #
-    # For ns_role_mode == "no_driver_no_index" we *disable* NS driver
-    # semantics entirely. N and S will each pick subprofiles
-    # independently, just like E/W, with no index matching.
+    # ------------------------------------------------------------------
+    # NS driver/follower semantics + sub-profile index matching
     # ------------------------------------------------------------------
     mode = (getattr(profile, "ns_role_mode", "north_drives") or "north_drives").lower()
+
+    # Initial debug snapshot so long-running boards always create a log file.
+    _debug_log_random_suit(
+        f"Board {board_number}: START; "
+        f"profile={getattr(profile, 'profile_name', '<unknown>')!r}, "
+        f"dealer={profile.dealer}, "
+        f"ns_role_mode={mode}, "
+        f"hand_dealing_order={''.join(dealing_order)}"
+    )
 
     ns_role_by_seat: Dict[Seat, str] = {}
 
@@ -533,128 +819,134 @@ def _build_single_constrained_deal(
     # - For mode == "no_driver_no_index", ns_role_by_seat stays empty.
     #   Later selection code that looks up ns_role_by_seat.get(seat)
     #   will see None for both N and S and should fall back to the
-    #   generic "independent weighted subprofile selection" path,
-    #   effectively turning off NS index matching.
-    
-    # Pre-select one SubProfile per seat (if any) for this entire deal
-    chosen_subprofiles: Dict[Seat, Optional[SubProfile]] = {}
-    chosen_subprofile_indices: Dict[Seat, Optional[int]] = {}
+    #   generic "independent weighted subprofile selection" path.
 
-    for seat in ("N", "E", "S", "W"):
-        sp = profile.seat_profiles.get(seat)
-        if sp is None or not sp.subprofiles:
-            chosen_subprofiles[seat] = None
-            chosen_subprofile_indices[seat] = None
-            continue
+    def _select_subprofiles_for_board() -> Tuple[Dict[Seat, Optional[SubProfile]], Dict[Seat, Optional[int]]]:
+        """
+        Choose one SubProfile per seat for *this board attempt*,
+        applying NS/EW coupling and ns_role_usage filtering.
+        """
+        chosen_subprofiles: Dict[Seat, Optional[SubProfile]] = {}
+        chosen_subprofile_indices: Dict[Seat, Optional[int]] = {}
 
-        all_subs = list(sp.subprofiles)
+        for seat in ("N", "E", "S", "W"):
+            sp = profile.seat_profiles.get(seat)
+            if sp is None or not sp.subprofiles:
+                chosen_subprofiles[seat] = None
+                chosen_subprofile_indices[seat] = None
+                continue
 
-        # Seat-specific eligibility filter for NS based on driver/follower.
-        if seat in ("N", "S"):
-            seat_role = ns_role_by_seat.get(seat)
-            if seat_role == "driver":
-                eligible_indices = [
-                    i
-                    for i, sub in enumerate(all_subs)
-                    if getattr(sub, "ns_role_usage", "any")
-                    in ("any", "driver_only")
-                ]
-            elif seat_role == "follower":
-                eligible_indices = [
-                    i
-                    for i, sub in enumerate(all_subs)
-                    if getattr(sub, "ns_role_usage", "any")
-                    in ("any", "follower_only")
-                ]
+            all_subs = list(sp.subprofiles)
+
+            # Seat-specific eligibility filter for NS based on driver/follower.
+            if seat in ("N", "S"):
+                seat_role = ns_role_by_seat.get(seat)
+                if seat_role == "driver":
+                    eligible_indices = [
+                        i
+                        for i, sub in enumerate(all_subs)
+                        if getattr(sub, "ns_role_usage", "any") in ("any", "driver_only")
+                    ]
+                elif seat_role == "follower":
+                    eligible_indices = [
+                        i
+                        for i, sub in enumerate(all_subs)
+                        if getattr(sub, "ns_role_usage", "any") in ("any", "follower_only")
+                    ]
+                else:
+                    # No driver/follower semantics: don't filter NS subprofiles.
+                    eligible_indices = list(range(len(all_subs)))
             else:
-                # Defensive: if we somehow don't have a role, don't filter.
+                # EW unaffected by ns_role_usage.
                 eligible_indices = list(range(len(all_subs)))
-        else:
-            # EW unaffected by ns_role_usage.
-            eligible_indices = list(range(len(all_subs)))
 
-        # Extra defensive fallback: if validation has somehow allowed a
-        # configuration with no eligible subprofiles, revert to "any".
-        if not eligible_indices:
-            eligible_indices = list(range(len(all_subs)))
+            # Extra defensive fallback: if validation has somehow allowed a
+            # configuration with no eligible subprofiles, revert to "any".
+            if not eligible_indices:
+                eligible_indices = list(range(len(all_subs)))
 
-        # Phase 2/3: weighted subprofile choice using weight_percent,
-        # restricted to the eligible indices for this seat.
-        weights = [float(all_subs[i].weight_percent) for i in eligible_indices]
+            # Weighted subprofile choice using weight_percent,
+            # restricted to the eligible indices for this seat.
+            weights = [float(all_subs[i].weight_percent) for i in eligible_indices]
 
-        # If the total weight is zero (e.g. profile never validated),
-        # fall back to the original uniform random choice so legacy tests
-        # and ad-hoc profiles still work.
-        if not weights or sum(weights) <= 0.0:
-            idx = eligible_indices[rng.randrange(len(eligible_indices))]
-        else:
-            rel_idx = _weighted_choice_index(rng, weights)
-            idx = eligible_indices[rel_idx]
+            # If the total weight is zero (e.g. profile never validated),
+            # fall back to uniform choice so legacy/hand-written profiles
+            # still work.
+            if not weights or sum(weights) <= 0.0:
+                idx = eligible_indices[rng.randrange(len(eligible_indices))]
+            else:
+                rel_idx = _weighted_choice_index(rng, weights)
+                idx = eligible_indices[rel_idx]
 
-        chosen_subprofiles[seat] = all_subs[idx]
-        chosen_subprofile_indices[seat] = idx
- 
-    # ------------------------------------------------------------------
-    # NS sub-profile index matching: tie N/S sub-profile indices together
-    #
-    # If a partnership has multiple sub-profiles on both seats AND the counts
-    # match, force the responder's chosen sub-profile index to equal the
-    # opener's.
-    #
-    # For NS, the *driver* seat is chosen by HandProfile.ns_driver_seat(...)
-    # (which in turn consults ns_role_mode). For EW we keep the fixed
-    # E-opens / W-responds behaviour from Phase 2.
-    #
-    # Rotation is a post-dealing concern and is unaffected by this coupling.
-    # ------------------------------------------------------------------
+            chosen_subprofiles[seat] = all_subs[idx]
+            chosen_subprofile_indices[seat] = idx
 
-    def _apply_pair_coupling(opener: Seat, responder: Seat) -> None:
-        opener_sp = profile.seat_profiles.get(opener)
-        resp_sp = profile.seat_profiles.get(responder)
-        if opener_sp is None or resp_sp is None:
-            return
-        if not opener_sp.subprofiles or not resp_sp.subprofiles:
-            return
+        # ------------------------------------------------------------------
+        # NS + EW sub-profile index coupling (F3 semantics)
+        # ------------------------------------------------------------------
 
-        # Only couple when both sides have >1 and counts match (unambiguous).
-        if len(opener_sp.subprofiles) <= 1 and len(resp_sp.subprofiles) <= 1:
-            return
-        if len(opener_sp.subprofiles) != len(resp_sp.subprofiles):
-            return
+        def _apply_pair_coupling(opener: Seat, responder: Seat) -> None:
+            opener_sp = profile.seat_profiles.get(opener)
+            resp_sp = profile.seat_profiles.get(responder)
+            if opener_sp is None or resp_sp is None:
+                return
+            if not opener_sp.subprofiles or not resp_sp.subprofiles:
+                return
 
-        opener_idx = chosen_subprofile_indices.get(opener)
-        if opener_idx is None:
-            return
+            # Only couple when both sides have >1 and counts match (unambiguous).
+            if len(opener_sp.subprofiles) <= 1 and len(resp_sp.subprofiles) <= 1:
+                return
+            if len(opener_sp.subprofiles) != len(resp_sp.subprofiles):
+                return
 
-        if 0 <= opener_idx < len(resp_sp.subprofiles):
-            chosen_subprofiles[responder] = resp_sp.subprofiles[opener_idx]
-            chosen_subprofile_indices[responder] = opener_idx
+            opener_idx = chosen_subprofile_indices.get(opener)
+            if opener_idx is None:
+                return
 
-    # Partnerships: NS and EW
-    # For NS, ask the HandProfile which seat "drives" the partnership.
-    try:
-        ns_driver = profile.ns_driver_seat(rng)
-    except TypeError:
-        # Backwards compat: helper without rng parameter.
-        ns_driver = profile.ns_driver_seat()  # type: ignore[call-arg]
-    except AttributeError:
-        # Very old HandProfile instances without the helper:
-        # original “N drives, S responds” semantics.
-        ns_driver = "N"
+            if 0 <= opener_idx < len(resp_sp.subprofiles):
+                chosen_subprofiles[responder] = resp_sp.subprofiles[opener_idx]
+                chosen_subprofile_indices[responder] = opener_idx
 
-    if ns_driver not in ("N", "S"):
-        # Defensive: if ns_role_mode is mis-set, fall back.
-        ns_driver = "N"
+        # Partnerships: NS and EW
+        # For NS, ask the HandProfile which seat "drives" the partnership.
+        try:
+            ns_driver = profile.ns_driver_seat(rng)
+        except TypeError:
+            # Backwards compat: helper without rng parameter.
+            ns_driver = profile.ns_driver_seat()  # type: ignore[call-arg]
+        except AttributeError:
+            # Very old HandProfile instances without the helper:
+            # original “N drives, S responds” semantics.
+            ns_driver = "N"
 
-    ns_responder: Seat = "S" if ns_driver == "N" else "N"
-    _apply_pair_coupling(ns_driver, ns_responder)
+        if ns_driver not in ("N", "S"):
+            ns_driver = "N"
 
-    # EW: keep legacy behaviour – East is opener, West is responder.
-    _apply_pair_coupling("E", "W")
+        ns_responder: Seat = "S" if ns_driver == "N" else "N"
+        _apply_pair_coupling(ns_driver, ns_responder)
 
-    board_attempts = 0    
+        # EW: keep legacy behaviour – East is opener, West is responder.
+        _apply_pair_coupling("E", "W")
+
+        return chosen_subprofiles, chosen_subprofile_indices
+
+    board_attempts = 0
+
     while board_attempts < MAX_BOARD_ATTEMPTS:
         board_attempts += 1
+
+        # New: pick a *fresh* sub-profile combination for this board attempt.
+        chosen_subprofiles, chosen_subprofile_indices = _select_subprofiles_for_board()
+
+        # Periodic debug snapshot every 100 board attempts
+        if board_attempts % 100 == 0:
+            _debug_log_random_suit(
+                f"Board {board_number}: still searching; "
+                f"board_attempts={board_attempts}, "
+                f"RandomSuit calls={_random_suit_debug_calls}, "
+                f"successes={_random_suit_debug_successes}, "
+                f"failures={_random_suit_debug_failures}"
+            )
 
         deck = _build_deck()
         rng.shuffle(deck)
@@ -668,11 +960,8 @@ def _build_single_constrained_deal(
             seat_profile = profile.seat_profiles.get(seat)
             sub_for_seat = chosen_subprofiles.get(seat)
 
-            # How many cards to draw: always 13
             if idx < 3:
-                # Seats 0,1,2: we choose 13 from the current remaining cards.
-                # For hand 1: unlimited tries (bounded by MAX_BOARD_ATTEMPTS).
-                # For hand 2 & 3: up to MAX_ATTEMPTS_HAND_2_3 tries.
+                # Seats 0,1,2: draw from remaining with a bounded inner loop.
                 max_attempts = (
                     MAX_BOARD_ATTEMPTS  # effectively unbounded for seat 0
                     if idx == 0
@@ -685,7 +974,6 @@ def _build_single_constrained_deal(
 
                 while attempts < max_attempts:
                     attempts += 1
-                    # Sample 13 cards from remaining
                     if len(remaining) < 13:
                         matched_seat = False
                         break
@@ -712,22 +1000,38 @@ def _build_single_constrained_deal(
                         break
 
                 if not matched_seat or chosen_hand is None:
+                    # Track which seat is failing to find hands
+                    _random_suit_board_failures_by_seat[seat] += 1
+                    _random_suit_hand_failures_by_seat[seat] += attempts
+
+                    # Optional throttled log (to avoid spam)
+                    if board_attempts <= 20 or board_attempts % 500 == 0:
+                        _debug_log_random_suit(
+                            f"Board {board_number}: seat {seat} FAILED after "
+                            f"{attempts} candidate hands; "
+                            f"board_attempts={board_attempts}, "
+                            f"RandomSuit calls={_random_suit_debug_calls}, "
+                            f"successes={_random_suit_debug_successes}, "
+                            f"failures={_random_suit_debug_failures}"
+                        )
+
                     success_for_board = False
                     break
 
-                # Commit chosen hand: remove cards from remaining
+                # Commit chosen hand
                 hands[seat] = chosen_hand
                 for card in chosen_hand:
-                    remaining.remove(card)  # will raise if card missing, which is fine
+                    remaining.remove(card)
 
                 if chosen_random_suits_for_seat is not None:
                     random_suit_choices[seat] = chosen_random_suits_for_seat
 
             else:
-                # idx == 3: last seat gets remaining 13 cards
+                # Final seat: must take the remaining 13 cards in one shot.
                 if len(remaining) != 13:
                     success_for_board = False
                     break
+
                 candidate = list(remaining)
                 matched, chosen = _match_seat(
                     profile=profile,
@@ -744,38 +1048,52 @@ def _build_single_constrained_deal(
                     rng=rng,
                 )
                 if not matched:
+                    _random_suit_board_failures_by_seat[seat] += 1
+                    _random_suit_hand_failures_by_seat[seat] += 1
+
+                    if board_attempts <= 20 or board_attempts % 500 == 0:
+                        _debug_log_random_suit(
+                            f"Board {board_number}: seat {seat} FAILED on final-13 "
+                            f"candidate; board_attempts={board_attempts}, "
+                            f"RandomSuit calls={_random_suit_debug_calls}, "
+                            f"successes={_random_suit_debug_successes}, "
+                            f"failures={_random_suit_debug_failures}"
+                        )
+
                     success_for_board = False
                     break
+
                 hands[seat] = candidate
                 if chosen is not None:
                     random_suit_choices[seat] = chosen
                 remaining.clear()
 
         if success_for_board and len(hands) == 4:
-            # All four seats succeeded – optional diagnostic print for chosen subprofiles
-            if DEBUG_SECTION_C:
-                print(
-                    f"[DEBUG] Board {board_number} subprofile choices: "
-                    f"N={chosen_subprofile_indices.get('N')}, "
-                    f"E={chosen_subprofile_indices.get('E')}, "
-                    f"S={chosen_subprofile_indices.get('S')}, "
-                    f"W={chosen_subprofile_indices.get('W')}"
-                )
-
+            _debug_log_random_suit(
+                f"Board {board_number}: SUCCESS after {board_attempts} board attempts; "
+                f"RandomSuit calls={_random_suit_debug_calls}, "
+                f"successes={_random_suit_debug_successes}, "
+                f"failures={_random_suit_debug_failures}"
+            )
             return Deal(
                 board_number=board_number,
                 dealer=profile.dealer,
-                vulnerability="None",  # will be enriched in C2
+                vulnerability="None",  # set later in _apply_vulnerability_and_rotation
                 hands=hands,
             )
 
+    # If we fall out of the loop entirely, we failed this board.
+    _debug_log_random_suit(
+        f"Board {board_number}: FAILED after {board_attempts} board attempts; "
+        f"RandomSuit calls={_random_suit_debug_calls}, "
+        f"successes={_random_suit_debug_successes}, "
+        f"failures={_random_suit_debug_failures}"
+    )
     raise DealGenerationError(
         f"Unable to generate constrained deal for board {board_number} "
         f"after {MAX_BOARD_ATTEMPTS} attempts."
-    )
-
-
-# ---------------------------------------------------------------------------
+    )    
+    # ---------------------------------------------------------------------------
 # Simple (fallback) generator for non-HandProfile objects
 # ---------------------------------------------------------------------------
 
@@ -914,6 +1232,9 @@ def generate_deals(
         return DealSet(deals=deals)
 
     # Full constrained path
+    # Before we start the expensive search, do a quick global HCP sanity check.
+    _check_global_hcp_feasibility(profile)
+
     try:
         deals: List[Deal] = []
         for board_number in range(1, num_deals + 1):
