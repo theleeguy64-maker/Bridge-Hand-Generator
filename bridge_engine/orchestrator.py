@@ -37,14 +37,7 @@ from typing import Any, Dict, List, Tuple
 
 from .setup_env import run_setup, SetupResult
 from .hand_profile import HandProfile, ProfileError, validate_profile
-from .deal_generator import (
-    DealSet, 
-    DealGenerationError, 
-    generate_deals,
-    dump_random_suit_stats,
-    set_random_suit_log_path,
-    DEBUG_SECTION_C,
-)
+from .deal_generator import DealSet, DealGenerationError, generate_deals
 from .deal_output import DealOutputSummary, OutputError, render_deals
 from . import profile_cli
 from . import lin_tools
@@ -313,13 +306,6 @@ def _run_deal_generation_session() -> None:
             print(f"  - {w}")
     print("")
 
-    # Optional: enable Section C debug logging for this session.
-    # You can comment this out normally and only use it when diagnosing hangs.
-    if DEBUG_SECTION_C:
-        log_path = setup.base_dir / "random_suit_debug.log"
-        set_random_suit_log_path(log_path)
-        print(f"[DEBUG] Random Suit logs -> {log_path}")
-
     try:
         deal_set: DealSet = generate_deals(
             setup=setup,
@@ -328,16 +314,7 @@ def _run_deal_generation_session() -> None:
             enable_rotation=rotate_deals,
         )
     except KeyboardInterrupt:
-        # User hit Ctrl-C: dump whatever stats we have so far.
-        stats_path = setup.base_dir / "random_suit_stats.json"
-        try:
-            dump_random_suit_stats(stats_path)
-            print(
-                f"\nGeneration aborted by user. "
-                f"Random Suit stats written to: {stats_path}"
-            )
-        except Exception as exc:  # pragma: no cover – best-effort
-            print(f"\nGeneration aborted by user (KeyboardInterrupt, stats dump failed: {exc})")
+        print("\nGeneration aborted by user.")
         return  # back to main menu instead of full traceback
 
 # ---------------------------------------------------------------------------
