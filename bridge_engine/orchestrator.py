@@ -437,11 +437,12 @@ def _main_menu() -> None:
 
 def main() -> None:
     """
-    Package entrypoint for `python -m bridge_engine`.
+    Public entrypoint for interactive CLI.
 
-    We intentionally use the 4-option menu (includes LIN tools).
+    Always launches the full main menu (with LIN tools).
     """
     main_menu()
 
-if __name__ == "__main__":  # pragma: no cover
-    main_menu()
+if __name__ == "__main__":
+    main()
+    
