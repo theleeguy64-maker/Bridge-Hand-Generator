@@ -435,5 +435,13 @@ def _main_menu() -> None:
         else:
             print("Invalid choice, please try again.")
 
+def main() -> None:
+    """
+    Package entrypoint for `python -m bridge_engine`.
+
+    We intentionally use the 4-option menu (includes LIN tools).
+    """
+    main_menu()
+
 if __name__ == "__main__":  # pragma: no cover
     main_menu()
