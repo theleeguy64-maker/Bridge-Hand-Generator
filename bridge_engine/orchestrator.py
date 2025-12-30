@@ -381,44 +381,19 @@ def run_profile_menu() -> None:
 # Main menus
 # ---------------------------------------------------------------------------
 
-def main_menu() -> None:
-    """
-    Primary interactive menu used when running this module as a script.
-
-    Includes the LIN tools option.
-    """
-    while True:
-        print()
-        print("=== Bridge Hand Generator ===")
-        print("1) Profile management")
-        print("2) Deal generation")
-        print("3) LIN tools - Combine LIN files")
-        print("4) Exit")
-
-        choice = input("Choose [1-4] [4]: ").strip() or "4"
-
-        if choice == "1":
-            _run_profile_management()
-        elif choice == "2":
-            _run_deal_generation_session()
-        elif choice == "3":
-            lin_tools.run_lin_combiner()
-        elif choice == "4":
-            print("Goodbye.")
-            break
-        else:
-            print("Invalid choice, please try again.")
-
 def _main_menu() -> None:
     """
-    Legacy main menu used by tests.
+    DO NOT CHANGE
+    Legacy main menu used by tests.  DO NOT CHANGE
 
     Historically, this menu had only three options and exited on '3'.
     The tests still call _main_menu() and expect that behaviour, so we
     keep this thin wrapper separate from the real main_menu().
     """
     while True:
+        print()
         print("=== Bridge Hand Generator ===")
+        print()
         print("1) Profile management")
         print("2) Deal generation")
         print("3) Exit")
@@ -434,14 +409,79 @@ def _main_menu() -> None:
             break
         else:
             print("Invalid choice, please try again.")
+            
+def main_menu() -> None:
+    """
+    Primary interactive menu used when running this module as a script.
+    """
+    while True:
+        print()
+        print("=== Bridge Hand Generator ===")
+        print()
+        print("1) Profile Management")
+        print("2) Deal Management")
+        print("3) Admin")
+        print("4) Exit")
+
+        choice = input("Choose [1-4] [4]: ").strip() or "4"
+
+        if choice == "1":
+            _run_profile_management()
+        elif choice == "2":
+            _deal_management_menu()
+        elif choice == "3":
+            _admin_menu()
+        elif choice == "4":
+            print("Goodbye.")
+            break
+        else:
+            print("Invalid choice, please try again.")
+
+def _deal_management_menu() -> None:
+    while True:
+        print()
+        print("=== Deal Management ===")
+        print()
+        print("1) Deal generation")
+        print("2) LIN Combiner")
+        print("3) Exit")
+
+        choice = input("Choose [1-3] [3]: ").strip() or "3"
+
+        if choice == "1":
+            _run_deal_generation_session()
+        elif choice == "2":
+            lin_tools.run_lin_combiner()
+        elif choice == "3":
+            return
+        else:
+            print("Invalid choice, please try again.")
+
+def _admin_menu() -> None:
+    while True:
+        print()
+        print("=== Admin ===")
+        print()
+        print("1) TBD")
+        print("2) Exit")
+
+        choice = input("Choose [1-2] [2]: ").strip() or "2"
+
+        if choice == "1":
+            print("Admin tools coming later.")
+        elif choice == "2":
+            return
+        else:
+            print("Invalid choice, please try again.")
 
 def main() -> None:
     """
-    Package entrypoint for `python -m bridge_engine`.
+    Public entrypoint for interactive CLI.
 
-    We intentionally use the 4-option menu (includes LIN tools).
+    Always launches the full main menu (with LIN tools).
     """
     main_menu()
 
-if __name__ == "__main__":  # pragma: no cover
-    main_menu()
+if __name__ == "__main__":
+    main()
+    
