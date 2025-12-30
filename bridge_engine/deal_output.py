@@ -282,7 +282,7 @@ def render_deals(
     """
     Render all deals to text and LIN outputs.
 
-    This function is a thin orchestration layer for Section D:
+    This function is a thin coordination layer for Section D:
       • Converts internal Deal objects into text and LIN representations.
       • Writes to the canonical paths from SetupResult.
       • Optionally prints deals to the console.
