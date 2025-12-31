@@ -224,7 +224,7 @@ def _choose_profile(
         print("No profiles found.")
         return None
 
-    print("\nProfiles on disk:")
+    print("\nView or Edit Profiles on disk:")
     for idx, (path, profile) in enumerate(profiles, start=1):
         print(
             f"  {idx}) {profile.profile_name} "
@@ -875,27 +875,32 @@ def save_as_new_version_action() -> None:
 
 def run_profile_manager() -> None:
     while True:
-        print("\n=== Bridge Hand Generator – Profile Manager ===")
+        print()
+        print("=== Bridge Hand Generator – Profile Manager ===")
+        print()
         print("1) List profiles")
-        print("2) Create new profile")
-        print("3) View / print profile (full details)")
-        print("4) Edit profile")
+        print("2) View / print profile (full details)")
+        print("3) Edit profile")
+        print("4) Create new profile")
         print("5) Delete profile")
         print("6) Save profile as new version")
-        print("7) Draft tools (recover/delete *_TEST.json drafts)")
-        print("8) Exit")
+        print("7) Exit")
 
-        choice = _input_int(
-            "Choose [1-8] (default 8)",
-            default=8,
-            minimum=1,
-            maximum=8,
-            show_range_suffix=False,
-        )
+        choice = input("Choose [1-7] [7]: ").strip() or "7"
 
-        if choice == 1:
+        if choice == "1":
             list_profiles_action()
-        elif choice == 2:
+        elif choice == "2":
+            view_and_optional_print_profile_action()
+        elif choice == "3":
+            try:
+                edit_profile_action()
+            except (KeyboardInterrupt, SystemExit):
+                raise
+            except Exception as e:
+                print("\n⚠️ Wizard error — returning to main menu.")
+                print(f"   {type(e).__name__}: {e}\n")                 
+        elif choice == "4":            
             try:
                 create_profile_action()
             except (KeyboardInterrupt, SystemExit):
@@ -903,22 +908,10 @@ def run_profile_manager() -> None:
             except Exception as e:
                 print("\n⚠️ Wizard error — returning to main menu.")
                 print(f"   {type(e).__name__}: {e}\n")
-        elif choice == 3:
-            view_and_optional_print_profile_action()
-        elif choice == 4:
-            try:
-                edit_profile_action()
-            except (KeyboardInterrupt, SystemExit):
-                raise
-            except Exception as e:
-                print("\n⚠️ Wizard error — returning to main menu.")
-                print(f"   {type(e).__name__}: {e}\n")
-        elif choice == 5:
-            delete_profile_action()
-        elif choice == 6:
+        elif choice == "5":
+            delete_profile_action() 
+        elif choice == "6":
             save_as_new_version_action()
-        elif choice == 7:
-            draft_tools_action()
         else:
             print("Exiting Profile Manager.")
             break
