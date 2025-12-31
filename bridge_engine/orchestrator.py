@@ -462,13 +462,13 @@ def _admin_menu() -> None:
         print()
         print("=== Admin ===")
         print()
-        print("1) TBD")
+        print("1) Draft tools (recover/delete *_TEST.json drafts)")
         print("2) Exit")
 
         choice = input("Choose [1-2] [2]: ").strip() or "2"
 
         if choice == "1":
-            print("Admin tools coming later.")
+            profile_cli.run_draft_tools()
         elif choice == "2":
             return
         else:
