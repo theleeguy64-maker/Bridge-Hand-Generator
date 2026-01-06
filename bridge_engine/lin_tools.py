@@ -21,6 +21,36 @@ _BBO_PATTERN = re.compile(
 )
 
 
+def _pretty_lin_profile_label(path: Path) -> str:
+    """
+    Derive a human-friendly 'profile name' label from a LIN filename.
+
+    Expected pattern (current generator output):
+        Author_Profile Name_BBO_YYYY_HHMM.lin
+
+    We strip:
+      • the leading 'Author_' chunk
+      • the trailing '_BBO_...' timestamp suffix
+    and return just 'Profile Name'.
+
+    If the pattern doesn't match, fall back to the bare stem.
+    """
+    stem = path.stem  # e.g. 'Lee_1 major then interference_BBO_1128_2008'
+
+    # Strip trailing BBO timestamp suffix, if present
+    if "_BBO_" in stem:
+        stem, _ = stem.split("_BBO_", 1)
+
+    # Now stem is e.g. 'Lee_1 major then interference'
+    parts = stem.split("_", 1)
+    if len(parts) == 2:
+        # Drop author → return the rest as profile label
+        return parts[1].strip()
+
+    # Fallback for unexpected patterns
+    return stem.strip()
+
+
 def logical_lin_key(path: Path) -> str:
     """
     Return a 'logical' key for grouping LIN files that belong to the
@@ -154,6 +184,7 @@ def _renumber_boards(boards: List[str], start_at: int = 1) -> List[str]:
 
     return renumbered
 
+
 def combine_lin_files(
     input_paths: List[Path],
     output_path: Path,
@@ -259,13 +290,24 @@ def combine_lin_files(
 
     return len(combined)
     
+    
+def combine_lin_files_interactive() -> None:
+    """
+    CLI entrypoint for the LIN combiner, used by the Admin menu.
+
+    This wraps the existing interactive LIN-combiner flow so that:
+      • orchestrator.admin_menu() can call a single function,
+      • tests for the combiner can keep using their current APIs.
+    """
+    run_lin_combiner()
+    
+    
 def run_lin_combiner() -> None:
     """
-    Interactive LIN combiner used by orchestrator.main_menu().
+    Interactive LIN combiner used by the Admin menu.
 
     - Asks for a directory containing .lin files (default: out/lin)
-    - Groups files by logical name (using logical_lin_key)
-    - For each group, keeps only the latest file
+    - Groups files by logical name (using select_latest_per_group)
     - Lets the user choose which of these latest files to include
     - Calls combine_lin_files(...) to create one combined LIN file
     """
@@ -286,22 +328,8 @@ def run_lin_combiner() -> None:
         print(f"No .lin files found in {base_dir}.")
         return
 
-    # 3) Group by logical key and keep only the latest file in each group
-    try:
-        groups = group_lin_files_by_logical_name(all_lin_files)
-    except NameError:
-        # Fallback: no grouping helper available, just treat all files as separate
-        groups = {f: [f] for f in all_lin_files}
-
-    latest_files = []
-    for key, files in groups.items():
-        # "Latest" by modification time; if that ever fails, fall back to name sort
-        try:
-            latest = max(files, key=lambda p: p.stat().st_mtime)
-        except Exception:
-            latest = sorted(files)[-1]
-        latest_files.append(latest)
-
+    # 3) Latest file per logical group
+    # (select_latest_per_group is your existing helper)
     latest_files = select_latest_per_group(all_lin_files)
 
     # Require at least 2 candidate files for combining
@@ -354,7 +382,10 @@ def run_lin_combiner() -> None:
 
     print("\nYou chose these files:")
     for p in chosen_files:
-        print(f"  - {p.name}")
+        # You already have a helper that can show a nice label; if it
+        # currently uses filename-only, we can improve that later.
+        label = _pretty_lin_profile_label(p)
+        print(f"  - {label}")
 
     # 5b) Optional weighted selection (F4)
     file_weights: List[float] | None = None
@@ -387,21 +418,31 @@ def run_lin_combiner() -> None:
                     file_weights.append(w)
                     break
 
-    # 6) Ask for output filename
-    default_output = "combined.lin"
-    out_name = input(f"\nOutput LIN filename [{default_output}]: ").strip() or default_output
+    # 6) Ask for output filename (stem; we always write .lin)
+    default_stem = "combined"
+    out_stem = input(
+        "\nUser can determine combined LIN file name "
+        f"[{default_stem}]: "
+    ).strip() or default_stem
+
+    if not out_stem.lower().endswith(".lin"):
+        out_name = out_stem + ".lin"
+    else:
+        out_name = out_stem
+
     output_path = base_dir / out_name
 
     # 7) Optional seed
-    seed_str = input("Random seed for shuffling (integer 1 to 2 billion or blank for none): ").strip()
+    seed_str = input(
+        "Random seed for shuffling (integer 1 to 2 billion or blank for default): "
+    ).strip()
     seed = None
     if seed_str:
         try:
             seed = int(seed_str)
         except ValueError:
-            print("Seed must be an integer; ignoring and proceeding without a seed.")
+            print("Seed must be an integer; ignoring and proceeding with default random behaviour.")
             seed = None
-
     # 8) Combine
     try:
         combine_lin_files(
@@ -416,3 +457,4 @@ def run_lin_combiner() -> None:
 
     print(f"\nCombined {len(chosen_files)} LIN files into: {output_path}")
     print("Deal numbers have been renumbered starting from 1.")
+    

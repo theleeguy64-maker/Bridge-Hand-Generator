@@ -39,12 +39,18 @@ from __future__ import annotations
 
 import inspect
 import json
+import sys
+
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from . import cli_io
 from . import profile_store
+from .wizard_io import _input_choice
+from .wizard_constants import SUITS
+from . import wizard_io as wiz_io
+from .hand_profile_validate import validate_profile as _validate_profile_fallback
 
 from .cli_prompts import (
     prompt_choice,
@@ -52,11 +58,6 @@ from .cli_prompts import (
     prompt_text,
     prompt_yes_no as _prompt_yes_no,
 )
-
-from .wizard_constants import SUITS
-from . import wizard_io as wiz_io
-
-from .hand_profile_validate import validate_profile as _validate_profile_fallback
 
 from .hand_profile_model import (
     HandProfile,
@@ -68,7 +69,6 @@ from .hand_profile_model import (
     OpponentContingentSuitData,
 )
 
-import sys
 
 def _suggest_dealing_order(
     tag: str,
@@ -302,6 +302,7 @@ def _parse_shapes_csv(raw: str) -> list[str]:
         shapes.append(s)
     return shapes
 
+
 def _build_exclusion_rule(
     seat: str,
     subprofile_index: int,
@@ -314,7 +315,8 @@ def _build_exclusion_rule(
 
     if kind == "shapes":
         raw = _input_with_default(
-            "Enter excluded shapes as comma-separated 4-digit S/H/D/C patterns that sum to 13 (e.g. 4333,4432): "
+            "Enter excluded shapes as comma-separated 4-digit S/H/D/C patterns "
+            "that sum to 13 (e.g. 4333,4432): ",
             "",
         ).strip()
         shapes = _parse_shapes_csv(raw)
@@ -360,7 +362,7 @@ def _build_exclusion_rule(
         excluded_shapes=None,
         clauses=clauses,
     )
-
+    
 # Near other small helpers in wizard_flow.py
 
 def _default_dealing_order_for_dealer(dealer: Seat) -> list[Seat]:

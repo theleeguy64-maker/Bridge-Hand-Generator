@@ -30,9 +30,12 @@ from __future__ import annotations
 import json
 import sys
 import io
+
 from contextlib import redirect_stdout
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+from .menu_help import get_menu_help
 from .cli_io import _yes_no as _yes_no  # keep name for tests to monkeypatch
 
 from .hand_profile import (
@@ -246,6 +249,7 @@ def _choose_profile(
     print("Invalid choice.")
     return None
 
+
 def _create_profile_from_base_template() -> None:
     """
     Create a new profile using a standard base template.
@@ -265,6 +269,7 @@ def _create_profile_from_base_template() -> None:
     profile_store.save_profile(profile)
     print(f"Saved new profile: {profile.profile_name}")
 
+
 def list_profiles_action() -> None:
     profiles = _load_profiles()
     if not profiles:
@@ -278,6 +283,7 @@ def list_profiles_action() -> None:
             f"(v{getattr(profile, 'version', '')}, "
             f"tag={profile.tag}, dealer={profile.dealer})"
         )
+
 
 def draft_tools_action() -> None:
     profiles_dir = _profiles_dir()  # or however profile_cli resolves profiles/
@@ -341,11 +347,13 @@ def create_profile_action() -> None:
         _save_profile_to_path(profile, path)
         profile_store.delete_draft_for_canonical(path)
 
+
 def _print_suit_range(label: str, r: SuitRange, indent: str = "") -> None:
     print(
         f"{indent}{label}: cards {r.min_cards}–{r.max_cards}, "
         f"HCP {r.min_hcp}–{r.max_hcp}"
     )
+
 
 def _fmt_suits(suits) -> str:
     """
@@ -366,6 +374,7 @@ def _fmt_suits(suits) -> str:
         suits_sorted = suits_list
 
     return "[" + ",".join(suits_sorted) + "]"
+
 
 def _print_standard_constraints(std: StandardSuitConstraints, indent: str = "") -> None:
     print(
@@ -429,12 +438,14 @@ def _print_partner_contingent_constraint(
     print(f"{indent}  Partner seat: {pc.partner_seat}")
     _print_suit_range("Suit", pc.suit_range, indent + "  ")
 
+
 def _print_opponent_contingent_constraint(
     oc: OpponentContingentSuitData, indent: str = ""
 ) -> None:
     print(f"{indent}Opponent Contingent-Suit constraint:")
     print(f"{indent}  Opponent seat: {oc.opponent_seat}")
     _print_suit_range("Suit", oc.suit_range, indent + "  ")
+
 
 def _render_full_profile_details_text(profile: HandProfile, path: Path) -> str:
     """
@@ -452,6 +463,7 @@ def _render_full_profile_details_text(profile: HandProfile, path: Path) -> str:
         #
         # Therefore: move the original print logic into a private inner function.
         pass  # replaced below
+
 
 def _print_full_profile_details_impl(profile: HandProfile, path: Path) -> None:
     """Print full details of a profile, including constraints."""
@@ -512,6 +524,7 @@ def _print_full_profile_details_impl(profile: HandProfile, path: Path) -> None:
                 
         _print_subprofile_exclusions(profile, seat, indent="  ")
 
+
 def _parse_hand_dealing_order(s: str) -> list[str] | None:
     """
     Parse a hand dealing order from user input.
@@ -536,6 +549,7 @@ def _parse_hand_dealing_order(s: str) -> list[str] | None:
         return None
     return parts
 
+
 def _default_clockwise_order_starting_with(dealer: str) -> list[str]:
     base = ["N", "E", "S", "W"]
     dealer = (dealer or "").strip().upper()
@@ -544,10 +558,12 @@ def _default_clockwise_order_starting_with(dealer: str) -> list[str]:
     i = base.index(dealer)
     return base[i:] + base[:i]
 
+
 def _print_full_profile_details(profile: HandProfile, path: Path) -> None:
     """Print full details of a profile, including constraints."""
     _print_full_profile_details_impl(profile, path)
-
+    
+    
 def _print_subprofile_exclusions(
     profile: HandProfile,
     seat: str,
@@ -583,6 +599,7 @@ def _print_subprofile_exclusions(
             continue
 
         print(f"{indent}  Sub-profile {idx}: (invalid exclusion: no shapes/clauses)")
+
 
 def view_and_optional_print_profile_action() -> None:
     """
@@ -667,6 +684,7 @@ def view_and_optional_print_profile_action() -> None:
         out_path.write_text(buf.getvalue(), encoding="utf-8")
         print(f"\nWrote full profile details to: {out_path}")
 
+
 def edit_profile_action() -> None:
     """
     Edit an existing profile.
@@ -681,7 +699,7 @@ def edit_profile_action() -> None:
         return
 
     path, profile = chosen
-    print(f"\nEditing profile: {profile.profile_name} (file: {path})")
+    print(f"\nEditing profile: {profile.profile_name}")
 
     print("\nEdit mode:")
     print("  1) Edit metadata only")
@@ -693,7 +711,6 @@ def edit_profile_action() -> None:
         maximum=2,
         show_range_suffix=False,
     )
-    
     
     print()
 
@@ -825,6 +842,7 @@ def edit_profile_action() -> None:
             print(f"\nUpdated profile saved to {path}")
         return
 
+
 def delete_profile_action() -> None:
     profiles = _load_profiles()
     chosen = _choose_profile(profiles)
@@ -837,6 +855,7 @@ def delete_profile_action() -> None:
             print(f"Deleted {path}")
         except OSError as exc:
             print(f"Failed to delete {path}: {exc}")
+
 
 def save_as_new_version_action() -> None:
     """
@@ -874,50 +893,71 @@ def save_as_new_version_action() -> None:
 
 
 def run_profile_manager() -> None:
+    """
+    Top-level Profile Manager menu.
+
+    0) Exit
+    1) List profiles
+    2) View / print profile (full details)
+    3) Edit profile
+    4) Create new profile
+    5) Delete profile
+    6) Save profile as new version
+    7) Help
+    """
     while True:
-        print()
-        print("=== Bridge Hand Generator – Profile Manager ===")
-        print()
+        print("\n=== Bridge Hand Generator – Profile Manager ===")
+        print("0) Exit")
         print("1) List profiles")
         print("2) View / print profile (full details)")
         print("3) Edit profile")
         print("4) Create new profile")
         print("5) Delete profile")
         print("6) Save profile as new version")
-        print("7) Exit")
+        print("7) Help")
 
-        choice = input("Choose [1-7] [7]: ").strip() or "7"
+        choice = _input_int(
+            "Choose [0-7] [0]: ",
+            default=0,
+            minimum=0,
+            maximum=7,
+            show_range_suffix=False,
+        )
 
-        if choice == "1":
+        if choice == 0:
+            # Back to main menu
+            break
+        elif choice == 1:
             list_profiles_action()
-        elif choice == "2":
+        elif choice == 2:
             view_and_optional_print_profile_action()
-        elif choice == "3":
+        elif choice == 3:
             try:
                 edit_profile_action()
             except (KeyboardInterrupt, SystemExit):
                 raise
             except Exception as e:
-                print("\n⚠️ Wizard error — returning to main menu.")
-                print(f"   {type(e).__name__}: {e}\n")                 
-        elif choice == "4":            
+                print("\n⚠️ Wizard error — returning to Profile Manager.")
+                print(f"   {type(e).__name__}: {e}\n")
+        elif choice == 4:
             try:
                 create_profile_action()
             except (KeyboardInterrupt, SystemExit):
                 raise
             except Exception as e:
-                print("\n⚠️ Wizard error — returning to main menu.")
+                print("\n⚠️ Wizard error — returning to Profile Manager.")
                 print(f"   {type(e).__name__}: {e}\n")
-        elif choice == "5":
-            delete_profile_action() 
-        elif choice == "6":
+        elif choice == 5:
+            delete_profile_action()
+        elif choice == 6:
             save_as_new_version_action()
-        else:
-            print("Exiting Profile Manager.")
-            break
+        elif choice == 7:
+            # Profile Manager specific help
+            print(get_menu_help("profile_manager_menu"))                       
 
 def draft_tools_action() -> None:
     print("\nDraft tools are not implemented yet.")
+
 
 def main() -> None:
     """Entry point so orchestrator can call profile_cli.main()."""

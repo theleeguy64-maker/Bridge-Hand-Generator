@@ -32,15 +32,18 @@ from __future__ import annotations
 
 import json
 import sys
+
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+from .menu_help import get_menu_help
 from .setup_env import run_setup, SetupResult
 from .hand_profile import HandProfile, ProfileError, validate_profile
 from .deal_generator import DealSet, DealGenerationError, generate_deals
 from .deal_output import DealOutputSummary, OutputError, render_deals
 from . import profile_cli
 from . import lin_tools
+from .profile_cli import _input_int
 
 # Directory where JSON profiles live (relative to project root / CWD)
 PROFILE_DIR_NAME = "profiles"
@@ -357,6 +360,7 @@ def _run_profile_management() -> None:
 def run_deal_generation() -> None:
     _run_deal_generation_session()
 
+
 def _print_main_menu(include_lin: bool) -> None:
     """
     Helper to print the main menu.
@@ -373,6 +377,7 @@ def _print_main_menu(include_lin: bool) -> None:
         print("4) Exit")
     else:
         print("3) Exit")
+
 
 def run_profile_menu() -> None:
     _run_profile_management()
@@ -409,33 +414,91 @@ def _main_menu() -> None:
             break
         else:
             print("Invalid choice, please try again.")
+  
             
 def main_menu() -> None:
     """
-    Primary interactive menu used when running this module as a script.
+    Top-level interactive menu for the Bridge Hand Generator.
     """
     while True:
-        print()
-        print("=== Bridge Hand Generator ===")
-        print()
-        print("1) Profile Management")
-        print("2) Deal Management")
+        print("\n=== Bridge Hand Generator ===")
+        print("0) Exit")
+        print("1) Profile management")
+        print("2) Deal generation")
         print("3) Admin")
-        print("4) Exit")
+        print("4) Help")
 
-        choice = input("Choose [1-4] [4]: ").strip() or "4"
+        choice = _input_int(
+            "Choose [0-4] [0]: ",
+            default=0,
+            minimum=0,
+            maximum=4,
+            show_range_suffix=False,
+        )
 
-        if choice == "1":
-            _run_profile_management()
-        elif choice == "2":
-            _deal_management_menu()
-        elif choice == "3":
-            _admin_menu()
-        elif choice == "4":
-            print("Goodbye.")
+        if choice == 0:
+            print("Exiting Bridge Hand Generator.")
             break
-        else:
-            print("Invalid choice, please try again.")
+
+        elif choice == 1:
+            # Profile Manager
+            from . import profile_cli
+            profile_cli.run_profile_manager()
+
+        elif choice == 2:
+            # Deal generation main flow (legacy name kept for now)
+            run_deal_generation()
+
+        elif choice == 3:
+            # Admin submenu
+            admin_menu()
+
+        elif choice == 4:
+            # Main menu help
+            print()
+            print(get_menu_help("main_menu"))
+
+
+def admin_menu() -> None:
+    """
+    Admin / tools submenu (LIN combiner, draft tools, etc.).
+    """
+    while True:
+        print("\n=== Bridge Hand Generator – Admin ===")
+        print("0) Exit")
+        print("1) LIN Combiner")
+        print("2) Recover/Delete *_TEST.json drafts")
+        print("3) Help")
+
+        choice = _input_int(
+            "Choose [0-3] [0]: ",
+            default=0,
+            minimum=0,
+            maximum=3,
+            show_range_suffix=False,
+        )
+
+        if choice == 0:
+            # Back to main menu
+            break
+
+        elif choice == 1:
+            # Interactive LIN combiner (see lin_tools.combine_lin_files_interactive)
+            lin_tools.combine_lin_files_interactive()
+
+        elif choice == 2:
+            # Same behaviour as old _admin_menu
+            profile_cli.run_draft_tools()
+
+        elif choice == 3:
+            print()
+            print(get_menu_help("admin_menu"))
+            
+
+# Backwards-compatible alias for any legacy callers/tests
+def _admin_menu() -> None:
+    admin_menu()     
+    
 
 def _deal_management_menu() -> None:
     while True:
@@ -457,22 +520,6 @@ def _deal_management_menu() -> None:
         else:
             print("Invalid choice, please try again.")
 
-def _admin_menu() -> None:
-    while True:
-        print()
-        print("=== Admin ===")
-        print()
-        print("1) Draft tools (recover/delete *_TEST.json drafts)")
-        print("2) Exit")
-
-        choice = input("Choose [1-2] [2]: ").strip() or "2"
-
-        if choice == "1":
-            profile_cli.run_draft_tools()
-        elif choice == "2":
-            return
-        else:
-            print("Invalid choice, please try again.")
 
 def main() -> None:
     """
@@ -481,6 +528,7 @@ def main() -> None:
     Always launches the full main menu (with LIN tools).
     """
     main_menu()
+
 
 if __name__ == "__main__":
     main()
