@@ -1,3 +1,4 @@
+# bridge_engine/seat_viability.py
 from __future__ import annotations
 
 from dataclasses import dataclass
