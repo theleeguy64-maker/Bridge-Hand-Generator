@@ -492,13 +492,7 @@ def validate_profile(data: Any) -> HandProfile:
     profile = HandProfile.from_dict(raw)
 
     # -----------------------------------
-    # 6. Subprofile exclusions (if present)
-    # -----------------------------------
-    for exc in getattr(profile, "subprofile_exclusions", []):
-        exc.validate(profile)
-
-    # -----------------------------------
-    # 7. Structural validations that rely on HandProfile objects
+    # 6. Structural validations that rely on HandProfile objects
     # -----------------------------------
     _validate_partner_contingent(profile)
     _validate_opponent_contingent(profile)
@@ -507,10 +501,13 @@ def validate_profile(data: Any) -> HandProfile:
     # Random Suit vs standard suit constraints consistency
     _validate_random_suit_vs_standard(profile)
 
-    # -----------------------------------
-    # 8. Cheap viability check (no dealing)
-    # -----------------------------------
+    # 7. Seat-level viability check (light, cheap)
     validate_profile_viability_light(profile)
+
+    # 8. Validate subprofile exclusions (if present)
+    for exc in getattr(profile, "subprofile_exclusions", []):
+        exc.validate(profile)
 
     # IMPORTANT: callers expect the validated HandProfile back
     return profile
+    

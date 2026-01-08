@@ -446,6 +446,22 @@ def _subprofile_is_viable_light(sub: SubProfile, *, return_reason: bool = False)
     return (ok, reason) if return_reason else ok
 
 
+def validate_profile_viability(profile: HandProfile) -> None:
+    """
+    Full-profile viability check.
+
+    Currently this delegates to validate_profile_viability_light(...),
+    which performs cheap, seat-by-seat feasibility checks for standard
+    suit-count and HCP constraints.
+
+    In future we can extend this entry point to include more expensive
+    checks for Random Suit / partner-contingent / opponents-contingent
+    constraints and index-coupling interactions, while keeping the
+    light version focused on fast structural sanity.
+    """
+    validate_profile_viability_light(profile)
+
+
 def validate_profile_viability_light(profile: HandProfile) -> None:
     """
     Lightweight feasibility validation:
