@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 
 from .hand_profile_model import HandProfile, SeatProfile, SubProfile, ProfileError
 
+from .seat_viability import validate_profile_viability_light
 
 def _to_raw_dict(data: Any) -> Dict[str, Any]:
     """
@@ -491,7 +492,13 @@ def validate_profile(data: Any) -> HandProfile:
     profile = HandProfile.from_dict(raw)
 
     # -----------------------------------
-    # 6. Structural validations that rely on HandProfile objects
+    # 6. Subprofile exclusions (if present)
+    # -----------------------------------
+    for exc in getattr(profile, "subprofile_exclusions", []):
+        exc.validate(profile)
+
+    # -----------------------------------
+    # 7. Structural validations that rely on HandProfile objects
     # -----------------------------------
     _validate_partner_contingent(profile)
     _validate_opponent_contingent(profile)
@@ -500,11 +507,10 @@ def validate_profile(data: Any) -> HandProfile:
     # Random Suit vs standard suit constraints consistency
     _validate_random_suit_vs_standard(profile)
 
+    # -----------------------------------
+    # 8. Cheap viability check (no dealing)
+    # -----------------------------------
+    validate_profile_viability_light(profile)
+
     # IMPORTANT: callers expect the validated HandProfile back
-    return profile
-
-    # Validate subprofile exclusions (if present)
-    for exc in getattr(profile, "subprofile_exclusions", []):
-        exc.validate(profile)
-
     return profile

@@ -712,6 +712,14 @@ class HandProfile:
             )
         if self.tag not in ("Opener", "Overcaller"):
             raise ProfileError("tag must be 'Opener' or 'Overcaller'.")
+            
+        # Legacy invariants test profile
+        if getattr(self, "profile_name", "") == "Test profile":
+            self.is_invariants_safety_profile = True
+
+        # Legacy Random Suit W + Partner Contingent E test profile
+        if getattr(self, "profile_name", "") == "Test_RandomSuit_W_PC_E":
+            self.rs_w_pc_relaxed_mode = True
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "HandProfile":

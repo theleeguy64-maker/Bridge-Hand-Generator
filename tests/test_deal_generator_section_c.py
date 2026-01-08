@@ -1,11 +1,15 @@
-from __future__ import annotations
+# test_deal_generator_section_c.py
 
+from __future__ import annotations
 from typing import Dict, List
+
+import random
 
 from bridge_engine.deal_generator import (
     generate_deals,
     VULNERABILITY_SEQUENCE,
 )
+
 from bridge_engine.hand_profile import (
     HandProfile,
     SeatProfile,
@@ -16,6 +20,12 @@ from bridge_engine.hand_profile import (
     SuitRange,
 )
 from bridge_engine.setup_env import run_setup
+
+from bridge_engine.deal_generator import (
+    generate_deals,
+    DealGenerationError,
+    _build_single_constrained_deal,  # <-- add this if not already imported
+)
 
 
 def _wide_suit_range() -> SuitRange:
@@ -217,3 +227,4 @@ def test_random_suit_w_has_long_suit(tmp_path) -> None:
         assert long_suits, (
             f"Original West hand has no long S/H suit in deal {deal.board_number}"
         )
+        
