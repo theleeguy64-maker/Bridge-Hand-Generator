@@ -255,6 +255,10 @@ ENABLE_CONSTRUCTIVE_HELP: bool = False
 # Default thresholds used by _build_single_constrained_deal.
 _HARDEST_SEAT_CONFIG: HardestSeatConfig = HardestSeatConfig()
 
+# For v1 constructive sampling, only use suit minima when the total is
+# "reasonable" – we don't want to pre-commit too many cards.
+CONSTRUCTIVE_MAX_SUM_MIN_CARDS: int = 11
+    
     
 @dataclass(frozen=True)
 class Deal:
@@ -474,6 +478,160 @@ def _build_single_board_random_suit_w_only(
         "Failed to construct Random-Suit-W-only board for "
         f"board {board_number} after {MAX_BOARD_ATTEMPTS} attempts."
     )
+
+
+def _extract_standard_suit_minima(
+    profile: Any,
+    seat: Seat,
+    chosen_subprofile: Any,
+) -> Dict[str, int]:
+    """
+    Best-effort extraction of standard suit minima for a given seat.
+
+    This is deliberately duck-typed so that:
+      * real HandProfile / SeatProfile / SubProfile objects work, and
+      * tests can use simple dummy objects.
+
+    Returns a mapping from suit letter ("S", "H", "D", "C") to min_cards.
+    Empty dict => no usable minima found.
+    """
+
+    def _from_suit_ranges(suit_ranges: Any) -> Dict[str, int]:
+        mins: Dict[str, int] = {}
+        if not suit_ranges:
+            return mins
+
+        def _record(suit_key: Any, entry: Any) -> None:
+            min_cards = getattr(entry, "min_cards", None)
+            if min_cards is None:
+                return
+            try:
+                m = int(min_cards)
+            except (TypeError, ValueError):
+                return
+            if m <= 0:
+                return
+
+            suit = None
+            if isinstance(suit_key, str):
+                suit = suit_key
+            if not suit:
+                suit = getattr(entry, "suit", None) or getattr(
+                    entry, "suit_name", None
+                )
+            if isinstance(suit, str):
+                s = suit[0].upper()
+                if s in ("S", "H", "D", "C"):
+                    mins[s] = m
+
+        # Dict-like mapping?
+        if isinstance(suit_ranges, dict):
+            for key, entry in suit_ranges.items():
+                _record(key, entry)
+            return mins
+
+        # Fallback: assume iterable of entries.
+        try:
+            for entry in suit_ranges:
+                _record(None, entry)
+        except TypeError:
+            # Not actually iterable – ignore.
+            return {}
+
+        return mins
+
+    # 1) Chosen subprofile's own standard constraints.
+    if chosen_subprofile is not None:
+        std = getattr(chosen_subprofile, "standard_constraints", None)
+        if std is not None:
+            mins = _from_suit_ranges(getattr(std, "suit_ranges", None))
+            if mins:
+                return mins
+
+    # 2) SeatProfile-level constraints.
+    seat_profiles = getattr(profile, "seat_profiles", None)
+    seat_profile = None
+    if isinstance(seat_profiles, dict):
+        seat_profile = seat_profiles.get(seat)
+
+    if seat_profile is not None:
+        # 2a) Direct suit_ranges on the seat profile.
+        mins = _from_suit_ranges(getattr(seat_profile, "suit_ranges", None))
+        if mins:
+            return mins
+
+        # 2b) Nested standard_constraints on the seat profile.
+        std_sp = getattr(seat_profile, "standard_constraints", None)
+        if std_sp is not None:
+            mins = _from_suit_ranges(getattr(std_sp, "suit_ranges", None))
+            if mins:
+                return mins
+
+    # 3) Top-level profile.standard_constraints[seat].
+    all_std = getattr(profile, "standard_constraints", None)
+    if isinstance(all_std, dict):
+        seat_std = all_std.get(seat)
+        if seat_std is not None:
+            mins = _from_suit_ranges(getattr(seat_std, "suit_ranges", None))
+            if mins:
+                return mins
+
+    return {}
+
+
+def _construct_hand_for_seat(
+    rng: random.Random,
+    deck: List[Card],
+    min_suit_counts: Dict[str, int],
+) -> List[Card]:
+    """
+    Construct a 13-card hand from `deck` that satisfies the given minimum
+    suit counts. Mutates `deck` by removing the selected cards.
+
+    This helper is intentionally simple and *only* used when constructive
+    help is enabled and the minima are "reasonable".
+    """
+    # Defensive: if somehow we don't have enough cards, just take whatever is left.
+    if len(deck) < 13:
+        hand = list(deck)
+        deck.clear()
+        return hand
+
+    def suit_of(card: Card) -> str:
+        # Cards are simple strings like "AS", "TD", etc.
+        s = str(card)
+        return s[-1].upper() if s else ""
+
+    hand: List[Card] = []
+
+    # Phase 1 – satisfy minima per suit.
+    for suit, required in min_suit_counts.items():
+        if required <= 0:
+            continue
+
+        available = [c for c in deck if suit_of(c) == suit]
+        if not available:
+            continue
+
+        if required > len(available):
+            required = len(available)
+
+        chosen = rng.sample(available, required)
+        hand.extend(chosen)
+        for c in chosen:
+            deck.remove(c)
+
+    # Phase 2 – fill up to 13 cards from whatever remains.
+    remaining_needed = 13 - len(hand)
+    if remaining_needed > 0 and deck:
+        if remaining_needed > len(deck):
+            remaining_needed = len(deck)
+        extra = rng.sample(deck, remaining_needed)
+        hand.extend(extra)
+        for c in extra:
+            deck.remove(c)
+
+    return hand
 
 
 def _constructive_sample_hand_min_first(
@@ -780,8 +938,7 @@ def _build_single_constrained_deal(
     while board_attempts < MAX_BOARD_ATTEMPTS:
         board_attempts += 1
 
-        # Reserved for future constructive sampling: decide which seat, if any,
-        # should be considered the "hardest" for this board.
+        # Decide which seat, if any, looks "hardest" for this board.
         help_seat: Optional[Seat] = None
         if ENABLE_CONSTRUCTIVE_HELP:
             help_seat = _choose_hardest_seat_for_board(
@@ -792,7 +949,6 @@ def _build_single_constrained_deal(
                 attempt_number=board_attempts,
                 cfg=_HARDEST_SEAT_CONFIG,
             )
-        # NOTE: help_seat is currently unused; dealing remains fully random.
 
         # Choose subprofiles for this board (index-coupled where applicable).
         chosen_subprofiles, chosen_indices = _select_subprofiles_for_board(profile)
@@ -800,17 +956,57 @@ def _build_single_constrained_deal(
         # Keep a snapshot of indices from this attempt for debug reporting.
         last_chosen_indices = dict(chosen_indices)
 
-        # Deal a full deck according to the dealing order.
+        # Build and shuffle a full deck.
         deck = _build_deck()
         rng.shuffle(deck)
 
         hands: Dict[Seat, List[Card]] = {}
-        deck_idx = 0
-        for seat in dealing_order:
-            # Always deal 13 cards to each seat in order.
-            hand = deck[deck_idx : deck_idx + 13]
-            deck_idx += 13
-            hands[seat] = hand
+
+        # --------------------------
+        # Optional constructive path
+        # --------------------------
+        use_constructive = False
+        constructive_minima: Dict[str, int] = {}
+
+        if (
+            ENABLE_CONSTRUCTIVE_HELP
+            and help_seat is not None
+            # v1: only standard-constraints seats get constructive help.
+            and not _seat_has_nonstandard_constraints(profile, help_seat)
+        ):
+            constructive_minima = _extract_standard_suit_minima(
+                profile=profile,
+                seat=help_seat,
+                chosen_subprofile=chosen_subprofiles.get(help_seat),
+            )
+            total_min = sum(constructive_minima.values())
+            if 0 < total_min <= CONSTRUCTIVE_MAX_SUM_MIN_CARDS:
+                use_constructive = True
+
+        if use_constructive and help_seat is not None:
+            # Mutating deck: each hand draws from the remaining cards.
+            working_deck = list(deck)
+
+            for seat in dealing_order:
+                if seat == help_seat:
+                    hand = _construct_hand_for_seat(
+                        rng=rng,
+                        deck=working_deck,
+                        min_suit_counts=constructive_minima,
+                    )
+                else:
+                    # Plain random draw for the other seats from what's left.
+                    take = min(13, len(working_deck))
+                    hand = working_deck[:take]
+                    del working_deck[:take]
+                hands[seat] = hand
+        else:
+            # Original behaviour: just slice 13 cards per seat in order.
+            deck_idx = 0
+            for seat in dealing_order:
+                hand = deck[deck_idx : deck_idx + 13]
+                deck_idx += 13
+                hands[seat] = hand
 
         # Shared Random Suit choices for this board (used by RS / OC / PC).
         random_suit_choices: Dict[Seat, List[str]] = {}
