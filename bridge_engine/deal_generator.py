@@ -476,6 +476,23 @@ def _build_single_board_random_suit_w_only(
     )
 
 
+def _constructive_sample_hand_min_first(
+    rng: random.Random,
+    deck: List[Card],
+    seat: Seat,
+    seat_profile: SeatProfile,
+    chosen_subprofile: SubProfile,
+) -> Optional[List[Card]]:
+    """
+    Attempt to build a 13-card hand for `seat` that satisfies
+    this seat+subprofile's *minimum* constraints first (suit counts,
+    maybe suit-level HCP), then fill remaining cards randomly.
+
+    Returns a 13-card hand if successful, or None if it can't
+    satisfy minima from the given deck.
+    """
+
+
 def _select_subprofiles_for_board(
     profile: HandProfile,
 ) -> Tuple[Dict[Seat, SubProfile], Dict[Seat, int]]:
@@ -755,7 +772,7 @@ def _build_single_constrained_deal(
     board_attempts = 0
     # Track which seat fails most often across attempts for this board.
     seat_fail_counts: Dict[Seat, int] = {}
-    # Track how many times each seat has actually been checked.
+    # Track how many times we've *tried* to match each seat this board.
     seat_seen_counts: Dict[Seat, int] = {}
     # Snapshot of the last attempt's chosen subprofile indices per seat.
     last_chosen_indices: Dict[Seat, int] = {}
@@ -875,6 +892,16 @@ def _build_single_constrained_deal(
     # place we skip constraint matching is the invariants fast path at
     # the top of this function (is_invariants_safety_profile == True).
     # -------------------------------------------------------------------
+    
+    hardest_seat: Optional[Seat] = _choose_hardest_seat_for_board(
+        profile=profile,
+        seat_fail_counts=seat_fail_counts,
+        seat_seen_counts=seat_seen_counts,
+        dealing_order=dealing_order,
+        attempt_number=board_attempts,
+        cfg=_HARDEST_SEAT_CONFIG,
+    )
+    
     if _DEBUG_ON_MAX_ATTEMPTS is not None:
         try:
             _DEBUG_ON_MAX_ATTEMPTS(
