@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 import random
 
@@ -105,6 +105,12 @@ ROTATE_MAP: Dict[Seat, Seat] = {
 # Toggleable debug flag for Section C
 DEBUG_SECTION_C: bool = False
 
+# Optional debug hook invoked when MAX_BOARD_ATTEMPTS is exhausted in
+# _build_single_constrained_deal.
+#
+# Tests (and power users) can monkeypatch this with a callable that accepts:
+#   (profile, board_number, attempts, chosen_indices, seat_fail_counts)
+_DEBUG_ON_MAX_ATTEMPTS: Optional[Callable[..., None]] = None
 
 class DealGenerationError(Exception):
     """Raised when something goes wrong during deal generation."""
@@ -133,6 +139,49 @@ class SuitAnalysis:
 # ---------------------------------------------------------------------------
 # Basic deck helpers
 # ---------------------------------------------------------------------------
+
+
+def _weights_for_seat_profile(seat_profile: SeatProfile) -> List[float]:
+    """
+    Extract weight_percent for each subprofile, with safe defaults.
+
+    If all weights are zero or missing, fall back to equal weights.
+    """
+    subs = list(seat_profile.subprofiles)
+    if not subs:
+        return []
+
+    weights: List[float] = []
+    for sub in subs:
+        w = getattr(sub, "weight_percent", None)
+        if w is None:
+            # Default to non-zero to keep the subprofile usable
+            w = 100.0
+        weights.append(float(w))
+
+    if all(w <= 0.0 for w in weights):
+        # All zero -> treat as equal-weight
+        weights = [1.0] * len(weights)
+
+    return weights
+
+
+def _choose_index_for_seat(
+    rng: random.Random,
+    seat_profile: SeatProfile,
+) -> int:
+    """
+    Choose a subprofile index for a single seat.
+
+    If there are no subprofiles or only one, always return 0.
+    """
+    subs = list(seat_profile.subprofiles)
+    if not subs or len(subs) == 1:
+        return 0
+
+    weights = _weights_for_seat_profile(seat_profile)
+    return _weighted_choice_index(rng, weights)
+
 
 def _build_deck() -> List[Card]:
     ranks = "AKQJT98765432"
@@ -383,42 +432,6 @@ def _build_single_constrained_deal(
     # Full constrained path (for real constraint-bearing profiles)
     # -------------------------------------------------------------------
 
-    def _weights_for_seat_profile(seat_profile: SeatProfile) -> List[float]:
-        """
-        Extract weight_percent for each subprofile, with safe defaults.
-
-        If all weights are zero or missing, fall back to equal weights.
-        """
-        subs = list(seat_profile.subprofiles)
-        if not subs:
-            return []
-
-        weights: List[float] = []
-        for sub in subs:
-            w = getattr(sub, "weight_percent", None)
-            if w is None:
-                # Default to non-zero to keep the subprofile usable
-                w = 100.0
-            weights.append(float(w))
-
-        if all(w <= 0.0 for w in weights):
-            # All zero -> treat as equal-weight
-            weights = [1.0] * len(weights)
-
-        return weights
-
-    def _choose_index_for_seat(
-        rng: random.Random,
-        seat_profile: SeatProfile,
-    ) -> int:
-        """Choose a subprofile index for a single seat."""
-        subs = list(seat_profile.subprofiles)
-        if not subs or len(subs) == 1:
-            return 0
-
-        weights = _weights_for_seat_profile(seat_profile)
-        return _weighted_choice_index(rng, weights)
-
     def _select_subprofiles_for_board(
         profile: HandProfile,
     ) -> Tuple[Dict[Seat, SubProfile], Dict[Seat, int]]:
@@ -532,12 +545,19 @@ def _build_single_constrained_deal(
     # Main board-attempt loop
     # -----------------------------------------------------------------------
     board_attempts = 0
+    # Track which seat fails most often across attempts for this board.
+    seat_fail_counts: Dict[Seat, int] = {}
+    # Snapshot of the last attempt's chosen subprofile indices per seat.
+    last_chosen_indices: Dict[Seat, int] = {}
 
     while board_attempts < MAX_BOARD_ATTEMPTS:
         board_attempts += 1
 
         # Choose subprofiles for this board (index-coupled where applicable).
         chosen_subprofiles, chosen_indices = _select_subprofiles_for_board(profile)
+
+        # Keep a snapshot of indices from this attempt for debug reporting.
+        last_chosen_indices = dict(chosen_indices)
 
         # Deal a full deck according to the dealing order.
         deck = _build_deck()
@@ -593,6 +613,7 @@ def _build_single_constrained_deal(
             # Defensive: if for some reason we didn't pick a subprofile, fail this board.
             if chosen_sub is None or idx0 is None:
                 all_matched = False
+                seat_fail_counts[seat] = seat_fail_counts.get(seat, 0) + 1
                 break
 
             matched, _chosen_rs = _match_seat(
@@ -608,6 +629,7 @@ def _build_single_constrained_deal(
 
             if not matched:
                 all_matched = False
+                seat_fail_counts[seat] = seat_fail_counts.get(seat, 0) + 1
                 break
 
         if all_matched:
@@ -620,52 +642,30 @@ def _build_single_constrained_deal(
             )
 
     # -------------------------------------------------------------------
-    # Safety fallback for trivially-simple profiles (e.g. invariants test)
+    # Attempts exhausted for a real constrained profile.
     #
-    # If we get here, something about the constraints / subprofile choice
-    # is preventing any board from being accepted. For profiles with
-    # *only* standard constraints (no Random Suit / Partner / Opponents
-    # contingent), we can safely fall back to an unconstrained deal so
-    # that invariants-style tests still run while we debug the stricter
-    # logic. For any profile with non-standard constraints, fail loudly.
+    # At this point we *do* want a loud failure so we can debug. The only
+    # place we skip constraint matching is the invariants fast path at
+    # the top of this function (is_invariants_safety_profile == True).
     # -------------------------------------------------------------------
-    has_nonstandard = any(
-        isinstance(sp, SeatProfile)
-        and any(
-            getattr(sub, "random_suit_constraint", None) is not None
-            or getattr(sub, "partner_contingent_constraint", None) is not None
-            or getattr(sub, "opponents_contingent_suit_constraint", None)
-            is not None
-            for sub in sp.subprofiles
-        )
-        for sp in profile.seat_profiles.values()
-    )
+    if _DEBUG_ON_MAX_ATTEMPTS is not None:
+        try:
+            _DEBUG_ON_MAX_ATTEMPTS(
+                profile,
+                board_number,
+                board_attempts,
+                dict(last_chosen_indices),
+                dict(seat_fail_counts),
+            )
+        except Exception:
+            # Debug hooks must never interfere with normal error reporting.
+            pass
 
-    if not has_nonstandard:
-        # Fallback: honour dealing_order, but ignore constraints.
-        deck = _build_deck()
-        rng.shuffle(deck)
-        hands: Dict[Seat, List[Card]] = {}
-        deck_idx = 0
-        for seat in dealing_order:
-            hand = deck[deck_idx : deck_idx + 13]
-            deck_idx += 13
-            hands[seat] = hand
-
-        vulnerability = _vulnerability_for_board(board_number)
-        return Deal(
-            board_number=board_number,
-            dealer=profile.dealer,
-            vulnerability=vulnerability,
-            hands=hands,
-        )
-
-    # Non-standard constraints present: fail loudly so we can debug further.
     raise DealGenerationError(
         f"Failed to construct constrained deal for board {board_number} "
         f"after {MAX_BOARD_ATTEMPTS} attempts."
     )
-    
+        
 # ---------------------------------------------------------------------------
 # Simple (fallback) generator for non-HandProfile objects
 # ---------------------------------------------------------------------------
