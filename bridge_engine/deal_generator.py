@@ -20,6 +20,9 @@ from .seat_viability import _match_seat
 Seat = str
 Card = str
 
+SeatFailCounts = Dict[Seat, int]
+SeatSeenCounts = Dict[Seat, int]
+
 def _weighted_choice_index(rng: random.Random, weights: Sequence[float]) -> int:
     """
     Choose an index according to non-negative weights.
@@ -760,10 +763,15 @@ def _select_subprofiles_for_board(
 
     return chosen_subprofiles, chosen_indices
     
+    
 def _build_single_constrained_deal(
     rng: random.Random,
     profile: HandProfile,
     board_number: int,
+    *,
+    debug_board_stats: Optional[
+        Callable[[SeatFailCounts, SeatSeenCounts], None]
+    ] = None,
 ) -> "Deal":
     """
     Build a single constrained deal (Stage C1).
@@ -1073,6 +1081,9 @@ def _build_single_constrained_deal(
                 break
 
         if all_matched:
+            if debug_board_stats is not None:
+                debug_board_stats(dict(seat_fail_counts), dict(seat_seen_counts))            
+            
             vulnerability = _vulnerability_for_board(board_number)
             return Deal(
                 board_number=board_number,
@@ -1098,6 +1109,9 @@ def _build_single_constrained_deal(
         cfg=_HARDEST_SEAT_CONFIG,
     )
     
+    if debug_board_stats is not None:
+        debug_board_stats(dict(seat_fail_counts), dict(seat_seen_counts))
+                
     if _DEBUG_ON_MAX_ATTEMPTS is not None:
         try:
             _DEBUG_ON_MAX_ATTEMPTS(
@@ -1211,6 +1225,28 @@ def _apply_vulnerability_and_rotation(
 # Public API
 # ---------------------------------------------------------------------------
 
+
+# ---------------------------------------------------------------------------
+# TEST ONLY
+# ---------------------------------------------------------------------------
+
+def _debug_build_many_boards_with_stats(
+    rng_seed: int,
+    profile: HandProfile,
+    num_boards: int,
+    enable_constructive: bool,
+) -> Tuple[List["Deal"], SeatFailCounts]:
+    """
+    TEST-ONLY helper.
+
+    Build `num_boards` constrained deals directly via
+    _build_single_constrained_deal, optionally toggling
+    ENABLE_CONSTRUCTIVE_HELP, and aggregate seat_fail_counts
+    across all boards.
+
+    Returns:
+        (deals, aggregated_fail_counts)
+    """
 
 # -----------------------------------------------------------------------------
 # TEMPORARY TEST HOOKS / ESCAPE HATCHES (deal regeneration)
