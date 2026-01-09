@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Any
 
 import random
 
@@ -116,6 +116,146 @@ class DealGenerationError(Exception):
     """Raised when something goes wrong during deal generation."""
 
 
+
+# ---------------------------------------------------------------------------
+# Hardest-seat selection helpers (used by constrained deal builder)
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class HardestSeatConfig:
+    """
+    Configuration for deciding when and for which seat we should try
+    "helping" via constructive sampling.
+
+    These names and semantics are chosen to match test_hardest_seat_selection.
+    """
+    # Do not even consider help until we've seen at least this many
+    # seat-match attempts on the current board (sum over all seats).
+    min_attempts_before_help: int = 50
+
+    # A seat must have failed at least this many times to be eligible.
+    min_fail_count_for_help: int = 3
+
+    # And its failure rate (failures / attempts) must be at least this high.
+    min_fail_rate_for_help: float = 0.7
+
+    # When multiple candidates are tied on stats, optionally prefer seats
+    # that have non-standard constraints (Random Suit / PC / OC).
+    prefer_nonstandard_seats: bool = True
+
+
+def _seat_has_nonstandard_constraints(profile: Any, seat: Seat) -> bool:
+    """
+    Return True if the given seat has any non-standard constraints:
+      - random_suit_constraint
+      - partner_contingent_constraint
+      - opponents_contingent_suit_constraint
+
+    Deliberately duck-typed: we only assume the objects have the
+    attributes we read, so dummy test types work fine.
+    """
+    # 1) Get the seat_profiles mapping-like object.
+    seat_profiles = getattr(profile, "seat_profiles", None)
+    if not seat_profiles:
+        return False
+
+    # 2) Get this seat's profile.
+    seat_profile = seat_profiles.get(seat)
+    if seat_profile is None:
+        return False
+
+    # 3) Get subprofiles; treat anything truthy/iterable as fine.
+    subprofiles = getattr(seat_profile, "subprofiles", None)
+    if not subprofiles:
+        return False
+
+    # 4) Scan for any of the three non-standard constraint fields.
+    for sub in subprofiles:
+        if getattr(sub, "random_suit_constraint", None) is not None:
+            return True
+        if getattr(sub, "partner_contingent_constraint", None) is not None:
+            return True
+        if getattr(sub, "opponents_contingent_suit_constraint", None) is not None:
+            return True
+
+    return False
+      
+
+def _choose_hardest_seat_for_help(
+    profile: object,
+    dealing_order: Sequence[Seat],
+    fail_counts: Mapping[Seat, int],
+    seen_counts: Mapping[Seat, int],
+    cfg: HardestSeatConfig,
+) -> Optional[Seat]:
+    """
+    Choose the "hardest" seat to help with constructive sampling, or None
+    if no seat qualifies yet.
+
+    Rules (matching tests in test_hardest_seat_selection.py):
+
+      * If profile.is_invariants_safety_profile -> always None.
+      * Do nothing until total attempts >= cfg.min_attempts_before_help.
+      * A seat must:
+          - have seen_counts[seat] > 0,
+          - have fail_counts[seat] >= cfg.min_fail_count_for_help,
+          - have (fail / seen) >= cfg.min_fail_rate_for_help.
+      * Among eligible seats:
+          - we pick the highest failure rate,
+          - if cfg.prefer_nonstandard_seats: prefer seats with
+            _seat_has_nonstandard_constraints(profile, seat) == True
+            when tied on failure rate,
+          - final tie-breaker is earliest in dealing_order.
+    """
+    # Never try to "help" invariants-only profiles; they use the fast path.
+    if getattr(profile, "is_invariants_safety_profile", False):
+        return None
+
+    # Aggregate all attempts for this board.
+    total_attempts = sum(int(v) for v in seen_counts.values())
+    if total_attempts < cfg.min_attempts_before_help:
+        return None
+
+    best_seat: Optional[Seat] = None
+    best_key: Optional[tuple] = None
+
+    for seat in dealing_order:
+        seen = int(seen_counts.get(seat, 0))
+        fails = int(fail_counts.get(seat, 0))
+
+        if seen <= 0:
+            continue
+        if fails < cfg.min_fail_count_for_help:
+            continue
+
+        fail_rate = fails / seen
+        if fail_rate < cfg.min_fail_rate_for_help:
+            continue
+
+        has_nonstd = _seat_has_nonstandard_constraints(profile, seat)
+
+        # Build a comparison key; order of elements encodes our preferences.
+        if cfg.prefer_nonstandard_seats:
+            # (has_nonstd, fail_rate) so that True beats False, then higher rate.
+            key = (has_nonstd, fail_rate)
+        else:
+            # Only use failure rate; tie-breaker will be dealing_order.
+            key = (fail_rate,)
+
+        if best_key is None or key > best_key:
+            best_key = key
+            best_seat = seat
+
+    return best_seat
+    
+
+# Global toggle – keeps deal behaviour identical for now.
+ENABLE_CONSTRUCTIVE_HELP: bool = False
+
+# Default thresholds used by _build_single_constrained_deal.
+_HARDEST_SEAT_CONFIG: HardestSeatConfig = HardestSeatConfig()
+
+    
 @dataclass(frozen=True)
 class Deal:
     board_number: int
@@ -187,7 +327,75 @@ def _build_deck() -> List[Card]:
     ranks = "AKQJT98765432"
     suits = "SHDC"
     return [r + s for s in suits for r in ranks]
+    
+    
+def _choose_hardest_seat_for_board(
+    profile: HandProfile,
+    seat_fail_counts: Dict[Seat, int],
+    seat_seen_counts: Dict[Seat, int],
+    dealing_order: List[Seat],
+    attempt_number: int,
+    cfg: HardestSeatConfig,
+) -> Optional[Seat]:
+    """
+    Choose the "hardest" seat for the current board, based on per-seat
+    failure statistics.
 
+    This helper is *pure* – it does not deal cards or mutate profile.
+    It is safe to call even when we end up not using the result.
+    """
+    # Invariants-safety profiles never get "help" – they use the fast path.
+    if getattr(profile, "is_invariants_safety_profile", False):
+        return None
+
+    # Don’t try to pick a hardest seat until we’re past the configured threshold.
+    if attempt_number < cfg.min_attempts_before_help:
+        return None
+
+    # Filter to seats with enough failures and at least one attempted match.
+    candidates: List[Seat] = [
+        seat
+        for seat, fails in seat_fail_counts.items()
+        if fails >= cfg.min_fail_count_for_help
+        and seat_seen_counts.get(seat, 0) > 0
+    ]
+    if not candidates:
+        return None
+
+    scores: Dict[Seat, float] = {}
+    for seat in candidates:
+        fails = seat_fail_counts[seat]
+        seen = seat_seen_counts.get(seat, 0)
+        if seen <= 0:
+            continue
+
+        rate = fails / float(seen)
+        if rate < cfg.min_fail_rate_for_help:
+            continue
+
+        # Base score: failure rate, with a small bump for absolute fail count.
+        score = rate + 0.01 * min(fails, 100)
+
+        # Prefer seats with non-standard constraints if configured to do so.
+        if cfg.prefer_nonstandard_seats and _seat_has_nonstandard_constraints(profile, seat):
+            score += 0.05
+
+        scores[seat] = score
+
+    if not scores:
+        return None
+
+    best_score = max(scores.values())
+    best_seats = [s for s, sc in scores.items() if sc == best_score]
+
+    # Tie-break deterministically using dealing_order.
+    for seat in dealing_order:
+        if seat in best_seats:
+            return seat
+
+    # Fallback – should be unreachable if dealing_order is consistent.
+    return None
+    
 
 def _build_single_board_random_suit_w_only(
     rng: random.Random,
@@ -547,11 +755,27 @@ def _build_single_constrained_deal(
     board_attempts = 0
     # Track which seat fails most often across attempts for this board.
     seat_fail_counts: Dict[Seat, int] = {}
+    # Track how many times each seat has actually been checked.
+    seat_seen_counts: Dict[Seat, int] = {}
     # Snapshot of the last attempt's chosen subprofile indices per seat.
     last_chosen_indices: Dict[Seat, int] = {}
 
     while board_attempts < MAX_BOARD_ATTEMPTS:
         board_attempts += 1
+
+        # Reserved for future constructive sampling: decide which seat, if any,
+        # should be considered the "hardest" for this board.
+        help_seat: Optional[Seat] = None
+        if ENABLE_CONSTRUCTIVE_HELP:
+            help_seat = _choose_hardest_seat_for_board(
+                profile=profile,
+                seat_fail_counts=seat_fail_counts,
+                seat_seen_counts=seat_seen_counts,
+                dealing_order=dealing_order,
+                attempt_number=board_attempts,
+                cfg=_HARDEST_SEAT_CONFIG,
+            )
+        # NOTE: help_seat is currently unused; dealing remains fully random.
 
         # Choose subprofiles for this board (index-coupled where applicable).
         chosen_subprofiles, chosen_indices = _select_subprofiles_for_board(profile)
@@ -606,6 +830,9 @@ def _build_single_constrained_deal(
             if not isinstance(seat_profile, SeatProfile) or not seat_profile.subprofiles:
                 # Unconstrained / legacy seat – skip matching logic.
                 continue
+
+            # We are attempting a match for this seat on this attempt.
+            seat_seen_counts[seat] = seat_seen_counts.get(seat, 0) + 1
 
             chosen_sub = chosen_subprofiles.get(seat)
             idx0 = chosen_indices.get(seat)
