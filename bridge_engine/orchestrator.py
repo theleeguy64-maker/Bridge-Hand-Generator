@@ -113,6 +113,50 @@ def _yes_no(prompt: str, default: bool = True) -> bool:
         print("Please answer 'y' or 'n'.")
 
 
+def _install_nonstandard_shadow_print_hook() -> None:
+    """
+    Install a default printer for the non-standard constructive shadow probe.
+
+    This is only used in the Exec CLI. Tests are free to monkeypatch
+    deal_generator._DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW as needed.
+    """
+    hook_attr = "_DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW"
+
+    # Older engines might not expose the hook at all; in that case do nothing.
+    if not hasattr(deal_generator, hook_attr):
+        return
+
+    # If something else has already installed a hook, don't override it.
+    if getattr(deal_generator, hook_attr) is not None:
+        return
+
+    def _print_shadow(
+        profile,
+        board_number: int,
+        attempt_number: int,
+        chosen_indices,
+        seat_fail_counts,
+        seat_seen_counts,
+        viability_summary,
+        rs_bucket_snapshot,
+    ) -> None:
+        # Very simple stdout dump; this only runs when
+        # ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD is True inside the engine.
+        print("\n[NONSTANDARD CONSTRUCTIVE SHADOW]")
+        print(
+            f"profile={getattr(profile, 'profile_name', '<unnamed>')!r} "
+            f"board={board_number} attempt={attempt_number}"
+        )
+        print("  chosen_indices     :", chosen_indices)
+        print("  seat_fail_counts   :", seat_fail_counts)
+        print("  seat_seen_counts   :", seat_seen_counts)
+        print("  viability_summary  :", viability_summary)
+        print("  rs_bucket_snapshot :", rs_bucket_snapshot)
+        print("[END NONSTANDARD CONSTRUCTIVE SHADOW]\n")
+
+    setattr(deal_generator, hook_attr, _print_shadow)
+
+
 # ---------------------------------------------------------------------------
 # Profile discovery / selection for deal generation (Session bundles)
 # ---------------------------------------------------------------------------
@@ -420,6 +464,11 @@ def main_menu() -> None:
     """
     Top-level interactive menu for the Bridge Hand Generator.
     """
+    # Install a default non-standard constructive shadow printer for Exec.
+    # This is a no-op if the engine doesn't expose the hook or if something
+    # else has already installed one.
+    _install_nonstandard_shadow_print_hook()
+
     while True:
         print("\n=== Bridge Hand Generator ===")
         print("0) Exit")
@@ -457,7 +506,7 @@ def main_menu() -> None:
             # Main menu help
             print()
             print(get_menu_help("main_menu"))
-
+            
 
 def admin_menu() -> None:
     """

@@ -108,7 +108,42 @@ def _is_unviable_bucket(bucket: object) -> bool:
     if bucket is None:
         return False
     text = str(bucket).lower()
-    return "unviable" in text    
+    return "unviable" in text   
+    
+    
+from typing import Dict, List  # already present at top of file
+
+# ...
+
+def _build_rs_bucket_snapshot(
+    random_suit_choices: Dict[Seat, List[str]],
+) -> Dict[Seat, str]:
+    """
+    Build a lightweight summary of Random-Suit choices for this *attempt*.
+
+    For each seat that recorded RS choices, we assign a simple bucket:
+      - "none"        -> no recorded RS choice (defensive fallback)
+      - "<S>"         -> exactly one unique suit (e.g. "S", "H", "D", "C")
+      - "multi:<...>" -> multiple distinct suits seen this attempt, with
+                         the unique suits concatenated in sorted order.
+
+    This is used only for shadow / debug tooling; it does not affect
+    how deals are built or matched.
+    """
+    snapshot: Dict[Seat, str] = {}
+
+    for seat, suits in random_suit_choices.items():
+        if not suits:
+            bucket = "none"
+        else:
+            unique_suits = sorted(set(suits))
+            if len(unique_suits) == 1:
+                bucket = unique_suits[0]
+            else:
+                bucket = "multi:" + "".join(unique_suits)
+        snapshot[seat] = bucket
+
+    return snapshot 
 
 
 def _weighted_choice_index(rng: random.Random, weights: Sequence[float]) -> int:
@@ -272,28 +307,18 @@ def _shadow_probe_nonstandard_constructive(
     seat_fail_counts: SeatFailCounts,
     seat_seen_counts: SeatSeenCounts,
     viability_summary: Dict[Seat, str],
+    rs_bucket_snapshot: Dict[Seat, Dict[str, int]],
 ) -> None:
     """
-    Shadow-mode probe for future non-standard constructive help (Random Suit / PC / OC).
+    Shadow-only probe for non-standard (e.g. Random-Suit / PC) constructive v2.
 
-    IMPORTANT:
-      * This function MUST NOT mutate the deck, hands, or any state that affects
-        the actual deals.
-      * It is diagnostics-only and is only active when
-        ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD is True.
+    This is intentionally a no-op unless:
+      * ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD is True, and
+      * _DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW is set to a callable.
+
+    It must never affect real deal generation; it just forwards a snapshot
+    of the current stats / buckets to the debug hook.
     """
-    # Never run for invariants-safety profiles.
-    if getattr(profile, "is_invariants_safety_profile", False):
-        return
-
-    # Quick check: bail if there are no non-standard seats at all.
-    seat_profiles = getattr(profile, "seat_profiles", {})
-    has_nonstandard = any(
-        _seat_has_nonstandard_constraints(profile, seat) for seat in seat_profiles.keys()
-    )
-    if not has_nonstandard:
-        return
-
     if _DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW is None:
         return
 
@@ -307,10 +332,11 @@ def _shadow_probe_nonstandard_constructive(
             dict(seat_fail_counts),
             dict(seat_seen_counts),
             dict(viability_summary),
+            dict(rs_bucket_snapshot),  # <- yes, include the RS buckets here
         )
     except Exception:
         # Debug hooks must never interfere with normal deal generation.
-        pass    
+        passrandom_suit_choices: Dict[Seat, List[str]] = {}    
 
 
 def _nonstandard_constructive_help_enabled(profile: HandProfile) -> bool:
@@ -636,7 +662,7 @@ def _build_single_board_random_suit_w_only(
             deck_idx += 13
             hands[seat] = hand
 
-        # Shared Random Suit choices for this board (used by RS driver).
+        # Shared Random Suit choices for this board (used by RS / OC / PC).
         random_suit_choices: Dict[Seat, List[str]] = {}
 
         # Choose West's subprofile index using the same weighting logic as
@@ -1160,6 +1186,11 @@ def _build_single_constrained_deal(
 
         hands: Dict[Seat, List[Card]] = {}
 
+        # RS-specific per-attempt stats used only by the non-standard
+        # constructive shadow probe. Keys are RS seats; values track how
+        # many attempts we *saw* and how many *matched*.
+        rs_bucket_snapshot: Dict[Seat, Dict[str, int]] = {}
+
         # --------------------------
         # Optional constructive path
         # --------------------------
@@ -1219,7 +1250,7 @@ def _build_single_constrained_deal(
 
         # Shared Random Suit choices for this board (used by RS / OC / PC).
         random_suit_choices: Dict[Seat, List[str]] = {}
-
+        
         # --------------------------------------------------------------
         # Match each seat's hand against its chosen subprofile.
         #
@@ -1265,6 +1296,13 @@ def _build_single_constrained_deal(
                 seat_fail_counts[seat] = seat_fail_counts.get(seat, 0) + 1
                 break
 
+            # If this is a Random-Suit seat, track RS-specific "seen" stats.
+            if getattr(chosen_sub, "random_suit_constraint", None) is not None:
+                rs_entry = rs_bucket_snapshot.setdefault(
+                    seat, {"seen_attempts": 0, "matched_attempts": 0}
+                )
+                rs_entry["seen_attempts"] += 1
+
             matched, _chosen_rs = _match_seat(
                 profile=profile,
                 seat=seat,
@@ -1276,7 +1314,14 @@ def _build_single_constrained_deal(
                 rng=rng,
             )
 
-            if not matched:
+            if matched:
+                # For RS seats, also track "matched" attempts.
+                if getattr(chosen_sub, "random_suit_constraint", None) is not None:
+                    rs_entry = rs_bucket_snapshot.setdefault(
+                        seat, {"seen_attempts": 0, "matched_attempts": 0}
+                    )
+                    rs_entry["matched_attempts"] += 1
+            else:
                 all_matched = False
                 seat_fail_counts[seat] = seat_fail_counts.get(seat, 0) + 1
                 break
@@ -1296,6 +1341,7 @@ def _build_single_constrained_deal(
                 seat_fail_counts=seat_fail_counts,
                 seat_seen_counts=seat_seen_counts,
                 viability_summary=viability_summary_after,
+                rs_bucket_snapshot=rs_bucket_snapshot,
             )
 
         if all_matched:

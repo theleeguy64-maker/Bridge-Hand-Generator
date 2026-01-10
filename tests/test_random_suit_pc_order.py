@@ -445,6 +445,7 @@ def test_nonstandard_shadow_hook_invoked_for_rs_pc_sandbox(
         seat_fail_counts,
         seat_seen_counts,
         viability_summary,
+        rs_bucket_snapshot,
     ):
         calls.append(
             {
@@ -452,6 +453,7 @@ def test_nonstandard_shadow_hook_invoked_for_rs_pc_sandbox(
                 "board_number": board_number,
                 "attempt_number": attempt_number,
                 "viability_summary": dict(viability_summary),
+                "rs_bucket_snapshot": dict(rs_bucket_snapshot),
             }
         )
 
@@ -469,13 +471,12 @@ def test_nonstandard_shadow_hook_invoked_for_rs_pc_sandbox(
         board_number=1,
     )
 
-    # Sanity: we produced some deal object (we don't care about its contents here).
+    # Sanity: we got a deal and the hook fired at least once.
     assert deal is not None
+    assert calls  # hook was called
 
-    # The shadow hook must have been called at least once.
-    assert calls, "Expected non-standard shadow hook to be invoked at least once"
-
-    # And the viability summary should mention our RS seat "W".
-    last_call = calls[-1]
-    summary = last_call["viability_summary"]
-    assert "W" in summary    
+    payload = calls[0]
+    assert payload["profile_name"] == "RS_PC_shadow_probe_sandbox"
+    summary = payload["viability_summary"]
+    # The non-standard RS seat should appear in the viability summary.
+    assert "W" in summary
