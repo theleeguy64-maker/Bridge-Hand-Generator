@@ -50,6 +50,65 @@ def _compute_viability_summary(
         }
 
     return summary
+    
+    
+def _summarize_profile_viability(
+    seat_fail_counts: SeatFailCounts,
+    seat_seen_counts: SeatSeenCounts,
+) -> Dict[Seat, str]:
+    """
+    Summarise how 'viable' each seat looks based on observed failures vs attempts.
+
+    This is a *runtime* heuristic used only for:
+      - constructive-help gating, and
+      - debug hooks / diagnostics.
+
+    Buckets (purely heuristic, not user-facing API):
+
+      - "unknown": no attempts yet.
+      - "likely": fail rate is modest (< 0.5) or very few failures.
+      - "borderline": noticeably high fail rate (>= 0.5) but not hopeless.
+      - "unviable": consistently failing (very high fail rate with enough data).
+    """
+    summary: Dict[Seat, str] = {}
+
+    # Consider any seat that has ever been seen or failed.
+    seats = set(seat_fail_counts.keys()) | set(seat_seen_counts.keys())
+
+    for seat in seats:
+        seen = seat_seen_counts.get(seat, 0)
+        fails = seat_fail_counts.get(seat, 0)
+
+        if seen == 0:
+            bucket = "unknown"
+        else:
+            rate = fails / float(seen)
+
+            # Heuristic thresholds; these are intentionally conservative so that
+            # we only mark a seat as "unviable" when it's clearly struggling.
+            if fails >= 5 and rate >= 0.9:
+                bucket = "unviable"
+            elif rate >= 0.5:
+                bucket = "borderline"
+            else:
+                bucket = "likely"
+
+        summary[seat] = bucket
+
+    return summary    
+    
+    
+def _is_unviable_bucket(bucket: object) -> bool:
+    """
+    Helper for defensive viability checks.
+
+    Accepts either the literal string "unviable" or an Enum / object whose
+    string representation contains "unviable" (case-insensitive).
+    """
+    if bucket is None:
+        return False
+    text = str(bucket).lower()
+    return "unviable" in text    
 
 
 def _weighted_choice_index(rng: random.Random, weights: Sequence[float]) -> int:
@@ -1035,20 +1094,31 @@ def _build_single_constrained_deal(
         use_constructive = False
         constructive_minima: Dict[str, int] = {}
 
+        # Compute current viability summary once per attempt so both the
+        # debug hook and constructive help can share it.
+        viability_summary = _summarize_profile_viability(
+            seat_fail_counts,
+            seat_seen_counts,
+        )
+
         if (
             ENABLE_CONSTRUCTIVE_HELP
             and help_seat is not None
             # v1: only standard-constraints seats get constructive help.
             and not _seat_has_nonstandard_constraints(profile, help_seat)
         ):
-            constructive_minima = _extract_standard_suit_minima(
-                profile=profile,
-                seat=help_seat,
-                chosen_subprofile=chosen_subprofiles.get(help_seat),
-            )
-            total_min = sum(constructive_minima.values())
-            if 0 < total_min <= CONSTRUCTIVE_MAX_SUM_MIN_CARDS:
-                use_constructive = True
+            # Extra safety: never try to "help" a seat that is currently
+            # classified as unviable.
+            bucket = viability_summary.get(help_seat)
+            if not _is_unviable_bucket(bucket):
+                constructive_minima = _extract_standard_suit_minima(
+                    profile=profile,
+                    seat=help_seat,
+                    chosen_subprofile=chosen_subprofiles.get(help_seat),
+                )
+                total_min = sum(constructive_minima.values())
+                if 0 < total_min <= CONSTRUCTIVE_MAX_SUM_MIN_CARDS:
+                    use_constructive = True
 
         if use_constructive and help_seat is not None:
             # Mutating deck: each hand draws from the remaining cards.
