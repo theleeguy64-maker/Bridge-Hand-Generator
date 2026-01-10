@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Any
+from typing import Iterable, Mapping, Callable, Dict, List, Optional, Sequence, Tuple, Any
 
 import random
 
@@ -22,6 +22,35 @@ Card = str
 
 SeatFailCounts = Dict[Seat, int]
 SeatSeenCounts = Dict[Seat, int]
+
+
+def _compute_viability_summary(
+    seat_fail_counts: SeatFailCounts,
+    seat_seen_counts: SeatSeenCounts,
+) -> Dict[Seat, Dict[str, object]]:
+    """
+    Diagnostic helper: summarise per-seat attempts/successes and viability.
+
+    This is intended for tests and debug hooks. It does *not* influence the
+    core deal-generation logic.
+    """
+    summary: Dict[Seat, Dict[str, object]] = {}
+
+    for seat, attempts in seat_seen_counts.items():
+        failures = seat_fail_counts.get(seat, 0)
+        successes = max(0, attempts - failures)
+        rate = float(successes) / attempts if attempts > 0 else 0.0
+
+        summary[seat] = {
+            "attempts": attempts,
+            "successes": successes,
+            "failures": failures,
+            "success_rate": rate,
+            "viability": classify_viability(successes, attempts),
+        }
+
+    return summary
+
 
 def _weighted_choice_index(rng: random.Random, weights: Sequence[float]) -> int:
     """
@@ -312,6 +341,36 @@ def _weights_for_seat_profile(seat_profile: SeatProfile) -> List[float]:
 
     return weights
 
+
+def classify_viability(successes: int, attempts: int) -> str:
+    """
+    Classify a constraint combination's viability from empirical stats.
+
+    This is deliberately simple and side-effect free:
+
+        * attempts <= 0                    -> "unknown"
+        * attempts < 10 and successes == 0 -> "unknown" (not enough data)
+        * attempts >= 10 and successes == 0 -> "unviable"
+        * 0 < success_rate < 0.1          -> "unlikely"
+        * success_rate >= 0.1             -> "likely"
+
+    This does *not* change any generator behaviour; it's intended for
+    diagnostics / debug tooling (e.g. per-seat/subprofile reporting).
+    """
+    if attempts <= 0:
+        return "unknown"
+
+    if successes <= 0:
+        # Don't call anything unviable until we've actually tried a bit.
+        if attempts < 10:
+            return "unknown"
+        return "unviable"
+
+    rate = successes / attempts
+    if rate < 0.1:
+        return "unlikely"
+    return "likely"
+    
 
 def _choose_index_for_seat(
     rng: random.Random,
@@ -1100,26 +1159,22 @@ def _build_single_constrained_deal(
     # the top of this function (is_invariants_safety_profile == True).
     # -------------------------------------------------------------------
     
-    hardest_seat: Optional[Seat] = _choose_hardest_seat_for_board(
-        profile=profile,
-        seat_fail_counts=seat_fail_counts,
-        seat_seen_counts=seat_seen_counts,
-        dealing_order=dealing_order,
-        attempt_number=board_attempts,
-        cfg=_HARDEST_SEAT_CONFIG,
-    )
-    
     if debug_board_stats is not None:
         debug_board_stats(dict(seat_fail_counts), dict(seat_seen_counts))
                 
     if _DEBUG_ON_MAX_ATTEMPTS is not None:
         try:
+            viability_summary = _compute_viability_summary(
+                seat_fail_counts=seat_fail_counts,
+                seat_seen_counts=seat_seen_counts,
+            )
             _DEBUG_ON_MAX_ATTEMPTS(
                 profile,
                 board_number,
                 board_attempts,
                 dict(last_chosen_indices),
                 dict(seat_fail_counts),
+                viability_summary,  # new argument
             )
         except Exception:
             # Debug hooks must never interfere with normal error reporting.

@@ -1,3 +1,5 @@
+# test_deal_generator_debug_hook.py
+
 import random
 from typing import Dict, List
 
@@ -20,7 +22,8 @@ class DummySeatProfile:
 
     def __init__(self, num_subprofiles: int = 1, has_nonstandard: bool = False) -> None:
         self.subprofiles = [
-            DummySubprofile(has_nonstandard=has_nonstandard) for _ in range(num_subprofiles)
+            DummySubprofile(has_nonstandard=has_nonstandard)
+            for _ in range(num_subprofiles)
         ]
 
 
@@ -83,12 +86,20 @@ def test_debug_hook_called_when_max_attempts_exhausted(monkeypatch) -> None:
 
     captured: Dict[str, object] = {}
 
-    def debug_hook(profile_arg, board_number, attempts, chosen_indices, seat_fail_counts):
+    def debug_hook(
+        profile_arg,
+        board_number,
+        attempts,
+        chosen_indices,
+        seat_fail_counts,
+        viability_summary,  # new param
+    ):
         captured["profile_name"] = getattr(profile_arg, "profile_name", "")
         captured["board_number"] = board_number
         captured["attempts"] = attempts
         captured["chosen_indices"] = dict(chosen_indices)
         captured["seat_fail_counts"] = dict(seat_fail_counts)
+        captured["viability_summary"] = viability_summary
 
     deal_generator._DEBUG_ON_MAX_ATTEMPTS = debug_hook  # type: ignore[attr-defined]
 
@@ -111,6 +122,12 @@ def test_debug_hook_called_when_max_attempts_exhausted(monkeypatch) -> None:
     assert captured["seat_fail_counts"]
     # And we should have at least some index snapshot.
     assert isinstance(captured["chosen_indices"], dict)
+
+    # Viability summary should be a dict keyed by seat, matching the fail-count keys.
+    assert isinstance(captured["viability_summary"], dict)
+    assert set(captured["viability_summary"].keys()) == set(
+        captured["seat_fail_counts"].keys()
+    )
 
 
 def test_debug_hook_not_called_for_invariants_fast_path(monkeypatch) -> None:
