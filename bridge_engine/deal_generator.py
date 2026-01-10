@@ -198,14 +198,16 @@ DEBUG_SECTION_C: bool = False
 
 # Optional debug hook invoked when MAX_BOARD_ATTEMPTS is exhausted in
 # _build_single_constrained_deal.
-#
 # Tests (and power users) can monkeypatch this with a callable that accepts:
 #   (profile, board_number, attempts, chosen_indices, seat_fail_counts)
 _DEBUG_ON_MAX_ATTEMPTS: Optional[Callable[..., None]] = None
 
+# Test-only shadow-mode hook for future non-standard constructive help (Random Suit / PC / OC).
+# Production code never sets this; tests may monkeypatch it.
+_DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW: Optional[Callable[..., None]] = None
+
 class DealGenerationError(Exception):
     """Raised when something goes wrong during deal generation."""
-
 
 
 # ---------------------------------------------------------------------------
@@ -235,43 +237,97 @@ class HardestSeatConfig:
     prefer_nonstandard_seats: bool = True
 
 
-def _seat_has_nonstandard_constraints(profile: Any, seat: Seat) -> bool:
+def _seat_has_nonstandard_constraints(profile: HandProfile, seat: Seat) -> bool:
     """
-    Return True if the given seat has any non-standard constraints:
-      - random_suit_constraint
-      - partner_contingent_constraint
-      - opponents_contingent_suit_constraint
+    Return True if this seat has any non-standard constraints
+    (Random Suit, Partner-Contingent, Opponents-Contingent).
 
-    Deliberately duck-typed: we only assume the objects have the
-    attributes we read, so dummy test types work fine.
+    This is intentionally duck-typed so tests can use DummySeatProfile /
+    DummySubprofile without importing the real SeatProfile type.
     """
-    # 1) Get the seat_profiles mapping-like object.
-    seat_profiles = getattr(profile, "seat_profiles", None)
-    if not seat_profiles:
+    sp = profile.seat_profiles.get(seat)
+    if sp is None:
         return False
 
-    # 2) Get this seat's profile.
-    seat_profile = seat_profiles.get(seat)
-    if seat_profile is None:
-        return False
-
-    # 3) Get subprofiles; treat anything truthy/iterable as fine.
-    subprofiles = getattr(seat_profile, "subprofiles", None)
+    subprofiles = getattr(sp, "subprofiles", None)
     if not subprofiles:
+        # Unconstrained seat or legacy profile without subprofiles.
         return False
 
-    # 4) Scan for any of the three non-standard constraint fields.
     for sub in subprofiles:
-        if getattr(sub, "random_suit_constraint", None) is not None:
+        if (
+            getattr(sub, "random_suit_constraint", None) is not None
+            or getattr(sub, "partner_contingent_constraint", None) is not None
+            or getattr(sub, "opponents_contingent_suit_constraint", None) is not None
+        ):
             return True
-        if getattr(sub, "partner_contingent_constraint", None) is not None:
-            return True
-        if getattr(sub, "opponents_contingent_suit_constraint", None) is not None:
-            return True
-
     return False
-      
+    
+    
+def _shadow_probe_nonstandard_constructive(
+    profile: HandProfile,
+    board_number: int,
+    attempt_number: int,
+    chosen_indices: Dict[Seat, int],
+    seat_fail_counts: SeatFailCounts,
+    seat_seen_counts: SeatSeenCounts,
+    viability_summary: Dict[Seat, str],
+) -> None:
+    """
+    Shadow-mode probe for future non-standard constructive help (Random Suit / PC / OC).
 
+    IMPORTANT:
+      * This function MUST NOT mutate the deck, hands, or any state that affects
+        the actual deals.
+      * It is diagnostics-only and is only active when
+        ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD is True.
+    """
+    # Never run for invariants-safety profiles.
+    if getattr(profile, "is_invariants_safety_profile", False):
+        return
+
+    # Quick check: bail if there are no non-standard seats at all.
+    seat_profiles = getattr(profile, "seat_profiles", {})
+    has_nonstandard = any(
+        _seat_has_nonstandard_constraints(profile, seat) for seat in seat_profiles.keys()
+    )
+    if not has_nonstandard:
+        return
+
+    if _DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW is None:
+        return
+
+    # Forward a snapshot to the debug hook.
+    try:
+        _DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW(
+            profile,
+            board_number,
+            attempt_number,
+            dict(chosen_indices),
+            dict(seat_fail_counts),
+            dict(seat_seen_counts),
+            dict(viability_summary),
+        )
+    except Exception:
+        # Debug hooks must never interfere with normal deal generation.
+        pass    
+
+
+def _nonstandard_constructive_help_enabled(profile: HandProfile) -> bool:
+    """
+    Gate for any future constructive help that touches non-standard constraints
+    (Random Suit, Partner-Contingent, Opponents-Contingent).
+
+    For now this is just a global flag. In v2 we can extend this to honour
+    profile-level metadata (e.g. an explicit opt-in on experimental profiles).
+    Invariants-safety profiles are always excluded.
+    """
+    if getattr(profile, "is_invariants_safety_profile", False):
+        # Safety profiles must never see constructive help of any kind.
+        return False
+    return bool(ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD)
+
+      
 def _choose_hardest_seat_for_help(
     profile: object,
     dealing_order: Sequence[Seat],
@@ -339,9 +395,25 @@ def _choose_hardest_seat_for_help(
 
     return best_seat
     
+# ---------------------------------------------------------------------------
+# Constructive help feature flags
+# ---------------------------------------------------------------------------
 
-# Global toggle – keeps deal behaviour identical for now.
+# v1: standard-only constructive help (uses only standard suit minima and
+# never touches RS / PC / OC semantics). This remains OFF by default and
+# is currently only enabled in tests via monkeypatch.
 ENABLE_CONSTRUCTIVE_HELP: bool = False
+
+# v2 (future): experimental constructive help for non-standard seats
+# (Random Suit / Partner Contingent / Opponents Contingent).
+#
+# IMPORTANT:
+#   * This flag must remain False in production.
+#   * Tests or sandboxes may temporarily flip it via monkeypatch, but
+#     the core deal generator must not depend on it being True.
+#   * As of now, this flag is deliberately unused; it exists purely as a
+#     configuration placeholder for future 1.C.5 work.
+ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD: bool = False
 
 # Default thresholds used by _build_single_constrained_deal.
 _HARDEST_SEAT_CONFIG: HardestSeatConfig = HardestSeatConfig()
@@ -1209,10 +1281,27 @@ def _build_single_constrained_deal(
                 seat_fail_counts[seat] = seat_fail_counts.get(seat, 0) + 1
                 break
 
+        # After matching all seats for this attempt, optionally run the
+        # non-standard shadow probe with up-to-date viability stats.
+        if ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD:
+            viability_summary_after = _summarize_profile_viability(
+                seat_fail_counts,
+                seat_seen_counts,
+            )
+            _shadow_probe_nonstandard_constructive(
+                profile=profile,
+                board_number=board_number,
+                attempt_number=board_attempts,
+                chosen_indices=chosen_indices,
+                seat_fail_counts=seat_fail_counts,
+                seat_seen_counts=seat_seen_counts,
+                viability_summary=viability_summary_after,
+            )
+
         if all_matched:
             if debug_board_stats is not None:
-                debug_board_stats(dict(seat_fail_counts), dict(seat_seen_counts))            
-            
+                debug_board_stats(dict(seat_fail_counts), dict(seat_seen_counts))
+
             vulnerability = _vulnerability_for_board(board_number)
             return Deal(
                 board_number=board_number,
@@ -1220,7 +1309,6 @@ def _build_single_constrained_deal(
                 vulnerability=vulnerability,
                 hands=hands,
             )
-
     # -------------------------------------------------------------------
     # Attempts exhausted for a real constrained profile.
     #
