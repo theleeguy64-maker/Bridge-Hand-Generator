@@ -15,6 +15,7 @@ from .hand_profile import (
     SuitRange,
 )
 
+
 # Simple type aliases used throughout generation/viability.
 Seat = str
 Card = str
@@ -444,8 +445,51 @@ def _subprofile_is_viable_light(sub: SubProfile, *, return_reason: bool = False)
 
     ok, reason = True, "ok"
     return (ok, reason) if return_reason else ok
+    
+    
+def _subprofile_is_viable(
+    profile: HandProfile,
+    seat: str,
+    subprofile: SubProfile,
+) -> bool:
+    """
+    Return True if this specific subprofile for a given seat is globally viable.
 
+    Implementation strategy:
 
+      * Temporarily restrict the given seat to use only this `subprofile`
+        (leave all other seats unchanged).
+      * Run `validate_profile_viability_light(profile)`.
+      * If it does not raise, the subprofile is considered viable; otherwise not.
+      * Always restore the original subprofiles before returning.
+    """
+    # Defensive: ensure we have a proper seat_profiles mapping and a SeatProfile.
+    seat_profiles = getattr(profile, "seat_profiles", None)
+    if not isinstance(seat_profiles, dict):
+        return False
+
+    seat_profile = seat_profiles.get(seat)
+    if not isinstance(seat_profile, SeatProfile):
+        return False
+
+    # Save the original subprofiles so we can restore them.
+    original_subprofiles = list(getattr(seat_profile, "subprofiles", []))
+
+    try:
+        # Temporarily narrow this seat to a single subprofile.
+        seat_profile.subprofiles = [subprofile]
+        # If this doesn't raise, the subprofile is viable in the context
+        # of the whole profile (NS coupling, etc.).
+        validate_profile_viability_light(profile)
+        return True
+    except Exception:
+        # Any failure during validation means this subprofile is not viable.
+        return False
+    finally:
+        # Restore the original configuration.
+        seat_profile.subprofiles = original_subprofiles
+        
+        
 def validate_profile_viability(profile: HandProfile) -> None:
     """
     Full-profile viability check.

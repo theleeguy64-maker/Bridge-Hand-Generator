@@ -41,9 +41,12 @@ from .setup_env import run_setup, SetupResult
 from .hand_profile import HandProfile, ProfileError, validate_profile
 from .deal_generator import DealSet, DealGenerationError, generate_deals
 from .deal_output import DealOutputSummary, OutputError, render_deals
+from .profile_cli import _input_int
+
 from . import profile_cli
 from . import lin_tools
-from .profile_cli import _input_int
+from . import deal_generator  # you should already have this somewhere near the top
+
 
 # Directory where JSON profiles live (relative to project root / CWD)
 PROFILE_DIR_NAME = "profiles"
@@ -111,6 +114,49 @@ def _yes_no(prompt: str, default: bool = True) -> bool:
         if ans in ("n", "no"):
             return False
         print("Please answer 'y' or 'n'.")
+        
+        
+def _format_nonstandard_rs_buckets(
+    rs_bucket_snapshot: Dict[str, Dict[str, Any]],
+) -> str:
+    """
+    Pretty-print the RS bucket snapshot produced by the engine's
+    non-standard constructive shadow probe.
+
+    Expected per-seat shape (current engine):
+      {
+          "total_seen_attempts": int,
+          "total_matched_attempts": int,
+          "buckets": {
+              "<label>": {
+                  "seen_attempts": int,
+                  "matched_attempts": int,
+              },
+              ...
+          },
+      }
+    """
+    if not rs_bucket_snapshot:
+        return "  (no Random-Suit stats collected)"
+
+    lines: list[str] = []
+
+    for seat, stats in rs_bucket_snapshot.items():
+        total_seen = stats.get("total_seen_attempts", 0)
+        total_matched = stats.get("total_matched_attempts", 0)
+        lines.append(
+            f"  Seat {seat}: total_seen={total_seen}, total_matched={total_matched}"
+        )
+
+        buckets = stats.get("buckets") or {}
+        for label, bucket_stats in buckets.items():
+            seen = bucket_stats.get("seen_attempts", 0)
+            matched = bucket_stats.get("matched_attempts", 0)
+            lines.append(
+                f"    bucket={label!r}: seen={seen}, matched={matched}"
+            )
+
+    return "\n".join(lines)        
 
 
 def _install_nonstandard_shadow_print_hook() -> None:
@@ -147,14 +193,75 @@ def _install_nonstandard_shadow_print_hook() -> None:
             f"profile={getattr(profile, 'profile_name', '<unnamed>')!r} "
             f"board={board_number} attempt={attempt_number}"
         )
-        print("  chosen_indices     :", chosen_indices)
-        print("  seat_fail_counts   :", seat_fail_counts)
-        print("  seat_seen_counts   :", seat_seen_counts)
-        print("  viability_summary  :", viability_summary)
-        print("  rs_bucket_snapshot :", rs_bucket_snapshot)
+        print("  chosen_indices    :", dict(chosen_indices))
+        print("  seat_fail_counts  :", dict(seat_fail_counts))
+        print("  seat_seen_counts  :", dict(seat_seen_counts))
+        print("  viability_summary :", dict(viability_summary))
+        print("  RS buckets:")
+        print(_format_nonstandard_rs_buckets(rs_bucket_snapshot))
         print("[END NONSTANDARD CONSTRUCTIVE SHADOW]\n")
 
     setattr(deal_generator, hook_attr, _print_shadow)
+    
+    
+def _toggle_nonstandard_shadow_flag() -> None:
+    """
+    Toggle deal_generator.ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD at runtime.
+
+    This is used only from the Admin menu in the Exec CLI.
+    """
+    current = getattr(deal_generator, "ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD", False)
+    new_value = not current
+    setattr(deal_generator, "ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD", new_value)
+
+    state_str = "ENABLED" if new_value else "DISABLED"
+    print(
+        "\n[ADMIN] Non-standard constructive shadow "
+        f"(ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD) is now {state_str}.\n"
+    )    
+
+
+def _format_nonstandard_rs_buckets(
+    rs_bucket_snapshot: Dict[str, Dict[str, Any]],
+) -> str:
+    """
+    Pretty-print the RS bucket snapshot shape produced by
+    _shadow_probe_nonstandard_constructive for manual inspection.
+
+    Expected shape per RS seat:
+      {
+          "total_seen_attempts": int,
+          "total_matched_attempts": int,
+          "buckets": {
+              "<label>": {
+                  "seen_attempts": int,
+                  "matched_attempts": int,
+              },
+              ...
+          },
+      }
+    """
+    if not rs_bucket_snapshot:
+        return "    (no Random-Suit stats collected)"
+
+    lines: list[str] = []
+
+    for seat, stats in rs_bucket_snapshot.items():
+        total_seen = stats.get("total_seen_attempts", 0)
+        total_matched = stats.get("total_matched_attempts", 0)
+        lines.append(
+            f"    Seat {seat}: total_seen={total_seen}, total_matched={total_matched}"
+        )
+
+        buckets = stats.get("buckets") or {}
+        for label, bucket_stats in buckets.items():
+            seen = bucket_stats.get("seen_attempts", 0)
+            matched = bucket_stats.get("matched_attempts", 0)
+            lines.append(
+                f"      bucket={label!r}: seen={seen}, matched={matched}"
+            )
+
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -513,17 +620,29 @@ def admin_menu() -> None:
     Admin / tools submenu (LIN combiner, draft tools, etc.).
     """
     while True:
+        # Reflect current non-standard shadow flag in the menu text.
+        shadow_enabled = getattr(
+            deal_generator,
+            "ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD",
+            False,
+        )
+        shadow_status = "ON" if shadow_enabled else "OFF"
+
         print("\n=== Bridge Hand Generator – Admin ===")
         print("0) Exit")
         print("1) LIN Combiner")
         print("2) Recover/Delete *_TEST.json drafts")
         print("3) Help")
+        print(
+            f"4) Toggle non-standard constructive shadow "
+            f"(ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD, currently: {shadow_status})"
+        )
 
         choice = _input_int(
-            "Choose [0-3] [0]: ",
+            "Choose [0-4] [0]: ",
             default=0,
             minimum=0,
-            maximum=3,
+            maximum=4,
             show_range_suffix=False,
         )
 
@@ -542,7 +661,10 @@ def admin_menu() -> None:
         elif choice == 3:
             print()
             print(get_menu_help("admin_menu"))
-            
+
+        elif choice == 4:
+            _toggle_nonstandard_shadow_flag()            
+
 
 # Backwards-compatible alias for any legacy callers/tests
 def _admin_menu() -> None:

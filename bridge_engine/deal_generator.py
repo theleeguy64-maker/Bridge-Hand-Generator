@@ -550,7 +550,66 @@ def _build_deck() -> List[Card]:
     ranks = "AKQJT98765432"
     suits = "SHDC"
     return [r + s for s in suits for r in ranks]
-    
+
+
+def _get_constructive_mode(profile: HandProfile) -> dict[str, bool]:
+    """
+    Decide which constructive-help modes are eligible for this profile.
+
+    This centralises the wiring between global flags and any profile
+    metadata, so v2 non-standard constructive help can plug in later
+    without scattering checks everywhere.
+
+    Modes:
+      * 'standard'          : v1 standard-only constructive help
+      * 'nonstandard_shadow': RS/PC/OC shadow probe only (no behavioural change)
+      * 'nonstandard_v2'    : future real non-standard constructive help
+
+    Current behaviour is intentionally backwards-compatible:
+      * v1 constructive help is controlled by ENABLE_CONSTRUCTIVE_HELP,
+        unless a profile explicitly sets `disable_constructive_help=True`.
+      * nonstandard_shadow is controlled only by ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD.
+      * v2 (non-standard) constructive help is off by default and would be
+        controlled by ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD plus an optional
+        profile opt-in flag `enable_nonstandard_constructive_v2`.
+    """
+    # Invariants-safety profiles never get constructive help or nonstandard
+    # probes of any kind.
+    if getattr(profile, "is_invariants_safety_profile", False):
+        return {
+            "standard": False,
+            "nonstandard_shadow": False,
+            "nonstandard_v2": False,
+        }
+
+    # v1 / standard-only constructive help.
+    disabled = bool(getattr(profile, "disable_constructive_help", False))
+    enable_standard = bool(ENABLE_CONSTRUCTIVE_HELP and not disabled)
+
+    # Shadow-only non-standard probe: purely observational. Tests expect this
+    # to fire when ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD is True, even if
+    # ENABLE_CONSTRUCTIVE_HELP is False.
+    enable_nonstandard_shadow = bool(ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD)
+
+    # v2 / real non-standard constructive help: keep disabled for now.
+    global_nonstandard_v2 = bool(
+        ENABLE_CONSTRUCTIVE_HELP and ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD
+    )
+    profile_opt = getattr(profile, "enable_nonstandard_constructive_v2", None)
+
+    if profile_opt is None:
+        # Backwards compat: if the profile doesn't say anything, rely only
+        # on the global flag.
+        enable_nonstandard_v2 = global_nonstandard_v2
+    else:
+        enable_nonstandard_v2 = global_nonstandard_v2 and bool(profile_opt)
+
+    return {
+        "standard": enable_standard,
+        "nonstandard_shadow": enable_nonstandard_shadow,
+        "nonstandard_v2": enable_nonstandard_v2,
+    }
+        
     
 def _choose_hardest_seat_for_board(
     profile: HandProfile,
@@ -1039,6 +1098,9 @@ def _build_single_constrained_deal(
     # Full constrained path (for real constraint-bearing profiles)
     # -------------------------------------------------------------------
 
+    # Decide which constructive modes are active for this profile.
+    constructive_mode = _get_constructive_mode(profile)
+
     def _select_subprofiles_for_board(
         profile: HandProfile,
     ) -> Tuple[Dict[Seat, SubProfile], Dict[Seat, int]]:
@@ -1148,6 +1210,9 @@ def _build_single_constrained_deal(
 
         return chosen_subprofiles, chosen_indices
 
+    # Decide which constructive-help modes are allowed for this profile.
+    constructive_mode = _get_constructive_mode(profile)
+
     # -----------------------------------------------------------------------
     # Main board-attempt loop
     # -----------------------------------------------------------------------
@@ -1164,7 +1229,7 @@ def _build_single_constrained_deal(
 
         # Decide which seat, if any, looks "hardest" for this board.
         help_seat: Optional[Seat] = None
-        if ENABLE_CONSTRUCTIVE_HELP:
+        if constructive_mode["standard"]:
             help_seat = _choose_hardest_seat_for_board(
                 profile=profile,
                 seat_fail_counts=seat_fail_counts,
@@ -1187,10 +1252,28 @@ def _build_single_constrained_deal(
         hands: Dict[Seat, List[Card]] = {}
 
         # RS-specific per-attempt stats used only by the non-standard
-        # constructive shadow probe. Keys are RS seats; values track how
-        # many attempts we *saw* and how many *matched*.
-        rs_bucket_snapshot: Dict[Seat, Dict[str, int]] = {}
-
+        # constructive shadow probe.
+        #
+        # Shape:
+        #   {
+        #       seat: {
+        #           "total_seen_attempts": int,
+        #           "total_matched_attempts": int,
+        #           "buckets": {
+        #               "<bucket_key>": {
+        #                   "seen_attempts": int,
+        #                   "matched_attempts": int,
+        #               },
+        #               ...
+        #           },
+        #       },
+        #       ...
+        #   }
+        rs_bucket_snapshot: Dict[
+            Seat,
+            Dict[str, object],
+        ] = {}
+        
         # --------------------------
         # Optional constructive path
         # --------------------------
@@ -1204,24 +1287,20 @@ def _build_single_constrained_deal(
             seat_seen_counts,
         )
 
+        # v1: only standard-constraints seats get constructive help.
         if (
-            ENABLE_CONSTRUCTIVE_HELP
+            constructive_mode["standard"]
             and help_seat is not None
-            # v1: only standard-constraints seats get constructive help.
             and not _seat_has_nonstandard_constraints(profile, help_seat)
         ):
-            # Extra safety: never try to "help" a seat that is currently
-            # classified as unviable.
-            bucket = viability_summary.get(help_seat)
-            if not _is_unviable_bucket(bucket):
-                constructive_minima = _extract_standard_suit_minima(
-                    profile=profile,
-                    seat=help_seat,
-                    chosen_subprofile=chosen_subprofiles.get(help_seat),
-                )
-                total_min = sum(constructive_minima.values())
-                if 0 < total_min <= CONSTRUCTIVE_MAX_SUM_MIN_CARDS:
-                    use_constructive = True
+            constructive_minima = _extract_standard_suit_minima(
+                profile=profile,
+                seat=help_seat,
+                chosen_subprofile=chosen_subprofiles.get(help_seat),
+            )
+            total_min = sum(constructive_minima.values())
+            if 0 < total_min <= CONSTRUCTIVE_MAX_SUM_MIN_CARDS:
+                use_constructive = True
 
         if use_constructive and help_seat is not None:
             # Mutating deck: each hand draws from the remaining cards.
@@ -1296,14 +1375,31 @@ def _build_single_constrained_deal(
                 seat_fail_counts[seat] = seat_fail_counts.get(seat, 0) + 1
                 break
 
-            # If this is a Random-Suit seat, track RS-specific "seen" stats.
-            if getattr(chosen_sub, "random_suit_constraint", None) is not None:
-                rs_entry = rs_bucket_snapshot.setdefault(
-                    seat, {"seen_attempts": 0, "matched_attempts": 0}
-                )
-                rs_entry["seen_attempts"] += 1
+            # Is this seat using Random Suit on this attempt?
+            is_rs_seat = getattr(chosen_sub, "random_suit_constraint", None) is not None
 
-            matched, _chosen_rs = _match_seat(
+            rs_entry = None
+            if is_rs_seat:
+                # Shape:
+                # rs_bucket_snapshot[seat] = {
+                #     "total_seen_attempts": int,
+                #     "total_matched_attempts": int,
+                #     "buckets": {
+                #         "<bucket_key>": {"seen_attempts": int, "matched_attempts": int},
+                #         ...
+                #     },
+                # }
+                rs_entry = rs_bucket_snapshot.setdefault(
+                    seat,
+                    {
+                        "total_seen_attempts": 0,
+                        "total_matched_attempts": 0,
+                        "buckets": {},
+                    },
+                )
+                rs_entry["total_seen_attempts"] += 1
+
+            matched, chosen_rs = _match_seat(
                 profile=profile,
                 seat=seat,
                 hand=hands[seat],
@@ -1314,21 +1410,37 @@ def _build_single_constrained_deal(
                 rng=rng,
             )
 
-            if matched:
-                # For RS seats, also track "matched" attempts.
-                if getattr(chosen_sub, "random_suit_constraint", None) is not None:
-                    rs_entry = rs_bucket_snapshot.setdefault(
-                        seat, {"seen_attempts": 0, "matched_attempts": 0}
-                    )
-                    rs_entry["matched_attempts"] += 1
-            else:
+            if not matched:
                 all_matched = False
                 seat_fail_counts[seat] = seat_fail_counts.get(seat, 0) + 1
                 break
 
+            # For RS seats, also track "matched" attempts and assign a bucket.
+            if is_rs_seat and rs_entry is not None:
+                rs_entry["total_matched_attempts"] += 1
+
+                # Derive a simple bucket key from the RS choice payload.
+                if chosen_rs:
+                    if isinstance(chosen_rs, (list, tuple)):
+                        bucket_key = ",".join(str(x) for x in chosen_rs)
+                    else:
+                        bucket_key = str(chosen_rs)
+                else:
+                    bucket_key = "<none>"
+
+                buckets = rs_entry["buckets"]
+                bucket_entry = buckets.setdefault(
+                    bucket_key,
+                    {"seen_attempts": 0, "matched_attempts": 0},
+                )
+                # For now, bucket 'seen' == 'matched' because the bucket is
+                # defined by the actual RS choice when we have a successful match.
+                bucket_entry["seen_attempts"] += 1
+                bucket_entry["matched_attempts"] += 1
+
         # After matching all seats for this attempt, optionally run the
         # non-standard shadow probe with up-to-date viability stats.
-        if ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD:
+        if constructive_mode["nonstandard_shadow"]:
             viability_summary_after = _summarize_profile_viability(
                 seat_fail_counts,
                 seat_seen_counts,
