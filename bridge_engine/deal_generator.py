@@ -241,6 +241,22 @@ _DEBUG_ON_MAX_ATTEMPTS: Optional[Callable[..., None]] = None
 # Production code never sets this; tests may monkeypatch it.
 _DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW: Optional[Callable[..., None]] = None
 
+# Test-only hook seam for real non-standard constructive help v2.
+# Production code never sets this; tests may monkeypatch it.
+#
+# Expected signature (Piece 1):
+#   (
+#     profile,
+#     board_number,
+#     attempt_number,
+#     chosen_indices,
+#     seat_fail_counts,
+#     seat_seen_counts,
+#     viability_summary,
+#     rs_bucket_snapshot,
+#   ) -> Mapping[str, object] | None
+_DEBUG_NONSTANDARD_CONSTRUCTIVE_V2_POLICY: Optional[Callable[..., Mapping[str, object]]] = None
+
 class DealGenerationError(Exception):
     """Raised when something goes wrong during deal generation."""
 
@@ -338,6 +354,66 @@ def _shadow_probe_nonstandard_constructive(
         # Debug hooks must never interfere with normal deal generation.
         passrandom_suit_choices: Dict[Seat, List[str]] = {}    
 
+
+
+def _nonstandard_constructive_v2_policy(
+    *,
+    profile: HandProfile,
+    board_number: int,
+    attempt_number: int,
+    chosen_indices: Optional[Dict[Seat, int]] = None,
+    seat_fail_counts: Optional[SeatFailCounts] = None,
+    seat_seen_counts: Optional[SeatSeenCounts] = None,
+    viability_summary: Optional[Dict[Seat, str]] = None,
+    rs_bucket_snapshot: Optional[Dict[Seat, Dict[str, int]]] = None,
+) -> Dict[str, object]:
+    """Return policy hints for non-standard constructive help v2.
+
+    Piece 0 seam: this is called when constructive_mode["nonstandard_v2"] is enabled.
+    By default it returns an empty dict and must not affect deal-generation behaviour.
+
+    Tests may monkeypatch _DEBUG_NONSTANDARD_CONSTRUCTIVE_V2_POLICY to observe calls.
+    """
+    # Defensive gating: even if a caller invokes this directly, do not run
+    # policy hooks unless v2 is actually enabled for this profile.
+    # This guarantees invariants-safety profiles can never observe v2 hooks
+    # even if a test or caller bypasses _build_single_constrained_deal.
+    try:
+        if not _get_constructive_mode(profile).get("nonstandard_v2", False):
+            return {}
+    except Exception:
+        # If the profile doesn't have the expected fields for gating, treat as disabled.
+        return {}
+
+    hook = _DEBUG_NONSTANDARD_CONSTRUCTIVE_V2_POLICY
+    if hook is None:
+        return {}
+
+    # Backwards-compat: early Piece 0 hooks used a 3-arg signature.
+    # In Piece 1 we pass richer attempt-level inputs. Support both.
+    try:
+        result = hook(
+            profile,
+            board_number,
+            attempt_number,
+            dict(chosen_indices or {}),
+            dict(seat_fail_counts or {}),
+            dict(seat_seen_counts or {}),
+            dict(viability_summary or {}),
+            dict(rs_bucket_snapshot or {}),
+        )
+    except TypeError:
+        result = hook(profile, board_number, attempt_number)
+    if result is None:
+        return {}
+
+    if not isinstance(result, Mapping):
+        raise TypeError(
+            "_DEBUG_NONSTANDARD_CONSTRUCTIVE_V2_POLICY must return a Mapping[str, object] or None"
+        )
+
+    # Materialise to a plain dict to prevent surprising mutation/aliasing.
+    return dict(result)
 
 def _nonstandard_constructive_help_enabled(profile: HandProfile) -> bool:
     """
@@ -1227,6 +1303,13 @@ def _build_single_constrained_deal(
     while board_attempts < MAX_BOARD_ATTEMPTS:
         board_attempts += 1
 
+        # Non-standard constructive help v2 (Piece 0/1 seam).
+        # We invoke the v2 policy *after* matching a full attempt so it can
+        # observe attempt-local stats (RS buckets, viability summary, etc.).
+        # For now, the returned policy hints are ignored and must not affect
+        # deal-generation behaviour.
+        v2_policy: Dict[str, object] = {}
+
         # Decide which seat, if any, looks "hardest" for this board.
         help_seat: Optional[Seat] = None
         if constructive_mode["standard"]:
@@ -1439,22 +1522,40 @@ def _build_single_constrained_deal(
                 bucket_entry["matched_attempts"] += 1
 
         # After matching all seats for this attempt, optionally run the
-        # non-standard shadow probe with up-to-date viability stats.
-        if constructive_mode["nonstandard_shadow"]:
+        # v2 policy seam and/or the non-standard shadow probe with up-to-date
+        # viability stats.
+        if constructive_mode["nonstandard_v2"] or constructive_mode["nonstandard_shadow"]:
             viability_summary_after = _summarize_profile_viability(
                 seat_fail_counts,
                 seat_seen_counts,
             )
-            _shadow_probe_nonstandard_constructive(
-                profile=profile,
-                board_number=board_number,
-                attempt_number=board_attempts,
-                chosen_indices=chosen_indices,
-                seat_fail_counts=seat_fail_counts,
-                seat_seen_counts=seat_seen_counts,
-                viability_summary=viability_summary_after,
-                rs_bucket_snapshot=rs_bucket_snapshot,
-            )
+
+            if constructive_mode["nonstandard_v2"]:
+                # Piece 1: pass the same rich attempt-local stats that the
+                # shadow probe sees. For now, the returned policy hints are
+                # intentionally ignored.
+                v2_policy = _nonstandard_constructive_v2_policy(
+                    profile=profile,
+                    board_number=board_number,
+                    attempt_number=board_attempts,
+                    chosen_indices=chosen_indices,
+                    seat_fail_counts=seat_fail_counts,
+                    seat_seen_counts=seat_seen_counts,
+                    viability_summary=viability_summary_after,
+                    rs_bucket_snapshot=rs_bucket_snapshot,
+                )
+
+            if constructive_mode["nonstandard_shadow"]:
+                _shadow_probe_nonstandard_constructive(
+                    profile=profile,
+                    board_number=board_number,
+                    attempt_number=board_attempts,
+                    chosen_indices=chosen_indices,
+                    seat_fail_counts=seat_fail_counts,
+                    seat_seen_counts=seat_seen_counts,
+                    viability_summary=viability_summary_after,
+                    rs_bucket_snapshot=rs_bucket_snapshot,
+                )
 
         if all_matched:
             if debug_board_stats is not None:
