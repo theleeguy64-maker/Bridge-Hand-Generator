@@ -605,6 +605,42 @@ def classify_viability(successes: int, attempts: int) -> str:
     return "likely"
     
     
+def _v2_pc_nudge_try_alternates(
+    *,
+    constructive_mode: dict,
+    seat_profile: "SeatProfile",
+    chosen_sub: object,
+    idx0: int,
+    match_fn,
+):
+    """
+    Piece 4 helper: if v2 enabled and current chosen PC subprofile fails, try alternate PC subprofiles.
+
+    match_fn(alt_sub, alt_i0) -> (matched: bool, chosen_rs)
+    Returns: (matched, chosen_rs, chosen_sub, idx0)
+    """
+    # Only run in v2 and only for PC-shaped chosen_sub.
+    if not constructive_mode.get("nonstandard_v2", False):
+        return False, None, chosen_sub, idx0
+    if getattr(chosen_sub, "partner_contingent_constraint", None) is None:
+        return False, None, chosen_sub, idx0
+    if not getattr(seat_profile, "subprofiles", None) or len(seat_profile.subprofiles) <= 1:
+        return False, None, chosen_sub, idx0
+
+    # Try alternates in stable order.
+    for alt_i0, alt_sub in enumerate(seat_profile.subprofiles):
+        if alt_i0 == idx0:
+            continue
+        if getattr(alt_sub, "partner_contingent_constraint", None) is None:
+            continue
+
+        alt_matched, alt_chosen_rs = match_fn(alt_sub, alt_i0)
+        if alt_matched:
+            return True, alt_chosen_rs, alt_sub, alt_i0
+
+    return False, None, chosen_sub, idx0    
+    
+    
 def _v2_order_rs_suits_weighted(
     candidate_suits: list[str],
     rs_entry: object,
@@ -1592,6 +1628,43 @@ def _build_single_constrained_deal(
                 bucket_entry["seen_attempts"] += 1
                 if matched:
                     bucket_entry["matched_attempts"] += 1
+
+            # Piece 4: PC nudge (v2 only).
+            # If a Partner-Contingent (PC) seat fails on its pre-chosen subprofile,
+            # try alternate PC subprofiles for this same seat on the same attempt.
+            if (
+                constructive_mode.get("nonstandard_v2", False)
+                and not matched
+                and getattr(chosen_sub, "partner_contingent_constraint", None) is not None
+                and isinstance(seat_profile, SeatProfile)
+                and seat_profile.subprofiles
+                and len(seat_profile.subprofiles) > 1
+            ):
+                # Iterate other subprofiles in a stable order; first success wins.
+                for alt_i0, alt_sub in enumerate(seat_profile.subprofiles):
+                    if alt_i0 == idx0:
+                        continue
+                    # Only consider PC-shaped alternatives (safer).
+                    if getattr(alt_sub, "partner_contingent_constraint", None) is None:
+                        continue
+
+                    alt_matched, alt_chosen_rs = _match_seat(
+                        profile=profile,
+                        seat=seat,
+                        hand=hands[seat],
+                        seat_profile=seat_profile,
+                        chosen_subprofile=alt_sub,
+                        chosen_subprofile_index_1based=alt_i0 + 1,
+                        random_suit_choices=random_suit_choices,
+                        rng=rng,
+                    )
+                    if alt_matched:
+                        matched, chosen_rs = alt_matched, alt_chosen_rs
+                        chosen_sub = alt_sub
+                        idx0 = alt_i0
+                        chosen_subprofiles[seat] = alt_sub
+                        chosen_indices[seat] = alt_i0
+                        break
 
             if not matched:
                 all_matched = False
