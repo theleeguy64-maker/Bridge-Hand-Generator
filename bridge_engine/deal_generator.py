@@ -604,6 +604,34 @@ def classify_viability(successes: int, attempts: int) -> str:
         return "unlikely"
     return "likely"
     
+    
+def _v2_order_rs_suits_by_seen_attempts(
+    candidate_suits: list[str],
+    rs_entry: object,
+) -> list[str]:
+    """
+    Piece 2 (redo): In v2 mode, prefer RS suits that have been 'seen' less often
+    (based on rs_bucket_snapshot buckets for this seat). Stable among ties.
+
+    Only uses single-suit bucket keys ("S","H","D","C").
+    """
+    if not candidate_suits:
+        return []
+
+    buckets = {}
+    if isinstance(rs_entry, dict):
+        buckets = rs_entry.get("buckets") or {}
+    if not isinstance(buckets, dict):
+        buckets = {}
+
+    seen_counts: dict[str, int] = {}
+    for k, v in buckets.items():
+        if k in candidate_suits and isinstance(v, dict):
+            seen_counts[k] = int(v.get("seen_attempts", 0) or 0)
+
+    pos = {s: i for i, s in enumerate(candidate_suits)}
+    return sorted(candidate_suits, key=lambda s: (seen_counts.get(s, 0), pos[s]))
+    
 
 def _choose_index_for_seat(
     rng: random.Random,
@@ -1482,16 +1510,42 @@ def _build_single_constrained_deal(
                 )
                 rs_entry["total_seen_attempts"] += 1
 
-            matched, chosen_rs = _match_seat(
-                profile=profile,
-                seat=seat,
-                hand=hands[seat],
-                seat_profile=seat_profile,
-                chosen_subprofile=chosen_sub,
-                chosen_subprofile_index_1based=idx0 + 1,
-                random_suit_choices=random_suit_choices,
-                rng=rng,
-            )
+            # Piece 2 (redo): v2 tie-break for RS seats.
+            # Prefer suits/buckets with lower seen_attempts (from rs_bucket_snapshot).
+            rs_constraint = getattr(chosen_sub, "random_suit_constraint", None)
+            orig_rs_suits = None
+
+            if constructive_mode.get("nonstandard_v2", False) and is_rs_seat and rs_constraint is not None:
+                try:
+                    # Snapshot original order (list/tuple/etc.)
+                    orig_rs_suits = list(getattr(rs_constraint, "suits", []) or [])
+                    # Reorder using per-attempt rs_bucket_snapshot (successful-choice buckets so far)
+                    reordered = _v2_order_rs_suits_by_seen_attempts(orig_rs_suits, rs_entry)
+                    # Only apply if it actually changes order
+                    if reordered and reordered != orig_rs_suits:
+                        rs_constraint.suits = list(reordered)
+                except Exception:
+                    # Fail closed: do not perturb anything if constraint shape is unexpected
+                    orig_rs_suits = None
+
+            try:
+                matched, chosen_rs = _match_seat(
+                    profile=profile,
+                    seat=seat,
+                    hand=hands[seat],
+                    seat_profile=seat_profile,
+                    chosen_subprofile=chosen_sub,
+                    chosen_subprofile_index_1based=idx0 + 1,
+                    random_suit_choices=random_suit_choices,
+                    rng=rng,
+                )
+            finally:
+                # Always restore RS suit order if we changed it.
+                if orig_rs_suits is not None and rs_constraint is not None:
+                    try:
+                        rs_constraint.suits = list(orig_rs_suits)
+                    except Exception:
+                        pass
 
             if not matched:
                 all_matched = False
