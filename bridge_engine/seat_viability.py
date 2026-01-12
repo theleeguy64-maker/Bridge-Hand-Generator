@@ -104,40 +104,31 @@ def _match_standard(analysis: SuitAnalysis, std: StandardSuitConstraints) -> boo
             return False
 
     return True
-
-
-def _match_random_suit(
+    
+    
+def _match_random_suit_with_attempt(
     analysis: SuitAnalysis,
     rs: RandomSuitConstraintData,
     rng: random.Random,
-) -> Optional[List[str]]:
+) -> tuple[bool, Optional[List[str]]]:
     """
-    Apply Random Suit constraint.
+    Like _match_random_suit, but returns the attempted chosen suits even on failure.
 
-    Returns the list of chosen suits if matched, or None if the constraint fails.
-
-    Notes:
-      • required_suits_count distinct suits are chosen from allowed_suits.
-      • When required_suits_count == 2, pair overrides are matched ignoring order.
-      • Each chosen suit has its own SuitRange (from either the base suit_ranges
-        or the override ranges).
+    Returns:
+      (matched, attempted_or_chosen_suits_or_None)
     """
     allowed = list(rs.allowed_suits)
     if not allowed or rs.required_suits_count <= 0:
-        return None
+        return False, None
     if rs.required_suits_count > len(allowed):
-        return None
+        return False, None
 
-    # Choose distinct suits
     chosen_suits = rng.sample(allowed, rs.required_suits_count)
 
-    # Decide which SuitRange applies for each chosen suit
-    # Default mapping: index -> suit_ranges[index]
     ranges_by_suit: Dict[str, object] = {}
 
     if rs.required_suits_count == 2 and rs.pair_overrides:
-        # Check overrides ignoring order
-        sorted_pair = tuple(sorted(chosen_suits))  # type: ignore[assignment]
+        sorted_pair = tuple(sorted(chosen_suits))
         matched_override = None
         for po in rs.pair_overrides:
             if tuple(sorted(po.suits)) == sorted_pair:
@@ -145,33 +136,38 @@ def _match_random_suit(
                 break
 
         if matched_override is not None:
-            # Map by suit name, order not meaningful
             ranges_by_suit[matched_override.suits[0]] = matched_override.first_range
             ranges_by_suit[matched_override.suits[1]] = matched_override.second_range
         else:
-            # Fall back to base suit_ranges
             for idx, suit in enumerate(chosen_suits):
                 if idx >= len(rs.suit_ranges):
-                    return None
+                    return False, chosen_suits
                 ranges_by_suit[suit] = rs.suit_ranges[idx]
     else:
-        # No pair override scenario
         for idx, suit in enumerate(chosen_suits):
             if idx >= len(rs.suit_ranges):
-                return None
+                return False, chosen_suits
             ranges_by_suit[suit] = rs.suit_ranges[idx]
 
-    # Now check each chosen suit against its SuitRange
     for suit in chosen_suits:
         sr = ranges_by_suit[suit]
         count = len(analysis.cards_by_suit[suit])
         hcp = analysis.hcp_by_suit[suit]
         if not (sr.min_cards <= count <= sr.max_cards):  # type: ignore[attr-defined]
-            return None
+            return False, chosen_suits
         if not (sr.min_hcp <= hcp <= sr.max_hcp):        # type: ignore[attr-defined]
-            return None
+            return False, chosen_suits
 
-    return chosen_suits
+    return True, chosen_suits
+
+
+def _match_random_suit(
+    analysis: SuitAnalysis,
+    rs: RandomSuitConstraintData,
+    rng: random.Random,
+) -> Optional[List[str]]:
+    matched, chosen = _match_random_suit_with_attempt(analysis, rs, rng)
+    return chosen if matched else None
 
 
 def _match_partner_contingent(
@@ -222,10 +218,12 @@ def _match_subprofile(
         and sub.partner_contingent_constraint is None
         and sub.opponents_contingent_suit_constraint is None
     ):
-        chosen = _match_random_suit(analysis, sub.random_suit_constraint, rng)
-        if chosen is None:
-            return False, None
-        # Success: store chosen suits for this seat
+        matched, chosen = _match_random_suit_with_attempt(
+            analysis, sub.random_suit_constraint, rng
+        )
+        if not matched:
+            # Piece 3 signal: return attempted suits even on failure
+            return False, chosen
         return True, chosen
 
     # Partner Contingent-Suit (no Random Suit or Opponents on this seat)
@@ -374,6 +372,8 @@ def _match_seat(
         subprofiles = [chosen_subprofile]
 
     analysis = _compute_suit_analysis(hand)
+    
+    last_chosen: Optional[List[str]] = None
 
     for sub in subprofiles:
         matched, chosen = _match_subprofile(
@@ -383,6 +383,9 @@ def _match_seat(
             random_suit_choices=random_suit_choices,
             rng=rng,
         )
+        if chosen:
+            last_chosen = chosen       
+        
         if matched:
             if _is_excluded_for_seat_subprofile(
                 profile=profile,
@@ -390,10 +393,13 @@ def _match_seat(
                 subprofile_index_1based=chosen_subprofile_index_1based,
                 analysis=analysis,
             ):
-                return False, None
+                # Piece 3 signal: keep the RS choice payload even on failure.
+                return False, chosen
             return True, chosen
 
-    return False, None
+    # Piece 3 signal: if _match_subprofile produced an RS choice payload during a failed
+    # attempt, return it so the caller can count this bucket as "seen".
+    return False, last_chosen
 
 
 # -------------------------------------    dealing_order:--------------------------------------
