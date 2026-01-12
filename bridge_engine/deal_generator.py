@@ -605,15 +605,27 @@ def classify_viability(successes: int, attempts: int) -> str:
     return "likely"
     
     
-def _v2_order_rs_suits_by_seen_attempts(
+def _v2_order_rs_suits_weighted(
     candidate_suits: list[str],
     rs_entry: object,
+    *,
+    alpha: float = 0.2,
+    w_min: float = 0.9,
+    w_max: float = 1.1,
 ) -> list[str]:
     """
-    Piece 2 (redo): In v2 mode, prefer RS suits that have been 'seen' less often
-    (based on rs_bucket_snapshot buckets for this seat). Stable among ties.
+    Piece 3: Order RS suits by a clamped weight derived from attempt-local success rate.
 
-    Only uses single-suit bucket keys ("S","H","D","C").
+    For each suit s:
+      seen = buckets[s].seen_attempts (default 0)
+      matched = buckets[s].matched_attempts (default 0)
+      rate = matched / max(1, seen)
+      weight = clamp(1 + alpha*(rate - 0.5), w_min, w_max)
+
+    Return suits ordered by:
+      1) weight desc
+      2) seen asc
+      3) original order (stable)
     """
     if not candidate_suits:
         return []
@@ -624,14 +636,30 @@ def _v2_order_rs_suits_by_seen_attempts(
     if not isinstance(buckets, dict):
         buckets = {}
 
-    seen_counts: dict[str, int] = {}
-    for k, v in buckets.items():
-        if k in candidate_suits and isinstance(v, dict):
-            seen_counts[k] = int(v.get("seen_attempts", 0) or 0)
+    def clamp(x: float) -> float:
+        return w_min if x < w_min else (w_max if x > w_max else x)
 
     pos = {s: i for i, s in enumerate(candidate_suits)}
-    return sorted(candidate_suits, key=lambda s: (seen_counts.get(s, 0), pos[s]))
-    
+
+    stats: dict[str, tuple[int, int]] = {}
+    for s in candidate_suits:
+        v = buckets.get(s)
+        if isinstance(v, dict):
+            seen = int(v.get("seen_attempts", 0) or 0)
+            matched = int(v.get("matched_attempts", 0) or 0)
+        else:
+            seen, matched = 0, 0
+        stats[s] = (seen, matched)
+
+    def key(s: str):
+        seen, matched = stats[s]
+        rate = matched / max(1, seen)
+        weight = clamp(1.0 + alpha * (rate - 0.5))
+        # sort: weight desc, seen asc, original order
+        return (-weight, seen, pos[s])
+
+    return sorted(candidate_suits, key=key)
+        
 
 def _choose_index_for_seat(
     rng: random.Random,
@@ -1512,15 +1540,15 @@ def _build_single_constrained_deal(
 
             # Piece 2 (redo): v2 tie-break for RS seats.
             # Prefer suits/buckets with lower seen_attempts (from rs_bucket_snapshot).
-            rs_constraint = getattr(chosen_sub, "random_suit_constraint", None)
+            rs_constraint = getattr(chosen_sub, "random_suit_constraint", None) if is_rs_seat else None
             orig_rs_suits = None
 
             if constructive_mode.get("nonstandard_v2", False) and is_rs_seat and rs_constraint is not None:
                 try:
                     # Snapshot original order (list/tuple/etc.)
                     orig_rs_suits = list(getattr(rs_constraint, "suits", []) or [])
-                    # Reorder using per-attempt rs_bucket_snapshot (successful-choice buckets so far)
-                    reordered = _v2_order_rs_suits_by_seen_attempts(orig_rs_suits, rs_entry)
+                    # Reorder using per-attempt rs_bucket_snapshot
+                    reordered = _v2_order_rs_suits_weighted(orig_rs_suits, rs_entry)
                     # Only apply if it actually changes order
                     if reordered and reordered != orig_rs_suits:
                         rs_constraint.suits = list(reordered)
@@ -1547,33 +1575,32 @@ def _build_single_constrained_deal(
                     except Exception:
                         pass
 
-            if not matched:
-                all_matched = False
-                seat_fail_counts[seat] = seat_fail_counts.get(seat, 0) + 1
-                break
-
-            # For RS seats, also track "matched" attempts and assign a bucket.
-            if is_rs_seat and rs_entry is not None:
-                rs_entry["total_matched_attempts"] += 1
-
+            # For RS seats, track bucket 'seen' on every attempt where we got a choice
+            # payload (including failures), and track 'matched' only on success.
+            if is_rs_seat and rs_entry is not None and chosen_rs is not None:
                 # Derive a simple bucket key from the RS choice payload.
-                if chosen_rs:
-                    if isinstance(chosen_rs, (list, tuple)):
-                        bucket_key = ",".join(str(x) for x in chosen_rs)
-                    else:
-                        bucket_key = str(chosen_rs)
+                if isinstance(chosen_rs, (list, tuple)):
+                    bucket_key = ",".join(str(x) for x in chosen_rs)
                 else:
-                    bucket_key = "<none>"
+                    bucket_key = str(chosen_rs)
 
                 buckets = rs_entry["buckets"]
                 bucket_entry = buckets.setdefault(
                     bucket_key,
                     {"seen_attempts": 0, "matched_attempts": 0},
                 )
-                # For now, bucket 'seen' == 'matched' because the bucket is
-                # defined by the actual RS choice when we have a successful match.
                 bucket_entry["seen_attempts"] += 1
-                bucket_entry["matched_attempts"] += 1
+                if matched:
+                    bucket_entry["matched_attempts"] += 1
+
+            if not matched:
+                all_matched = False
+                seat_fail_counts[seat] = seat_fail_counts.get(seat, 0) + 1
+                break
+
+            # For RS seats, also track total matched attempts.
+            if is_rs_seat and rs_entry is not None and matched:
+                rs_entry["total_matched_attempts"] += 1
 
         # After matching all seats for this attempt, optionally run the
         # v2 policy seam and/or the non-standard shadow probe with up-to-date
