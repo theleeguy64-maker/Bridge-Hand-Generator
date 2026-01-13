@@ -605,6 +605,41 @@ def classify_viability(successes: int, attempts: int) -> str:
     return "likely"
     
     
+def _v2_oc_nudge_try_alternates(
+    *,
+    constructive_mode: dict,
+    seat_profile: object,
+    chosen_sub: object,
+    idx0: int,
+    match_fn,
+):
+    """
+    Piece 5 helper: if v2 enabled and current chosen OC subprofile fails, try alternate OC subprofiles.
+
+    match_fn(alt_sub, alt_i0) -> (matched: bool, chosen_rs)
+    Returns: (matched, chosen_rs, chosen_sub, idx0)
+    """
+    if not constructive_mode.get("nonstandard_v2", False):
+        return False, None, chosen_sub, idx0
+    if getattr(chosen_sub, "opponents_contingent_suit_constraint", None) is None:
+        return False, None, chosen_sub, idx0
+    subprofiles = getattr(seat_profile, "subprofiles", None)
+    if not subprofiles or len(subprofiles) <= 1:
+        return False, None, chosen_sub, idx0
+
+    for alt_i0, alt_sub in enumerate(subprofiles):
+        if alt_i0 == idx0:
+            continue
+        if getattr(alt_sub, "opponents_contingent_suit_constraint", None) is None:
+            continue
+
+        alt_matched, alt_chosen_rs = match_fn(alt_sub, alt_i0)
+        if alt_matched:
+            return True, alt_chosen_rs, alt_sub, alt_i0
+
+    return False, None, chosen_sub, idx0    
+    
+    
 def _v2_pc_nudge_try_alternates(
     *,
     constructive_mode: dict,
@@ -1670,6 +1705,42 @@ def _build_single_constrained_deal(
                 all_matched = False
                 seat_fail_counts[seat] = seat_fail_counts.get(seat, 0) + 1
                 break
+
+            # Piece 5: OC nudge (v2 only).
+            # If an Opponents-Contingent (OC) seat fails on its pre-chosen subprofile,
+            # try alternate OC subprofiles for this same seat on the same attempt.
+            if (
+                constructive_mode.get("nonstandard_v2", False)
+                and not matched
+                and getattr(chosen_sub, "opponents_contingent_suit_constraint", None) is not None
+                and isinstance(seat_profile, SeatProfile)
+                and seat_profile.subprofiles
+                and len(seat_profile.subprofiles) > 1
+            ):
+                for alt_i0, alt_sub in enumerate(seat_profile.subprofiles):
+                    if alt_i0 == idx0:
+                        continue
+                    # Only consider OC-shaped alternatives (safer).
+                    if getattr(alt_sub, "opponents_contingent_suit_constraint", None) is None:
+                        continue
+
+                    alt_matched, alt_chosen_rs = _match_seat(
+                        profile=profile,
+                        seat=seat,
+                        hand=hands[seat],
+                        seat_profile=seat_profile,
+                        chosen_subprofile=alt_sub,
+                        chosen_subprofile_index_1based=alt_i0 + 1,
+                        random_suit_choices=random_suit_choices,
+                        rng=rng,
+                    )
+                    if alt_matched:
+                        matched, chosen_rs = alt_matched, alt_chosen_rs
+                        chosen_sub = alt_sub
+                        idx0 = alt_i0
+                        chosen_subprofiles[seat] = alt_sub
+                        chosen_indices[seat] = alt_i0
+                        break
 
             # For RS seats, also track total matched attempts.
             if is_rs_seat and rs_entry is not None and matched:
