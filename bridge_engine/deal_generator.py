@@ -241,6 +241,10 @@ _DEBUG_ON_MAX_ATTEMPTS: Optional[Callable[..., None]] = None
 # Production code never sets this; tests may monkeypatch it.
 _DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW: Optional[Callable[..., None]] = None
 
+# Debug hook: invoked when standard constructive help (v1) is actually used.
+# Signature: (profile, board_number, attempt_number, help_seat) -> None
+_DEBUG_STANDARD_CONSTRUCTIVE_USED = None
+
 # Test-only hook seam for real non-standard constructive help v2.
 # Production code never sets this; tests may monkeypatch it.
 #
@@ -1438,8 +1442,12 @@ def _build_single_constrained_deal(
         v2_policy: Dict[str, object] = {}
 
         # Decide which seat, if any, looks "hardest" for this board.
+        # We use the v1 constructive algorithm for standard seats, but allow v2-on-std
+        # to trigger the same mechanism for review.
+        allow_std_constructive = constructive_mode["standard"] or constructive_mode.get("nonstandard_v2", False)
+
         help_seat: Optional[Seat] = None
-        if constructive_mode["standard"]:
+        if allow_std_constructive:
             help_seat = _choose_hardest_seat_for_board(
                 profile=profile,
                 seat_fail_counts=seat_fail_counts,
@@ -1448,7 +1456,6 @@ def _build_single_constrained_deal(
                 attempt_number=board_attempts,
                 cfg=_HARDEST_SEAT_CONFIG,
             )
-
         # Choose subprofiles for this board (index-coupled where applicable).
         chosen_subprofiles, chosen_indices = _select_subprofiles_for_board(profile)
 
@@ -1497,9 +1504,11 @@ def _build_single_constrained_deal(
             seat_seen_counts,
         )
 
-        # v1: only standard-constraints seats get constructive help.
+        # Standard constructive help (v1 algorithm), allowed either by v1 mode or v2-on-std review mode.
+        allow_std_constructive = constructive_mode["standard"] or constructive_mode.get("nonstandard_v2", False)
+
         if (
-            constructive_mode["standard"]
+            allow_std_constructive
             and help_seat is not None
             and not _seat_has_nonstandard_constraints(profile, help_seat)
         ):
@@ -1512,6 +1521,12 @@ def _build_single_constrained_deal(
             if 0 < total_min <= CONSTRUCTIVE_MAX_SUM_MIN_CARDS:
                 use_constructive = True
 
+                if _DEBUG_STANDARD_CONSTRUCTIVE_USED is not None:
+                    try:
+                        _DEBUG_STANDARD_CONSTRUCTIVE_USED(profile, board_number, board_attempts, help_seat)
+                    except Exception:
+                        pass
+   
         if use_constructive and help_seat is not None:
             # Mutating deck: each hand draws from the remaining cards.
             working_deck = list(deck)
