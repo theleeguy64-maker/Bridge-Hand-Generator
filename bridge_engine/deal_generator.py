@@ -261,6 +261,12 @@ _DEBUG_STANDARD_CONSTRUCTIVE_USED = None
 #   ) -> Mapping[str, object] | None
 _DEBUG_NONSTANDARD_CONSTRUCTIVE_V2_POLICY: Optional[Callable[..., Mapping[str, object]]] = None
 
+# Debug hook: per-attempt failure attribution
+# Signature:
+#   (profile, board_number, attempt_number,
+#    seat_fail_as_seat, seat_fail_global_other, seat_fail_global_unchecked)
+_DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION = None
+
 class DealGenerationError(Exception):
     """Raised when something goes wrong during deal generation."""
 
@@ -1430,6 +1436,13 @@ def _build_single_constrained_deal(
     seat_seen_counts: Dict[Seat, int] = {}
     # Snapshot of the last attempt's chosen subprofile indices per seat.
     last_chosen_indices: Dict[Seat, int] = {}
+    # NEW: per-board failure attribution counters
+    seat_fail_as_seat: Dict[Seat, int] = {}
+    seat_fail_global_other: Dict[Seat, int] = {}
+    seat_fail_global_unchecked: Dict[Seat, int] = {}
+    # NEW: breakdown of seat-level failures by cause (HCP vs shape)
+    seat_fail_hcp: Dict[Seat, int] = {}
+    seat_fail_shape: Dict[Seat, int] = {}
 
     while board_attempts < MAX_BOARD_ATTEMPTS:
         board_attempts += 1
@@ -1450,7 +1463,7 @@ def _build_single_constrained_deal(
         if allow_std_constructive:
             help_seat = _choose_hardest_seat_for_board(
                 profile=profile,
-                seat_fail_counts=seat_fail_counts,
+                seat_fail_counts=seat_fail_as_seat,  # <-- Step 1: local seat-level fails ONLY
                 seat_seen_counts=seat_seen_counts,
                 dealing_order=dealing_order,
                 attempt_number=board_attempts,
@@ -1507,11 +1520,12 @@ def _build_single_constrained_deal(
         # Standard constructive help (v1 algorithm), allowed either by v1 mode or v2-on-std review mode.
         allow_std_constructive = constructive_mode["standard"] or constructive_mode.get("nonstandard_v2", False)
 
-        if (
-            allow_std_constructive
-            and help_seat is not None
-            and not _seat_has_nonstandard_constraints(profile, help_seat)
-        ):
+        # Constructive help (v1 algorithm), allowed either by v1 mode or v2-on-std review mode.
+        # NOTE: we now allow constructive for *any* helper seat, standard or non-standard,
+        # as long as we can derive sensible suit minima for that seat.
+        allow_constructive = constructive_mode["standard"] or constructive_mode.get("nonstandard_v2", False)
+
+        if allow_constructive and help_seat is not None:
             constructive_minima = _extract_standard_suit_minima(
                 profile=profile,
                 seat=help_seat,
@@ -1523,8 +1537,14 @@ def _build_single_constrained_deal(
 
                 if _DEBUG_STANDARD_CONSTRUCTIVE_USED is not None:
                     try:
-                        _DEBUG_STANDARD_CONSTRUCTIVE_USED(profile, board_number, board_attempts, help_seat)
+                        _DEBUG_STANDARD_CONSTRUCTIVE_USED(
+                            profile,
+                            board_number,
+                            board_attempts,
+                            help_seat,
+                        )
                     except Exception:
+                        # Debug hooks must never affect deal generation.
                         pass
    
         if use_constructive and help_seat is not None:
@@ -1554,7 +1574,7 @@ def _build_single_constrained_deal(
 
         # Shared Random Suit choices for this board (used by RS / OC / PC).
         random_suit_choices: Dict[Seat, List[str]] = {}
-        
+
         # --------------------------------------------------------------
         # Match each seat's hand against its chosen subprofile.
         #
@@ -1570,226 +1590,258 @@ def _build_single_constrained_deal(
         for seat in dealing_order:
             seat_profile = profile.seat_profiles.get(seat)
             if not isinstance(seat_profile, SeatProfile) or not seat_profile.subprofiles:
-                # Unconstrained / legacy seat – effectively always matching.
                 continue
 
             chosen_sub = chosen_subprofiles.get(seat)
-            if chosen_sub is not None and getattr(
-                chosen_sub, "random_suit_constraint", None
-            ) is not None:
+            if (
+                chosen_sub is not None
+                and getattr(chosen_sub, "random_suit_constraint", None) is not None
+            ):
                 rs_seats.append(seat)
             else:
                 other_seats.append(seat)
 
+        # Attempt-local “first failure” markers (seat-level failure only)
+        first_failed_seat: Optional[Seat] = None
+        first_failed_stage_idx: Optional[int] = None
+
+        # Track constrained seats we actually *checked* this attempt, in order.
+        checked_seats_in_attempt: List[Seat] = []
+
         # RS drivers first, then everything else (including PC / OC).
-        for seat in rs_seats + other_seats:
+        processing_order = rs_seats + other_seats
+
+        for seat in processing_order:
             seat_profile = profile.seat_profiles.get(seat)
             if not isinstance(seat_profile, SeatProfile) or not seat_profile.subprofiles:
-                # Unconstrained / legacy seat – skip matching logic.
                 continue
 
             # We are attempting a match for this seat on this attempt.
             seat_seen_counts[seat] = seat_seen_counts.get(seat, 0) + 1
+            checked_seats_in_attempt.append(seat)
 
             chosen_sub = chosen_subprofiles.get(seat)
             idx0 = chosen_indices.get(seat)
 
-            # Defensive: if for some reason we didn't pick a subprofile, fail this board.
+            # NEW: default failure reason; will be refined later
+            fail_reason = "other"
+
+            # Defensive: if we didn't pick a subprofile, treat as seat-level failure.
             if chosen_sub is None or idx0 is None:
-                all_matched = False
-                seat_fail_counts[seat] = seat_fail_counts.get(seat, 0) + 1
-                break
+                matched = False
+                chosen_rs = None
+                # fail_reason stays "other"
+            else:
+                # Is this seat using Random Suit on this attempt?     
+                is_rs_seat = getattr(chosen_sub, "random_suit_constraint", None) is not None
 
-            # Is this seat using Random Suit on this attempt?
-            is_rs_seat = getattr(chosen_sub, "random_suit_constraint", None) is not None
+                rs_entry = None
+                if is_rs_seat:
+                    rs_entry = rs_bucket_snapshot.setdefault(
+                        seat,
+                        {"total_seen_attempts": 0, "total_matched_attempts": 0, "buckets": {}},
+                    )
+                    rs_entry["total_seen_attempts"] += 1
 
-            rs_entry = None
-            if is_rs_seat:
-                # Shape:
-                # rs_bucket_snapshot[seat] = {
-                #     "total_seen_attempts": int,
-                #     "total_matched_attempts": int,
-                #     "buckets": {
-                #         "<bucket_key>": {"seen_attempts": int, "matched_attempts": int},
-                #         ...
-                #     },
-                # }
-                rs_entry = rs_bucket_snapshot.setdefault(
-                    seat,
-                    {
-                        "total_seen_attempts": 0,
-                        "total_matched_attempts": 0,
-                        "buckets": {},
-                    },
-                )
-                rs_entry["total_seen_attempts"] += 1
+                # Piece 2/6: RS re-ordering...
+                rs_constraint = getattr(chosen_sub, "random_suit_constraint", None) if is_rs_seat else None
+                orig_rs_suits = None
 
-            # Piece 2 (redo): v2 tie-break for RS seats.
-            # Prefer suits/buckets with lower seen_attempts (from rs_bucket_snapshot).
-            rs_constraint = getattr(chosen_sub, "random_suit_constraint", None) if is_rs_seat else None
-            orig_rs_suits = None
-
-            if constructive_mode.get("nonstandard_v2", False) and is_rs_seat and rs_constraint is not None:
-                try:
-                    # Snapshot original order (list/tuple/etc.)
-                    orig_rs_suits = list(getattr(rs_constraint, "suits", []) or [])
-                    # Piece 6: use seat viability signal to choose exploration vs exploitation.
+                if (
+                    constructive_mode.get("nonstandard_v2", False)
+                    and is_rs_seat
+                    and rs_constraint is not None
+                ):
                     try:
-                        v_label = classify_viability(
-                            seat_fail_counts.get(seat, 0),
-                            seat_seen_counts.get(seat, 0),
-                        )
-                    except Exception:
-                        v_label = ""
+                        orig_rs_suits = list(getattr(rs_constraint, "suits", []) or [])
 
-                    v_label_s = str(v_label).lower()
-                    is_easy = ("easy" in v_label_s) or ("ok" in v_label_s) or ("good" in v_label_s)
+                        try:
+                            v_label = classify_viability(
+                                seat_fail_counts.get(seat, 0),
+                                seat_seen_counts.get(seat, 0),
+                            )
+                        except Exception:
+                            v_label = ""
 
-                    if is_easy:
-                        # Explore: prefer least-seen (attempt-local).
-                        buckets = {}
-                        if isinstance(rs_entry, dict):
-                            buckets = rs_entry.get("buckets") or {}
-                        if not isinstance(buckets, dict):
+                        v_label_s = str(v_label).lower()
+                        is_easy = ("easy" in v_label_s) or ("ok" in v_label_s) or ("good" in v_label_s)
+
+                        if is_easy:
                             buckets = {}
-                        pos = {s: i for i, s in enumerate(orig_rs_suits)}
+                            if isinstance(rs_entry, dict):
+                                buckets = rs_entry.get("buckets") or {}
+                            if not isinstance(buckets, dict):
+                                buckets = {}
 
-                        def _seen(s: str) -> int:
-                            v = buckets.get(s)
-                            if isinstance(v, dict):
-                                return int(v.get("seen_attempts", 0) or 0)
-                            return 0
+                            pos = {s: i for i, s in enumerate(orig_rs_suits)}
 
-                        reordered = sorted(orig_rs_suits, key=lambda s: (_seen(s), pos[s]))
-                    else:
-                        # Exploit: prefer higher attempt-local success rate (clamped).
-                        reordered = _v2_order_rs_suits_weighted(orig_rs_suits, rs_entry)
-                    # Only apply if it actually changes order
-                    if reordered and reordered != orig_rs_suits:
-                        rs_constraint.suits = list(reordered)
-                except Exception:
-                    # Fail closed: do not perturb anything if constraint shape is unexpected
-                    orig_rs_suits = None
+                            def _seen(s: str) -> int:
+                                v = buckets.get(s)
+                                if isinstance(v, dict):
+                                    return int(v.get("seen_attempts", 0) or 0)
+                                return 0
 
-            try:
-                matched, chosen_rs = _match_seat(
-                    profile=profile,
-                    seat=seat,
-                    hand=hands[seat],
-                    seat_profile=seat_profile,
-                    chosen_subprofile=chosen_sub,
-                    chosen_subprofile_index_1based=idx0 + 1,
-                    random_suit_choices=random_suit_choices,
-                    rng=rng,
-                )
-            finally:
-                # Always restore RS suit order if we changed it.
-                if orig_rs_suits is not None and rs_constraint is not None:
-                    try:
-                        rs_constraint.suits = list(orig_rs_suits)
+                            reordered = sorted(orig_rs_suits, key=lambda s: (_seen(s), pos[s]))
+                        else:
+                            reordered = _v2_order_rs_suits_weighted(orig_rs_suits, rs_entry)
+
+                        if reordered and reordered != orig_rs_suits:
+                            rs_constraint.suits = list(reordered)
                     except Exception:
-                        pass
+                        orig_rs_suits = None
 
-            # For RS seats, track bucket 'seen' on every attempt where we got a choice
-            # payload (including failures), and track 'matched' only on success.
-            if is_rs_seat and rs_entry is not None and chosen_rs is not None:
-                # Derive a simple bucket key from the RS choice payload.
-                if isinstance(chosen_rs, (list, tuple)):
-                    bucket_key = ",".join(str(x) for x in chosen_rs)
-                else:
-                    bucket_key = str(chosen_rs)
-
-                buckets = rs_entry["buckets"]
-                bucket_entry = buckets.setdefault(
-                    bucket_key,
-                    {"seen_attempts": 0, "matched_attempts": 0},
-                )
-                bucket_entry["seen_attempts"] += 1
-                if matched:
-                    bucket_entry["matched_attempts"] += 1
-
-            # Piece 4: PC nudge (v2 only).
-            # If a Partner-Contingent (PC) seat fails on its pre-chosen subprofile,
-            # try alternate PC subprofiles for this same seat on the same attempt.
-            if (
-                constructive_mode.get("nonstandard_v2", False)
-                and not matched
-                and getattr(chosen_sub, "partner_contingent_constraint", None) is not None
-                and isinstance(seat_profile, SeatProfile)
-                and seat_profile.subprofiles
-                and len(seat_profile.subprofiles) > 1
-            ):
-                # Iterate other subprofiles in a stable order; first success wins.
-                for alt_i0, alt_sub in enumerate(seat_profile.subprofiles):
-                    if alt_i0 == idx0:
-                        continue
-                    # Only consider PC-shaped alternatives (safer).
-                    if getattr(alt_sub, "partner_contingent_constraint", None) is None:
-                        continue
-
-                    alt_matched, alt_chosen_rs = _match_seat(
+                try:
+                    matched, chosen_rs = _match_seat(
                         profile=profile,
                         seat=seat,
                         hand=hands[seat],
                         seat_profile=seat_profile,
-                        chosen_subprofile=alt_sub,
-                        chosen_subprofile_index_1based=alt_i0 + 1,
+                        chosen_subprofile=chosen_sub,
+                        chosen_subprofile_index_1based=idx0 + 1,
                         random_suit_choices=random_suit_choices,
                         rng=rng,
                     )
-                    if alt_matched:
-                        matched, chosen_rs = alt_matched, alt_chosen_rs
-                        chosen_sub = alt_sub
-                        idx0 = alt_i0
-                        chosen_subprofiles[seat] = alt_sub
-                        chosen_indices[seat] = alt_i0
-                        break
+                finally:
+                    if orig_rs_suits is not None and rs_constraint is not None:
+                        try:
+                            rs_constraint.suits = list(orig_rs_suits)
+                        except Exception:
+                            pass
 
+                # RS bucket accounting
+                if is_rs_seat and rs_entry is not None and chosen_rs is not None:
+                    if isinstance(chosen_rs, (list, tuple)):
+                        bucket_key = ",".join(str(x) for x in chosen_rs)
+                    else:
+                        bucket_key = str(chosen_rs)
+
+                    buckets = rs_entry["buckets"]
+                    bucket_entry = buckets.setdefault(bucket_key, {"seen_attempts": 0, "matched_attempts": 0})
+                    bucket_entry["seen_attempts"] += 1
+                    if matched:
+                        bucket_entry["matched_attempts"] += 1
+
+                # PC nudge (v2 only)
+                if (
+                    constructive_mode.get("nonstandard_v2", False)
+                    and not matched
+                    and getattr(chosen_sub, "partner_contingent_constraint", None) is not None
+                    and len(seat_profile.subprofiles) > 1
+                ):
+                    for alt_i0, alt_sub in enumerate(seat_profile.subprofiles):
+                        if alt_i0 == idx0:
+                            continue
+                        if getattr(alt_sub, "partner_contingent_constraint", None) is None:
+                            continue
+
+                        alt_matched, alt_chosen_rs = _match_seat(
+                            profile=profile,
+                            seat=seat,
+                            hand=hands[seat],
+                            seat_profile=seat_profile,
+                            chosen_subprofile=alt_sub,
+                            chosen_subprofile_index_1based=alt_i0 + 1,
+                            random_suit_choices=random_suit_choices,
+                            rng=rng,
+                        )
+                        if alt_matched:
+                            matched, chosen_rs = alt_matched, alt_chosen_rs
+                            chosen_sub = alt_sub
+                            idx0 = alt_i0
+                            chosen_subprofiles[seat] = alt_sub
+                            chosen_indices[seat] = alt_i0
+                            break
+
+                # OC nudge (v2 only)
+                if (
+                    constructive_mode.get("nonstandard_v2", False)
+                    and not matched
+                    and getattr(chosen_sub, "opponents_contingent_suit_constraint", None) is not None
+                    and len(seat_profile.subprofiles) > 1
+                ):
+                    for alt_i0, alt_sub in enumerate(seat_profile.subprofiles):
+                        if alt_i0 == idx0:
+                            continue
+                        if getattr(alt_sub, "opponents_contingent_suit_constraint", None) is None:
+                            continue
+
+                        alt_matched, alt_chosen_rs = _match_seat(
+                            profile=profile,
+                            seat=seat,
+                            hand=hands[seat],
+                            seat_profile=seat_profile,
+                            chosen_subprofile=alt_sub,
+                            chosen_subprofile_index_1based=alt_i0 + 1,
+                            random_suit_choices=random_suit_choices,
+                            rng=rng,
+                        )
+                        if alt_matched:
+                            matched, chosen_rs = alt_matched, alt_chosen_rs
+                            chosen_sub = alt_sub
+                            idx0 = alt_i0
+                            chosen_subprofiles[seat] = alt_sub
+                            chosen_indices[seat] = alt_i0
+                            break
+
+                if is_rs_seat and rs_entry is not None and matched:
+                    rs_entry["total_matched_attempts"] += 1
+
+            # ---- Final seat-level failure decision for this seat ----
             if not matched:
                 all_matched = False
                 seat_fail_counts[seat] = seat_fail_counts.get(seat, 0) + 1
+
+                # This seat is the first failing seat on this attempt.
+                seat_fail_as_seat[seat] = seat_fail_as_seat.get(seat, 0) + 1
+
+                # NEW: split that seat-level failure into HCP vs shape where possible.
+                if fail_reason == "hcp":
+                    seat_fail_hcp[seat] = seat_fail_hcp.get(seat, 0) + 1
+                elif fail_reason == "shape":
+                    seat_fail_shape[seat] = seat_fail_shape.get(seat, 0) + 1
+                else:
+                    # "other" (either we haven't wired the classifier yet,
+                    # or the failure was some mixed/other reason).
+                    pass
+
+                # Record "first failure" markers (only once)
+                if first_failed_seat is None:
+                    first_failed_seat = seat
+                    first_failed_stage_idx = len(checked_seats_in_attempt) - 1
+
                 break
 
-            # Piece 5: OC nudge (v2 only).
-            # If an Opponents-Contingent (OC) seat fails on its pre-chosen subprofile,
-            # try alternate OC subprofiles for this same seat on the same attempt.
-            if (
-                constructive_mode.get("nonstandard_v2", False)
-                and not matched
-                and getattr(chosen_sub, "opponents_contingent_suit_constraint", None) is not None
-                and isinstance(seat_profile, SeatProfile)
-                and seat_profile.subprofiles
-                and len(seat_profile.subprofiles) > 1
-            ):
-                for alt_i0, alt_sub in enumerate(seat_profile.subprofiles):
-                    if alt_i0 == idx0:
-                        continue
-                    # Only consider OC-shaped alternatives (safer).
-                    if getattr(alt_sub, "opponents_contingent_suit_constraint", None) is None:
-                        continue
+        # ---- Attempt-level global attribution (only when we failed due to a seat-level failure) ----
+        if not all_matched and first_failed_stage_idx is not None:
+            # Seats checked BEFORE the first failure are "globally impacted (other)"
+            for s in checked_seats_in_attempt[:first_failed_stage_idx]:
+                seat_fail_global_other[s] = seat_fail_global_other.get(s, 0) + 1
 
-                    alt_matched, alt_chosen_rs = _match_seat(
-                        profile=profile,
-                        seat=seat,
-                        hand=hands[seat],
-                        seat_profile=seat_profile,
-                        chosen_subprofile=alt_sub,
-                        chosen_subprofile_index_1based=alt_i0 + 1,
-                        random_suit_choices=random_suit_choices,
-                        rng=rng,
+            # Seats NOT checked because we broke early are "globally unchecked"
+            checked_set = set(checked_seats_in_attempt)
+            for s in processing_order:
+                sp = profile.seat_profiles.get(s)
+                if not isinstance(sp, SeatProfile) or not sp.subprofiles:
+                    continue
+                if s not in checked_set:
+                    seat_fail_global_unchecked[s] = seat_fail_global_unchecked.get(s, 0) + 1
+
+            # NOW emit debug hook with complete attribution for this attempt
+            if _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION is not None:
+                try:
+                    _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION(
+                        profile,
+                        board_number,
+                        board_attempts,
+                        dict(seat_fail_as_seat),
+                        dict(seat_fail_global_other),
+                        dict(seat_fail_global_unchecked),
+                        dict(seat_fail_hcp),       # NEW
+                        dict(seat_fail_shape),     # NEW
                     )
-                    if alt_matched:
-                        matched, chosen_rs = alt_matched, alt_chosen_rs
-                        chosen_sub = alt_sub
-                        idx0 = alt_i0
-                        chosen_subprofiles[seat] = alt_sub
-                        chosen_indices[seat] = alt_i0
-                        break
-
-            # For RS seats, also track total matched attempts.
-            if is_rs_seat and rs_entry is not None and matched:
-                rs_entry["total_matched_attempts"] += 1
-
+                except Exception:
+                    pass
+                                        
         # After matching all seats for this attempt, optionally run the
         # v2 policy seam and/or the non-standard shadow probe with up-to-date
         # viability stats.

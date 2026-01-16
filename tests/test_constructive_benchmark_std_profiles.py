@@ -1,6 +1,9 @@
-import json
+# tests/test_constructive_benchmark_std_profiles.py
+
 from pathlib import Path
 
+import json
+import os
 import pytest
 
 from bridge_engine import deal_generator as dg
@@ -13,7 +16,16 @@ PROFILE_FILES = [
     "Profile_B_Test_-_tight_suit_constraints_v0.1.json",
     "Profile_C_Test_-_tight_points_constraints_v0.1.json",
     "Profile_D_Test_-_tight_and_suit_point_constraint_v0.1.json",
+    "Profile_E_Test_-_tight_and_suit_point_constraint_plus_v0.1.json",
 ]
+
+
+if os.environ.get("RUN_CONSTRUCTIVE_BENCHMARKS", "") != "1":
+    pytest.skip(
+        "Opt-in benchmark. Run with RUN_CONSTRUCTIVE_BENCHMARKS=1 pytest -q -s tests/test_constructive_benchmark_std_profiles.py",
+        allow_module_level=True,
+    )
+    
 
 def _load_profile_from_json(path: Path) -> HandProfile:
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -52,12 +64,10 @@ def _mk_setup(tmp_path: Path, *, seed: int, profile_name: str):
 
 
 def _run_mode(tmp_path, profile, *, enable_v1: bool, num_boards: int, max_attempts: int, seed: int):
-    dg.ENABLE_CONSTRUCTIVE_HELP = enable_v1
-
-    if hasattr(profile, "disable_constructive_help"):
-        profile.disable_constructive_help = False
-
-    dg.MAX_BOARD_ATTEMPTS = max_attempts
+    # Save globals we mutate so we don't pollute other tests
+    old_enable = dg.ENABLE_CONSTRUCTIVE_HELP
+    old_max_attempts = dg.MAX_BOARD_ATTEMPTS
+    old_hook = getattr(dg, "_DEBUG_STANDARD_CONSTRUCTIVE_USED", None)
 
     constructive_used = 0
 
@@ -65,22 +75,32 @@ def _run_mode(tmp_path, profile, *, enable_v1: bool, num_boards: int, max_attemp
         nonlocal constructive_used
         constructive_used += 1
 
-    old_hook = getattr(dg, "_DEBUG_STANDARD_CONSTRUCTIVE_USED", None)
-    dg._DEBUG_STANDARD_CONSTRUCTIVE_USED = hook
-
     successes = 0
     failures = 0
 
     try:
+        dg.ENABLE_CONSTRUCTIVE_HELP = enable_v1
+
+        if hasattr(profile, "disable_constructive_help"):
+            profile.disable_constructive_help = False
+
+        dg.MAX_BOARD_ATTEMPTS = max_attempts
+        dg._DEBUG_STANDARD_CONSTRUCTIVE_USED = hook
+
         setup = _mk_setup(tmp_path, seed=seed, profile_name=getattr(profile, "profile_name", "bench"))
-        deals = dg.generate_deals(setup, profile, num_deals=num_boards, enable_rotation=False)
+        dg.generate_deals(setup, profile, num_deals=num_boards, enable_rotation=False)
         successes = num_boards
+
     except dg.DealGenerationError:
         failures = num_boards
-    finally:
-        dg._DEBUG_STANDARD_CONSTRUCTIVE_USED = old_hook
 
-    return {"successes": successes, "failures": failures, "constructive_used": constructive_used}
+    finally:
+        # Restore globals
+        dg._DEBUG_STANDARD_CONSTRUCTIVE_USED = old_hook
+        dg.MAX_BOARD_ATTEMPTS = old_max_attempts
+        dg.ENABLE_CONSTRUCTIVE_HELP = old_enable
+
+    return {"successes": successes, "failures": failures, "constructive_used": constructive_used}    
     
 
 @pytest.mark.parametrize("fname", PROFILE_FILES)
