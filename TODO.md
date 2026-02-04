@@ -48,6 +48,12 @@
      - Which seats have RS constraints active
    - **Impact**: Policy can make constraint-aware decisions
 
+8. [ ] **Refactor magic profile name checks** *(moved from P6)*
+   - `"Test profile"` → sets `is_invariants_safety_profile` based on name
+   - `"Test_RandomSuit_W_PC_E"` → routes to special code path based on name
+   - Should use explicit flags set by tests, not magic strings in production
+   - Affects: `hand_profile_model.py`, `deal_generator.py`, 7 test files
+
 ---
 
 ## Priority 2 - Latent Bugs (Fix Before Enabling v2)
@@ -109,7 +115,7 @@
 
 20. [x] ~~**Remove test profiles from production code**~~ **PARTIAL**
     - Removed unused `rs_w_pc_relaxed_mode` flag (set but never read)
-    - Magic string checks remain - refactoring deferred to item 36
+    - Magic string checks remain - refactoring deferred to item 8
 
 ---
 
@@ -148,61 +154,41 @@
 
 ## Priority 6 - Future
 
-### V2 Tooling
+### Active (To Plan Next)
 
-28. [ ] **Metrics export CLI**
-    - Export failure attribution to JSON/CSV
-    - Per-seat, per-subprofile success histograms
-    - Command: `python -m bridge_engine export-metrics <profile> [--boards N]`
-    - **Impact**: Benchmark improvements vs baselines (Profile E case)
-
-29. [ ] **V2 integration test suite**
-    - Current v2 tests only check hook mechanics
-    - Need: Tests showing v2 policy actually improves deal generation
-    - Pattern: Generate N boards with v2 on vs off, compare success rates
-    - **Impact**: Confidence that v2 changes help rather than hurt
-
-### NS Role Semantics (Deferred)
-
-30. [ ] **Implement NS role filtering**
-    - `ns_role_usage` field exists ("any", "driver_only", "follower_only")
-    - Not yet enforced during subprofile selection
-
-31. [ ] **Driver/follower classification**
-    - Subprofiles have `ns_role_for_seat` ("driver", "follower", "neutral")
-    - Logic not complete
-
-### Constructive v2 Implementation (Blocked Until P1 Items 3, 6, 7 Done)
-
-32. [ ] **RS suit reordering by success rate**
-    - Piece 2/3 partially implemented
-
-33. [ ] **PC/OC nudging**
-    - Piece 4/5 partially implemented
-
-### Diagnostics
-
-34. [ ] **Benchmark automation**
+28. [ ] **Benchmark automation**
     - Profile E rotation benchmark is manual
     - Add to CI as slow/nightly test
 
-35. [ ] **Failure report export**
+29. [ ] **Failure report export**
     - Export attribution data to JSON/CSV
 
-### Test Coverage (Expanded for V2-Critical Modules)
-
-36. [ ] **Add tests for untested modules**
+30. [ ] **Add tests for untested modules**
     - `hand_profile_validate.py` (20KB) - core validation before all deal gen
     - `profile_viability.py` (7KB) - viability classification
     - `profile_convert.py` - has file I/O logic, schema migration
 
-### Code Quality
+### Deferred
 
-37. [ ] **Refactor magic profile name checks**
-    - `"Test profile"` → sets `is_invariants_safety_profile` based on name
-    - `"Test_RandomSuit_W_PC_E"` → routes to special code path based on name
-    - Should use explicit flags set by tests, not magic strings in production
-    - Affects: `hand_profile_model.py`, `deal_generator.py`, 7 test files
+31. [ ] **Metrics export CLI** *(deferred)*
+    - Export failure attribution to JSON/CSV
+    - Per-seat, per-subprofile success histograms
+    - Command: `python -m bridge_engine export-metrics <profile> [--boards N]`
+
+32. [ ] **V2 integration test suite** *(deferred)*
+    - Tests showing v2 policy actually improves deal generation
+
+33. [ ] **Implement NS role filtering** *(deferred)*
+    - `ns_role_usage` field not yet enforced
+
+34. [ ] **Driver/follower classification** *(deferred)*
+    - `ns_role_for_seat` logic not complete
+
+35. [ ] **RS suit reordering by success rate** *(deferred, blocked until P1 done)*
+    - Piece 2/3 partially implemented
+
+36. [ ] **PC/OC nudging** *(deferred, blocked until P1 done)*
+    - Piece 4/5 partially implemented
 
 ---
 
@@ -210,26 +196,24 @@
 
 | Priority | Category | Total | Done | Remaining |
 |----------|----------|-------|------|-----------|
-| 1 | Architecture | 7 | 0 | **7** |
+| 1 | Architecture | 8 | 0 | **8** |
 | 2 | Latent Bugs | 3 | 3 | 0 |
 | 3 | Dead Code | 10 | 10 | 0 |
 | 4 | Performance | 1 | 1 | 0 |
 | 5 | Code Quality | 6 | 6 | 0 |
-| 6 | Future | 10 | 0 | 10 |
+| 6 | Future | 9 | 0 | 9 (3 active, 6 deferred) |
 | | **Total** | **37** | **20** | **17** |
 
 ### V2 Dependency Graph
 
 ```
 Item 3 (Failure Classifier) ──────┐
-                                  ├──► Items 32-33 (V2 Implementation)
+                                  ├──► Items 35-36 (V2 Implementation)
 Item 6 (Subprofile Viability) ────┤
                                   │
 Item 7 (Constraint State) ────────┘
 
-Item 28 (Metrics Export) ──► Benchmarking / Tuning
-
-Item 29 (Integration Tests) ──► Confidence in V2 changes
+Item 8 (Magic Strings) ──► Cleaner test infrastructure
 ```
 
 ## Notes

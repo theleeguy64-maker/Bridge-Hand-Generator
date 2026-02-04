@@ -15,10 +15,32 @@ from typing import Any, Mapping, Sequence
 
 from .seat_viability import (
     _subprofile_is_viable,
+    _subprofile_is_viable_light,
     validate_profile_viability_light,
 )
 
 __all__ = ["_subprofile_is_viable", "validate_profile_viability"]
+
+
+def _get_suit_min(sub: Any, suit: str) -> int:
+    """
+    Extract minimum card count for a suit from a subprofile.
+
+    Supports both:
+    - Real SubProfile objects (sub.standard.spades.min_cards, etc.)
+    - Toy model objects (sub.min_suit_counts dict)
+    """
+    # Try real SubProfile structure first
+    std = getattr(sub, "standard", None)
+    if std is not None:
+        suit_map = {"S": "spades", "H": "hearts", "D": "diamonds", "C": "clubs"}
+        suit_obj = getattr(std, suit_map.get(suit, ""), None)
+        if suit_obj is not None:
+            return getattr(suit_obj, "min_cards", 0)
+
+    # Fall back to toy model structure
+    min_counts = getattr(sub, "min_suit_counts", {}) or {}
+    return min_counts.get(suit, 0)
 
 
 def _ns_pair_jointly_viable(n_sub: Any, s_sub: Any) -> bool:
@@ -28,12 +50,9 @@ def _ns_pair_jointly_viable(n_sub: Any, s_sub: Any) -> bool:
     For now we enforce that the combined suit minima don't exceed the deck
     (13 cards per suit). This is enough for the current tests.
     """
-    n_min = getattr(n_sub, "min_suit_counts", {}) or {}
-    s_min = getattr(s_sub, "min_suit_counts", {}) or {}
-
     for suit in ("S", "H", "D", "C"):
-        n_val = n_min.get(suit, 0)
-        s_val = s_min.get(suit, 0)
+        n_val = _get_suit_min(n_sub, suit)
+        s_val = _get_suit_min(s_sub, suit)
         if n_val + s_val > 13:
             return False
 
@@ -84,8 +103,9 @@ def validate_profile_viability(profile: Any) -> None:
     individually_viable_indices: list[int] = []
 
     for idx, (n_sub, s_sub) in enumerate(zip(n_subs, s_subs)):
-        n_ok = _subprofile_is_viable(n_sub)
-        s_ok = _subprofile_is_viable(s_sub)
+        # Use the light viability check (doesn't require dealing cards)
+        n_ok = _subprofile_is_viable_light(n_sub)
+        s_ok = _subprofile_is_viable_light(s_sub)
 
         # If either side is individually impossible, we skip this index.
         # The light validator already enforces "at least one viable subprofile
