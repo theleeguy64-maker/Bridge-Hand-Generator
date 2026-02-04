@@ -7,7 +7,7 @@
 
 ## Shortcuts
 - **"Lee Title"** - Change terminal title to "Bridge Hand Generator"
-- **"Lee commit"** - Update CLAUDE.md, TODO.md, and ARCHITECTURE.md, then commit, then run /usage
+- **"Lee commit"** - Update CLAUDE.md, TODO.md, and ARCHITECTURE.md, then commit, then output "/usage" so user can check usage
 
 ## Documentation
 - Proactively suggest updating `CLAUDE.md` when: new commands are added, project structure changes, new conventions are established, or key files are created/renamed
