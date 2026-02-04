@@ -7,11 +7,11 @@
 
 ## Shortcuts
 - **"Lee Title"** - Change terminal title to "Bridge Hand Generator"
-- **"Lee commit"** - Update CLAUDE.md, TODO.md, and ARCHITECTURE.md, then commit
+- **"Lee commit"** - Update CLAUDE.md, TODO.md, and ARCHITECTURE.md, then commit, then run /usage
 
 ## Documentation
 - Proactively suggest updating `CLAUDE.md` when: new commands are added, project structure changes, new conventions are established, or key files are created/renamed
-- After completing work, prompt: "Do you want to update CLAUDE.md, TODO.md, and ARCHITECTURE.md, then commit?"
+- After completing work, prompt: "Do you want to update CLAUDE.md and TODO.md, then commit?"
 
 ## Code Quality
 - Focus on the stability of large files - be careful with changes that could introduce bugs
@@ -30,4 +30,4 @@
 
 ## Committing
 - Keep pushing to commit regularly
-- Before committing, always ask: "Do you want to update CLAUDE.md, TODO.md, and ARCHITECTURE.md, then commit?"
+- Before committing, always ask: "Do you want to update CLAUDE.md and TODO.md, then commit?"

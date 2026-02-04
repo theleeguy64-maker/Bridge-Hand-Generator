@@ -217,7 +217,6 @@ _DEBUG_NONSTANDARD_CONSTRUCTIVE_V2_POLICY  # Policy seam for v2
 ```python
 generate_deals(setup, profile, num_deals, enable_rotation) -> DealSet
 _build_single_constrained_deal(rng, profile, board_number, debug) -> Deal
-_select_subprofiles_for_board(profile) -> (Dict[Seat, SubProfile], Dict[Seat, int])
 _choose_hardest_seat_for_board(...) -> Optional[Seat]
 _extract_standard_suit_minima(profile, seat, subprofile) -> Dict[str, int]
 _construct_hand_for_seat(rng, deck, min_suit_counts) -> List[Card]
@@ -236,7 +235,7 @@ _compute_suit_analysis(hand) -> SuitAnalysis
 ### hand_profile_model.py
 ```python
 SubProfile.to_dict() -> Dict
-SubProfile.from_dict(data) -> SubProfile  # BUG: currently at module level
+SubProfile.from_dict(data) -> SubProfile
 SeatProfile(seat, subprofiles)
 HandProfile(seat_profiles, dealer, dealing_order, ...)
 ```
