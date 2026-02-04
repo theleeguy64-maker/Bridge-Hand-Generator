@@ -46,16 +46,14 @@
    - Will raise `FrozenInstanceError` if v2 constructive is enabled
    - **Fix**: Use `dataclasses.replace()` to create modified copy
 
-7. [ ] **Incomplete functions with no body** - `deal_generator.py`
-   - `_constructive_sample_hand_min_first()`: docstring only
-   - `_debug_build_many_boards_with_stats()`: docstring only
-   - **Impact**: Will crash if called
+7. [x] ~~**Incomplete functions with no body** - `deal_generator.py`~~ **DONE**
+   - Removed `_constructive_sample_hand_min_first()` (was docstring only)
+   - Removed `_debug_build_many_boards_with_stats()` (was docstring only)
 
-8. [ ] **Missing `rng` argument in function calls** - `deal_generator.py`
-   - Module-level `_select_subprofiles_for_board()` has broken calls
-   - `_choose_index_for_seat(driver_sp)` missing `rng` argument
-   - **Impact**: NameError if this code path runs
-   - **Note**: This is in dead code (module-level version never called)
+8. [x] ~~**Missing `rng` argument in function calls** - `deal_generator.py`~~ **DONE**
+   - Removed entire module-level `_select_subprofiles_for_board()` (~107 lines)
+   - Had broken `_choose_index_for_seat(driver_sp)` calls missing `rng` argument
+   - Nested version inside `_build_single_constrained_deal` is the one actually used
 
 ---
 
@@ -179,12 +177,12 @@
 | Priority | Category | Total | Done | Remaining |
 |----------|----------|-------|------|-----------|
 | 1 | Architecture | 5 | 0 | 5 |
-| 2 | Latent Bugs | 3 | 0 | 3 |
+| 2 | Latent Bugs | 3 | 2 | 1 |
 | 3 | Dead Code | 10 | 7 | 3 |
 | 4 | Performance | 1 | 0 | 1 |
 | 5 | Code Quality | 6 | 0 | 6 |
 | 6 | Future | 7 | 0 | 7 |
-| | **Total** | **32** | **7** | **25** |
+| | **Total** | **32** | **9** | **23** |
 
 ## Notes
 
