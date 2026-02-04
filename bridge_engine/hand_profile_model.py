@@ -591,6 +591,12 @@ class HandProfile:
     ns_role_mode: str = "north_drives"
     subprofile_exclusions: List["SubprofileExclusionData"] = field(default_factory=list)
 
+    # Explicit flags replacing magic profile name checks (P1.1 refactor)
+    # - is_invariants_safety_profile: bypass constraints for invariant tests
+    # - use_rs_w_only_path: route to lightweight RS-W-only generator path
+    is_invariants_safety_profile: bool = False
+    use_rs_w_only_path: bool = False
+
     def __post_init__(self) -> None:
         # Basic structural validation only. Cross-seat semantics are
         # handled in validate_profile() so tests can construct even
@@ -611,11 +617,6 @@ class HandProfile:
             )
         if self.tag not in ("Opener", "Overcaller"):
             raise ProfileError("tag must be 'Opener' or 'Overcaller'.")
-            
-        # Legacy invariants test profile
-        # TODO: Refactor to use explicit flag instead of magic profile name
-        if getattr(self, "profile_name", "") == "Test profile":
-            self.is_invariants_safety_profile = True
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "HandProfile":
@@ -659,6 +660,13 @@ class HandProfile:
                 or "no_driver_no_index"
             ),
             subprofile_exclusions=exclusions,
+            # P1.1 refactor: explicit flags (default False for production profiles)
+            is_invariants_safety_profile=bool(
+                data.get("is_invariants_safety_profile", False)
+            ),
+            use_rs_w_only_path=bool(
+                data.get("use_rs_w_only_path", False)
+            ),
         )
 
     def ns_driver_seat(

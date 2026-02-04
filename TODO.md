@@ -3,56 +3,65 @@
 ## Priority 1 - Architecture (The Real Work)
 
 *These are the actual problems preventing constructive help from working.*
+*Ordered by risk: least risky first → safest to tackle in sequence.*
 
-1. [ ] **v1 constructive gates too conservative** - Profile E gets no help
+1. [ ] **Refactor magic profile name checks** *(lowest risk)*
+   - `"Test profile"` → sets `is_invariants_safety_profile` based on name
+   - `"Test_RandomSuit_W_PC_E"` → routes to special code path based on name
+   - Should use explicit flags set by tests, not magic strings in production
+   - Affects: `hand_profile_model.py`, `deal_generator.py`, 7 test files
+   - **Why low risk**: Self-contained refactor, test-only impact, clear scope
+
+2. [ ] **Expose constraint state to v2 policy** *(low risk)*
+   - V2 policy seam receives viability/attribution but NOT:
+     - Which seats have PC constraints active
+     - Which seats have OC constraints active
+     - Which seats have RS constraints active
+   - **Impact**: Policy can make constraint-aware decisions
+   - **Why low risk**: Pure data exposure, no behavior change until v2 enabled
+
+3. [ ] **Add "too hard = unviable" rule** *(low risk)*
+   - Even after Stage 0-2 passes, profile may be effectively impossible
+   - If best seat (with rotation) still fails > X% of attempts → declare unviable
+   - **Current**: We grind forever on hopeless profiles
+   - **Need**: Early termination with clear reason
+   - **Why low risk**: Additive early-termination, doesn't change core algorithm
+
+4. [ ] **Subprofile-level viability tracking** *(low-medium risk)*
+   - Currently only track per-seat viability
+   - Need: `(success_count, attempt_count)` per subprofile per seat
+   - **Impact**: Piece 4/5 nudging can pick best alternate subprofile instead of blind iteration
+   - **Why low-med risk**: Extends existing tracking, no algorithm change
+
+5. [ ] **HCP vs shape classification not implemented** *(medium risk)*
+   - Counters exist: `seat_fail_hcp`, `seat_fail_shape` - never populated
+   - Matcher doesn't classify failures yet
+   - **Need**: `_match_seat` returns failure reason, not just bool
+   - **Location**: `seat_viability.py:_match_subprofile()` and `_match_standard()`
+   - **Impact**: Can't decide "constructive appropriate here" without this
+   - **Why medium risk**: Modifies return value, but additive classification
+
+6. [ ] **Connect attribution to helper policy** *(medium risk, blocked by 5)*
+   - Once we know HCP vs shape split:
+     - Shape-dominant failures → constructive is appropriate
+     - HCP-dominant failures → constructive won't help; maybe declare unviable
+   - **Not yet wired**
+   - **Why medium risk**: Depends on item 5, wiring/integration change
+
+7. [ ] **"Standard vs nonstandard" is wrong axis** *(medium-high risk)*
+   - Current: Skip constructive for any seat with RS/PC/OC
+   - Should be: "Is this seat failing for reasons constructive can help?"
+   - **Fix**: Base decision on failure structure (HCP vs shape), not constraint type
+   - **Why med-high risk**: Fundamental decision logic change
+
+8. [ ] **v1 constructive gates too conservative** *(highest risk - do last)*
    - All 4 gates must pass; Profile E fails gate 2 or 3
    - North is proven bottleneck (~95% of failures) but gets no help
    - **Fix options**:
      a. Relax "standard only" gate - help any identified helper seat
      b. Make minima extraction work for RS/PC/OC constrained seats
      c. Add override: "if helper_seat identified with high confidence, try constructive"
-
-2. [ ] **"Standard vs nonstandard" is wrong axis**
-   - Current: Skip constructive for any seat with RS/PC/OC
-   - Should be: "Is this seat failing for reasons constructive can help?"
-   - **Fix**: Base decision on failure structure (HCP vs shape), not constraint type
-
-3. [ ] **HCP vs shape classification not implemented**
-   - Counters exist: `seat_fail_hcp`, `seat_fail_shape` - never populated
-   - Matcher doesn't classify failures yet
-   - **Need**: `_match_seat` returns failure reason, not just bool
-   - **Location**: `seat_viability.py:_match_subprofile()` and `_match_standard()`
-   - **Impact**: Can't decide "constructive appropriate here" without this
-
-4. [ ] **Connect attribution to helper policy**
-   - Once we know HCP vs shape split:
-     - Shape-dominant failures → constructive is appropriate
-     - HCP-dominant failures → constructive won't help; maybe declare unviable
-   - **Not yet wired**
-
-5. [ ] **Add "too hard = unviable" rule**
-   - Even after Stage 0-2 passes, profile may be effectively impossible
-   - If best seat (with rotation) still fails > X% of attempts → declare unviable
-   - **Current**: We grind forever on hopeless profiles
-   - **Need**: Early termination with clear reason
-
-6. [ ] **Subprofile-level viability tracking** *(moved from P6)*
-   - Currently only track per-seat viability
-   - Need: `(success_count, attempt_count)` per subprofile per seat
-   - **Impact**: Piece 4/5 nudging can pick best alternate subprofile instead of blind iteration
-
-7. [ ] **Expose constraint state to v2 policy** *(moved from P6)*
-   - V2 policy seam receives viability/attribution but NOT:
-     - Which seats have PC constraints active
-     - Which seats have OC constraints active
-     - Which seats have RS constraints active
-   - **Impact**: Policy can make constraint-aware decisions
-
-8. [ ] **Refactor magic profile name checks** *(moved from P6)*
-   - `"Test profile"` → sets `is_invariants_safety_profile` based on name
-   - `"Test_RandomSuit_W_PC_E"` → routes to special code path based on name
-   - Should use explicit flags set by tests, not magic strings in production
-   - Affects: `hand_profile_model.py`, `deal_generator.py`, 7 test files
+   - **Why highest risk**: Core algorithm modification, could break profiles A-D
 
 ---
 
@@ -207,16 +216,20 @@
 | 6 | Future | 9 | 3 | 6 (deferred) |
 | | **Total** | **37** | **23** | **14** |
 
-### V2 Dependency Graph
+### V2 Dependency Graph (by new item numbers)
 
 ```
-Item 3 (Failure Classifier) ──────┐
-                                  ├──► Items 35-36 (V2 Implementation)
-Item 6 (Subprofile Viability) ────┤
-                                  │
-Item 7 (Constraint State) ────────┘
+Safe Foundation (do first):
+  Item 1 (Magic Strings) ──► Cleaner test infrastructure
+  Item 2 (Constraint State) ──► V2 policy can see RS/PC/OC
+  Item 3 (Too Hard Rule) ──► Early termination for hopeless profiles
+  Item 4 (Subprofile Tracking) ──► Better nudging data
 
-Item 8 (Magic Strings) ──► Cleaner test infrastructure
+Core Classification:
+  Item 5 (HCP vs Shape) ──► Item 6 (Attribution → Policy)
+                                    │
+                                    ▼
+                           Items 7-8 (Gate Relaxation)
 ```
 
 ## Notes
