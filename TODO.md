@@ -17,12 +17,11 @@
    - Backwards-compatible fallback chain (9-arg → 8-arg → 3-arg)
    - Test updated to verify constraint_flags received and defensively copied
 
-3. [ ] **Add "too hard = unviable" rule** *(low risk)*
-   - Even after Stage 0-2 passes, profile may be effectively impossible
-   - If best seat (with rotation) still fails > X% of attempts → declare unviable
-   - **Current**: We grind forever on hopeless profiles
-   - **Need**: Early termination with clear reason
-   - **Why low risk**: Additive early-termination, doesn't change core algorithm
+3. [x] ~~**Add "too hard = unviable" rule**~~ **DONE**
+   - Added `MIN_ATTEMPTS_FOR_UNVIABLE_CHECK = 100` constant
+   - Early termination when any seat reaches "unviable" status (>90% fail rate, 5+ failures)
+   - Clear error message listing unviable seat(s)
+   - New test file: `test_deal_generator_unviable.py` with 2 tests
 
 4. [ ] **Subprofile-level viability tracking** *(low-medium risk)*
    - Currently only track per-seat viability
@@ -205,13 +204,13 @@
 
 | Priority | Category | Total | Done | Remaining |
 |----------|----------|-------|------|-----------|
-| 1 | Architecture | 8 | 2 | **6** |
+| 1 | Architecture | 8 | 3 | **5** |
 | 2 | Latent Bugs | 3 | 3 | 0 |
 | 3 | Dead Code | 10 | 10 | 0 |
 | 4 | Performance | 1 | 1 | 0 |
 | 5 | Code Quality | 6 | 6 | 0 |
 | 6 | Future | 9 | 3 | 6 (deferred) |
-| | **Total** | **37** | **25** | **12** |
+| | **Total** | **37** | **26** | **11** |
 
 ### V2 Dependency Graph (by new item numbers)
 
@@ -219,7 +218,7 @@
 Safe Foundation (do first):
   Item 1 (Magic Strings) ──► Cleaner test infrastructure ✓ DONE
   Item 2 (Constraint State) ──► V2 policy can see RS/PC/OC ✓ DONE
-  Item 3 (Too Hard Rule) ──► Early termination for hopeless profiles
+  Item 3 (Too Hard Rule) ──► Early termination for hopeless profiles ✓ DONE
   Item 4 (Subprofile Tracking) ──► Better nudging data
 
 Core Classification:

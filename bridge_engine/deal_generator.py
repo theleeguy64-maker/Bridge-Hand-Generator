@@ -179,6 +179,13 @@ def _weighted_choice_index(rng: random.Random, weights: Sequence[float]) -> int:
 
 MAX_BOARD_ATTEMPTS: int = 10000
 MAX_ATTEMPTS_HAND_2_3: int = 1000
+
+# P1.3: Minimum attempts before early termination for unviable profiles.
+# Must have enough data for reliable viability classification before
+# declaring a profile "too hard". The viability threshold is 90% failure
+# rate with at least 5 failures (see _is_unviable_bucket).
+MIN_ATTEMPTS_FOR_UNVIABLE_CHECK: int = 100
+
 ROTATE_PROBABILITY: float = 0.5
 
 VULNERABILITY_SEQUENCE: List[str] = ["None", "NS", "EW", "Both"]
@@ -1332,6 +1339,20 @@ def _build_single_constrained_deal(
             seat_fail_counts,
             seat_seen_counts,
         )
+
+        # P1.3: Early termination if any seat is unviable and we have enough data.
+        # This prevents grinding to 10,000 attempts on hopeless profiles.
+        if board_attempts >= MIN_ATTEMPTS_FOR_UNVIABLE_CHECK:
+            unviable_seats = [
+                seat for seat, bucket in viability_summary.items()
+                if _is_unviable_bucket(bucket)
+            ]
+            if unviable_seats:
+                raise DealGenerationError(
+                    f"Profile declared unviable for board {board_number} after "
+                    f"{board_attempts} attempts. Unviable seat(s): {unviable_seats}. "
+                    f"These seats have >90% failure rate with sufficient attempts."
+                )
 
         # Standard constructive help (v1 algorithm), allowed either by v1 mode or v2-on-std review mode.
         allow_std_constructive = constructive_mode["standard"] or constructive_mode.get("nonstandard_v2", False)
