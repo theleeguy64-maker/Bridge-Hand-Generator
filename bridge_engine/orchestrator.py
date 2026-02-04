@@ -114,49 +114,6 @@ def _yes_no(prompt: str, default: bool = True) -> bool:
         if ans in ("n", "no"):
             return False
         print("Please answer 'y' or 'n'.")
-        
-        
-def _format_nonstandard_rs_buckets(
-    rs_bucket_snapshot: Dict[str, Dict[str, Any]],
-) -> str:
-    """
-    Pretty-print the RS bucket snapshot produced by the engine's
-    non-standard constructive shadow probe.
-
-    Expected per-seat shape (current engine):
-      {
-          "total_seen_attempts": int,
-          "total_matched_attempts": int,
-          "buckets": {
-              "<label>": {
-                  "seen_attempts": int,
-                  "matched_attempts": int,
-              },
-              ...
-          },
-      }
-    """
-    if not rs_bucket_snapshot:
-        return "  (no Random-Suit stats collected)"
-
-    lines: list[str] = []
-
-    for seat, stats in rs_bucket_snapshot.items():
-        total_seen = stats.get("total_seen_attempts", 0)
-        total_matched = stats.get("total_matched_attempts", 0)
-        lines.append(
-            f"  Seat {seat}: total_seen={total_seen}, total_matched={total_matched}"
-        )
-
-        buckets = stats.get("buckets") or {}
-        for label, bucket_stats in buckets.items():
-            seen = bucket_stats.get("seen_attempts", 0)
-            matched = bucket_stats.get("matched_attempts", 0)
-            lines.append(
-                f"    bucket={label!r}: seen={seen}, matched={matched}"
-            )
-
-    return "\n".join(lines)        
 
 
 def _install_nonstandard_shadow_print_hook() -> None:
@@ -460,16 +417,6 @@ def _run_deal_generation_session() -> None:
             print(f"  - {w}")
     print("")
 
-    try:
-        deal_set: DealSet = generate_deals(
-            setup=setup,
-            profile=profile,
-            num_deals=num_deals,
-            enable_rotation=rotate_deals,
-        )
-    except KeyboardInterrupt:
-        print("\nGeneration aborted by user.")
-        return  # back to main menu instead of full traceback
 
 # ---------------------------------------------------------------------------
 # Profile Management wrapper

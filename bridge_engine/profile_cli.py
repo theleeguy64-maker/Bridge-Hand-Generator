@@ -953,10 +953,12 @@ def run_profile_manager() -> None:
             save_as_new_version_action()
         elif choice == 7:
             # Profile Manager specific help
-            print(get_menu_help("profile_manager_menu"))                       
+            print(get_menu_help("profile_manager_menu"))
 
-def draft_tools_action() -> None:
-    print("\nDraft tools are not implemented yet.")
+
+def run_draft_tools() -> None:
+    """Wrapper called by orchestrator.py to run draft tools."""
+    draft_tools_action()
 
 
 def main() -> None:

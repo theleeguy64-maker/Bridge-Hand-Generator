@@ -173,44 +173,6 @@ def _weighted_choice_index(rng: random.Random, weights: Sequence[float]) -> int:
     return len(scaled) - 1
 
 
-def _weights_for_seat_profile(seat_profile: SeatProfile) -> List[float]:
-    """
-    Extract weight_percent for each subprofile, with safe defaults.
-
-    If all weights are zero or missing, fall back to equal weights.
-    """
-    subs = list(seat_profile.subprofiles)
-    if not subs:
-        return []
-
-    weights: List[float] = []
-    for sub in subs:
-        w = getattr(sub, "weight_percent", None)
-        if w is None:
-            # Default to non-zero to keep the subprofile usable
-            w = 100.0
-        weights.append(float(w))
-
-    if all(w <= 0.0 for w in weights):
-        # All zero -> treat as equal-weight
-        weights = [1.0] * len(weights)
-
-    return weights
-
-
-def _choose_index_for_seat(rng: random.Random, seat_profile: SeatProfile) -> int:
-    """
-    Choose a subprofile index for a single seat.
-
-    This is a simple weight-based chooser; it does not consult seat-viability.
-    """
-    subs = list(seat_profile.subprofiles)
-    if not subs or len(subs) == 1:
-        return 0
-
-    weights = _weights_for_seat_profile(seat_profile)
-    return _weighted_choice_index(rng, weights)
-
 # ---------------------------------------------------------------------------
 # Types and constants
 # ---------------------------------------------------------------------------
@@ -362,7 +324,7 @@ def _shadow_probe_nonstandard_constructive(
         )
     except Exception:
         # Debug hooks must never interfere with normal deal generation.
-        passrandom_suit_choices: Dict[Seat, List[str]] = {}    
+        pass
 
 
 
