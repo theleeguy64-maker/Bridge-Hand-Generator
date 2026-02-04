@@ -5,32 +5,7 @@
 *These are the actual problems preventing constructive help from working.*
 *Ordered by risk: least risky first → safest to tackle in sequence.*
 
-1. [x] ~~**Refactor magic profile name checks**~~ **DONE**
-   - `"Test profile"` → now uses explicit `is_invariants_safety_profile` flag
-   - `"Test_RandomSuit_W_PC_E"` → now uses explicit `use_rs_w_only_path` flag
-   - Fixed pre-existing bug: duplicate `from_dict` method was shadowing flag loading
-   - Changes: `hand_profile_model.py`, `deal_generator.py`, `test_deal_generator_section_c.py`
-
-2. [x] ~~**Expose constraint state to v2 policy**~~ **DONE**
-   - Added `_build_constraint_flags_per_seat()` helper function
-   - v2 policy seam now receives `constraint_flags` with per-seat RS/PC/OC flags
-   - Backwards-compatible fallback chain (9-arg → 8-arg → 3-arg)
-   - Test updated to verify constraint_flags received and defensively copied
-
-3. [x] ~~**Add "too hard = unviable" rule**~~ **DONE**
-   - Added `MIN_ATTEMPTS_FOR_UNVIABLE_CHECK = 100` constant
-   - Early termination when any seat reaches "unviable" status (>90% fail rate, 5+ failures)
-   - Clear error message listing unviable seat(s)
-   - New test file: `test_deal_generator_unviable.py` with 2 tests
-
-4. [x] ~~**Subprofile-level viability tracking**~~ **DONE**
-   - Added `seat_subprofile_stats` tracking dict: `{seat: {subprofile_idx: {"seen": int, "failed": int}}}`
-   - Updates on each seat match attempt and failure
-   - v2 policy seam now receives `subprofile_stats` parameter
-   - Backwards-compatible fallback chain (10-arg → 9-arg → 8-arg → 3-arg)
-   - Test updated to verify subprofile_stats received and defensively copied
-
-5. [ ] **HCP vs shape classification not implemented** *(medium risk)*
+1. [ ] **HCP vs shape classification not implemented** *(medium risk)*
    - Counters exist: `seat_fail_hcp`, `seat_fail_shape` - never populated
    - Matcher doesn't classify failures yet
    - **Need**: `_match_seat` returns failure reason, not just bool
@@ -38,20 +13,20 @@
    - **Impact**: Can't decide "constructive appropriate here" without this
    - **Why medium risk**: Modifies return value, but additive classification
 
-6. [ ] **Connect attribution to helper policy** *(medium risk, blocked by 5)*
+2. [ ] **Connect attribution to helper policy** *(medium risk, blocked by 1)*
    - Once we know HCP vs shape split:
      - Shape-dominant failures → constructive is appropriate
      - HCP-dominant failures → constructive won't help; maybe declare unviable
    - **Not yet wired**
-   - **Why medium risk**: Depends on item 5, wiring/integration change
+   - **Why medium risk**: Depends on item 1, wiring/integration change
 
-7. [ ] **"Standard vs nonstandard" is wrong axis** *(medium-high risk)*
+3. [ ] **"Standard vs nonstandard" is wrong axis** *(medium-high risk)*
    - Current: Skip constructive for any seat with RS/PC/OC
    - Should be: "Is this seat failing for reasons constructive can help?"
    - **Fix**: Base decision on failure structure (HCP vs shape), not constraint type
    - **Why med-high risk**: Fundamental decision logic change
 
-8. [ ] **v1 constructive gates too conservative** *(highest risk - do last)*
+4. [ ] **v1 constructive gates too conservative** *(highest risk - do last)*
    - All 4 gates must pass; Profile E fails gate 2 or 3
    - North is proven bottleneck (~95% of failures) but gets no help
    - **Fix options**:
@@ -62,171 +37,46 @@
 
 ---
 
-## Priority 2 - Latent Bugs (Fix Before Enabling v2)
+## Priority 6 - Future (Deferred)
 
-*Code works now because these paths are disabled. Will crash if enabled.*
+5. [ ] **Metrics export CLI**
+   - Export failure attribution to JSON/CSV
+   - Per-seat, per-subprofile success histograms
+   - Command: `python -m bridge_engine export-metrics <profile> [--boards N]`
 
-8. [x] ~~**Mutating frozen dataclass** - `deal_generator.py`~~ **DONE**
-   - Removed entire "Piece 2/6: RS re-ordering" block (~50 lines)
-   - Was triple-broken: wrong attribute name, frozen mutation, rng.sample ignores order
-   - Proper v2 RS reordering needs fresh design (see Priority 6)
+6. [ ] **V2 integration test suite**
+   - Tests showing v2 policy actually improves deal generation
 
-9. [x] ~~**Incomplete functions with no body** - `deal_generator.py`~~ **DONE**
-   - Removed `_constructive_sample_hand_min_first()` (was docstring only)
-   - Removed `_debug_build_many_boards_with_stats()` (was docstring only)
+7. [ ] **Implement NS role filtering**
+   - `ns_role_usage` field not yet enforced
 
-10. [x] ~~**Missing `rng` argument in function calls** - `deal_generator.py`~~ **DONE**
-   - Removed entire module-level `_select_subprofiles_for_board()` (~107 lines)
-   - Had broken `_choose_index_for_seat(driver_sp)` calls missing `rng` argument
-   - Nested version inside `_build_single_constrained_deal` is the one actually used
+8. [ ] **Driver/follower classification**
+   - `ns_role_for_seat` logic not complete
 
----
+9. [ ] **RS suit reordering by success rate** *(blocked until P1 done)*
+   - Piece 2/3 partially implemented
 
-## Priority 3 - Dead Code Cleanup
-
-*Confusing but harmless. Clean up when convenient.*
-
-11. [x] ~~**Missing function** - `profile_store.py`~~ **DONE**
-    - Added `list_drafts()` function
-
-12. [x] ~~**Duplicate SubProfile class + orphaned code** - `hand_profile_model.py`~~ **DONE**
-    - Removed first SubProfile (was lines 384-450)
-    - Removed orphaned `from_dict` (was line 453)
-
-13. [x] ~~**Orphaned code fragment** - `deal_generator.py:365`~~ **DONE**
-    - Removed `passrandom_suit_choices` merge artifact
-
-14. [x] ~~**Duplicate function definitions** - `deal_generator.py`~~ **PARTIALLY DONE**
-    - Removed duplicate `_weights_for_seat_profile`
-    - Removed duplicate `_choose_index_for_seat`
-    - **Remaining**: module-level `_select_subprofiles_for_board` (deferred - high risk)
-
-15. [x] ~~**Duplicate function** - `orchestrator.py`~~ **DONE**
-    - Removed first `_format_nonstandard_rs_buckets()`
-
-16. [x] ~~**Duplicate function + stub shadowing** - `profile_cli.py`~~ **DONE**
-    - Removed stub, added `run_draft_tools()` wrapper
-
-17. [x] ~~**Dead code in orchestrator.py**~~ **DONE**
-    - Removed unreachable try-except block
-
-18. [x] ~~**v2 policy seam returns empty dict**~~ **NOT A BUG**
-    - `_nonstandard_constructive_v2_policy()` returns `{}` by design when v2 disabled
-    - Tests actively use the debug hook (`test_nonstandard_v2_policy_seam.py`)
-    - Working as intended - it's a seam, not dead code
-
-19. [x] ~~**Consolidate helper-seat functions**~~ **DONE**
-    - Removed `_choose_hardest_seat_for_help()` (~65 lines) - was never called
-    - `_choose_hardest_seat_for_board()` is the one actually used
-
-20. [x] ~~**Remove test profiles from production code**~~ **PARTIAL**
-    - Removed unused `rs_w_pc_relaxed_mode` flag (set but never read)
-    - Magic string checks remain - refactoring deferred to item 8
-
----
-
-## Priority 4 - Performance
-
-21. [x] ~~**O(n^2) list removal** - `deal_generator.py`~~ **DONE**
-    - Changed `for c in chosen: deck.remove(c)` to set-based O(n) filtering
-    - `deck[:] = [c for c in deck if c not in chosen_set]`
-
----
-
-## Priority 5 - Code Quality
-
-*Type hints, imports, typos. Fix when touching these files.*
-
-22. [x] ~~**Invalid return type syntax** - `seat_viability.py`~~ **DONE**
-    - Changed `-> (bool, ...)` to `-> Tuple[bool, ...]`
-
-23. [x] ~~**Overly broad `except Exception`** - `deal_generator.py`~~ **SKIP**
-    - Intentional defensive coding for batch jobs
-    - Prevents single-deal failures from crashing entire generation
-
-24. [x] ~~**Undefined `Seat` type** - `hand_profile_validate.py`~~ **DONE**
-    - Added `Seat = str` type alias
-
-25. [x] ~~**Duplicate imports** - multiple files~~ **DONE**
-    - Cleaned up `lin_tools.py`, `cli_io.py`, `profile_wizard.py`
-
-26. [x] ~~**Typo** - `profile_cli.py:343`~~ **DONE**
-    - Fixed "chnaged" → "changed"
-
-27. [x] ~~**Duplicate code in test** - `test_profile_e_failure_attribution.py`~~ **DONE**
-    - Removed duplicate lines 95-100
-
----
-
-## Priority 6 - Future
-
-### Completed
-
-28. [x] ~~**Benchmark automation**~~ **DONE**
-    - Created BENCHMARKS.md documenting all opt-in benchmark tests
-    - Documents how to run individually or together
-
-29. [x] ~~**Failure report export**~~ **DONE**
-    - New module: bridge_engine/failure_report.py
-    - FailureAttributionReport with to_json/to_csv export
-    - collect_failure_attribution() hooks into deal_generator
-    - 13 tests in test_failure_report.py
-
-30. [x] ~~**Add tests for untested modules**~~ **DONE**
-    - test_profile_convert.py (6 tests)
-    - test_profile_viability_module.py (10 tests) + bug fixes
-    - test_hand_profile_validate.py (22 tests)
-
-### Deferred
-
-31. [ ] **Metrics export CLI** *(deferred)*
-    - Export failure attribution to JSON/CSV
-    - Per-seat, per-subprofile success histograms
-    - Command: `python -m bridge_engine export-metrics <profile> [--boards N]`
-
-32. [ ] **V2 integration test suite** *(deferred)*
-    - Tests showing v2 policy actually improves deal generation
-
-33. [ ] **Implement NS role filtering** *(deferred)*
-    - `ns_role_usage` field not yet enforced
-
-34. [ ] **Driver/follower classification** *(deferred)*
-    - `ns_role_for_seat` logic not complete
-
-35. [ ] **RS suit reordering by success rate** *(deferred, blocked until P1 done)*
-    - Piece 2/3 partially implemented
-
-36. [ ] **PC/OC nudging** *(deferred, blocked until P1 done)*
+10. [ ] **PC/OC nudging** *(blocked until P1 done)*
     - Piece 4/5 partially implemented
 
 ---
 
 ## Summary
 
-| Priority | Category | Total | Done | Remaining |
-|----------|----------|-------|------|-----------|
-| 1 | Architecture | 8 | 4 | **4** |
-| 2 | Latent Bugs | 3 | 3 | 0 |
-| 3 | Dead Code | 10 | 10 | 0 |
-| 4 | Performance | 1 | 1 | 0 |
-| 5 | Code Quality | 6 | 6 | 0 |
-| 6 | Future | 9 | 3 | 6 (deferred) |
-| | **Total** | **37** | **27** | **10** |
+| Priority | Category | Remaining |
+|----------|----------|-----------|
+| 1 | Architecture | **4** |
+| 6 | Future | 6 (deferred) |
+| | **Total** | **10** |
 
-### V2 Dependency Graph (by new item numbers)
+### Dependency Graph
 
 ```
-Safe Foundation (do first):
-  Item 1 (Magic Strings) ──► Cleaner test infrastructure ✓ DONE
-  Item 2 (Constraint State) ──► V2 policy can see RS/PC/OC ✓ DONE
-  Item 3 (Too Hard Rule) ──► Early termination for hopeless profiles ✓ DONE
-  Item 4 (Subprofile Tracking) ──► Better nudging data ✓ DONE
-
 Core Classification:
-  Item 5 (HCP vs Shape) ──► Item 6 (Attribution → Policy)
+  Item 1 (HCP vs Shape) ──► Item 2 (Attribution → Policy)
                                     │
                                     ▼
-                           Items 7-8 (Gate Relaxation)
+                           Items 3-4 (Gate Relaxation)
 ```
 
 ## Notes
@@ -235,3 +85,45 @@ Core Classification:
 - **Tests**: 214 passed, 4 skipped (intentional benchmarks)
 - **Known working**: Profile A-D, deal generation, validation
 - **Known struggling**: Profile E - constructive not engaging
+
+## Completed Items (for reference)
+
+<details>
+<summary>27 items completed - click to expand</summary>
+
+### Priority 1 (4 items)
+- Refactor magic profile name checks (explicit flags)
+- Expose constraint state to v2 policy (constraint_flags)
+- Add "too hard = unviable" rule (early termination)
+- Subprofile-level viability tracking (seat_subprofile_stats)
+
+### Priority 2 - Latent Bugs (3 items)
+- Mutating frozen dataclass
+- Incomplete functions with no body
+- Missing rng argument in function calls
+
+### Priority 3 - Dead Code (10 items)
+- Missing list_drafts() function
+- Duplicate SubProfile class
+- Orphaned code fragments
+- Duplicate function definitions
+- Dead code in orchestrator.py
+- Consolidated helper-seat functions
+- Removed test profiles from production code
+
+### Priority 4 - Performance (1 item)
+- O(n^2) list removal → set-based O(n)
+
+### Priority 5 - Code Quality (6 items)
+- Invalid return type syntax
+- Undefined Seat type
+- Duplicate imports
+- Typos
+- Duplicate code in tests
+
+### Priority 6 - Future (3 items)
+- Benchmark automation (BENCHMARKS.md)
+- Failure report export (failure_report.py)
+- Tests for untested modules
+
+</details>
