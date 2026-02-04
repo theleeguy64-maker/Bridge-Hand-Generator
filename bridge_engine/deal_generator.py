@@ -1478,70 +1478,17 @@ def _build_single_constrained_deal(
                     )
                     rs_entry["total_seen_attempts"] += 1
 
-                # Piece 2/6: RS re-ordering...
-                rs_constraint = getattr(chosen_sub, "random_suit_constraint", None) if is_rs_seat else None
-                orig_rs_suits = None
-
-                if (
-                    constructive_mode.get("nonstandard_v2", False)
-                    and is_rs_seat
-                    and rs_constraint is not None
-                ):
-                    try:
-                        orig_rs_suits = list(getattr(rs_constraint, "suits", []) or [])
-
-                        try:
-                            v_label = classify_viability(
-                                seat_fail_counts.get(seat, 0),
-                                seat_seen_counts.get(seat, 0),
-                            )
-                        except Exception:
-                            v_label = ""
-
-                        v_label_s = str(v_label).lower()
-                        is_easy = ("easy" in v_label_s) or ("ok" in v_label_s) or ("good" in v_label_s)
-
-                        if is_easy:
-                            buckets = {}
-                            if isinstance(rs_entry, dict):
-                                buckets = rs_entry.get("buckets") or {}
-                            if not isinstance(buckets, dict):
-                                buckets = {}
-
-                            pos = {s: i for i, s in enumerate(orig_rs_suits)}
-
-                            def _seen(s: str) -> int:
-                                v = buckets.get(s)
-                                if isinstance(v, dict):
-                                    return int(v.get("seen_attempts", 0) or 0)
-                                return 0
-
-                            reordered = sorted(orig_rs_suits, key=lambda s: (_seen(s), pos[s]))
-                        else:
-                            reordered = _v2_order_rs_suits_weighted(orig_rs_suits, rs_entry)
-
-                        if reordered and reordered != orig_rs_suits:
-                            rs_constraint.suits = list(reordered)
-                    except Exception:
-                        orig_rs_suits = None
-
-                try:
-                    matched, chosen_rs = _match_seat(
-                        profile=profile,
-                        seat=seat,
-                        hand=hands[seat],
-                        seat_profile=seat_profile,
-                        chosen_subprofile=chosen_sub,
-                        chosen_subprofile_index_1based=idx0 + 1,
-                        random_suit_choices=random_suit_choices,
-                        rng=rng,
-                    )
-                finally:
-                    if orig_rs_suits is not None and rs_constraint is not None:
-                        try:
-                            rs_constraint.suits = list(orig_rs_suits)
-                        except Exception:
-                            pass
+                # Match the seat against profile constraints
+                matched, chosen_rs = _match_seat(
+                    profile=profile,
+                    seat=seat,
+                    hand=hands[seat],
+                    seat_profile=seat_profile,
+                    chosen_subprofile=chosen_sub,
+                    chosen_subprofile_index_1based=idx0 + 1,
+                    random_suit_choices=random_suit_choices,
+                    rng=rng,
+                )
 
                 # RS bucket accounting
                 if is_rs_seat and rs_entry is not None and chosen_rs is not None:

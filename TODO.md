@@ -41,10 +41,10 @@
 
 *Code works now because these paths are disabled. Will crash if enabled.*
 
-6. [ ] **Mutating frozen dataclass** - `deal_generator.py`
-   - Attempts to set `rs_constraint.suits = list(reordered)` on frozen dataclass
-   - Will raise `FrozenInstanceError` if v2 constructive is enabled
-   - **Fix**: Use `dataclasses.replace()` to create modified copy
+6. [x] ~~**Mutating frozen dataclass** - `deal_generator.py`~~ **DONE**
+   - Removed entire "Piece 2/6: RS re-ordering" block (~50 lines)
+   - Was triple-broken: wrong attribute name, frozen mutation, rng.sample ignores order
+   - Proper v2 RS reordering needs fresh design (see Priority 6)
 
 7. [x] ~~**Incomplete functions with no body** - `deal_generator.py`~~ **DONE**
    - Removed `_constructive_sample_hand_min_first()` (was docstring only)
@@ -177,12 +177,12 @@
 | Priority | Category | Total | Done | Remaining |
 |----------|----------|-------|------|-----------|
 | 1 | Architecture | 5 | 0 | 5 |
-| 2 | Latent Bugs | 3 | 2 | 1 |
+| 2 | Latent Bugs | 3 | 3 | 0 |
 | 3 | Dead Code | 10 | 7 | 3 |
 | 4 | Performance | 1 | 0 | 1 |
 | 5 | Code Quality | 6 | 0 | 6 |
 | 6 | Future | 7 | 0 | 7 |
-| | **Total** | **32** | **9** | **23** |
+| | **Total** | **32** | **10** | **22** |
 
 ## Notes
 
