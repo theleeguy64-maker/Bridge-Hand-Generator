@@ -85,13 +85,14 @@
 15. [x] ~~**Dead code in orchestrator.py**~~ **DONE**
     - Removed unreachable try-except block
 
-16. [ ] **v2 policy seam returns empty dict**
-    - `_nonstandard_constructive_v2_policy()` exists but does nothing
-    - Either implement or remove
+16. [x] ~~**v2 policy seam returns empty dict**~~ **NOT A BUG**
+    - `_nonstandard_constructive_v2_policy()` returns `{}` by design when v2 disabled
+    - Tests actively use the debug hook (`test_nonstandard_v2_policy_seam.py`)
+    - Working as intended - it's a seam, not dead code
 
-17. [ ] **Consolidate helper-seat functions**
-    - `_choose_hardest_seat_for_help()` vs `_choose_hardest_seat_for_board()`
-    - Same thing with slightly different signatures
+17. [x] ~~**Consolidate helper-seat functions**~~ **DONE**
+    - Removed `_choose_hardest_seat_for_help()` (~65 lines) - was never called
+    - `_choose_hardest_seat_for_board()` is the one actually used
 
 18. [ ] **Remove test profiles from production code**
     - "Test profile", "Test_RandomSuit_W_PC_E" referenced in code
@@ -178,11 +179,11 @@
 |----------|----------|-------|------|-----------|
 | 1 | Architecture | 5 | 0 | 5 |
 | 2 | Latent Bugs | 3 | 3 | 0 |
-| 3 | Dead Code | 10 | 7 | 3 |
+| 3 | Dead Code | 10 | 9 | 1 |
 | 4 | Performance | 1 | 0 | 1 |
 | 5 | Code Quality | 6 | 0 | 6 |
 | 6 | Future | 7 | 0 | 7 |
-| | **Total** | **32** | **10** | **22** |
+| | **Total** | **32** | **12** | **20** |
 
 ## Notes
 

@@ -401,74 +401,7 @@ def _nonstandard_constructive_help_enabled(profile: HandProfile) -> bool:
         return False
     return bool(ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD)
 
-      
-def _choose_hardest_seat_for_help(
-    profile: object,
-    dealing_order: Sequence[Seat],
-    fail_counts: Mapping[Seat, int],
-    seen_counts: Mapping[Seat, int],
-    cfg: HardestSeatConfig,
-) -> Optional[Seat]:
-    """
-    Choose the "hardest" seat to help with constructive sampling, or None
-    if no seat qualifies yet.
 
-    Rules (matching tests in test_hardest_seat_selection.py):
-
-      * If profile.is_invariants_safety_profile -> always None.
-      * Do nothing until total attempts >= cfg.min_attempts_before_help.
-      * A seat must:
-          - have seen_counts[seat] > 0,
-          - have fail_counts[seat] >= cfg.min_fail_count_for_help,
-          - have (fail / seen) >= cfg.min_fail_rate_for_help.
-      * Among eligible seats:
-          - we pick the highest failure rate,
-          - if cfg.prefer_nonstandard_seats: prefer seats with
-            _seat_has_nonstandard_constraints(profile, seat) == True
-            when tied on failure rate,
-          - final tie-breaker is earliest in dealing_order.
-    """
-    # Never try to "help" invariants-only profiles; they use the fast path.
-    if getattr(profile, "is_invariants_safety_profile", False):
-        return None
-
-    # Aggregate all attempts for this board.
-    total_attempts = sum(int(v) for v in seen_counts.values())
-    if total_attempts < cfg.min_attempts_before_help:
-        return None
-
-    best_seat: Optional[Seat] = None
-    best_key: Optional[tuple] = None
-
-    for seat in dealing_order:
-        seen = int(seen_counts.get(seat, 0))
-        fails = int(fail_counts.get(seat, 0))
-
-        if seen <= 0:
-            continue
-        if fails < cfg.min_fail_count_for_help:
-            continue
-
-        fail_rate = fails / seen
-        if fail_rate < cfg.min_fail_rate_for_help:
-            continue
-
-        has_nonstd = _seat_has_nonstandard_constraints(profile, seat)
-
-        # Build a comparison key; order of elements encodes our preferences.
-        if cfg.prefer_nonstandard_seats:
-            # (has_nonstd, fail_rate) so that True beats False, then higher rate.
-            key = (has_nonstd, fail_rate)
-        else:
-            # Only use failure rate; tie-breaker will be dealing_order.
-            key = (fail_rate,)
-
-        if best_key is None or key > best_key:
-            best_key = key
-            best_seat = seat
-
-    return best_seat
-    
 # ---------------------------------------------------------------------------
 # Constructive help feature flags
 # ---------------------------------------------------------------------------
