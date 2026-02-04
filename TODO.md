@@ -154,19 +154,22 @@
 
 ## Priority 6 - Future
 
-### Active (To Plan Next)
+### Completed
 
-28. [ ] **Benchmark automation**
-    - Profile E rotation benchmark is manual
-    - Add to CI as slow/nightly test
+28. [x] ~~**Benchmark automation**~~ **DONE**
+    - Created BENCHMARKS.md documenting all opt-in benchmark tests
+    - Documents how to run individually or together
 
-29. [ ] **Failure report export**
-    - Export attribution data to JSON/CSV
+29. [x] ~~**Failure report export**~~ **DONE**
+    - New module: bridge_engine/failure_report.py
+    - FailureAttributionReport with to_json/to_csv export
+    - collect_failure_attribution() hooks into deal_generator
+    - 13 tests in test_failure_report.py
 
-30. [ ] **Add tests for untested modules**
-    - `hand_profile_validate.py` (20KB) - core validation before all deal gen
-    - `profile_viability.py` (7KB) - viability classification
-    - `profile_convert.py` - has file I/O logic, schema migration
+30. [x] ~~**Add tests for untested modules**~~ **DONE**
+    - test_profile_convert.py (6 tests)
+    - test_profile_viability_module.py (10 tests) + bug fixes
+    - test_hand_profile_validate.py (22 tests)
 
 ### Deferred
 
@@ -201,8 +204,8 @@
 | 3 | Dead Code | 10 | 10 | 0 |
 | 4 | Performance | 1 | 1 | 0 |
 | 5 | Code Quality | 6 | 6 | 0 |
-| 6 | Future | 9 | 0 | 9 (3 active, 6 deferred) |
-| | **Total** | **37** | **20** | **17** |
+| 6 | Future | 9 | 3 | 6 (deferred) |
+| | **Total** | **37** | **23** | **14** |
 
 ### V2 Dependency Graph
 
@@ -219,6 +222,6 @@ Item 8 (Magic Strings) ──► Cleaner test infrastructure
 ## Notes
 
 - **Branch**: `refactor/deal-generator`
-- **Tests**: 161 passed, 4 skipped (intentional benchmarks)
+- **Tests**: 212 passed, 4 skipped (intentional benchmarks)
 - **Known working**: Profile A-D, deal generation, validation
 - **Known struggling**: Profile E - constructive not engaging
