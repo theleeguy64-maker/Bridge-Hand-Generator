@@ -243,10 +243,47 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**59 test files** organized by:
+**56 test files, 165 tests** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`, `test_nonstandard_v2_*.py`
 - Index coupling: `test_f3_opener_responder_coupling.py`, `test_ew_index_coupling.py`
 - Profile viability: `test_profile_viability_*.py`
 - Benchmarks: `test_profile_e_*.py`, `test_constructive_benchmark_*.py`
+
+**Untested modules** (low risk):
+- `profile_convert.py` - file I/O logic (should add tests)
+- `profile_print.py`, `wizard_constants.py`, `cli_prompts.py`, `menu_help.py` - minimal/static
+
+---
+
+## Known Structural Issues
+
+### Duplicate Definitions (need cleanup)
+
+| File | Issue | Lines |
+|------|-------|-------|
+| `deal_generator.py` | `_weights_for_seat_profile()` x2 | 176-198, 563-585 |
+| `deal_generator.py` | `_choose_index_for_seat()` x2 | 201-212, 745-759 |
+| `deal_generator.py` | `_select_subprofiles_for_board()` nested duplicate | module + nested |
+| `hand_profile_model.py` | `SubProfile` class x2 | 384, 503 |
+| `orchestrator.py` | `_format_nonstandard_rs_buckets()` x2 | 119-159, 224-264 |
+| `profile_cli.py` | `draft_tools_action()` x2 | 288, 958 |
+
+### Orphaned/Dead Code
+
+| File | Issue | Lines |
+|------|-------|-------|
+| `hand_profile_model.py` | Orphaned `from_dict()` at module level | 452-482 |
+| `deal_generator.py` | `passrandom_suit_choices` merge artifact | 365 |
+| `deal_generator.py` | Incomplete function bodies | 1128-1143, 2026-2042 |
+| `orchestrator.py` | Unreachable try-except | 463-472 |
+
+### Missing Implementations
+
+| File | Issue |
+|------|-------|
+| `profile_store.py` | `list_drafts()` called but not defined |
+| `deal_generator.py` | `rng` parameter missing in several calls |
+
+See `TODO.md` for complete issue list with fix recommendations.

@@ -2,6 +2,8 @@
 
 ## Session Start
 - Review `TODO.md` at the start of sessions and display the full contents verbosely (all pending items, all details)
+- Reference `PROJECT_OVERVIEW.md` for high-level context (purpose, concepts, current state)
+- Reference `ARCHITECTURE.md` for technical details (pipeline, data models, known issues)
 
 ## Shortcuts
 - **"Lee Title"** - Change terminal title to "Bridge Hand Generator"
