@@ -135,7 +135,41 @@
 
 ## Priority 6 - Future
 
-### Phase 3: NS Role Semantics
+### V2 Infrastructure (Do First - Blocks V2 Implementation)
+
+34. [ ] **Failure reason classifier (HCP vs shape)** - CRITICAL
+    - `_match_seat()` returns `(bool, chosen_rs)` - no failure reason
+    - Need to distinguish: HCP violation vs Shape violation vs Other
+    - Counters exist: `seat_fail_hcp`, `seat_fail_shape` - never populated
+    - **Location**: `seat_viability.py:_match_subprofile()` and `_match_standard()`
+    - **Impact**: Enables "constructive appropriate for shape-dominant failures" decision
+    - **Blocks**: Priority 1 Item 3
+
+35. [ ] **Subprofile-level viability tracking**
+    - Currently only track per-seat viability
+    - Need: `(success_count, attempt_count)` per subprofile per seat
+    - **Impact**: Piece 4/5 nudging can pick best alternate subprofile instead of blind iteration
+
+36. [ ] **Expose constraint state to v2 policy**
+    - V2 policy seam receives viability/attribution but NOT:
+      - Which seats have PC constraints active
+      - Which seats have OC constraints active
+      - Which seats have RS constraints active
+    - **Impact**: Policy can make constraint-aware decisions
+
+37. [ ] **Metrics export CLI**
+    - Export failure attribution to JSON/CSV
+    - Per-seat, per-subprofile success histograms
+    - Command: `python -m bridge_engine export-metrics <profile> [--boards N]`
+    - **Impact**: Benchmark improvements vs baselines (Profile E case)
+
+38. [ ] **V2 integration test suite**
+    - Current v2 tests only check hook mechanics
+    - Need: Tests showing v2 policy actually improves deal generation
+    - Pattern: Generate N boards with v2 on vs off, compare success rates
+    - **Impact**: Confidence that v2 changes help rather than hurt
+
+### NS Role Semantics (Deferred)
 
 26. [ ] **Implement NS role filtering**
     - `ns_role_usage` field exists ("any", "driver_only", "follower_only")
@@ -145,7 +179,7 @@
     - Subprofiles have `ns_role_for_seat` ("driver", "follower", "neutral")
     - Logic not complete
 
-### Constructive v2
+### Constructive v2 Implementation (Blocked Until 34-36 Done)
 
 28. [ ] **RS suit reordering by success rate**
     - Piece 2/3 partially implemented
@@ -162,11 +196,12 @@
 31. [ ] **Failure report export**
     - Export attribution data to JSON/CSV
 
-### Test Coverage
+### Test Coverage (Expanded for V2-Critical Modules)
 
 32. [ ] **Add tests for untested modules**
-    - `profile_convert.py` - has file I/O logic, needs tests
-    - Others are low priority (minimal/static)
+    - `hand_profile_validate.py` (20KB) - core validation before all deal gen
+    - `profile_viability.py` (7KB) - viability classification
+    - `profile_convert.py` - has file I/O logic, schema migration
 
 ### Code Quality
 
@@ -187,8 +222,22 @@
 | 3 | Dead Code | 10 | 10 | 0 |
 | 4 | Performance | 1 | 1 | 0 |
 | 5 | Code Quality | 6 | 6 | 0 |
-| 6 | Future | 8 | 0 | 8 |
-| | **Total** | **33** | **20** | **13** |
+| 6 | Future | 13 | 0 | 13 |
+| | **Total** | **38** | **20** | **18** |
+
+### V2 Dependency Graph
+
+```
+Item 34 (Failure Classifier) ─────┐
+                                  ├──► Items 28-29 (V2 Implementation)
+Item 35 (Subprofile Viability) ───┤
+                                  │
+Item 36 (Constraint State) ───────┘
+
+Item 37 (Metrics Export) ──► Benchmarking / Tuning
+
+Item 38 (Integration Tests) ──► Confidence in V2 changes
+```
 
 ## Notes
 
