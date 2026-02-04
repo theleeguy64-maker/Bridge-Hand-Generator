@@ -18,9 +18,10 @@
    - **Fix**: Base decision on failure structure (HCP vs shape), not constraint type
 
 3. [ ] **HCP vs shape classification not implemented**
-   - Counters exist: `seat_fail_hcp`, `seat_fail_shape`
+   - Counters exist: `seat_fail_hcp`, `seat_fail_shape` - never populated
    - Matcher doesn't classify failures yet
    - **Need**: `_match_seat` returns failure reason, not just bool
+   - **Location**: `seat_viability.py:_match_subprofile()` and `_match_standard()`
    - **Impact**: Can't decide "constructive appropriate here" without this
 
 4. [ ] **Connect attribution to helper policy**
@@ -35,22 +36,34 @@
    - **Current**: We grind forever on hopeless profiles
    - **Need**: Early termination with clear reason
 
+6. [ ] **Subprofile-level viability tracking** *(moved from P6)*
+   - Currently only track per-seat viability
+   - Need: `(success_count, attempt_count)` per subprofile per seat
+   - **Impact**: Piece 4/5 nudging can pick best alternate subprofile instead of blind iteration
+
+7. [ ] **Expose constraint state to v2 policy** *(moved from P6)*
+   - V2 policy seam receives viability/attribution but NOT:
+     - Which seats have PC constraints active
+     - Which seats have OC constraints active
+     - Which seats have RS constraints active
+   - **Impact**: Policy can make constraint-aware decisions
+
 ---
 
 ## Priority 2 - Latent Bugs (Fix Before Enabling v2)
 
 *Code works now because these paths are disabled. Will crash if enabled.*
 
-6. [x] ~~**Mutating frozen dataclass** - `deal_generator.py`~~ **DONE**
+8. [x] ~~**Mutating frozen dataclass** - `deal_generator.py`~~ **DONE**
    - Removed entire "Piece 2/6: RS re-ordering" block (~50 lines)
    - Was triple-broken: wrong attribute name, frozen mutation, rng.sample ignores order
    - Proper v2 RS reordering needs fresh design (see Priority 6)
 
-7. [x] ~~**Incomplete functions with no body** - `deal_generator.py`~~ **DONE**
+9. [x] ~~**Incomplete functions with no body** - `deal_generator.py`~~ **DONE**
    - Removed `_constructive_sample_hand_min_first()` (was docstring only)
    - Removed `_debug_build_many_boards_with_stats()` (was docstring only)
 
-8. [x] ~~**Missing `rng` argument in function calls** - `deal_generator.py`~~ **DONE**
+10. [x] ~~**Missing `rng` argument in function calls** - `deal_generator.py`~~ **DONE**
    - Removed entire module-level `_select_subprofiles_for_board()` (~107 lines)
    - Had broken `_choose_index_for_seat(driver_sp)` calls missing `rng` argument
    - Nested version inside `_build_single_constrained_deal` is the one actually used
@@ -61,48 +74,48 @@
 
 *Confusing but harmless. Clean up when convenient.*
 
-9. [x] ~~**Missing function** - `profile_store.py`~~ **DONE**
-   - Added `list_drafts()` function
+11. [x] ~~**Missing function** - `profile_store.py`~~ **DONE**
+    - Added `list_drafts()` function
 
-10. [x] ~~**Duplicate SubProfile class + orphaned code** - `hand_profile_model.py`~~ **DONE**
+12. [x] ~~**Duplicate SubProfile class + orphaned code** - `hand_profile_model.py`~~ **DONE**
     - Removed first SubProfile (was lines 384-450)
     - Removed orphaned `from_dict` (was line 453)
 
-11. [x] ~~**Orphaned code fragment** - `deal_generator.py:365`~~ **DONE**
+13. [x] ~~**Orphaned code fragment** - `deal_generator.py:365`~~ **DONE**
     - Removed `passrandom_suit_choices` merge artifact
 
-12. [x] ~~**Duplicate function definitions** - `deal_generator.py`~~ **PARTIALLY DONE**
+14. [x] ~~**Duplicate function definitions** - `deal_generator.py`~~ **PARTIALLY DONE**
     - Removed duplicate `_weights_for_seat_profile`
     - Removed duplicate `_choose_index_for_seat`
     - **Remaining**: module-level `_select_subprofiles_for_board` (deferred - high risk)
 
-13. [x] ~~**Duplicate function** - `orchestrator.py`~~ **DONE**
+15. [x] ~~**Duplicate function** - `orchestrator.py`~~ **DONE**
     - Removed first `_format_nonstandard_rs_buckets()`
 
-14. [x] ~~**Duplicate function + stub shadowing** - `profile_cli.py`~~ **DONE**
+16. [x] ~~**Duplicate function + stub shadowing** - `profile_cli.py`~~ **DONE**
     - Removed stub, added `run_draft_tools()` wrapper
 
-15. [x] ~~**Dead code in orchestrator.py**~~ **DONE**
+17. [x] ~~**Dead code in orchestrator.py**~~ **DONE**
     - Removed unreachable try-except block
 
-16. [x] ~~**v2 policy seam returns empty dict**~~ **NOT A BUG**
+18. [x] ~~**v2 policy seam returns empty dict**~~ **NOT A BUG**
     - `_nonstandard_constructive_v2_policy()` returns `{}` by design when v2 disabled
     - Tests actively use the debug hook (`test_nonstandard_v2_policy_seam.py`)
     - Working as intended - it's a seam, not dead code
 
-17. [x] ~~**Consolidate helper-seat functions**~~ **DONE**
+19. [x] ~~**Consolidate helper-seat functions**~~ **DONE**
     - Removed `_choose_hardest_seat_for_help()` (~65 lines) - was never called
     - `_choose_hardest_seat_for_board()` is the one actually used
 
-18. [x] ~~**Remove test profiles from production code**~~ **PARTIAL**
+20. [x] ~~**Remove test profiles from production code**~~ **PARTIAL**
     - Removed unused `rs_w_pc_relaxed_mode` flag (set but never read)
-    - Magic string checks remain - refactoring deferred to item 33
+    - Magic string checks remain - refactoring deferred to item 36
 
 ---
 
 ## Priority 4 - Performance
 
-19. [x] ~~**O(n^2) list removal** - `deal_generator.py`~~ **DONE**
+21. [x] ~~**O(n^2) list removal** - `deal_generator.py`~~ **DONE**
     - Changed `for c in chosen: deck.remove(c)` to set-based O(n) filtering
     - `deck[:] = [c for c in deck if c not in chosen_set]`
 
@@ -112,58 +125,38 @@
 
 *Type hints, imports, typos. Fix when touching these files.*
 
-20. [x] ~~**Invalid return type syntax** - `seat_viability.py`~~ **DONE**
+22. [x] ~~**Invalid return type syntax** - `seat_viability.py`~~ **DONE**
     - Changed `-> (bool, ...)` to `-> Tuple[bool, ...]`
 
-21. [x] ~~**Overly broad `except Exception`** - `deal_generator.py`~~ **SKIP**
+23. [x] ~~**Overly broad `except Exception`** - `deal_generator.py`~~ **SKIP**
     - Intentional defensive coding for batch jobs
     - Prevents single-deal failures from crashing entire generation
 
-22. [x] ~~**Undefined `Seat` type** - `hand_profile_validate.py`~~ **DONE**
+24. [x] ~~**Undefined `Seat` type** - `hand_profile_validate.py`~~ **DONE**
     - Added `Seat = str` type alias
 
-23. [x] ~~**Duplicate imports** - multiple files~~ **DONE**
+25. [x] ~~**Duplicate imports** - multiple files~~ **DONE**
     - Cleaned up `lin_tools.py`, `cli_io.py`, `profile_wizard.py`
 
-24. [x] ~~**Typo** - `profile_cli.py:343`~~ **DONE**
+26. [x] ~~**Typo** - `profile_cli.py:343`~~ **DONE**
     - Fixed "chnaged" → "changed"
 
-25. [x] ~~**Duplicate code in test** - `test_profile_e_failure_attribution.py`~~ **DONE**
+27. [x] ~~**Duplicate code in test** - `test_profile_e_failure_attribution.py`~~ **DONE**
     - Removed duplicate lines 95-100
 
 ---
 
 ## Priority 6 - Future
 
-### V2 Infrastructure (Do First - Blocks V2 Implementation)
+### V2 Tooling
 
-34. [ ] **Failure reason classifier (HCP vs shape)** - CRITICAL
-    - `_match_seat()` returns `(bool, chosen_rs)` - no failure reason
-    - Need to distinguish: HCP violation vs Shape violation vs Other
-    - Counters exist: `seat_fail_hcp`, `seat_fail_shape` - never populated
-    - **Location**: `seat_viability.py:_match_subprofile()` and `_match_standard()`
-    - **Impact**: Enables "constructive appropriate for shape-dominant failures" decision
-    - **Blocks**: Priority 1 Item 3
-
-35. [ ] **Subprofile-level viability tracking**
-    - Currently only track per-seat viability
-    - Need: `(success_count, attempt_count)` per subprofile per seat
-    - **Impact**: Piece 4/5 nudging can pick best alternate subprofile instead of blind iteration
-
-36. [ ] **Expose constraint state to v2 policy**
-    - V2 policy seam receives viability/attribution but NOT:
-      - Which seats have PC constraints active
-      - Which seats have OC constraints active
-      - Which seats have RS constraints active
-    - **Impact**: Policy can make constraint-aware decisions
-
-37. [ ] **Metrics export CLI**
+28. [ ] **Metrics export CLI**
     - Export failure attribution to JSON/CSV
     - Per-seat, per-subprofile success histograms
     - Command: `python -m bridge_engine export-metrics <profile> [--boards N]`
     - **Impact**: Benchmark improvements vs baselines (Profile E case)
 
-38. [ ] **V2 integration test suite**
+29. [ ] **V2 integration test suite**
     - Current v2 tests only check hook mechanics
     - Need: Tests showing v2 policy actually improves deal generation
     - Pattern: Generate N boards with v2 on vs off, compare success rates
@@ -171,41 +164,41 @@
 
 ### NS Role Semantics (Deferred)
 
-26. [ ] **Implement NS role filtering**
+30. [ ] **Implement NS role filtering**
     - `ns_role_usage` field exists ("any", "driver_only", "follower_only")
     - Not yet enforced during subprofile selection
 
-27. [ ] **Driver/follower classification**
+31. [ ] **Driver/follower classification**
     - Subprofiles have `ns_role_for_seat` ("driver", "follower", "neutral")
     - Logic not complete
 
-### Constructive v2 Implementation (Blocked Until 34-36 Done)
+### Constructive v2 Implementation (Blocked Until P1 Items 3, 6, 7 Done)
 
-28. [ ] **RS suit reordering by success rate**
+32. [ ] **RS suit reordering by success rate**
     - Piece 2/3 partially implemented
 
-29. [ ] **PC/OC nudging**
+33. [ ] **PC/OC nudging**
     - Piece 4/5 partially implemented
 
 ### Diagnostics
 
-30. [ ] **Benchmark automation**
+34. [ ] **Benchmark automation**
     - Profile E rotation benchmark is manual
     - Add to CI as slow/nightly test
 
-31. [ ] **Failure report export**
+35. [ ] **Failure report export**
     - Export attribution data to JSON/CSV
 
 ### Test Coverage (Expanded for V2-Critical Modules)
 
-32. [ ] **Add tests for untested modules**
+36. [ ] **Add tests for untested modules**
     - `hand_profile_validate.py` (20KB) - core validation before all deal gen
     - `profile_viability.py` (7KB) - viability classification
     - `profile_convert.py` - has file I/O logic, schema migration
 
 ### Code Quality
 
-33. [ ] **Refactor magic profile name checks**
+37. [ ] **Refactor magic profile name checks**
     - `"Test profile"` → sets `is_invariants_safety_profile` based on name
     - `"Test_RandomSuit_W_PC_E"` → routes to special code path based on name
     - Should use explicit flags set by tests, not magic strings in production
@@ -217,26 +210,26 @@
 
 | Priority | Category | Total | Done | Remaining |
 |----------|----------|-------|------|-----------|
-| 1 | Architecture | 5 | 0 | 5 |
+| 1 | Architecture | 7 | 0 | **7** |
 | 2 | Latent Bugs | 3 | 3 | 0 |
 | 3 | Dead Code | 10 | 10 | 0 |
 | 4 | Performance | 1 | 1 | 0 |
 | 5 | Code Quality | 6 | 6 | 0 |
-| 6 | Future | 13 | 0 | 13 |
-| | **Total** | **38** | **20** | **18** |
+| 6 | Future | 10 | 0 | 10 |
+| | **Total** | **37** | **20** | **17** |
 
 ### V2 Dependency Graph
 
 ```
-Item 34 (Failure Classifier) ─────┐
-                                  ├──► Items 28-29 (V2 Implementation)
-Item 35 (Subprofile Viability) ───┤
+Item 3 (Failure Classifier) ──────┐
+                                  ├──► Items 32-33 (V2 Implementation)
+Item 6 (Subprofile Viability) ────┤
                                   │
-Item 36 (Constraint State) ───────┘
+Item 7 (Constraint State) ────────┘
 
-Item 37 (Metrics Export) ──► Benchmarking / Tuning
+Item 28 (Metrics Export) ──► Benchmarking / Tuning
 
-Item 38 (Integration Tests) ──► Confidence in V2 changes
+Item 29 (Integration Tests) ──► Confidence in V2 changes
 ```
 
 ## Notes
