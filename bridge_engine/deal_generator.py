@@ -338,6 +338,7 @@ def _nonstandard_constructive_v2_policy(
     seat_seen_counts: Optional[SeatSeenCounts] = None,
     viability_summary: Optional[Dict[Seat, str]] = None,
     rs_bucket_snapshot: Optional[Dict[Seat, Dict[str, int]]] = None,
+    constraint_flags: Optional[Dict[Seat, Dict[str, bool]]] = None,  # P1.2: per-seat RS/PC/OC flags
 ) -> Dict[str, object]:
     """Return policy hints for non-standard constructive help v2.
 
@@ -345,6 +346,9 @@ def _nonstandard_constructive_v2_policy(
     By default it returns an empty dict and must not affect deal-generation behaviour.
 
     Tests may monkeypatch _DEBUG_NONSTANDARD_CONSTRUCTIVE_V2_POLICY to observe calls.
+
+    P1.2 addition: constraint_flags provides per-seat mapping of which constraint
+    types (RS, PC, OC) are active on the chosen subprofile for each seat.
     """
     # Defensive gating: even if a caller invokes this directly, do not run
     # policy hooks unless v2 is actually enabled for this profile.
@@ -361,9 +365,12 @@ def _nonstandard_constructive_v2_policy(
     if hook is None:
         return {}
 
-    # Backwards-compat: early Piece 0 hooks used a 3-arg signature.
-    # In Piece 1 we pass richer attempt-level inputs. Support both.
+    # Backwards-compat chain:
+    # - P1.2 (9 args): includes constraint_flags
+    # - Piece 1 (8 args): no constraint_flags
+    # - Piece 0 (3 args): minimal signature
     try:
+        # P1.2: full signature with constraint_flags
         result = hook(
             profile,
             board_number,
@@ -373,9 +380,24 @@ def _nonstandard_constructive_v2_policy(
             dict(seat_seen_counts or {}),
             dict(viability_summary or {}),
             dict(rs_bucket_snapshot or {}),
+            dict(constraint_flags or {}),
         )
     except TypeError:
-        result = hook(profile, board_number, attempt_number)
+        try:
+            # Piece 1: 8-arg signature (no constraint_flags)
+            result = hook(
+                profile,
+                board_number,
+                attempt_number,
+                dict(chosen_indices or {}),
+                dict(seat_fail_counts or {}),
+                dict(seat_seen_counts or {}),
+                dict(viability_summary or {}),
+                dict(rs_bucket_snapshot or {}),
+            )
+        except TypeError:
+            # Piece 0: minimal 3-arg signature
+            result = hook(profile, board_number, attempt_number)
     if result is None:
         return {}
 
@@ -386,6 +408,30 @@ def _nonstandard_constructive_v2_policy(
 
     # Materialise to a plain dict to prevent surprising mutation/aliasing.
     return dict(result)
+
+
+def _build_constraint_flags_per_seat(
+    chosen_subprofiles: Dict[Seat, "SubProfile"],
+) -> Dict[Seat, Dict[str, bool]]:
+    """
+    Build a mapping of constraint type flags per seat.
+
+    For each seat in chosen_subprofiles, returns which constraint types
+    (RS, PC, OC) are active on the chosen subprofile. This allows the
+    v2 policy seam to make constraint-aware decisions.
+
+    Returns:
+        {"N": {"has_rs": False, "has_pc": False, "has_oc": False}, ...}
+    """
+    flags: Dict[Seat, Dict[str, bool]] = {}
+    for seat, sub in chosen_subprofiles.items():
+        flags[seat] = {
+            "has_rs": getattr(sub, "random_suit_constraint", None) is not None,
+            "has_pc": getattr(sub, "partner_contingent_constraint", None) is not None,
+            "has_oc": getattr(sub, "opponents_contingent_suit_constraint", None) is not None,
+        }
+    return flags
+
 
 def _nonstandard_constructive_help_enabled(profile: HandProfile) -> bool:
     """
@@ -1572,6 +1618,8 @@ def _build_single_constrained_deal(
                 # Piece 1: pass the same rich attempt-local stats that the
                 # shadow probe sees. For now, the returned policy hints are
                 # intentionally ignored.
+                # P1.2: Also pass per-seat constraint flags (RS/PC/OC).
+                constraint_flags = _build_constraint_flags_per_seat(chosen_subprofiles)
                 v2_policy = _nonstandard_constructive_v2_policy(
                     profile=profile,
                     board_number=board_number,
@@ -1581,6 +1629,7 @@ def _build_single_constrained_deal(
                     seat_seen_counts=seat_seen_counts,
                     viability_summary=viability_summary_after,
                     rs_bucket_snapshot=rs_bucket_snapshot,
+                    constraint_flags=constraint_flags,
                 )
 
             if constructive_mode["nonstandard_shadow"]:

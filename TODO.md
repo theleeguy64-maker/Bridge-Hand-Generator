@@ -11,13 +11,11 @@
    - Fixed pre-existing bug: duplicate `from_dict` method was shadowing flag loading
    - Changes: `hand_profile_model.py`, `deal_generator.py`, `test_deal_generator_section_c.py`
 
-2. [ ] **Expose constraint state to v2 policy** *(low risk)*
-   - V2 policy seam receives viability/attribution but NOT:
-     - Which seats have PC constraints active
-     - Which seats have OC constraints active
-     - Which seats have RS constraints active
-   - **Impact**: Policy can make constraint-aware decisions
-   - **Why low risk**: Pure data exposure, no behavior change until v2 enabled
+2. [x] ~~**Expose constraint state to v2 policy**~~ **DONE**
+   - Added `_build_constraint_flags_per_seat()` helper function
+   - v2 policy seam now receives `constraint_flags` with per-seat RS/PC/OC flags
+   - Backwards-compatible fallback chain (9-arg → 8-arg → 3-arg)
+   - Test updated to verify constraint_flags received and defensively copied
 
 3. [ ] **Add "too hard = unviable" rule** *(low risk)*
    - Even after Stage 0-2 passes, profile may be effectively impossible
@@ -207,20 +205,20 @@
 
 | Priority | Category | Total | Done | Remaining |
 |----------|----------|-------|------|-----------|
-| 1 | Architecture | 8 | 1 | **7** |
+| 1 | Architecture | 8 | 2 | **6** |
 | 2 | Latent Bugs | 3 | 3 | 0 |
 | 3 | Dead Code | 10 | 10 | 0 |
 | 4 | Performance | 1 | 1 | 0 |
 | 5 | Code Quality | 6 | 6 | 0 |
 | 6 | Future | 9 | 3 | 6 (deferred) |
-| | **Total** | **37** | **24** | **13** |
+| | **Total** | **37** | **25** | **12** |
 
 ### V2 Dependency Graph (by new item numbers)
 
 ```
 Safe Foundation (do first):
   Item 1 (Magic Strings) ──► Cleaner test infrastructure ✓ DONE
-  Item 2 (Constraint State) ──► V2 policy can see RS/PC/OC
+  Item 2 (Constraint State) ──► V2 policy can see RS/PC/OC ✓ DONE
   Item 3 (Too Hard Rule) ──► Early termination for hopeless profiles
   Item 4 (Subprofile Tracking) ──► Better nudging data
 
