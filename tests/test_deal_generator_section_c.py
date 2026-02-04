@@ -140,6 +140,7 @@ def _random_suit_w_partner_contingent_e_profile() -> HandProfile:
         author="Test",
         version="0.1",
         seat_profiles=seat_profiles,
+        use_rs_w_only_path=True,  # Explicit flag replaces magic name check
     )
 
 

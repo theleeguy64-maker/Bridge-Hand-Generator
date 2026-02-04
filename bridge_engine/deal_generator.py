@@ -1809,18 +1809,17 @@ def generate_deals(
             deals.append(deal)
         return DealSet(deals=deals)
 
-    profile_name = getattr(profile, "profile_name", "")
-
     # ---------------------------------------------------------------
-    # Special-case: Random Suit W + Partner Contingent E *test* profile
+    # Special-case: Profiles opting into the lightweight RS-W-only path
     #
-    # The dedicated integration test exercises the full constrained
-    # pipeline via _build_single_constrained_deal(). Here, for the
-    # generate_deals() path used by test_random_suit_w_has_long_suit,
-    # we only need to ensure West's Random Suit constraint holds, so
-    # we can use a lighter helper that enforces RS on West only.
+    # Profiles with use_rs_w_only_path=True bypass the full constrained
+    # pipeline and use a lighter helper that only enforces West's Random
+    # Suit constraint. This is useful for test profiles that don't need
+    # the full matching pipeline.
+    #
+    # P1.1 refactor: Flag-based routing replaces magic profile name check.
     # ---------------------------------------------------------------
-    if profile_name == "Test_RandomSuit_W_PC_E":
+    if getattr(profile, "use_rs_w_only_path", False):
         deals: List[Deal] = []
         for board_number in range(1, num_deals + 1):
             deal = _build_single_board_random_suit_w_only(

@@ -5,12 +5,11 @@
 *These are the actual problems preventing constructive help from working.*
 *Ordered by risk: least risky first → safest to tackle in sequence.*
 
-1. [ ] **Refactor magic profile name checks** *(lowest risk)*
-   - `"Test profile"` → sets `is_invariants_safety_profile` based on name
-   - `"Test_RandomSuit_W_PC_E"` → routes to special code path based on name
-   - Should use explicit flags set by tests, not magic strings in production
-   - Affects: `hand_profile_model.py`, `deal_generator.py`, 7 test files
-   - **Why low risk**: Self-contained refactor, test-only impact, clear scope
+1. [x] ~~**Refactor magic profile name checks**~~ **DONE**
+   - `"Test profile"` → now uses explicit `is_invariants_safety_profile` flag
+   - `"Test_RandomSuit_W_PC_E"` → now uses explicit `use_rs_w_only_path` flag
+   - Fixed pre-existing bug: duplicate `from_dict` method was shadowing flag loading
+   - Changes: `hand_profile_model.py`, `deal_generator.py`, `test_deal_generator_section_c.py`
 
 2. [ ] **Expose constraint state to v2 policy** *(low risk)*
    - V2 policy seam receives viability/attribution but NOT:
@@ -208,19 +207,19 @@
 
 | Priority | Category | Total | Done | Remaining |
 |----------|----------|-------|------|-----------|
-| 1 | Architecture | 8 | 0 | **8** |
+| 1 | Architecture | 8 | 1 | **7** |
 | 2 | Latent Bugs | 3 | 3 | 0 |
 | 3 | Dead Code | 10 | 10 | 0 |
 | 4 | Performance | 1 | 1 | 0 |
 | 5 | Code Quality | 6 | 6 | 0 |
 | 6 | Future | 9 | 3 | 6 (deferred) |
-| | **Total** | **37** | **23** | **14** |
+| | **Total** | **37** | **24** | **13** |
 
 ### V2 Dependency Graph (by new item numbers)
 
 ```
 Safe Foundation (do first):
-  Item 1 (Magic Strings) ──► Cleaner test infrastructure
+  Item 1 (Magic Strings) ──► Cleaner test infrastructure ✓ DONE
   Item 2 (Constraint State) ──► V2 policy can see RS/PC/OC
   Item 3 (Too Hard Rule) ──► Early termination for hopeless profiles
   Item 4 (Subprofile Tracking) ──► Better nudging data

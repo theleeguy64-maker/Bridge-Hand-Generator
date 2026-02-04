@@ -791,35 +791,3 @@ class HandProfile:
             },
             "subprofile_exclusions": [e.to_dict() for e in self.subprofile_exclusions],
         }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "HandProfile":
-        """
-        Reconstruct a HandProfile from a dict.
-
-        Backwards compatible:
-        - seat_profiles are rebuilt via SeatProfile.from_dict
-        - rotate_deals_by_default defaults to True if missing
-        - ns_role_mode defaults to "north_drives" if missing
-        """
-        seat_profiles_dict = {
-            seat: SeatProfile.from_dict(sp_data)
-            for seat, sp_data in data.get("seat_profiles", {}).items()
-        }
-        exclusions = [
-            SubprofileExclusionData.from_dict(d)
-            for d in data.get("subprofile_exclusions", [])
-        ]
-
-        return cls(
-            profile_name=str(data["profile_name"]),
-            description=str(data.get("description", "")),
-            dealer=str(data["dealer"]),
-            hand_dealing_order=list(data["hand_dealing_order"]),
-            tag=str(data["tag"]),
-            seat_profiles=seat_profiles_dict,
-            author=str(data.get("author", "")),
-            version=str(data.get("version", "")),
-            rotate_deals_by_default=data.get("rotate_deals_by_default", True),
-            ns_role_mode=str(data.get("ns_role_mode", "no_driver_no_index")),            subprofile_exclusions=exclusions,
-        )
