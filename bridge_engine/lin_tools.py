@@ -1,16 +1,10 @@
 from __future__ import annotations
 
-from pathlib import Path
 import random
 import re
-from typing import Iterable, List
-from typing import Iterable
-
 from collections import defaultdict
-from typing import Dict, List, Sequence, Mapping
-
-
-import re
+from pathlib import Path
+from typing import Dict, Iterable, List, Mapping, Sequence
 
 # Match names like:
 #   Lee_Opps_Open_&_Our_TO_Dbl_BBO_1128_2008

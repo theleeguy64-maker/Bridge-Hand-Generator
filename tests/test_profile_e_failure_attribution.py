@@ -91,13 +91,6 @@ def test_profile_e_failure_attribution_summary() -> None:
                 latest_global_unchecked = dict(seat_fail_global_unchecked)
                 latest_hcp = dict(seat_fail_hcp)
                 latest_shape = dict(seat_fail_shape)
-                
-                # Snapshot the cumulative totals for this board as of this failed attempt.
-                latest_as_seat = dict(seat_fail_as_seat)
-                latest_global_other = dict(seat_fail_global_other)
-                latest_global_unchecked = dict(seat_fail_global_unchecked)
-                latest_hcp = dict(seat_fail_hcp)
-                latest_shape = dict(seat_fail_shape)
 
             dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION = hook
 

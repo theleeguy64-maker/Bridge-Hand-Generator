@@ -76,9 +76,6 @@ def clear_screen() -> None:
         pass
 
 
-from typing import Optional
-
-
 def _input_int(
     prompt: str,
     *,

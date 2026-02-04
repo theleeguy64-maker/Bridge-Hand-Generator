@@ -201,7 +201,7 @@ def _match_subprofile(
     sub: SubProfile,
     random_suit_choices: Dict[Seat, List[str]],
     rng: random.Random,
-) -> (bool, Optional[List[str]]):
+) -> Tuple[bool, Optional[List[str]]]:
     """
     Attempt to match a single SubProfile to this 13-card hand.
 
@@ -346,7 +346,7 @@ def _match_seat(
     chosen_subprofile_index_1based: Optional[int],
     random_suit_choices: Dict[Seat, List[str]],
     rng: random.Random,
-) -> (bool, Optional[List[str]]):
+) -> Tuple[bool, Optional[List[str]]]:
     """
     Match a 13-card hand against the chosen SubProfile for a given seat.
 

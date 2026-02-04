@@ -7,6 +7,10 @@ from .hand_profile_model import HandProfile, SeatProfile, SubProfile, ProfileErr
 
 from .seat_viability import validate_profile_viability_light
 
+# Type alias for seat names (N, E, S, W)
+Seat = str
+
+
 def _to_raw_dict(data: Any) -> Dict[str, Any]:
     """
     Normalise input to a plain dict that can be passed into HandProfile.from_dict.

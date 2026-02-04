@@ -1004,8 +1004,9 @@ def _construct_hand_for_seat(
 
         chosen = rng.sample(available, required)
         hand.extend(chosen)
-        for c in chosen:
-            deck.remove(c)
+        # O(n) removal using set lookup instead of O(n²) list.remove()
+        chosen_set = set(chosen)
+        deck[:] = [c for c in deck if c not in chosen_set]
 
     # Phase 2 – fill up to 13 cards from whatever remains.
     remaining_needed = 13 - len(hand)
@@ -1014,8 +1015,9 @@ def _construct_hand_for_seat(
             remaining_needed = len(deck)
         extra = rng.sample(deck, remaining_needed)
         hand.extend(extra)
-        for c in extra:
-            deck.remove(c)
+        # O(n) removal using set lookup instead of O(n²) list.remove()
+        extra_set = set(extra)
+        deck[:] = [c for c in deck if c not in extra_set]
 
     return hand
 

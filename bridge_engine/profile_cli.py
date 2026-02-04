@@ -340,7 +340,7 @@ def create_profile_action() -> None:
     print()
     print("Rotate set to Yes and NS role mode set to Any")
     print()
-    print("Metadata can be chnaged in 'Edit Profile'")
+    print("Metadata can be changed in 'Edit Profile'")
 
     if prompt_yes_no("Save this new profile?", True):
         path = _profile_path_for(profile)
