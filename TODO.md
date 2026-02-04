@@ -94,8 +94,9 @@
     - Removed `_choose_hardest_seat_for_help()` (~65 lines) - was never called
     - `_choose_hardest_seat_for_board()` is the one actually used
 
-18. [ ] **Remove test profiles from production code**
-    - "Test profile", "Test_RandomSuit_W_PC_E" referenced in code
+18. [x] ~~**Remove test profiles from production code**~~ **PARTIAL**
+    - Removed unused `rs_w_pc_relaxed_mode` flag (set but never read)
+    - Magic string checks remain - refactoring deferred to item 33
 
 ---
 
@@ -171,6 +172,14 @@
     - `profile_convert.py` - has file I/O logic, needs tests
     - Others are low priority (minimal/static)
 
+### Code Quality
+
+33. [ ] **Refactor magic profile name checks**
+    - `"Test profile"` → sets `is_invariants_safety_profile` based on name
+    - `"Test_RandomSuit_W_PC_E"` → routes to special code path based on name
+    - Should use explicit flags set by tests, not magic strings in production
+    - Affects: `hand_profile_model.py`, `deal_generator.py`, 7 test files
+
 ---
 
 ## Summary
@@ -179,11 +188,11 @@
 |----------|----------|-------|------|-----------|
 | 1 | Architecture | 5 | 0 | 5 |
 | 2 | Latent Bugs | 3 | 3 | 0 |
-| 3 | Dead Code | 10 | 9 | 1 |
+| 3 | Dead Code | 10 | 10 | 0 |
 | 4 | Performance | 1 | 0 | 1 |
 | 5 | Code Quality | 6 | 0 | 6 |
-| 6 | Future | 7 | 0 | 7 |
-| | **Total** | **32** | **12** | **20** |
+| 6 | Future | 8 | 0 | 8 |
+| | **Total** | **33** | **13** | **20** |
 
 ## Notes
 
