@@ -346,6 +346,7 @@ def _nonstandard_constructive_v2_policy(
     viability_summary: Optional[Dict[Seat, str]] = None,
     rs_bucket_snapshot: Optional[Dict[Seat, Dict[str, int]]] = None,
     constraint_flags: Optional[Dict[Seat, Dict[str, bool]]] = None,  # P1.2: per-seat RS/PC/OC flags
+    subprofile_stats: Optional[Dict[Seat, Dict[int, Dict[str, int]]]] = None,  # P1.4: per-subprofile tracking
 ) -> Dict[str, object]:
     """Return policy hints for non-standard constructive help v2.
 
@@ -356,6 +357,9 @@ def _nonstandard_constructive_v2_policy(
 
     P1.2 addition: constraint_flags provides per-seat mapping of which constraint
     types (RS, PC, OC) are active on the chosen subprofile for each seat.
+
+    P1.4 addition: subprofile_stats provides per-subprofile success/failure counts
+    for smarter nudging decisions. Shape: {seat: {subprofile_idx: {"seen": N, "failed": M}}}
     """
     # Defensive gating: even if a caller invokes this directly, do not run
     # policy hooks unless v2 is actually enabled for this profile.
@@ -373,11 +377,12 @@ def _nonstandard_constructive_v2_policy(
         return {}
 
     # Backwards-compat chain:
+    # - P1.4 (10 args): includes subprofile_stats
     # - P1.2 (9 args): includes constraint_flags
     # - Piece 1 (8 args): no constraint_flags
     # - Piece 0 (3 args): minimal signature
     try:
-        # P1.2: full signature with constraint_flags
+        # P1.4: full signature with subprofile_stats
         result = hook(
             profile,
             board_number,
@@ -388,10 +393,11 @@ def _nonstandard_constructive_v2_policy(
             dict(viability_summary or {}),
             dict(rs_bucket_snapshot or {}),
             dict(constraint_flags or {}),
+            {seat: dict(idx_stats) for seat, idx_stats in (subprofile_stats or {}).items()},
         )
     except TypeError:
         try:
-            # Piece 1: 8-arg signature (no constraint_flags)
+            # P1.2: 9-arg signature (no subprofile_stats)
             result = hook(
                 profile,
                 board_number,
@@ -401,10 +407,24 @@ def _nonstandard_constructive_v2_policy(
                 dict(seat_seen_counts or {}),
                 dict(viability_summary or {}),
                 dict(rs_bucket_snapshot or {}),
+                dict(constraint_flags or {}),
             )
         except TypeError:
-            # Piece 0: minimal 3-arg signature
-            result = hook(profile, board_number, attempt_number)
+            try:
+                # Piece 1: 8-arg signature (no constraint_flags)
+                result = hook(
+                    profile,
+                    board_number,
+                    attempt_number,
+                    dict(chosen_indices or {}),
+                    dict(seat_fail_counts or {}),
+                    dict(seat_seen_counts or {}),
+                    dict(viability_summary or {}),
+                    dict(rs_bucket_snapshot or {}),
+                )
+            except TypeError:
+                # Piece 0: minimal 3-arg signature
+                result = hook(profile, board_number, attempt_number)
     if result is None:
         return {}
 
@@ -1266,6 +1286,9 @@ def _build_single_constrained_deal(
     # NEW: breakdown of seat-level failures by cause (HCP vs shape)
     seat_fail_hcp: Dict[Seat, int] = {}
     seat_fail_shape: Dict[Seat, int] = {}
+    # P1.4: Per-subprofile tracking for smarter nudging decisions.
+    # Shape: {seat: {subprofile_idx: {"seen": int, "failed": int}}}
+    seat_subprofile_stats: Dict[Seat, Dict[int, Dict[str, int]]] = {}
 
     while board_attempts < MAX_BOARD_ATTEMPTS:
         board_attempts += 1
@@ -1460,6 +1483,14 @@ def _build_single_constrained_deal(
             chosen_sub = chosen_subprofiles.get(seat)
             idx0 = chosen_indices.get(seat)
 
+            # P1.4: Track at subprofile granularity
+            if idx0 is not None:
+                if seat not in seat_subprofile_stats:
+                    seat_subprofile_stats[seat] = {}
+                if idx0 not in seat_subprofile_stats[seat]:
+                    seat_subprofile_stats[seat][idx0] = {"seen": 0, "failed": 0}
+                seat_subprofile_stats[seat][idx0]["seen"] += 1
+
             # NEW: default failure reason; will be refined later
             fail_reason = "other"
 
@@ -1575,6 +1606,11 @@ def _build_single_constrained_deal(
                 all_matched = False
                 seat_fail_counts[seat] = seat_fail_counts.get(seat, 0) + 1
 
+                # P1.4: Track failure at subprofile granularity
+                if idx0 is not None and seat in seat_subprofile_stats:
+                    if idx0 in seat_subprofile_stats[seat]:
+                        seat_subprofile_stats[seat][idx0]["failed"] += 1
+
                 # This seat is the first failing seat on this attempt.
                 seat_fail_as_seat[seat] = seat_fail_as_seat.get(seat, 0) + 1
 
@@ -1640,6 +1676,7 @@ def _build_single_constrained_deal(
                 # shadow probe sees. For now, the returned policy hints are
                 # intentionally ignored.
                 # P1.2: Also pass per-seat constraint flags (RS/PC/OC).
+                # P1.4: Also pass per-subprofile tracking stats.
                 constraint_flags = _build_constraint_flags_per_seat(chosen_subprofiles)
                 v2_policy = _nonstandard_constructive_v2_policy(
                     profile=profile,
@@ -1651,6 +1688,7 @@ def _build_single_constrained_deal(
                     viability_summary=viability_summary_after,
                     rs_bucket_snapshot=rs_bucket_snapshot,
                     constraint_flags=constraint_flags,
+                    subprofile_stats=seat_subprofile_stats,
                 )
 
             if constructive_mode["nonstandard_shadow"]:

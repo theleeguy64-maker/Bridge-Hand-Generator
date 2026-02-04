@@ -23,11 +23,12 @@
    - Clear error message listing unviable seat(s)
    - New test file: `test_deal_generator_unviable.py` with 2 tests
 
-4. [ ] **Subprofile-level viability tracking** *(low-medium risk)*
-   - Currently only track per-seat viability
-   - Need: `(success_count, attempt_count)` per subprofile per seat
-   - **Impact**: Piece 4/5 nudging can pick best alternate subprofile instead of blind iteration
-   - **Why low-med risk**: Extends existing tracking, no algorithm change
+4. [x] ~~**Subprofile-level viability tracking**~~ **DONE**
+   - Added `seat_subprofile_stats` tracking dict: `{seat: {subprofile_idx: {"seen": int, "failed": int}}}`
+   - Updates on each seat match attempt and failure
+   - v2 policy seam now receives `subprofile_stats` parameter
+   - Backwards-compatible fallback chain (10-arg → 9-arg → 8-arg → 3-arg)
+   - Test updated to verify subprofile_stats received and defensively copied
 
 5. [ ] **HCP vs shape classification not implemented** *(medium risk)*
    - Counters exist: `seat_fail_hcp`, `seat_fail_shape` - never populated
@@ -204,13 +205,13 @@
 
 | Priority | Category | Total | Done | Remaining |
 |----------|----------|-------|------|-----------|
-| 1 | Architecture | 8 | 3 | **5** |
+| 1 | Architecture | 8 | 4 | **4** |
 | 2 | Latent Bugs | 3 | 3 | 0 |
 | 3 | Dead Code | 10 | 10 | 0 |
 | 4 | Performance | 1 | 1 | 0 |
 | 5 | Code Quality | 6 | 6 | 0 |
 | 6 | Future | 9 | 3 | 6 (deferred) |
-| | **Total** | **37** | **26** | **11** |
+| | **Total** | **37** | **27** | **10** |
 
 ### V2 Dependency Graph (by new item numbers)
 
@@ -219,7 +220,7 @@ Safe Foundation (do first):
   Item 1 (Magic Strings) ──► Cleaner test infrastructure ✓ DONE
   Item 2 (Constraint State) ──► V2 policy can see RS/PC/OC ✓ DONE
   Item 3 (Too Hard Rule) ──► Early termination for hopeless profiles ✓ DONE
-  Item 4 (Subprofile Tracking) ──► Better nudging data
+  Item 4 (Subprofile Tracking) ──► Better nudging data ✓ DONE
 
 Core Classification:
   Item 5 (HCP vs Shape) ──► Item 6 (Attribution → Policy)
@@ -231,6 +232,6 @@ Core Classification:
 ## Notes
 
 - **Branch**: `refactor/deal-generator`
-- **Tests**: 212 passed, 4 skipped (intentional benchmarks)
+- **Tests**: 214 passed, 4 skipped (intentional benchmarks)
 - **Known working**: Profile A-D, deal generation, validation
 - **Known struggling**: Profile E - constructive not engaging

@@ -88,12 +88,13 @@ def test_invariants_safety_profile_never_calls_v2_policy(monkeypatch):
 
 
 def test_nonstandard_v2_policy_hook_receives_rich_inputs(monkeypatch):
-    """Piece 1 + P1.2: the v2 policy seam accepts rich inputs including constraint_flags.
+    """Piece 1 + P1.2 + P1.4: the v2 policy seam accepts rich inputs.
 
     This is a wrapper-level test (not a full integration test); it ensures the
     wrapper forwards the shapes we expect and copies mappings defensively.
 
     P1.2 addition: constraint_flags provides per-seat RS/PC/OC constraint awareness.
+    P1.4 addition: subprofile_stats provides per-subprofile success/failure tracking.
     """
     if not hasattr(dg, "_nonstandard_constructive_v2_policy"):
         pytest.skip("v2 policy seam wrapper not present")
@@ -112,6 +113,11 @@ def test_nonstandard_v2_policy_hook_receives_rich_inputs(monkeypatch):
         "N": {"has_rs": False, "has_pc": False, "has_oc": False},
         "W": {"has_rs": True, "has_pc": False, "has_oc": False},
     }
+    # P1.4: per-subprofile tracking stats
+    subprofile_stats = {
+        "N": {0: {"seen": 5, "failed": 2}},
+        "W": {0: {"seen": 3, "failed": 1}, 1: {"seen": 2, "failed": 0}},
+    }
 
     seen = {}
 
@@ -125,6 +131,7 @@ def test_nonstandard_v2_policy_hook_receives_rich_inputs(monkeypatch):
         viability_summary_arg,
         rs_bucket_snapshot_arg,
         constraint_flags_arg,  # P1.2
+        subprofile_stats_arg,  # P1.4
     ):
         seen["board_number"] = board_number
         seen["attempt_number"] = attempt_number
@@ -134,6 +141,7 @@ def test_nonstandard_v2_policy_hook_receives_rich_inputs(monkeypatch):
         seen["viability_summary"] = viability_summary_arg
         seen["rs_bucket_snapshot"] = rs_bucket_snapshot_arg
         seen["constraint_flags"] = constraint_flags_arg  # P1.2
+        seen["subprofile_stats"] = subprofile_stats_arg  # P1.4
         return {}
 
     monkeypatch.setattr(dg, "_DEBUG_NONSTANDARD_CONSTRUCTIVE_V2_POLICY", hook, raising=False)
@@ -148,6 +156,7 @@ def test_nonstandard_v2_policy_hook_receives_rich_inputs(monkeypatch):
         viability_summary=viability_summary,
         rs_bucket_snapshot=rs_bucket_snapshot,
         constraint_flags=constraint_flags,  # P1.2
+        subprofile_stats=subprofile_stats,  # P1.4
     )
 
     assert seen["board_number"] == 7
@@ -158,6 +167,7 @@ def test_nonstandard_v2_policy_hook_receives_rich_inputs(monkeypatch):
     assert seen["viability_summary"] == viability_summary
     assert seen["rs_bucket_snapshot"] == rs_bucket_snapshot
     assert seen["constraint_flags"] == constraint_flags  # P1.2
+    assert seen["subprofile_stats"] == subprofile_stats  # P1.4
 
     # Defensive copy: the wrapper should not pass through the same dict objects.
     assert seen["chosen_indices"] is not chosen_indices
@@ -166,3 +176,4 @@ def test_nonstandard_v2_policy_hook_receives_rich_inputs(monkeypatch):
     assert seen["viability_summary"] is not viability_summary
     assert seen["rs_bucket_snapshot"] is not rs_bucket_snapshot
     assert seen["constraint_flags"] is not constraint_flags  # P1.2
+    assert seen["subprofile_stats"] is not subprofile_stats  # P1.4
