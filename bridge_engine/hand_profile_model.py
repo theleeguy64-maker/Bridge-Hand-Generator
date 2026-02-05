@@ -545,7 +545,23 @@ class SeatProfile:
 # -----------------------------------------------------------------------
 # HandProfile (whole profile)
 # -----------------------------------------------------------------------
-    
+
+
+def _default_dealing_order(dealer: str) -> List[str]:
+    """
+    Return default dealing order: dealer + clockwise rotation.
+
+    Examples:
+        dealer="N" → ["N", "E", "S", "W"]
+        dealer="E" → ["E", "S", "W", "N"]
+        dealer="S" → ["S", "W", "N", "E"]
+        dealer="W" → ["W", "N", "E", "S"]
+    """
+    seats = ["N", "E", "S", "W"]
+    idx = seats.index(dealer)
+    return seats[idx:] + seats[:idx]
+
+
 @dataclass
 class HandProfile:
 
@@ -639,11 +655,18 @@ class HandProfile:
             SubprofileExclusionData.from_dict(e) for e in exclusions_raw
         ]
 
+        # Use provided dealing order, or generate default (dealer + clockwise).
+        dealer = str(data["dealer"])
+        if "hand_dealing_order" in data:
+            dealing_order = list(data["hand_dealing_order"])
+        else:
+            dealing_order = _default_dealing_order(dealer)
+
         return cls(
             profile_name=str(data["profile_name"]),
             description=str(data.get("description", "")),
-            dealer=str(data["dealer"]),
-            hand_dealing_order=list(data["hand_dealing_order"]),
+            dealer=dealer,
+            hand_dealing_order=dealing_order,
             tag=str(data["tag"]),
             seat_profiles=seat_profiles,
             author=str(data.get("author", "")),

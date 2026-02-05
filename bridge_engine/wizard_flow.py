@@ -67,6 +67,7 @@ from .hand_profile_model import (
     StandardSuitConstraints,
     SuitRange,
     OpponentContingentSuitData,
+    _default_dealing_order,
 )
 
 
@@ -89,14 +90,12 @@ def _suggest_dealing_order(
     dealer_norm = (dealer or "").strip().upper()
     mode = (ns_role_mode or "north_drives").strip().lower()
 
-    base_order = ["N", "E", "S", "W"]
-
+    # Use the shared helper for base "dealer + clockwise" order.
     def rotate_from_dealer() -> List[str]:
-        if dealer_norm in base_order:
-            idx = base_order.index(dealer_norm)
-            return base_order[idx:] + base_order[:idx]
-        # Defensive fallback
-        return base_order
+        if dealer_norm in ("N", "E", "S", "W"):
+            return _default_dealing_order(dealer_norm)
+        # Defensive fallback for invalid dealer
+        return ["N", "E", "S", "W"]
 
     # ---- Special cases: North-centric training drills ----
     #
@@ -1393,14 +1392,12 @@ def _suggest_dealing_order(
     dealer_norm = (dealer or "").strip().upper()
     mode = (ns_role_mode or "north_drives").strip().lower()
 
-    base_order = ["N", "E", "S", "W"]
-
+    # Use the shared helper for base "dealer + clockwise" order.
     def rotate_from_dealer() -> List[str]:
-        if dealer_norm in base_order:
-            idx = base_order.index(dealer_norm)
-            return base_order[idx:] + base_order[:idx]
-        # Defensive fallback
-        return base_order
+        if dealer_norm in ("N", "E", "S", "W"):
+            return _default_dealing_order(dealer_norm)
+        # Defensive fallback for invalid dealer
+        return ["N", "E", "S", "W"]
 
     # ---- Special cases: North-centric training drills ----
     #
