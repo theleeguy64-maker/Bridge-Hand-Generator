@@ -226,7 +226,14 @@ processing_order = rs_seats_sorted + non_rs_constrained_seats
 - Higher risk = higher priority; equal risk = clockwise tiebreaker
 
 Location: `_base_smart_hand_order()` in `wizard_flow.py`
-Helpers: `_clockwise_from()`, `_detect_seat_roles()`, `_compute_seat_risk()`
+
+Helpers:
+- `_clockwise_from(seat)` - seats clockwise from given seat
+- `_detect_seat_roles(seat_profiles)` - RS/PC/OC roles + risk per seat
+- `_normalize_subprofile_weights(sub_profiles)` - N subprofiles → 1/N weights
+- `_get_subprofile_type(sub)` - classifies as standard/rs/pc/oc
+- `_compute_seat_risk(seat_profile)` - weighted risk calculation
+
 Tests: 56 tests in `test_default_dealing_order.py`
 
 ## Debug Hooks
