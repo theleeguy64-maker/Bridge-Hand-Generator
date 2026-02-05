@@ -266,6 +266,11 @@ class HardestSeatConfig:
     # that have non-standard constraints (Random Suit / PC / OC).
     prefer_nonstandard_seats: bool = True
 
+    # Minimum ratio of shape failures to total (hcp+shape) for constructive
+    # to be considered useful. Below this threshold, the seat is "HCP-dominant"
+    # and constructive help won't be effective. Set to 0.0 to disable this check.
+    min_shape_ratio_for_constructive: float = 0.5
+
 
 def _seat_has_nonstandard_constraints(profile: HandProfile, seat: Seat) -> bool:
     """
@@ -292,8 +297,46 @@ def _seat_has_nonstandard_constraints(profile: HandProfile, seat: Seat) -> bool:
         ):
             return True
     return False
-    
-    
+
+
+def _is_shape_dominant_failure(
+    seat: Seat,
+    seat_fail_hcp: Dict[Seat, int],
+    seat_fail_shape: Dict[Seat, int],
+    min_shape_ratio: float,
+) -> bool:
+    """
+    Return True if the seat's failures are shape-dominant (constructive can help).
+    Return False if HCP-dominant (constructive won't help).
+
+    Constructive sampling can guarantee shape (card counts per suit), but cannot
+    guarantee HCP. So if a seat is failing mostly due to HCP constraints, using
+    constructive help won't be effective.
+
+    Args:
+        seat: The seat to check.
+        seat_fail_hcp: Per-seat HCP failure counter.
+        seat_fail_shape: Per-seat shape failure counter.
+        min_shape_ratio: Minimum shape_fails / (hcp_fails + shape_fails) ratio
+                         required to consider constructive help useful.
+
+    Returns:
+        True if shape-dominant or insufficient data (benefit of the doubt).
+        False if HCP-dominant.
+    """
+    hcp_fails = seat_fail_hcp.get(seat, 0)
+    shape_fails = seat_fail_shape.get(seat, 0)
+    total_classified = hcp_fails + shape_fails
+
+    # No classified failures yet - give constructive benefit of the doubt.
+    if total_classified == 0:
+        return True
+
+    shape_ratio = shape_fails / float(total_classified)
+    return shape_ratio >= min_shape_ratio
+
+
+
 def _shadow_probe_nonstandard_constructive(
     profile: HandProfile,
     board_number: int,
@@ -1386,26 +1429,35 @@ def _build_single_constrained_deal(
         allow_constructive = constructive_mode["standard"] or constructive_mode.get("nonstandard_v2", False)
 
         if allow_constructive and help_seat is not None:
-            constructive_minima = _extract_standard_suit_minima(
-                profile=profile,
+            # Check if failures are shape-dominant before trying constructive.
+            # If HCP-dominant, constructive help won't be effective (can't
+            # pre-commit HCP, only card counts).
+            if _is_shape_dominant_failure(
                 seat=help_seat,
-                chosen_subprofile=chosen_subprofiles.get(help_seat),
-            )
-            total_min = sum(constructive_minima.values())
-            if 0 < total_min <= CONSTRUCTIVE_MAX_SUM_MIN_CARDS:
-                use_constructive = True
+                seat_fail_hcp=seat_fail_hcp,
+                seat_fail_shape=seat_fail_shape,
+                min_shape_ratio=_HARDEST_SEAT_CONFIG.min_shape_ratio_for_constructive,
+            ):
+                constructive_minima = _extract_standard_suit_minima(
+                    profile=profile,
+                    seat=help_seat,
+                    chosen_subprofile=chosen_subprofiles.get(help_seat),
+                )
+                total_min = sum(constructive_minima.values())
+                if 0 < total_min <= CONSTRUCTIVE_MAX_SUM_MIN_CARDS:
+                    use_constructive = True
 
-                if _DEBUG_STANDARD_CONSTRUCTIVE_USED is not None:
-                    try:
-                        _DEBUG_STANDARD_CONSTRUCTIVE_USED(
-                            profile,
-                            board_number,
-                            board_attempts,
-                            help_seat,
-                        )
-                    except Exception:
-                        # Debug hooks must never affect deal generation.
-                        pass
+                    if _DEBUG_STANDARD_CONSTRUCTIVE_USED is not None:
+                        try:
+                            _DEBUG_STANDARD_CONSTRUCTIVE_USED(
+                                profile,
+                                board_number,
+                                board_attempts,
+                                help_seat,
+                            )
+                        except Exception:
+                            # Debug hooks must never affect deal generation.
+                            pass
    
         if use_constructive and help_seat is not None:
             # Mutating deck: each hand draws from the remaining cards.

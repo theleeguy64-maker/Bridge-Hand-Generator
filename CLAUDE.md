@@ -11,7 +11,10 @@
 - **"Lee slow"** - Careful mode. After EACH code change:
   1. Run tests (`.venv/bin/pytest -v`)
   2. If passed: Explicitly state "✅ All X tests passed"
-  3. If failed: Summarize issues and fixes applied
+  3. If failed: STOP and give 3 options:
+     - **Review further** - investigate what went wrong
+     - **Fix** - attempt to fix the issue
+     - **Restore** - revert to prior code
 
 ## Documentation
 - Proactively suggest updating `CLAUDE.md` when: new commands are added, project structure changes, new conventions are established, or key files are created/renamed

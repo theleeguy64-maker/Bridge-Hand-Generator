@@ -11,12 +11,11 @@
    - `seat_fail_hcp` and `seat_fail_shape` counters now populated
    - 9 new unit tests in `test_match_standard_classification.py`
 
-2. [ ] **Connect attribution to helper policy** *(medium risk, unblocked)*
-   - Once we know HCP vs shape split:
-     - Shape-dominant failures → constructive is appropriate
-     - HCP-dominant failures → constructive won't help; maybe declare unviable
-   - **Not yet wired**
-   - **Why medium risk**: Depends on item 1, wiring/integration change
+2. [x] **Connect attribution to helper policy** *(medium risk)* ✅ DONE
+   - `_is_shape_dominant_failure()` checks HCP vs shape ratio before using constructive
+   - `HardestSeatConfig.min_shape_ratio_for_constructive` configurable threshold (default 0.5)
+   - Shape-dominant → constructive appropriate; HCP-dominant → skip constructive
+   - 8 new unit tests in `test_attribution_to_policy.py`
 
 3. [ ] **"Standard vs nonstandard" is wrong axis** *(medium-high risk)*
    - Current: Skip constructive for any seat with RS/PC/OC
@@ -63,9 +62,9 @@
 
 | Priority | Category | Remaining |
 |----------|----------|-----------|
-| 1 | Architecture | **3** |
+| 1 | Architecture | **2** |
 | 6 | Future | 6 (deferred) |
-| | **Total** | **9** |
+| | **Total** | **8** |
 
 ### Dependency Graph
 
@@ -80,21 +79,22 @@ Core Classification:
 ## Notes
 
 - **Branch**: `refactor/deal-generator`
-- **Tests**: 223 passed, 4 skipped (intentional benchmarks)
+- **Tests**: 231 passed, 4 skipped (intentional benchmarks)
 - **Known working**: Profile A-D, deal generation, validation
 - **Known struggling**: Profile E - constructive not engaging
 
 ## Completed Items (for reference)
 
 <details>
-<summary>28 items completed - click to expand</summary>
+<summary>29 items completed - click to expand</summary>
 
-### Priority 1 (5 items)
+### Priority 1 (6 items)
 - Refactor magic profile name checks (explicit flags)
 - Expose constraint state to v2 policy (constraint_flags)
 - Add "too hard = unviable" rule (early termination)
 - Subprofile-level viability tracking (seat_subprofile_stats)
 - HCP vs shape failure classification (seat_fail_hcp/shape counters)
+- Connect attribution to helper policy (_is_shape_dominant_failure)
 
 ### Priority 2 - Latent Bugs (3 items)
 - Mutating frozen dataclass

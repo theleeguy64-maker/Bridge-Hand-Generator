@@ -123,8 +123,8 @@ first_failed_stage_idx: int           # Index in checked list
 seat_fail_as_seat[seat]           # Seat was first to fail
 seat_fail_global_other[seat]      # Seat passed, later seat failed
 seat_fail_global_unchecked[seat]  # Seat never checked (early break)
-seat_fail_hcp[seat]               # Failure was HCP-driven (WIP)
-seat_fail_shape[seat]             # Failure was shape-driven (WIP)
+seat_fail_hcp[seat]               # Failure was HCP-driven
+seat_fail_shape[seat]             # Failure was shape-driven
 ```
 
 ### Attribution Logic
@@ -145,11 +145,12 @@ On attempt failure:
 
 ### v1: Standard Constructive
 
-**4 Gates (ALL must pass):**
+**5 Gates (ALL must pass):**
 1. `helper_seat is not None`
 2. `not _seat_has_nonstandard_constraints(profile, helper_seat)`
-3. `constructive_minima = _extract_standard_suit_minima(...)`  (non-empty)
-4. `sum(constructive_minima.values()) <= CONSTRUCTIVE_MAX_SUM_MIN_CARDS`
+3. `_is_shape_dominant_failure(seat, hcp, shape, ratio)` - skip if HCP-dominant
+4. `constructive_minima = _extract_standard_suit_minima(...)`  (non-empty)
+5. `sum(constructive_minima.values()) <= CONSTRUCTIVE_MAX_SUM_MIN_CARDS`
 
 **Build path:**
 ```python
