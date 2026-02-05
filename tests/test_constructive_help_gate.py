@@ -80,8 +80,8 @@ def test_constructive_help_gate_does_not_call_choose_hardest(monkeypatch: pytest
     # All seats always match so we succeed on the first attempt and never
     # exhaust MAX_BOARD_ATTEMPTS.
     def always_match(*args, **kwargs):
-        # Signature: _match_seat(...) -> (matched: bool, chosen_random_suit)
-        return True, None
+        # Signature: _match_seat(...) -> (matched: bool, chosen_random_suit, fail_reason)
+        return True, None, None
 
     monkeypatch.setattr(deal_generator, "_match_seat", always_match)
 
@@ -190,7 +190,7 @@ def test_constructive_help_skips_unviable_help_seat(monkeypatch) -> None:
         random_suit_choices,
         rng,
     ):
-        return True, None
+        return True, None, None
 
     monkeypatch.setattr(deal_generator, "_match_seat", always_match_seat)
 

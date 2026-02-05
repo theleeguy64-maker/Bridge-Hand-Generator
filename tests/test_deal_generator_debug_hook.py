@@ -78,8 +78,8 @@ def test_debug_hook_called_when_max_attempts_exhausted(monkeypatch) -> None:
 
     # Force every seat match to fail so we always exhaust attempts.
     def always_fail_match(*args, **kwargs):
-        # Signature: _match_seat(...)->(matched, chosen_random_suit)
-        return False, None
+        # Signature: _match_seat(...)->(matched, chosen_random_suit, fail_reason)
+        return False, None, "other"
 
     monkeypatch.setattr(deal_generator, "_match_seat", always_fail_match)
     monkeypatch.setattr(deal_generator, "MAX_BOARD_ATTEMPTS", 3)

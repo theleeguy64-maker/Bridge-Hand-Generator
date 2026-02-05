@@ -156,7 +156,7 @@ def test_random_suit_frequency_guardrail_baseline_vs_v2(
             rng: random.Random,
         ):
             # Call the real matcher first.
-            matched, chosen_rs = original_match_seat(
+            matched, chosen_rs, fail_reason = original_match_seat(
                 profile=profile,
                 seat=seat,
                 hand=hand,
@@ -182,7 +182,7 @@ def test_random_suit_frequency_guardrail_baseline_vs_v2(
                 if suit in SUITS:
                     suit_counts[suit] += 1
 
-            return matched, chosen_rs
+            return matched, chosen_rs, fail_reason
 
         monkeypatch.setattr(
             deal_generator,
@@ -382,15 +382,15 @@ def test_partner_contingent_sees_partner_random_suit_choice(
         if seat == "W":
             # West chooses Spades and records the RS choice.
             random_suit_choices.setdefault("W", []).append("S")
-            return True, ["S"]
+            return True, ["S"], None
 
         if seat == "E":
             # PC seat must "see" West's RS choice by the time it's called.
             seen_rs_choices_at_e = list(random_suit_choices.get("W", []))
-            return True, None
+            return True, None, None
 
         # Other seats: unconstrained for this test.
-        return True, None
+        return True, None, None
 
     monkeypatch.setattr(deal_generator, "_match_seat", fake_match_seat)
 
@@ -485,21 +485,21 @@ def test_two_random_suit_seats_visible_to_pc_partner(
         if seat == "W":
             # West chooses Spades.
             random_suit_choices.setdefault("W", []).append("S")
-            return True, ["S"]
+            return True, ["S"], None
 
         if seat == "E":
             # East chooses Hearts.
             random_suit_choices.setdefault("E", []).append("H")
-            return True, ["H"]
+            return True, ["H"], None
 
         if seat == "N":
             # "PC" seat: by the time we get here, both RS choices must be visible.
             seen_rs_at_n["W"] = list(random_suit_choices.get("W", []))
             seen_rs_at_n["E"] = list(random_suit_choices.get("E", []))
-            return True, None
+            return True, None, None
 
         # Other seats: unconstrained for this test.
-        return True, None
+        return True, None, None
 
     monkeypatch.setattr(deal_generator, "_match_seat", fake_match_seat)
 
@@ -589,15 +589,15 @@ def test_rs_pc_sandbox_shadow_order_and_visibility(
         if seat == "W":
             # West chooses Spades.
             random_suit_choices.setdefault("W", []).append("S")
-            return True, ["S"]
+            return True, ["S"], None
 
         if seat == "E":
             # "PC" seat: by the time we get here, it should see W's choice.
             seen_rs_at_e = list(random_suit_choices.get("W", []))
-            return True, None
+            return True, None, None
 
         # Other seats: unconstrained for this test.
-        return True, None
+        return True, None, None
 
     monkeypatch.setattr(deal_generator, "_match_seat", fake_match_seat)
 
@@ -729,10 +729,10 @@ def test_pc_oc_view_of_random_suit_choices_guardrail(
         ) is not None
         if is_rs:
             random_suit_choices.setdefault(seat, []).append("S")
-            return True, ["S"]
+            return True, ["S"], None
 
         # PC / OC / plain seats: unconstrained, always match.
-        return True, None
+        return True, None, None
 
     monkeypatch.setattr(
         deal_generator,
@@ -859,9 +859,9 @@ def test_nonstandard_shadow_hook_invoked_for_rs_pc_sandbox(
         if is_rs:
             random_suit_choices.setdefault(seat, []).append("S")
             # RS seat returns a concrete RS choice payload.
-            return True, ["S"]
+            return True, ["S"], None
         # Non-RS seats: unconstrained in this sandbox.
-        return True, None
+        return True, None, None
 
     monkeypatch.setattr(deal_generator, "_match_seat", always_match)
 

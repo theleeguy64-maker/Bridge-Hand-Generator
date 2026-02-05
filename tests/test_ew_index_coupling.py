@@ -96,7 +96,7 @@ def test_ew_index_coupling_driver_and_follower_share_index(monkeypatch) -> None:
         captured_indices[seat] = chosen_subprofile_index_1based
         # Always "match" so the first attempt succeeds and we don't trigger
         # any of the fallback / debug-hook behaviour.
-        return True, None
+        return True, None, None
 
     monkeypatch.setattr(deal_generator, "_match_seat", fake_match_seat)
 

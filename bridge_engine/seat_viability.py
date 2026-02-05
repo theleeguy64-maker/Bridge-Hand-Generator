@@ -84,10 +84,22 @@ def _compute_suit_analysis(hand: List[Card]) -> SuitAnalysis:
 # Standard / Random Suit / Partner Contingent matching
 # ---------------------------------------------------------------------------
 
-def _match_standard(analysis: SuitAnalysis, std: StandardSuitConstraints) -> bool:
-    # Total HCP
+def _match_standard(
+    analysis: SuitAnalysis, std: StandardSuitConstraints
+) -> Tuple[bool, Optional[str]]:
+    """
+    Match a hand's SuitAnalysis against StandardSuitConstraints.
+
+    Returns:
+        (matched: bool, fail_reason: Optional[str])
+        - If matched is True, fail_reason is None
+        - If matched is False, fail_reason is one of:
+          - "hcp": Failed total HCP or per-suit HCP check
+          - "shape": Failed per-suit card count check
+    """
+    # Total HCP check (HCP type failure)
     if not (std.total_min_hcp <= analysis.total_hcp <= std.total_max_hcp):
-        return False
+        return False, "hcp"
 
     # Per-suit checks
     for suit_name, sr in [
@@ -98,12 +110,14 @@ def _match_standard(analysis: SuitAnalysis, std: StandardSuitConstraints) -> boo
     ]:
         count = len(analysis.cards_by_suit[suit_name])
         hcp = analysis.hcp_by_suit[suit_name]
+        # Shape check (card count) - checked before per-suit HCP
         if not (sr.min_cards <= count <= sr.max_cards):
-            return False
+            return False, "shape"
+        # Per-suit HCP check (HCP type failure)
         if not (sr.min_hcp <= hcp <= sr.max_hcp):
-            return False
+            return False, "hcp"
 
-    return True
+    return True, None
     
     
 def _match_random_suit_with_attempt(
@@ -201,16 +215,23 @@ def _match_subprofile(
     sub: SubProfile,
     random_suit_choices: Dict[Seat, List[str]],
     rng: random.Random,
-) -> Tuple[bool, Optional[List[str]]]:
+) -> Tuple[bool, Optional[List[str]], Optional[str]]:
     """
     Attempt to match a single SubProfile to this 13-card hand.
 
     Returns:
-      (matched, chosen_random_suits_for_this_seat_or_None)
+      (matched, chosen_random_suits_for_this_seat_or_None, fail_reason)
+
+      fail_reason is one of:
+        - None: matched successfully
+        - "hcp": Standard HCP constraint failed
+        - "shape": Standard shape constraint failed
+        - "other": RS/PC/OC constraint failed (not standard)
     """
     # Always check Standard first
-    if not _match_standard(analysis, sub.standard):
-        return False, None
+    std_matched, std_fail_reason = _match_standard(analysis, sub.standard)
+    if not std_matched:
+        return False, None, std_fail_reason
 
     # Random Suit (no Partner or Opponents Contingent on this seat)
     if (
@@ -223,8 +244,9 @@ def _match_subprofile(
         )
         if not matched:
             # Piece 3 signal: return attempted suits even on failure
-            return False, chosen
-        return True, chosen
+            # RS failure is "other" (not standard HCP/shape)
+            return False, chosen, "other"
+        return True, chosen, None
 
     # Partner Contingent-Suit (no Random Suit or Opponents on this seat)
     if (
@@ -237,11 +259,13 @@ def _match_subprofile(
         partner_suits = random_suit_choices.get(partner)
         if not partner_suits:
             # If partner hasn't chosen Random Suit suits yet, this cannot match
-            return False, None
+            # PC failure is "other" (not standard HCP/shape)
+            return False, None, "other"
 
         if _match_partner_contingent(analysis, pc, partner_suits):
-            return True, None
-        return False, None
+            return True, None, None
+        # PC constraint failed - "other" (not standard HCP/shape)
+        return False, None, "other"
 
     # Opponents Contingent-Suit (no Random Suit or Partner on this seat)
     if (
@@ -254,19 +278,22 @@ def _match_subprofile(
         opp_suits = random_suit_choices.get(opponent)
         if not opp_suits:
             # If opponent hasn't chosen Random Suit suits yet, this cannot match
-            return False, None
+            # OC failure is "other" (not standard HCP/shape)
+            return False, None, "other"
 
         # Opponent's Contingent Suit = first chosen suit
         suit = opp_suits[0]
         sr = oc.suit_range
         if suit not in analysis.cards_by_suit:
-            return False, None
+            # OC failure is "other" (not standard HCP/shape)
+            return False, None, "other"
 
         count = len(analysis.cards_by_suit[suit])
         hcp = analysis.hcp_by_suit[suit]
         if sr.min_cards <= count <= sr.max_cards and sr.min_hcp <= hcp <= sr.max_hcp:
-            return True, None
-        return False, None
+            return True, None, None
+        # OC constraint failed - "other" (not standard HCP/shape)
+        return False, None, "other"
 
     # Standard-only sub-profile
     # (no random_suit_constraint, no partner_contingent_constraint, no opponents_contingent_suit_constraint)
@@ -275,10 +302,10 @@ def _match_subprofile(
         and sub.partner_contingent_constraint is None
         and sub.opponents_contingent_suit_constraint is None
     ):
-        return True, None
+        return True, None, None
 
     # Any other combination is invalid by design; treat as not matching.
-    return False, None
+    return False, None, "other"
 
 def _is_excluded_for_seat_subprofile(
     profile: HandProfile,
@@ -346,7 +373,7 @@ def _match_seat(
     chosen_subprofile_index_1based: Optional[int],
     random_suit_choices: Dict[Seat, List[str]],
     rng: random.Random,
-) -> Tuple[bool, Optional[List[str]]]:
+) -> Tuple[bool, Optional[List[str]], Optional[str]]:
     """
     Match a 13-card hand against the chosen SubProfile for a given seat.
 
@@ -357,26 +384,33 @@ def _match_seat(
         across deals is handled by the caller.
 
     Returns:
-      (matched, chosen_random_suits_for_this_seat_or_None)
+      (matched, chosen_random_suits_for_this_seat_or_None, fail_reason)
+
+      fail_reason is one of:
+        - None: matched successfully
+        - "hcp": Standard HCP constraint failed
+        - "shape": Standard shape constraint failed
+        - "other": RS/PC/OC constraint failed, or exclusion triggered
     """
     # Unconstrained seat: any 13 cards are acceptable.
     if seat_profile is None:
-        return True, None
+        return True, None, None
 
     # If no chosen subprofile was provided, fall back defensively to first one
     if chosen_subprofile is None:
         if not seat_profile.subprofiles:
-            return True, None
+            return True, None, None
         subprofiles: List[SubProfile] = [seat_profile.subprofiles[0]]
     else:
         subprofiles = [chosen_subprofile]
 
     analysis = _compute_suit_analysis(hand)
-    
+
     last_chosen: Optional[List[str]] = None
+    last_fail_reason: Optional[str] = None
 
     for sub in subprofiles:
-        matched, chosen = _match_subprofile(
+        matched, chosen, fail_reason = _match_subprofile(
             analysis=analysis,
             seat=seat,
             sub=sub,
@@ -384,8 +418,10 @@ def _match_seat(
             rng=rng,
         )
         if chosen:
-            last_chosen = chosen       
-        
+            last_chosen = chosen
+        if fail_reason:
+            last_fail_reason = fail_reason
+
         if matched:
             if _is_excluded_for_seat_subprofile(
                 profile=profile,
@@ -394,12 +430,13 @@ def _match_seat(
                 analysis=analysis,
             ):
                 # Piece 3 signal: keep the RS choice payload even on failure.
-                return False, chosen
-            return True, chosen
+                # Exclusion failure is "other" (not standard HCP/shape)
+                return False, chosen, "other"
+            return True, chosen, None
 
     # Piece 3 signal: if _match_subprofile produced an RS choice payload during a failed
     # attempt, return it so the caller can count this bucket as "seen".
-    return False, last_chosen
+    return False, last_chosen, last_fail_reason
 
 
 # -------------------------------------    dealing_order:--------------------------------------

@@ -103,13 +103,13 @@ def test_random_suit_seat_matches_before_partner_contingent(monkeypatch: pytest.
         chosen_subprofile_index_1based: int,
         random_suit_choices: Dict[Seat, List[str]],
         rng: random.Random,
-    ) -> tuple[bool, Optional[List[str]]]:
+    ) -> tuple[bool, Optional[List[str]], Optional[str]]:
         has_rs = getattr(chosen_subprofile, "random_suit_constraint", None) is not None
         has_pc = getattr(chosen_subprofile, "partner_contingent_constraint", None) is not None
         calls.append((seat, has_rs, has_pc))
         # Always "match" so we succeed on the first attempt; RS/PC ordering
         # is all we care about.
-        return True, None
+        return True, None, None
 
     monkeypatch.setattr(deal_generator, "_match_seat", fake_match_seat)
 

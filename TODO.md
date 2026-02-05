@@ -5,15 +5,13 @@
 *These are the actual problems preventing constructive help from working.*
 *Ordered by risk: least risky first → safest to tackle in sequence.*
 
-1. [ ] **HCP vs shape classification not implemented** *(medium risk)*
-   - Counters exist: `seat_fail_hcp`, `seat_fail_shape` - never populated
-   - Matcher doesn't classify failures yet
-   - **Need**: `_match_seat` returns failure reason, not just bool
-   - **Location**: `seat_viability.py:_match_subprofile()` and `_match_standard()`
-   - **Impact**: Can't decide "constructive appropriate here" without this
-   - **Why medium risk**: Modifies return value, but additive classification
+1. [x] **HCP vs shape classification not implemented** *(medium risk)* ✅ DONE
+   - `_match_standard()` returns `(bool, fail_reason)` with "hcp"/"shape" classification
+   - `_match_subprofile()` and `_match_seat()` thread fail_reason through
+   - `seat_fail_hcp` and `seat_fail_shape` counters now populated
+   - 9 new unit tests in `test_match_standard_classification.py`
 
-2. [ ] **Connect attribution to helper policy** *(medium risk, blocked by 1)*
+2. [ ] **Connect attribution to helper policy** *(medium risk, unblocked)*
    - Once we know HCP vs shape split:
      - Shape-dominant failures → constructive is appropriate
      - HCP-dominant failures → constructive won't help; maybe declare unviable
@@ -65,9 +63,9 @@
 
 | Priority | Category | Remaining |
 |----------|----------|-----------|
-| 1 | Architecture | **4** |
+| 1 | Architecture | **3** |
 | 6 | Future | 6 (deferred) |
-| | **Total** | **10** |
+| | **Total** | **9** |
 
 ### Dependency Graph
 
@@ -82,20 +80,21 @@ Core Classification:
 ## Notes
 
 - **Branch**: `refactor/deal-generator`
-- **Tests**: 214 passed, 4 skipped (intentional benchmarks)
+- **Tests**: 223 passed, 4 skipped (intentional benchmarks)
 - **Known working**: Profile A-D, deal generation, validation
 - **Known struggling**: Profile E - constructive not engaging
 
 ## Completed Items (for reference)
 
 <details>
-<summary>27 items completed - click to expand</summary>
+<summary>28 items completed - click to expand</summary>
 
-### Priority 1 (4 items)
+### Priority 1 (5 items)
 - Refactor magic profile name checks (explicit flags)
 - Expose constraint state to v2 policy (constraint_flags)
 - Add "too hard = unviable" rule (early termination)
 - Subprofile-level viability tracking (seat_subprofile_stats)
+- HCP vs shape failure classification (seat_fail_hcp/shape counters)
 
 ### Priority 2 - Latent Bugs (3 items)
 - Mutating frozen dataclass

@@ -910,7 +910,7 @@ def _build_single_board_random_suit_w_only(
         idx0 = _choose_index_for_seat(rng, west_sp)
         chosen_sub = west_sp.subprofiles[idx0]
 
-        matched, _chosen_rs = _match_seat(
+        matched, _chosen_rs, _ = _match_seat(
             profile=profile,
             seat="W",
             hand=hands["W"],
@@ -1491,14 +1491,11 @@ def _build_single_constrained_deal(
                     seat_subprofile_stats[seat][idx0] = {"seen": 0, "failed": 0}
                 seat_subprofile_stats[seat][idx0]["seen"] += 1
 
-            # NEW: default failure reason; will be refined later
-            fail_reason = "other"
-
             # Defensive: if we didn't pick a subprofile, treat as seat-level failure.
             if chosen_sub is None or idx0 is None:
                 matched = False
                 chosen_rs = None
-                # fail_reason stays "other"
+                fail_reason = "other"  # No subprofile to classify against
             else:
                 # Is this seat using Random Suit on this attempt?     
                 is_rs_seat = getattr(chosen_sub, "random_suit_constraint", None) is not None
@@ -1512,7 +1509,7 @@ def _build_single_constrained_deal(
                     rs_entry["total_seen_attempts"] += 1
 
                 # Match the seat against profile constraints
-                matched, chosen_rs = _match_seat(
+                matched, chosen_rs, fail_reason = _match_seat(
                     profile=profile,
                     seat=seat,
                     hand=hands[seat],
@@ -1549,7 +1546,7 @@ def _build_single_constrained_deal(
                         if getattr(alt_sub, "partner_contingent_constraint", None) is None:
                             continue
 
-                        alt_matched, alt_chosen_rs = _match_seat(
+                        alt_matched, alt_chosen_rs, _ = _match_seat(
                             profile=profile,
                             seat=seat,
                             hand=hands[seat],
@@ -1580,7 +1577,7 @@ def _build_single_constrained_deal(
                         if getattr(alt_sub, "opponents_contingent_suit_constraint", None) is None:
                             continue
 
-                        alt_matched, alt_chosen_rs = _match_seat(
+                        alt_matched, alt_chosen_rs, _ = _match_seat(
                             profile=profile,
                             seat=seat,
                             hand=hands[seat],

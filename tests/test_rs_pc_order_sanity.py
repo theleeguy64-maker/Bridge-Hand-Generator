@@ -106,7 +106,7 @@ def test_rs_pc_order_w_before_e_and_pc_sees_rs_choice(monkeypatch) -> None:
         if seat == "W":
             random_suit_choices["W"] = ["S"]
             # We "matched", and return a dummy RS choice payload.
-            return True, ["S"]
+            return True, ["S"], None
 
         # Simulate East being Partner Contingent on West's RS choice.
         if seat == "E":
@@ -114,10 +114,10 @@ def test_rs_pc_order_w_before_e_and_pc_sees_rs_choice(monkeypatch) -> None:
             rs_snapshot_seen_at_e = dict(random_suit_choices)
             # For the purposes of this test, succeed only if we can see W -> ["S"].
             ok = random_suit_choices.get("W") == ["S"]
-            return ok, None
+            return ok, None, None
 
         # Other seats are unconstrained and always match.
-        return True, None
+        return True, None, None
 
     # Patch _match_seat inside the generator module.
     monkeypatch.setattr(deal_generator, "_match_seat", fake_match_seat)
