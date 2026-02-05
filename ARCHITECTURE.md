@@ -214,15 +214,20 @@ processing_order = rs_seats_sorted + non_rs_constrained_seats
 **Smart reordering** (Step 2 ✅ Complete):
 | Priority | Condition | Action |
 |----------|-----------|--------|
-| 1 | Seat has RS | RS seat first (clockwise from dealer) |
+| 1 | Seat has RS | RS seat first (sorted by risk, clockwise tiebreaker) |
 | 2 | NS driver set | NS driver next; else next NS clockwise |
 | 3 | Seat has PC | PC after partner |
 | 4 | Seat has OC | OC after opponents |
 | 5 | Remaining | Clockwise fill |
 
+**Risk weighting** for multiple subprofiles:
+- Risk factors: Standard=0, RS=1.0, PC=0.5, OC=0.5
+- Seat risk = Σ (normalized_weight × risk_factor)
+- Higher risk = higher priority; equal risk = clockwise tiebreaker
+
 Location: `_smart_dealing_order()` in `wizard_flow.py`
-Helpers: `_clockwise_from()`, `_detect_seat_roles()`
-Tests: 19 tests in `test_default_dealing_order.py`
+Helpers: `_clockwise_from()`, `_detect_seat_roles()`, `_compute_seat_risk()`
+Tests: 56 tests in `test_default_dealing_order.py`
 
 ## Debug Hooks
 

@@ -86,6 +86,110 @@ def _clockwise_from(seat: str) -> List[str]:
     return seats[idx:] + seats[:idx]
 
 
+# ---------------------------------------------------------------------------
+# Subprofile weight and risk helpers (reusable)
+# ---------------------------------------------------------------------------
+
+def _normalize_subprofile_weights(sub_profiles: list) -> List[float]:
+    """
+    Return normalized weights (0-1) for each subprofile, summing to 1.0.
+
+    Weight logic:
+    - If 0 subprofiles → return []
+    - If 1 subprofile → return [1.0]
+    - If N subprofiles with no weights specified → each gets 1/N
+    - If weights specified → normalize to sum to 1.0
+    """
+    n = len(sub_profiles)
+    if n == 0:
+        return []
+    if n == 1:
+        return [1.0]
+
+    # Extract raw weights (None if not specified)
+    raw_weights = []
+    for sub in sub_profiles:
+        if isinstance(sub, dict):
+            w = sub.get("weight_percent")
+        else:
+            # SubProfile object
+            w = getattr(sub, "weight_percent", None)
+        raw_weights.append(w if w is not None else None)
+
+    # If all None, equal distribution
+    if all(w is None for w in raw_weights):
+        return [1.0 / n] * n
+
+    # Replace None with 0, then normalize
+    weights = [w if w is not None else 0.0 for w in raw_weights]
+    total = sum(weights)
+    if total == 0:
+        return [1.0 / n] * n
+    return [w / total for w in weights]
+
+
+def _get_subprofile_type(sub) -> str:
+    """
+    Return subprofile type: 'rs', 'pc', 'oc', or 'standard'.
+
+    Mutually exclusive - RS/PC/OC can't coexist in same subprofile.
+    Works with both dict (raw JSON) and SubProfile objects.
+    """
+    if isinstance(sub, dict):
+        if sub.get("random_suit_constraint"):
+            return "rs"
+        elif sub.get("partner_contingent_constraint"):
+            return "pc"
+        elif sub.get("opponents_contingent_suit_constraint"):
+            return "oc"
+    else:
+        # SubProfile object
+        if getattr(sub, "random_suit_constraint", None) is not None:
+            return "rs"
+        elif getattr(sub, "partner_contingent_constraint", None) is not None:
+            return "pc"
+        elif getattr(sub, "opponents_contingent_suit_constraint", None) is not None:
+            return "oc"
+    return "standard"
+
+
+# Risk factors for dealing order priority
+SUBPROFILE_RISK_FACTORS = {
+    "standard": 0.0,  # No constraint impact
+    "rs": 1.0,        # Must go first, others depend on it
+    "pc": 0.5,        # Depends on partner (cooperative)
+    "oc": 0.5,        # Depends on opponent (adversarial)
+}
+
+
+def _compute_seat_risk(seat_profile) -> float:
+    """
+    Compute risk score for a seat based on weighted subprofiles.
+
+    Risk = Σ (normalized_weight × risk_factor)
+
+    Higher risk = higher priority in dealing order.
+    """
+    # Handle both dict and SeatProfile
+    if isinstance(seat_profile, dict):
+        sub_profiles = seat_profile.get("sub_profiles", [])
+    else:
+        sub_profiles = getattr(seat_profile, "sub_profiles", [])
+
+    if not sub_profiles:
+        return 0.0
+
+    weights = _normalize_subprofile_weights(sub_profiles)
+
+    total_risk = 0.0
+    for sub, weight in zip(sub_profiles, weights):
+        subtype = _get_subprofile_type(sub)
+        risk = SUBPROFILE_RISK_FACTORS.get(subtype, 0.0)
+        total_risk += weight * risk
+
+    return total_risk
+
+
 def _detect_seat_roles(seat_profiles: dict) -> dict:
     """
     Scan seat_profiles dict to detect RS/PC/OC roles for each seat.
@@ -94,13 +198,17 @@ def _detect_seat_roles(seat_profiles: dict) -> dict:
       - "rs": bool - True if any subprofile has random_suit_constraint
       - "pc": str or None - partner_seat if any subprofile has partner_contingent_constraint
       - "oc": str or None - opponent_seat if any subprofile has opponents_contingent_suit_constraint
+      - "risk": float - weighted risk score (0.0 to 1.0)
 
     Note: Works with raw dict data (before HandProfile construction) so the
     wizard can suggest order during profile creation.
     """
-    roles = {s: {"rs": False, "pc": None, "oc": None} for s in "NESW"}
+    roles = {s: {"rs": False, "pc": None, "oc": None, "risk": 0.0} for s in "NESW"}
 
     for seat, sp in seat_profiles.items():
+        # Compute risk score for this seat
+        roles[seat]["risk"] = _compute_seat_risk(sp)
+
         # sp can be a dict (raw JSON) or SeatProfile object
         sub_profiles = sp.get("sub_profiles", []) if isinstance(sp, dict) else sp.sub_profiles
 
@@ -148,9 +256,17 @@ def _smart_dealing_order(
     order = []
     remaining = set("NESW")
 
-    # --- P1: RS seats (clockwise from dealer) ---
-    for seat in _clockwise_from(dealer):
-        if roles[seat]["rs"] and seat in remaining:
+    # --- P1: RS seats (sorted by risk, clockwise tiebreaker) ---
+    # Find all RS seats and sort by (-risk, clockwise_index)
+    # Higher risk = higher priority; equal risk = clockwise from dealer
+    clockwise = _clockwise_from(dealer)
+    rs_seats = [s for s in clockwise if roles[s]["rs"]]
+    rs_seats_sorted = sorted(
+        rs_seats,
+        key=lambda s: (-roles[s]["risk"], clockwise.index(s))
+    )
+    for seat in rs_seats_sorted:
+        if seat in remaining:
             order.append(seat)
             remaining.remove(seat)
 

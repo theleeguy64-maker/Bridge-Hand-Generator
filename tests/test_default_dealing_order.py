@@ -8,6 +8,9 @@ from bridge_engine.wizard_flow import (
     _clockwise_from,
     _detect_seat_roles,
     _smart_dealing_order,
+    _normalize_subprofile_weights,
+    _get_subprofile_type,
+    _compute_seat_risk,
 )
 
 
@@ -40,10 +43,10 @@ def test_clockwise_from_west():
 # ---------------------------------------------------------------------------
 
 def test_detect_seat_roles_empty():
-    """Empty seat_profiles returns all False/None."""
+    """Empty seat_profiles returns all False/None/0.0."""
     roles = _detect_seat_roles({})
     for seat in "NESW":
-        assert roles[seat] == {"rs": False, "pc": None, "oc": None}
+        assert roles[seat] == {"rs": False, "pc": None, "oc": None, "risk": 0.0}
 
 
 def test_detect_seat_roles_rs_at_north():
@@ -104,6 +107,129 @@ def test_detect_seat_roles_combined():
     assert roles["S"]["pc"] == "N"
     assert roles["W"]["rs"] is True
     assert roles["E"]["oc"] == "W"
+
+
+# ---------------------------------------------------------------------------
+# Unit tests for _normalize_subprofile_weights()
+# ---------------------------------------------------------------------------
+
+def test_normalize_weights_empty():
+    """Empty list returns empty."""
+    assert _normalize_subprofile_weights([]) == []
+
+
+def test_normalize_weights_single():
+    """1 subprofile gets 100%."""
+    assert _normalize_subprofile_weights([{"weight_percent": 50}]) == [1.0]
+    assert _normalize_subprofile_weights([{}]) == [1.0]
+
+
+def test_normalize_weights_two_no_weights():
+    """2 subprofiles, no weights → each 0.5."""
+    result = _normalize_subprofile_weights([{}, {}])
+    assert result == [0.5, 0.5]
+
+
+def test_normalize_weights_three_no_weights():
+    """3 subprofiles, no weights → each 0.333..."""
+    result = _normalize_subprofile_weights([{}, {}, {}])
+    assert len(result) == 3
+    assert abs(result[0] - 1/3) < 0.001
+    assert abs(sum(result) - 1.0) < 0.001
+
+
+def test_normalize_weights_explicit():
+    """2 subprofiles with 70/30 weights."""
+    result = _normalize_subprofile_weights([
+        {"weight_percent": 70},
+        {"weight_percent": 30},
+    ])
+    assert abs(result[0] - 0.7) < 0.001
+    assert abs(result[1] - 0.3) < 0.001
+
+
+def test_normalize_weights_unnormalized():
+    """2 subprofiles with 200/100 → normalized to 0.67/0.33."""
+    result = _normalize_subprofile_weights([
+        {"weight_percent": 200},
+        {"weight_percent": 100},
+    ])
+    assert abs(result[0] - 2/3) < 0.001
+    assert abs(result[1] - 1/3) < 0.001
+
+
+# ---------------------------------------------------------------------------
+# Unit tests for _get_subprofile_type()
+# ---------------------------------------------------------------------------
+
+def test_get_subprofile_type_standard():
+    """No RS/PC/OC → standard."""
+    assert _get_subprofile_type({}) == "standard"
+    assert _get_subprofile_type({"standard": {}}) == "standard"
+
+
+def test_get_subprofile_type_rs():
+    """RS constraint → rs."""
+    assert _get_subprofile_type({"random_suit_constraint": {"n_suits": 1}}) == "rs"
+
+
+def test_get_subprofile_type_pc():
+    """PC constraint → pc."""
+    assert _get_subprofile_type({"partner_contingent_constraint": {"partner_seat": "N"}}) == "pc"
+
+
+def test_get_subprofile_type_oc():
+    """OC constraint → oc."""
+    assert _get_subprofile_type({"opponents_contingent_suit_constraint": {"opponent_seat": "W"}}) == "oc"
+
+
+# ---------------------------------------------------------------------------
+# Unit tests for _compute_seat_risk()
+# ---------------------------------------------------------------------------
+
+def test_compute_seat_risk_empty():
+    """No subprofiles → risk 0."""
+    assert _compute_seat_risk({}) == 0.0
+    assert _compute_seat_risk({"sub_profiles": []}) == 0.0
+
+
+def test_compute_seat_risk_single_rs():
+    """Single RS subprofile → risk 1.0."""
+    seat = {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]}
+    assert _compute_seat_risk(seat) == 1.0
+
+
+def test_compute_seat_risk_single_standard():
+    """Single standard subprofile → risk 0.0."""
+    seat = {"sub_profiles": [{}]}
+    assert _compute_seat_risk(seat) == 0.0
+
+
+def test_compute_seat_risk_two_equal_rs_standard():
+    """2 equal subprofiles: 1 RS + 1 Standard → risk 0.5."""
+    seat = {"sub_profiles": [
+        {"random_suit_constraint": {"n_suits": 1}},
+        {},
+    ]}
+    assert abs(_compute_seat_risk(seat) - 0.5) < 0.001
+
+
+def test_compute_seat_risk_weighted_70_30():
+    """70% Standard + 30% RS → risk 0.30."""
+    seat = {"sub_profiles": [
+        {"weight_percent": 70},  # standard
+        {"weight_percent": 30, "random_suit_constraint": {"n_suits": 1}},
+    ]}
+    assert abs(_compute_seat_risk(seat) - 0.30) < 0.001
+
+
+def test_compute_seat_risk_pc():
+    """50% PC + 50% Standard → risk 0.25."""
+    seat = {"sub_profiles": [
+        {"weight_percent": 50, "partner_contingent_constraint": {"partner_seat": "N"}},
+        {"weight_percent": 50},
+    ]}
+    assert abs(_compute_seat_risk(seat) - 0.25) < 0.001
 
 
 # ---------------------------------------------------------------------------
@@ -451,3 +577,57 @@ def test_smart_order_different_dealer_north():
     }
     order = _smart_dealing_order(seat_profiles, dealer="N")
     assert order[0] == "E"
+
+
+# ---------------------------------------------------------------------------
+# Risk-based ordering tests
+# ---------------------------------------------------------------------------
+
+def test_smart_order_risk_higher_risk_first():
+    """Two RS seats with different risks: higher risk goes first."""
+    # N: 100% RS = risk 1.0
+    # W: 50% RS + 50% Standard = risk 0.5
+    seat_profiles = {
+        "N": {"sub_profiles": [
+            {"random_suit_constraint": {"n_suits": 1}, "weight_percent": 100},
+        ]},
+        "W": {"sub_profiles": [
+            {"random_suit_constraint": {"n_suits": 1}, "weight_percent": 50},
+            {"weight_percent": 50},  # Standard
+        ]},
+    }
+    # N has higher risk (1.0 > 0.5), so N goes first regardless of clockwise
+    order = _smart_dealing_order(seat_profiles, dealer="E")
+    assert order[0] == "N"  # Higher risk
+    assert order[1] == "W"  # Lower risk
+
+
+def test_smart_order_risk_equal_uses_clockwise():
+    """Two RS seats with EQUAL risks: clockwise from dealer as tiebreaker."""
+    # Both N and W: 100% RS = risk 1.0 (equal)
+    seat_profiles = {
+        "N": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+        "W": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+    }
+    # Clockwise from E: E, S, W, N → W comes before N
+    order = _smart_dealing_order(seat_profiles, dealer="E")
+    assert order[0] == "W"  # Earlier in clockwise from E
+    assert order[1] == "N"  # Later in clockwise from E
+
+
+def test_smart_order_risk_partial_rs():
+    """Seat with partial RS (30%) should still be treated as RS but with lower priority."""
+    # N: 30% RS = risk 0.3
+    # W: 100% RS = risk 1.0
+    seat_profiles = {
+        "N": {"sub_profiles": [
+            {"weight_percent": 70},  # Standard
+            {"random_suit_constraint": {"n_suits": 1}, "weight_percent": 30},
+        ]},
+        "W": {"sub_profiles": [
+            {"random_suit_constraint": {"n_suits": 1}},
+        ]},
+    }
+    order = _smart_dealing_order(seat_profiles, dealer="E")
+    assert order[0] == "W"  # Higher risk (1.0)
+    assert order[1] == "N"  # Lower risk (0.3)

@@ -9,7 +9,7 @@
 
 ### 1. [x] Basic Smart Order
 - ✅ `_smart_dealing_order()` in wizard_flow.py (5-priority algorithm)
-- [ ] Multiple subprofiles with RS: detect worst case, use that for ordering
+- ✅ Risk-weighted ordering: `_compute_seat_risk()` handles multiple subprofiles
 
 ### 2. [ ] Determine Helper Method
 - Decide: random draw vs enhanced deal method?
@@ -38,7 +38,7 @@
 ## Summary
 Architecture: 5 (1 done, 4 pending) | Enhancements: 1 | **Total: 6**
 
-**Tests**: 268 passed, 4 skipped | **Branch**: refactor/deal-generator
+**Tests**: 287 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 ---
 
