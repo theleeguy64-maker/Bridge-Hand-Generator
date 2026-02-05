@@ -204,6 +204,24 @@ Always coupled when both E/W have >1 subprofile with equal lengths:
 processing_order = rs_seats_sorted + non_rs_constrained_seats
 ```
 
+## Dealing Order Design
+
+**Default generation** (Steps 1,3,4,5 complete):
+- `_default_dealing_order(dealer)` returns dealer + clockwise
+- `HandProfile.from_dict()` auto-generates if missing
+- User can override in JSON or wizard
+
+**Smart reordering** (Step 2 TODO - Architecture 1e):
+| Priority | Condition | Action |
+|----------|-----------|--------|
+| 1 | Seat has RS | RS seat first |
+| 2 | NS driver set | NS driver next |
+| 3 | Seat has PC | PC after partner |
+| 4 | Seat has OC | OC after opponents |
+| 5 | Remaining | Clockwise fill |
+
+Location: `_suggest_dealing_order()` in `wizard_flow.py`
+
 ## Debug Hooks
 
 ```python
