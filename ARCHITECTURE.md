@@ -211,16 +211,18 @@ processing_order = rs_seats_sorted + non_rs_constrained_seats
 - `HandProfile.from_dict()` auto-generates if missing
 - User can override in JSON or wizard
 
-**Smart reordering** (Step 2 TODO - Architecture 1e):
+**Smart reordering** (Step 2 ✅ Complete):
 | Priority | Condition | Action |
 |----------|-----------|--------|
-| 1 | Seat has RS | RS seat first |
-| 2 | NS driver set | NS driver next |
+| 1 | Seat has RS | RS seat first (clockwise from dealer) |
+| 2 | NS driver set | NS driver next; else next NS clockwise |
 | 3 | Seat has PC | PC after partner |
 | 4 | Seat has OC | OC after opponents |
 | 5 | Remaining | Clockwise fill |
 
-Location: `_suggest_dealing_order()` in `wizard_flow.py`
+Location: `_smart_dealing_order()` in `wizard_flow.py`
+Helpers: `_clockwise_from()`, `_detect_seat_roles()`
+Tests: 19 tests in `test_default_dealing_order.py`
 
 ## Debug Hooks
 

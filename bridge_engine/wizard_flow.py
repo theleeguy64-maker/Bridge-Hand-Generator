@@ -71,6 +71,137 @@ from .hand_profile_model import (
 )
 
 
+# ---------------------------------------------------------------------------
+# Smart dealing order helpers (Step 2 - ARCHITECTURE.md)
+# ---------------------------------------------------------------------------
+
+def _clockwise_from(seat: str) -> List[str]:
+    """
+    Return all 4 seats in clockwise order starting from the given seat.
+
+    Example: _clockwise_from("E") → ["E", "S", "W", "N"]
+    """
+    seats = ["N", "E", "S", "W"]
+    idx = seats.index(seat.upper())
+    return seats[idx:] + seats[:idx]
+
+
+def _detect_seat_roles(seat_profiles: dict) -> dict:
+    """
+    Scan seat_profiles dict to detect RS/PC/OC roles for each seat.
+
+    Returns a dict keyed by seat ("N", "E", "S", "W") with:
+      - "rs": bool - True if any subprofile has random_suit_constraint
+      - "pc": str or None - partner_seat if any subprofile has partner_contingent_constraint
+      - "oc": str or None - opponent_seat if any subprofile has opponents_contingent_suit_constraint
+
+    Note: Works with raw dict data (before HandProfile construction) so the
+    wizard can suggest order during profile creation.
+    """
+    roles = {s: {"rs": False, "pc": None, "oc": None} for s in "NESW"}
+
+    for seat, sp in seat_profiles.items():
+        # sp can be a dict (raw JSON) or SeatProfile object
+        sub_profiles = sp.get("sub_profiles", []) if isinstance(sp, dict) else sp.sub_profiles
+
+        for sub in sub_profiles:
+            # Handle both dict (raw) and SubProfile object
+            if isinstance(sub, dict):
+                if sub.get("random_suit_constraint"):
+                    roles[seat]["rs"] = True
+                if pc := sub.get("partner_contingent_constraint"):
+                    roles[seat]["pc"] = pc.get("partner_seat")
+                if oc := sub.get("opponents_contingent_suit_constraint"):
+                    roles[seat]["oc"] = oc.get("opponent_seat")
+            else:
+                # SubProfile object
+                if sub.random_suit_constraint is not None:
+                    roles[seat]["rs"] = True
+                if sub.partner_contingent_constraint is not None:
+                    roles[seat]["pc"] = sub.partner_contingent_constraint.partner_seat
+                if sub.opponents_contingent_suit_constraint is not None:
+                    roles[seat]["oc"] = sub.opponents_contingent_suit_constraint.opponent_seat
+
+    return roles
+
+
+def _smart_dealing_order(
+    seat_profiles: dict,
+    dealer: str,
+    ns_role_mode: str = "no_driver_no_index",
+) -> List[str]:
+    """
+    Compute optimal dealing order based on seat roles (RS/PC/OC) and NS driver.
+
+    Priority algorithm (from ARCHITECTURE.md):
+      P1: RS seats - scan clockwise from dealer, add each RS seat found
+      P2: NS seat - if driver defined, add that; else next NS clockwise
+      P3: PC seats - add if partner already in order
+      P4: OC seats - add if opponent already in order
+      P5: Remaining - fill clockwise from last seat
+
+    Returns a list of 4 seats in dealing order.
+    """
+    dealer = dealer.upper() if dealer else "N"
+    roles = _detect_seat_roles(seat_profiles)
+
+    order = []
+    remaining = set("NESW")
+
+    # --- P1: RS seats (clockwise from dealer) ---
+    for seat in _clockwise_from(dealer):
+        if roles[seat]["rs"] and seat in remaining:
+            order.append(seat)
+            remaining.remove(seat)
+
+    # --- P2: NS seat (driver or next clockwise) ---
+    # Determine NS driver from ns_role_mode
+    ns_driver = None
+    mode = (ns_role_mode or "").strip().lower()
+    if mode == "north_drives":
+        ns_driver = "N"
+    elif mode == "south_drives":
+        ns_driver = "S"
+    # "random_driver" and "no_driver_no_index" → no specific driver
+
+    if ns_driver and ns_driver in remaining:
+        # Defined driver: add that seat
+        order.append(ns_driver)
+        remaining.remove(ns_driver)
+    elif remaining & {"N", "S"}:
+        # No driver defined: add next NS seat clockwise from last in order
+        last = order[-1] if order else dealer
+        for seat in _clockwise_from(last):
+            if seat in ("N", "S") and seat in remaining:
+                order.append(seat)
+                remaining.remove(seat)
+                break
+
+    # --- P3: PC seats (add if partner already in order) ---
+    for seat in _clockwise_from(dealer):
+        if seat in remaining and roles[seat]["pc"]:
+            if roles[seat]["pc"] in order:
+                order.append(seat)
+                remaining.remove(seat)
+
+    # --- P4: OC seats (add if opponent already in order) ---
+    for seat in _clockwise_from(dealer):
+        if seat in remaining and roles[seat]["oc"]:
+            if roles[seat]["oc"] in order:
+                order.append(seat)
+                remaining.remove(seat)
+
+    # --- P5: Remaining (clockwise from last) ---
+    if remaining:
+        last = order[-1] if order else dealer
+        for seat in _clockwise_from(last):
+            if seat in remaining:
+                order.append(seat)
+                remaining.remove(seat)
+
+    return order
+
+
 def _suggest_dealing_order(
     tag: str,
     dealer: str,
@@ -948,11 +1079,11 @@ def _prompt_random_suit_constraint(
 
     return allowed_suits, required_count, suit_ranges
 
-def _prompt_partner_contingent_constraint(
+def _build_partner_contingent_constraint(
     existing: Optional[PartnerContingentConstraint] = None,
 ) -> PartnerContingentConstraint:
     """
-    Prompt the user for a Partner Contingent constraint.
+    Build / edit a Partner Contingent constraint.
     """
     print("\nPartner Contingent constraint:")
 
@@ -1373,72 +1504,6 @@ def _assign_ns_role_usage_interactive(
             print("Please enter one of: any, driver_only, follower_only")
         object.__setattr__(subprofiles[idx - 1], "ns_role_usage", value)
 
-def _suggest_dealing_order(
-    tag: str,
-    dealer: str,
-    ns_role_mode: str = "north_drives",
-) -> List[str]:
-    """
-    Suggest a default hand_dealing_order for the profile creation wizard.
-
-    Today this is only special-cased for North-centric training drills.
-    For everything else we fall back to the simple "rotate N,E,S,W
-    starting from the dealer" rule.
-
-    This is *metadata-only* – it just chooses a default; users can still
-    override via custom input.
-    """
-    tag_norm = (tag or "").strip().lower()
-    dealer_norm = (dealer or "").strip().upper()
-    mode = (ns_role_mode or "north_drives").strip().lower()
-
-    # Use the shared helper for base "dealer + clockwise" order.
-    def rotate_from_dealer() -> List[str]:
-        if dealer_norm in ("N", "E", "S", "W"):
-            return _default_dealing_order(dealer_norm)
-        # Defensive fallback for invalid dealer
-        return ["N", "E", "S", "W"]
-
-    # ---- Special cases: North-centric training drills ----
-    #
-    # 1) Tag = "Opener": our side opens.
-    #    We only special-case when dealer is North.
-    #
-    #    - ns_role_mode = "north_drives":
-    #        N (driver), S (partner), then E, W
-    #        => N S E W
-    #    - ns_role_mode = "south_drives":
-    #        S (driver), N (partner), then W, E
-    #        => S N W E
-    if tag_norm == "opener":
-        if dealer_norm == "N":
-            if mode == "north_drives":
-                return ["N", "S", "E", "W"]
-            if mode == "south_drives":
-                return ["S", "N", "W", "E"]
-        # Other dealers with tag="Opener": simple dealer rotation
-        return rotate_from_dealer()
-
-    # 2) Tag = "Overcaller": opponents open, we overcall.
-    #    Classic case: West opens, North overcalls.
-    #
-    #    - ns_role_mode = "north_drives":
-    #        W (opener), N (our driver), S, E
-    #        => W N S E
-    #    - ns_role_mode = "south_drives":
-    #        W (opener), S (our driver), N, E
-    #        => W S N E
-    if tag_norm == "overcaller":
-        if dealer_norm == "W":
-            if mode == "north_drives":
-                return ["W", "N", "S", "E"]
-            if mode == "south_drives":
-                return ["W", "S", "N", "E"]
-        # Other dealers with tag="Overcaller": simple dealer rotation
-        return rotate_from_dealer()
-
-    # Fallback for any other future tags / modes:
-    return rotate_from_dealer()
 
 def _autosave_profile_draft(profile: HandProfile, original_path: Path) -> None:
     """
