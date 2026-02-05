@@ -7,7 +7,7 @@ from bridge_engine.hand_profile_model import _default_dealing_order, HandProfile
 from bridge_engine.wizard_flow import (
     _clockwise_from,
     _detect_seat_roles,
-    _smart_dealing_order,
+    _base_smart_hand_order,
     _normalize_subprofile_weights,
     _get_subprofile_type,
     _compute_seat_risk,
@@ -321,7 +321,7 @@ def test_from_dict_generates_default_when_missing_west():
 
 
 # ---------------------------------------------------------------------------
-# Unit tests for _smart_dealing_order() - Priority algorithm
+# Unit tests for _base_smart_hand_order() - Base Smart Hand Order algorithm
 # ---------------------------------------------------------------------------
 
 # --- P1: RS seats (clockwise from dealer) ---
@@ -331,7 +331,7 @@ def test_smart_order_p1_single_rs():
     seat_profiles = {
         "N": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
     }
-    order = _smart_dealing_order(seat_profiles, dealer="E")
+    order = _base_smart_hand_order(seat_profiles, dealer="E")
     assert order[0] == "N"
     assert len(order) == 4
     assert set(order) == {"N", "E", "S", "W"}
@@ -344,7 +344,7 @@ def test_smart_order_p1_two_rs_clockwise():
         "W": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 2}}]},
     }
     # Clockwise from E: E, S, W, N
-    order = _smart_dealing_order(seat_profiles, dealer="E")
+    order = _base_smart_hand_order(seat_profiles, dealer="E")
     assert order[0] == "W"  # First RS clockwise from E
     assert order[1] == "N"  # Second RS
 
@@ -353,14 +353,14 @@ def test_smart_order_p1_two_rs_clockwise():
 
 def test_smart_order_p2_driver_defined():
     """P2: NS driver=N, no RS → N goes first."""
-    order = _smart_dealing_order({}, dealer="E", ns_role_mode="north_drives")
+    order = _base_smart_hand_order({}, dealer="E", ns_role_mode="north_drives")
     assert order[0] == "N"
 
 
 def test_smart_order_p2_no_driver_uses_clockwise():
     """P2: No driver, no RS, dealer=E → S first (next NS clockwise from E)."""
     # Clockwise from E: E, S, W, N → first NS is S
-    order = _smart_dealing_order({}, dealer="E", ns_role_mode="no_driver_no_index")
+    order = _base_smart_hand_order({}, dealer="E", ns_role_mode="no_driver_no_index")
     assert order[0] == "S"
 
 
@@ -369,7 +369,7 @@ def test_smart_order_p2_driver_after_rs():
     seat_profiles = {
         "W": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
     }
-    order = _smart_dealing_order(seat_profiles, dealer="E", ns_role_mode="north_drives")
+    order = _base_smart_hand_order(seat_profiles, dealer="E", ns_role_mode="north_drives")
     assert order[0] == "W"  # P1: RS first
     assert order[1] == "N"  # P2: driver second
 
@@ -382,7 +382,7 @@ def test_smart_order_p3_pc_after_rs_partner():
         "N": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
         "S": {"sub_profiles": [{"partner_contingent_constraint": {"partner_seat": "N"}}]},
     }
-    order = _smart_dealing_order(seat_profiles, dealer="E")
+    order = _base_smart_hand_order(seat_profiles, dealer="E")
     assert order[0] == "N"  # P1: RS
     # P2: NS - N already placed, so next NS clockwise from N is S...
     # but S has PC, will it be placed in P2 or P3?
@@ -398,7 +398,7 @@ def test_smart_order_p4_oc_after_rs_opponent():
         "W": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
         "E": {"sub_profiles": [{"opponents_contingent_suit_constraint": {"opponent_seat": "W"}}]},
     }
-    order = _smart_dealing_order(seat_profiles, dealer="N")
+    order = _base_smart_hand_order(seat_profiles, dealer="N")
     # P1: W (RS)
     # P2: N or S next NS clockwise from W → N
     # P3: no PC
@@ -413,7 +413,7 @@ def test_smart_order_p4_oc_after_rs_opponent():
 
 def test_smart_order_p5_fallback_no_roles():
     """P5: No RS/PC/OC, no driver → dealer + clockwise (same as default)."""
-    order = _smart_dealing_order({}, dealer="E", ns_role_mode="no_driver_no_index")
+    order = _base_smart_hand_order({}, dealer="E", ns_role_mode="no_driver_no_index")
     # P2 will add first NS clockwise from E which is S
     # P5 fills remaining: clockwise from S → W, N, E
     # So order should be S, W, N, E
@@ -429,7 +429,7 @@ def test_smart_order_integration_complex():
         "S": {"sub_profiles": [{"partner_contingent_constraint": {"partner_seat": "N"}}]},
         "E": {"sub_profiles": [{"opponents_contingent_suit_constraint": {"opponent_seat": "W"}}]},
     }
-    order = _smart_dealing_order(seat_profiles, dealer="W", ns_role_mode="north_drives")
+    order = _base_smart_hand_order(seat_profiles, dealer="W", ns_role_mode="north_drives")
     # P1: N (RS) - only RS, W clockwise: W, N, E, S → N is RS
     assert order[0] == "N"
     # P2: driver=N already placed, skip
@@ -452,7 +452,7 @@ def test_smart_order_p1_rs_at_south():
     seat_profiles = {
         "S": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
     }
-    order = _smart_dealing_order(seat_profiles, dealer="N")
+    order = _base_smart_hand_order(seat_profiles, dealer="N")
     assert order[0] == "S"
 
 
@@ -463,7 +463,7 @@ def test_smart_order_p1_two_rs_dealer_west():
         "E": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 2}}]},
     }
     # Clockwise from W: W, N, E, S → N first, then E
-    order = _smart_dealing_order(seat_profiles, dealer="W")
+    order = _base_smart_hand_order(seat_profiles, dealer="W")
     assert order[0] == "N"  # First RS clockwise from W
     assert order[1] == "E"  # Second RS
 
@@ -472,7 +472,7 @@ def test_smart_order_p1_two_rs_dealer_west():
 
 def test_smart_order_p2_south_drives():
     """P2: Driver=S (south_drives), no RS → S goes first."""
-    order = _smart_dealing_order({}, dealer="N", ns_role_mode="south_drives")
+    order = _base_smart_hand_order({}, dealer="N", ns_role_mode="south_drives")
     assert order[0] == "S"
 
 
@@ -481,7 +481,7 @@ def test_smart_order_p2_south_drives_with_rs():
     seat_profiles = {
         "W": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
     }
-    order = _smart_dealing_order(seat_profiles, dealer="N", ns_role_mode="south_drives")
+    order = _base_smart_hand_order(seat_profiles, dealer="N", ns_role_mode="south_drives")
     assert order[0] == "W"  # P1: RS
     assert order[1] == "S"  # P2: driver
 
@@ -496,7 +496,7 @@ def test_smart_order_p3_pc_partner_not_in_order():
     # No RS, so P1 adds nothing
     # P2: no driver, dealer=E → next NS clockwise from E is S
     # But wait, S has PC pointing to N. P2 just adds next NS, it doesn't check PC.
-    order = _smart_dealing_order(seat_profiles, dealer="E", ns_role_mode="no_driver_no_index")
+    order = _base_smart_hand_order(seat_profiles, dealer="E", ns_role_mode="no_driver_no_index")
     # P2 adds S (next NS clockwise from E)
     # P3: S already added, N not in order yet, so PC check doesn't apply
     # P5: fills N, W, E clockwise from S
@@ -510,7 +510,7 @@ def test_smart_order_p3_pc_waits_for_partner():
         "E": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
         "W": {"sub_profiles": [{"partner_contingent_constraint": {"partner_seat": "E"}}]},
     }
-    order = _smart_dealing_order(seat_profiles, dealer="N", ns_role_mode="no_driver_no_index")
+    order = _base_smart_hand_order(seat_profiles, dealer="N", ns_role_mode="no_driver_no_index")
     # P1: E (RS)
     # P2: next NS clockwise from E → S
     # P3: W has PC(E), E is in order → W added
@@ -526,7 +526,7 @@ def test_smart_order_p4_oc_opponent_not_in_order():
     seat_profiles = {
         "E": {"sub_profiles": [{"opponents_contingent_suit_constraint": {"opponent_seat": "W"}}]},
     }
-    order = _smart_dealing_order(seat_profiles, dealer="N", ns_role_mode="no_driver_no_index")
+    order = _base_smart_hand_order(seat_profiles, dealer="N", ns_role_mode="no_driver_no_index")
     # P1: no RS
     # P2: next NS clockwise from N → S
     # P3: no PC
@@ -550,7 +550,7 @@ def test_smart_order_p4_oc_waits_for_opponent():
         "W": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
         "N": {"sub_profiles": [{"opponents_contingent_suit_constraint": {"opponent_seat": "W"}}]},
     }
-    order = _smart_dealing_order(seat_profiles, dealer="E", ns_role_mode="no_driver_no_index")
+    order = _base_smart_hand_order(seat_profiles, dealer="E", ns_role_mode="no_driver_no_index")
     # P1: W (RS) → order=[W]
     # P2: next NS clockwise from W: W,N,E,S → N is NS, but N has OC
     # P2 just adds next NS, doesn't check OC → order=[W, N]
@@ -566,7 +566,7 @@ def test_smart_order_different_dealer_south():
         "N": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
     }
     # Clockwise from S: S, W, N, E → RS at N found
-    order = _smart_dealing_order(seat_profiles, dealer="S")
+    order = _base_smart_hand_order(seat_profiles, dealer="S")
     assert order[0] == "N"
 
 
@@ -575,7 +575,7 @@ def test_smart_order_different_dealer_north():
     seat_profiles = {
         "E": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
     }
-    order = _smart_dealing_order(seat_profiles, dealer="N")
+    order = _base_smart_hand_order(seat_profiles, dealer="N")
     assert order[0] == "E"
 
 
@@ -597,7 +597,7 @@ def test_smart_order_risk_higher_risk_first():
         ]},
     }
     # N has higher risk (1.0 > 0.5), so N goes first regardless of clockwise
-    order = _smart_dealing_order(seat_profiles, dealer="E")
+    order = _base_smart_hand_order(seat_profiles, dealer="E")
     assert order[0] == "N"  # Higher risk
     assert order[1] == "W"  # Lower risk
 
@@ -610,7 +610,7 @@ def test_smart_order_risk_equal_uses_clockwise():
         "W": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
     }
     # Clockwise from E: E, S, W, N → W comes before N
-    order = _smart_dealing_order(seat_profiles, dealer="E")
+    order = _base_smart_hand_order(seat_profiles, dealer="E")
     assert order[0] == "W"  # Earlier in clockwise from E
     assert order[1] == "N"  # Later in clockwise from E
 
@@ -628,6 +628,6 @@ def test_smart_order_risk_partial_rs():
             {"random_suit_constraint": {"n_suits": 1}},
         ]},
     }
-    order = _smart_dealing_order(seat_profiles, dealer="E")
+    order = _base_smart_hand_order(seat_profiles, dealer="E")
     assert order[0] == "W"  # Higher risk (1.0)
     assert order[1] == "N"  # Lower risk (0.3)

@@ -7,8 +7,8 @@
 
 ## Architecture
 
-### 1. [x] Basic Smart Order
-- ✅ `_smart_dealing_order()` in wizard_flow.py (5-priority algorithm)
+### 1. [x] Base Smart Hand Order
+- ✅ `_base_smart_hand_order()` in wizard_flow.py (5-priority algorithm)
 - ✅ Risk-weighted ordering: `_compute_seat_risk()` handles multiple subprofiles
 
 ### 2. [ ] Determine Helper Method

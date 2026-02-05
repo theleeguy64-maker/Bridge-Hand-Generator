@@ -211,7 +211,7 @@ processing_order = rs_seats_sorted + non_rs_constrained_seats
 - `HandProfile.from_dict()` auto-generates if missing
 - User can override in JSON or wizard
 
-**Smart reordering** (Step 2 ✅ Complete):
+**Base Smart Hand Order** (✅ Complete):
 | Priority | Condition | Action |
 |----------|-----------|--------|
 | 1 | Seat has RS | RS seat first (sorted by risk, clockwise tiebreaker) |
@@ -225,7 +225,7 @@ processing_order = rs_seats_sorted + non_rs_constrained_seats
 - Seat risk = Σ (normalized_weight × risk_factor)
 - Higher risk = higher priority; equal risk = clockwise tiebreaker
 
-Location: `_smart_dealing_order()` in `wizard_flow.py`
+Location: `_base_smart_hand_order()` in `wizard_flow.py`
 Helpers: `_clockwise_from()`, `_detect_seat_roles()`, `_compute_seat_risk()`
 Tests: 56 tests in `test_default_dealing_order.py`
 

@@ -72,7 +72,7 @@ from .hand_profile_model import (
 
 
 # ---------------------------------------------------------------------------
-# Smart dealing order helpers (Step 2 - ARCHITECTURE.md)
+# Base Smart Hand Order helpers (ARCHITECTURE.md)
 # ---------------------------------------------------------------------------
 
 def _clockwise_from(seat: str) -> List[str]:
@@ -233,7 +233,7 @@ def _detect_seat_roles(seat_profiles: dict) -> dict:
     return roles
 
 
-def _smart_dealing_order(
+def _base_smart_hand_order(
     seat_profiles: dict,
     dealer: str,
     ns_role_mode: str = "no_driver_no_index",
