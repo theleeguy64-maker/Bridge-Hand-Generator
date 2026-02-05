@@ -7,7 +7,7 @@
 
 ## Shortcuts
 - **"Lee Title"** - Change terminal title to "Bridge Hand Generator"
-- **"Lee commit"** - Update CLAUDE.md, TODO.md, and ARCHITECTURE.md, then commit, then output "/usage" so user can check usage
+- **"Lee commit"** - Update CLAUDE.md, TODO.md, and ARCHITECTURE.md, then commit, then git push, then output "/usage" so user can check usage
 - **"Lee slow"** - Careful mode. After EACH code change:
   1. Run tests (`.venv/bin/pytest -v`)
   2. If passed: Explicitly state "✅ All X tests passed"
