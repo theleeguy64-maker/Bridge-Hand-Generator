@@ -7,39 +7,36 @@
 
 ## Architecture
 
-### 1. [ ] Smart Deal Order
-| # | Item | Description |
-|---|------|-------------|
-| 1a | ~~Smart deal order~~ | ✅ `_smart_dealing_order()` in wizard_flow.py |
-| 1a-i | NS random driver | How does `random_driver` interact at runtime? |
-| 1b | NS role filtering | Honor driver_only/follower_only |
-| 1c | Driver/follower | Which NS seat leads |
+### 1. [x] Basic Smart Order
+- ✅ `_smart_dealing_order()` in wizard_flow.py (5-priority algorithm)
+- [ ] Multiple subprofiles with RS: detect worst case, use that for ordering
 
-### 2. [ ] Constructive Help for Nonstandard Seats
-| # | Item | Description |
-|---|------|-------------|
-| 2a | PC/OC nudging | Try alternate subprofiles on failure |
-| 2b | RS reordering | Try suits by past success |
-| 2c | v1 gates | Empty minima extraction blocks RS/PC/OC |
+### 2. [ ] Determine Helper Method
+- Decide: random draw vs enhanced deal method?
+- RS reordering: try suits by past success
+- v1 gates: empty minima extraction blocks RS/PC/OC
 
-### 3. [ ] V2 Policy Validation
-| # | Item | Description |
-|---|------|-------------|
-| 3a | Integration tests | Prove v2 policy improves success |
+### 3. [ ] Random Draw Method
+- Confirm current random draw works correctly
+
+### 4. [ ] Enhanced Deal Method
+- Constructive help for nonstandard seats: PC/OC nudging
+- NS role filtering: filter subprofiles by driver_only/follower_only at deal time
+
+### 5. [ ] V2 Policy Validation
+- Integration tests: prove v2 policy improves success
 
 ---
 
 ## Enhancements
-4. [ ] Metrics export CLI - `export-metrics <profile> [--boards N]`
+
+### 6. [ ] Metrics Export CLI
+- `export-metrics <profile> [--boards N]`
 
 ---
 
 ## Summary
-| Category | Count |
-|----------|-------|
-| Architecture | 3 |
-| Enhancements | 1 |
-| **Total** | **4** |
+Architecture: 5 (1 done, 4 pending) | Enhancements: 1 | **Total: 6**
 
 **Tests**: 268 passed, 4 skipped | **Branch**: refactor/deal-generator
 
