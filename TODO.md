@@ -27,7 +27,12 @@
 - ✅ One-line change at `generate_deals()` call site — v2 is now the active production path
 - Profile E (6 spades + 10-12 HCP) now generates deals successfully
 
-### 4. [ ] HCP Help
+### 4. [ ] Review deal_generator.py for old/unused code
+- Now that v2 is the active path, audit for dead code from v1 constructive help
+- See ARCHITECTURE.md "Known Structural Issues" for starting list
+- Candidates: `_build_rs_bucket_snapshot()`, `_nonstandard_constructive_help_enabled()`, v2 nonstandard stubs, old 5-gate logic, `ENABLE_CONSTRUCTIVE_HELP` flags
+
+### 5. [ ] HCP Help
 - Extend `_pre_allocate()` to bias toward high/low cards for tight HCP constraints
 - Needed for Profile E (6 spades + 10-12 HCP)
 
@@ -35,13 +40,19 @@
 
 ## Enhancements
 
-### 7. [ ] Metrics Export CLI
+### 7. [ ] Refactor large files
+- `deal_generator.py` (2,402 lines) — split v1/v2, helpers, constants into separate modules
+- `hand_profile_model.py` (921 lines) — split data models from logic
+- `profile_cli.py` (968 lines) — split command handlers
+- `orchestrator.py` (705 lines) — split session management from CLI routing
+
+### 8. [ ] Metrics Export CLI
 - `export-metrics <profile> [--boards N]`
 
 ---
 
 ## Summary
-Architecture: 4 (3 done, 1 pending) | Enhancements: 1 | **Total: 3**
+Architecture: 5 (3 done, 2 pending) | Enhancements: 2 | **Total: 5**
 
 **Tests**: 362 passed, 5 skipped | **Branch**: refactor/deal-generator
 
