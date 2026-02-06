@@ -23,10 +23,11 @@
 - ✅ Gated benchmarks: v1 vs v2 on Profiles A/B/E (D8)
 - Benchmark results: Profile B 3x faster, Profile E now generates all 100 boards
 
-### 3. [ ] Swap v2 into Main Loop (D9)
-- One-line change at `generate_deals()` call site
+### 3. [x] Swap v2 into Main Loop (D9)
+- ✅ One-line change at `generate_deals()` call site — v2 is now the active production path
+- Profile E (6 spades + 10-12 HCP) now generates deals successfully
 
-### 6. [ ] HCP Help
+### 4. [ ] HCP Help
 - Extend `_pre_allocate()` to bias toward high/low cards for tight HCP constraints
 - Needed for Profile E (6 spades + 10-12 HCP)
 
@@ -40,7 +41,7 @@
 ---
 
 ## Summary
-Architecture: 4 (2 done, 2 pending) | Enhancements: 1 | **Total: 5**
+Architecture: 4 (3 done, 1 pending) | Enhancements: 1 | **Total: 3**
 
 **Tests**: 362 passed, 5 skipped | **Branch**: refactor/deal-generator
 
@@ -50,7 +51,7 @@ Architecture: 4 (2 done, 2 pending) | Enhancements: 1 | **Total: 5**
 <details>
 <summary>Click to expand</summary>
 
-- v2 shape-based help system: D0-D8 (dispersion check, pre-allocation, deal_with_help, v2 MVP, attribution, benchmarks)
+- v2 shape-based help system: D0-D9 complete (dispersion check, pre-allocation, deal_with_help, v2 MVP, attribution, benchmarks, swap)
 - Magic profile name checks, constraint state to v2, "too hard = unviable" rule
 - Subprofile viability tracking, HCP vs shape classification, attribution to policy
 - Standard vs nonstandard analysis, default dealing order (Steps 1,3,4,5)

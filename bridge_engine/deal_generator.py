@@ -2483,7 +2483,7 @@ def generate_deals(
     try:
         deals: List[Deal] = []
         for board_number in range(1, num_deals + 1):
-            deal = _build_single_constrained_deal(
+            deal = _build_single_constrained_deal_v2(
                 rng=rng,
                 profile=profile,
                 board_number=board_number,

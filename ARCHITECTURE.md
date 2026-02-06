@@ -71,14 +71,14 @@ _subprofile_is_viable()       # Deal & match test
 
 ### Stage C: Constrained Deal Generation
 
-**v1** (current active path):
+**v2** (current active path — shape-based help):
 ```python
-_build_single_constrained_deal(rng, profile, board_number, debug_board_stats)
+_build_single_constrained_deal_v2(rng, profile, board_number, debug_board_stats)
 ```
 
-**v2** (shape-based help, parallel function — not yet swapped in):
+**v1** (legacy, still available for rollback):
 ```python
-_build_single_constrained_deal_v2(rng, profile, board_number)
+_build_single_constrained_deal(rng, profile, board_number, debug_board_stats)
 ```
 
 **v1 per-board flow:**
