@@ -32,9 +32,11 @@ Deal Generation Loop
     ↓
 Select Subprofiles (with NS/EW index coupling)
     ↓
-Build Deck + Deal Hands
+Pre-select RS suits (make RS visible to help system)
     ↓
-Match Each Seat (RS seats first, then others)
+Build Deck + Deal Hands (with shape help + RS pre-allocation)
+    ↓
+Match Each Seat (RS seats first, using pre-committed suits)
     ↓
 Success → Return Deal | Failure → Retry (up to 10,000 attempts)
 ```
@@ -75,16 +77,19 @@ Per-attempt tracking for diagnostics:
 - Profile validation and viability checking
 - Constrained deal generation with retry loop (v2 active path, v1 available for rollback)
 - v2 shape-based help system (D0-D9 complete, production path)
+- RS-aware pre-selection (#8): RS suits pre-selected before dealing, visible to dispersion check and pre-allocation
 - Profiles A-E all work with v2 (tight shape + HCP constraints handled)
+- "Defense to 3 Weak 2s" profile now generates boards (was 0% before RS pre-selection)
 - HCP feasibility rejection (#5): early rejection of hands with infeasible HCP after pre-allocation
 - Profile E (6 spades + 10-12 HCP) generates successfully end-to-end
+- 3-phase `_deal_with_help`: all tight seats (including last) get pre-allocation
 - Base Smart Hand Order algorithm for optimal dealing order
 - Local failure attribution with rotation benchmarks
 - Dead code cleanup complete (#4, #4b): removed stubs, flags, hooks, cascading dead code
-- 380 tests passing, 4 skipped
+- 414 tests passing, 4 skipped
 
 ### Remaining Work
-1. **Refactor large files** (#7) — split deal_generator.py (2,107), hand_profile_model.py (921), profile_cli.py (968)
+1. **Refactor large files** (#7) — split deal_generator.py (2,362), hand_profile_model.py (921), profile_cli.py (968)
 
 ## Design Principles
 

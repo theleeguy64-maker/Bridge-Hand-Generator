@@ -516,16 +516,17 @@ class TestDealWithHelpHcpGate:
         assert hands is not None, "Empty pre-alloc should skip HCP check"
         assert rejected is None
 
-    def test_gate_on_last_seat_never_checked(self, monkeypatch):
-        """Last seat in dealing order gets remainder — no pre-alloc or HCP check.
+    def test_gate_on_last_seat_also_checked(self, monkeypatch):
+        """Last seat in dealing order also gets pre-allocation and HCP check.
 
-        West is last in dealing order.  Even though it's tight with impossible
-        HCP, it simply receives whatever cards remain after the other 3 seats
-        are dealt.  The HCP check never fires for the last seat.
+        West is last in dealing order.  With Phase-1 pre-allocation
+        (restructured _deal_with_help), ALL tight seats — including the
+        last — get pre-allocation.  The HCP check fires on the pre-allocated
+        cards, and with impossible HCP (0-2 total with 6+ spades) it rejects.
         """
         monkeypatch.setattr(dg, "ENABLE_HCP_FEASIBILITY_CHECK", True)
 
-        # W is last with impossible HCP, but last seat is never pre-allocated.
+        # W is last with impossible HCP — now gets pre-allocated and checked.
         sub_impossible = _tight_spades_subprofile(
             min_spades=6, total_min=0, total_max=2,
         )
@@ -540,9 +541,10 @@ class TestDealWithHelpHcpGate:
         hands, rejected = dg._deal_with_help(
             rng, deck, subs, {"W"}, DEALING_ORDER
         )
-        # W is last → gets remainder, no pre-alloc, no HCP check.
-        assert hands is not None
-        assert rejected is None
+        # W is last but still gets pre-allocation + HCP check (Phase 1).
+        # With impossible HCP (0-2) and 6 spades pre-allocated, rejection fires.
+        assert hands is None
+        assert rejected == "W"
 
     def test_gate_on_deck_integrity_after_rejection(self, monkeypatch):
         """After early HCP rejection, deck is partially consumed (not empty).

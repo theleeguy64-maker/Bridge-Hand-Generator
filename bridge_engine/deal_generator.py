@@ -195,6 +195,11 @@ SHAPE_PROB_THRESHOLD: float = 0.19
 # 50% balances helping enough vs not depleting the deck for other seats.
 PRE_ALLOCATE_FRACTION: float = 0.50
 
+# How often (in attempts) to re-roll the RS suit pre-selections within a board.
+# Re-rolling protects against "stuck with a bad suit choice" scenarios by
+# trying different RS suit combinations across chunks of attempts.
+RS_REROLL_INTERVAL: int = 2000
+
 # ---------------------------------------------------------------------------
 # HCP feasibility check constants (TODO #5)
 # ---------------------------------------------------------------------------
@@ -767,6 +772,7 @@ def _construct_hand_for_seat(
 def _dispersion_check(
     chosen_subprofiles: Dict[Seat, "SubProfile"],
     threshold: float = SHAPE_PROB_THRESHOLD,
+    rs_pre_selections: Optional[Dict[Seat, List[str]]] = None,
 ) -> set:
     """
     Identify seats with tight shape constraints that need pre-allocation help.
@@ -774,9 +780,18 @@ def _dispersion_check(
     For each seat, examines every suit's min_cards in the standard constraints.
     If any suit has P(>= min_cards) <= threshold, the seat is "tight".
 
+    When rs_pre_selections is provided, also checks the RS (Random Suit)
+    constraint for pre-selected suits.  This allows RS seats whose shape
+    requirement lives entirely in the RS constraint (not in standard
+    min_cards) to be flagged as tight — e.g. a weak-2 opener needing
+    exactly 6 cards in one suit.
+
     Args:
         chosen_subprofiles: The selected subprofile for each seat.
         threshold: Probability cutoff (default 0.19 = 19%).
+        rs_pre_selections: Optional dict mapping seat -> pre-selected RS
+            suit letters (from _pre_select_rs_suits).  When None, only
+            standard constraints are checked (backward compatible).
 
     Returns:
         Set of seat names (e.g. {"N", "S"}) that need shape help.
@@ -789,7 +804,7 @@ def _dispersion_check(
         if std is None:
             continue
 
-        # Check each suit for tight shape constraints.
+        # Check each suit for tight shape constraints (standard).
         for suit_attr in ("spades", "hearts", "diamonds", "clubs"):
             suit_range = getattr(std, suit_attr, None)
             if suit_range is None:
@@ -802,7 +817,101 @@ def _dispersion_check(
                 tight_seats.add(seat)
                 break  # One tight suit is enough to flag the seat
 
+    # --- RS-aware tightness check ---
+    # For seats with pre-selected RS suits, check whether the RS
+    # suit_ranges have min_cards tight enough to flag the seat.
+    if rs_pre_selections:
+        for seat, pre_suits in rs_pre_selections.items():
+            if seat in tight_seats:
+                continue  # Already flagged by standard constraints
+            sub = chosen_subprofiles.get(seat)
+            if sub is None:
+                continue
+            rs = getattr(sub, "random_suit_constraint", None)
+            if rs is None:
+                continue
+
+            # Build the effective ranges for the pre-selected suits,
+            # respecting pair_overrides for 2-suit RS.
+            ranges_by_suit: Dict[str, object] = {}
+            if (
+                rs.required_suits_count == 2
+                and rs.pair_overrides
+                and len(pre_suits) == 2
+            ):
+                sorted_pair = tuple(sorted(pre_suits))
+                matched_override = None
+                for po in rs.pair_overrides:
+                    if tuple(sorted(po.suits)) == sorted_pair:
+                        matched_override = po
+                        break
+                if matched_override is not None:
+                    ranges_by_suit[matched_override.suits[0]] = (
+                        matched_override.first_range
+                    )
+                    ranges_by_suit[matched_override.suits[1]] = (
+                        matched_override.second_range
+                    )
+                else:
+                    for idx, suit in enumerate(pre_suits):
+                        if idx < len(rs.suit_ranges):
+                            ranges_by_suit[suit] = rs.suit_ranges[idx]
+            else:
+                for idx, suit in enumerate(pre_suits):
+                    if idx < len(rs.suit_ranges):
+                        ranges_by_suit[suit] = rs.suit_ranges[idx]
+
+            # Check each RS suit's min_cards against the probability table.
+            for suit_letter, sr in ranges_by_suit.items():
+                min_cards = getattr(sr, "min_cards", 0)
+                if min_cards <= 0:
+                    continue
+                prob = SHAPE_PROB_GTE.get(min_cards, 0.0)
+                if prob <= threshold:
+                    tight_seats.add(seat)
+                    break  # One tight RS suit is enough
+
     return tight_seats
+
+
+def _pre_select_rs_suits(
+    rng: random.Random,
+    chosen_subprofiles: Dict[Seat, "SubProfile"],
+) -> Dict[Seat, List[str]]:
+    """
+    Pre-select Random Suit choices for all RS seats BEFORE dealing.
+
+    For each seat whose chosen subprofile has a random_suit_constraint,
+    randomly choose required_suits_count suits from allowed_suits.
+    This is the same selection logic as _match_random_suit_with_attempt()
+    (seat_viability.py:140), but performed up front so we can:
+      - flag RS seats as "tight" in _dispersion_check()
+      - pre-allocate cards for the chosen RS suit(s)
+      - use the pre-committed suits during matching (no random re-pick)
+
+    Args:
+        rng: Random number generator.
+        chosen_subprofiles: The selected subprofile for each seat.
+
+    Returns:
+        Dict mapping seat -> list of chosen suit letters (e.g. {"W": ["H"]}).
+        Empty dict if no seats have RS constraints.
+    """
+    rs_pre: Dict[Seat, List[str]] = {}
+
+    for seat, sub in chosen_subprofiles.items():
+        rs = getattr(sub, "random_suit_constraint", None)
+        if rs is None:
+            continue
+        allowed = list(rs.allowed_suits)
+        if not allowed or rs.required_suits_count <= 0:
+            continue
+        if rs.required_suits_count > len(allowed):
+            continue
+        chosen_suits = rng.sample(allowed, rs.required_suits_count)
+        rs_pre[seat] = chosen_suits
+
+    return rs_pre
 
 
 def _random_deal(
@@ -1022,12 +1131,106 @@ def _pre_allocate(
     return pre_allocated
 
 
+def _pre_allocate_rs(
+    rng: random.Random,
+    deck: List[Card],
+    subprofile: "SubProfile",
+    pre_selected_suits: List[str],
+    fraction: float = PRE_ALLOCATE_FRACTION,
+) -> List[Card]:
+    """
+    Pre-allocate cards for RS (Random Suit) pre-selected suits.
+
+    Similar to _pre_allocate() but operates on the RS constraint's
+    suit_ranges for the pre-selected suits, rather than on the standard
+    constraints.  This enables the v2 help system to give RS seats
+    a head start on their required RS suits.
+
+    Handles pair_overrides: when required_suits_count == 2 and a matching
+    pair override exists, uses the override ranges instead of the default
+    suit_ranges.
+
+    Args:
+        rng: Random number generator.
+        deck: Mutable list of cards. Modified in place (cards removed).
+        subprofile: The chosen subprofile (must have random_suit_constraint).
+        pre_selected_suits: List of suit letters pre-selected for RS.
+        fraction: Fraction of minima to pre-allocate (default 0.50).
+
+    Returns:
+        List of pre-allocated cards (may be empty).
+    """
+    import math
+
+    rs = getattr(subprofile, "random_suit_constraint", None)
+    if rs is None:
+        return []
+
+    # Build the effective ranges for each pre-selected suit,
+    # respecting pair_overrides for 2-suit RS.
+    ranges_by_suit: Dict[str, object] = {}
+    if (
+        rs.required_suits_count == 2
+        and rs.pair_overrides
+        and len(pre_selected_suits) == 2
+    ):
+        sorted_pair = tuple(sorted(pre_selected_suits))
+        matched_override = None
+        for po in rs.pair_overrides:
+            if tuple(sorted(po.suits)) == sorted_pair:
+                matched_override = po
+                break
+        if matched_override is not None:
+            ranges_by_suit[matched_override.suits[0]] = (
+                matched_override.first_range
+            )
+            ranges_by_suit[matched_override.suits[1]] = (
+                matched_override.second_range
+            )
+        else:
+            for idx, suit in enumerate(pre_selected_suits):
+                if idx < len(rs.suit_ranges):
+                    ranges_by_suit[suit] = rs.suit_ranges[idx]
+    else:
+        for idx, suit in enumerate(pre_selected_suits):
+            if idx < len(rs.suit_ranges):
+                ranges_by_suit[suit] = rs.suit_ranges[idx]
+
+    pre_allocated: List[Card] = []
+
+    for suit_letter, sr in ranges_by_suit.items():
+        min_cards = getattr(sr, "min_cards", 0)
+        if min_cards <= 0:
+            continue
+
+        to_allocate = math.floor(min_cards * fraction)
+        if to_allocate <= 0:
+            continue
+
+        # Find cards of this suit in the deck.
+        available = [c for c in deck if len(c) >= 2 and c[1] == suit_letter]
+        if not available:
+            continue
+
+        # Don't try to allocate more than available.
+        actual = min(to_allocate, len(available))
+        chosen = rng.sample(available, actual)
+        pre_allocated.extend(chosen)
+
+        # Remove chosen cards from deck.
+        chosen_set = set(chosen)
+        deck[:] = [c for c in deck if c not in chosen_set]
+
+    return pre_allocated
+
+
 def _deal_with_help(
     rng: random.Random,
     deck: List[Card],
     chosen_subprofiles: Dict[Seat, "SubProfile"],
     tight_seats: set,
     dealing_order: List[Seat],
+    rs_pre_selections: Optional[Dict[Seat, List[str]]] = None,
 ) -> Tuple[Optional[Dict[Seat, List[Card]]], Optional[Seat]]:
     """
     Deal 52 cards to 4 seats, giving shape help to tight seats.
@@ -1051,6 +1254,9 @@ def _deal_with_help(
         chosen_subprofiles: Selected subprofile per seat.
         tight_seats: Set of seats needing shape help.
         dealing_order: Order to deal seats.
+        rs_pre_selections: Optional dict mapping seat -> pre-selected RS
+            suit letters.  When provided, tight RS seats also get cards
+            pre-allocated for their RS suit(s) via _pre_allocate_rs().
 
     Returns:
         (hands, None)           — on success: hands maps each seat to 13 cards.
@@ -1058,48 +1264,71 @@ def _deal_with_help(
     """
     hands: Dict[Seat, List[Card]] = {}
 
+    # Phase 1: Pre-allocate for ALL tight seats (including last seat).
+    # This ensures every tight seat gets some guaranteed cards from its
+    # required suits, regardless of dealing order position.
+    pre_allocated: Dict[Seat, List[Card]] = {}
+    for seat in dealing_order:
+        if seat not in tight_seats:
+            continue
+        sub = chosen_subprofiles.get(seat)
+        if sub is None:
+            continue
+        # Standard pre-allocation.
+        pre = _pre_allocate(rng, deck, sub)
+        # RS pre-allocation: if this seat has pre-selected RS suits.
+        if rs_pre_selections and seat in rs_pre_selections:
+            rs_pre = _pre_allocate_rs(
+                rng, deck, sub, rs_pre_selections[seat]
+            )
+            pre = pre + rs_pre
+        if pre:
+            pre_allocated[seat] = pre
+
+    # Phase 2: HCP feasibility check on all pre-allocated seats.
+    # Run AFTER all pre-allocations so the deck state reflects all
+    # reservations (more accurate feasibility statistics).
+    if ENABLE_HCP_FEASIBILITY_CHECK:
+        for seat in dealing_order:
+            pre = pre_allocated.get(seat)
+            if not pre:
+                continue
+            sub = chosen_subprofiles.get(seat)
+            if sub is None:
+                continue
+            std = getattr(sub, "standard", None)
+            if std is None:
+                continue
+            drawn_hcp = sum(_card_hcp(c) for c in pre)
+            cards_remaining = 13 - len(pre)
+            if cards_remaining > 0 and len(deck) > 0:
+                hcp_sum, hcp_sum_sq = _deck_hcp_stats(deck)
+                if not _check_hcp_feasibility(
+                    drawn_hcp,
+                    cards_remaining,
+                    len(deck),
+                    hcp_sum,
+                    hcp_sum_sq,
+                    std.total_min_hcp,
+                    std.total_max_hcp,
+                    HCP_FEASIBILITY_NUM_SD,
+                ):
+                    return None, seat  # Early HCP rejection
+
+    # Phase 3: Fill each seat to 13 cards.
     for i, seat in enumerate(dealing_order):
         is_last = (i == len(dealing_order) - 1)
+        pre = pre_allocated.get(seat, [])
 
         if is_last:
-            # Last seat gets whatever remains in the deck.
-            hands[seat] = list(deck)
+            # Last seat: pre-allocated cards + whatever remains in the deck.
+            hands[seat] = pre + list(deck)
             deck.clear()
-        elif seat in tight_seats:
-            # Tight seat: pre-allocate suit minima, then fill to 13.
-            sub = chosen_subprofiles.get(seat)
-            if sub is not None:
-                pre = _pre_allocate(rng, deck, sub)
-
-                # ----- HCP feasibility check (gated) -----
-                # After pre-allocating, check whether the remaining random fill
-                # can plausibly land this seat within its total HCP target.
-                # If not, reject early — don't bother dealing or matching.
-                if ENABLE_HCP_FEASIBILITY_CHECK:
-                    std = getattr(sub, "standard", None)
-                    if std is not None and pre:
-                        drawn_hcp = sum(_card_hcp(c) for c in pre)
-                        cards_remaining = 13 - len(pre)
-                        if cards_remaining > 0 and len(deck) > 0:
-                            hcp_sum, hcp_sum_sq = _deck_hcp_stats(deck)
-                            if not _check_hcp_feasibility(
-                                drawn_hcp,
-                                cards_remaining,
-                                len(deck),
-                                hcp_sum,
-                                hcp_sum_sq,
-                                std.total_min_hcp,
-                                std.total_max_hcp,
-                                HCP_FEASIBILITY_NUM_SD,
-                            ):
-                                return None, seat  # Early HCP rejection
-                # ----- end HCP feasibility check -----
-
-                remaining_needed = 13 - len(pre)
-                fill = _random_deal(rng, deck, remaining_needed)
-                hands[seat] = pre + fill
-            else:
-                hands[seat] = _random_deal(rng, deck, 13)
+        elif pre:
+            # Tight seat with pre-allocation: fill to 13 randomly.
+            remaining_needed = 13 - len(pre)
+            fill = _random_deal(rng, deck, remaining_needed)
+            hands[seat] = pre + fill
         else:
             # Non-tight seat: deal 13 random cards.
             hands[seat] = _random_deal(rng, deck, 13)
@@ -1664,8 +1893,16 @@ def _build_single_constrained_deal_v2(
         rng, profile, dealing_order
     )
 
-    # Identify tight seats that need shape help.
-    tight_seats = _dispersion_check(chosen_subprofiles)
+    # Pre-select RS suits BEFORE dealing so we can:
+    #   (a) flag RS seats as tight in the dispersion check,
+    #   (b) pre-allocate cards for the RS suit(s),
+    #   (c) use the pre-committed suits during matching.
+    rs_pre_selections = _pre_select_rs_suits(rng, chosen_subprofiles)
+
+    # Identify tight seats that need shape help (RS-aware).
+    tight_seats = _dispersion_check(
+        chosen_subprofiles, rs_pre_selections=rs_pre_selections
+    )
 
     # Build processing order: RS seats first so PC/OC can see partner's
     # RS choices, then everything else.
@@ -1703,13 +1940,27 @@ def _build_single_constrained_deal_v2(
     while board_attempts < MAX_BOARD_ATTEMPTS:
         board_attempts += 1
 
+        # Periodic RS re-roll: try different RS suit combinations across
+        # chunks of attempts.  Subprofiles stay fixed (they're coupled to
+        # NS/EW indices), but the RS suit within the allowed set rotates.
+        if (
+            board_attempts > 1
+            and RS_REROLL_INTERVAL > 0
+            and (board_attempts - 1) % RS_REROLL_INTERVAL == 0
+        ):
+            rs_pre_selections = _pre_select_rs_suits(rng, chosen_subprofiles)
+            tight_seats = _dispersion_check(
+                chosen_subprofiles, rs_pre_selections=rs_pre_selections
+            )
+
         # Build and shuffle a full deck.
         deck = _build_deck()
         rng.shuffle(deck)
 
-        # Deal with shape help for tight seats.
+        # Deal with shape help for tight seats (RS-aware).
         hands, hcp_rejected_seat = _deal_with_help(
-            rng, deck, chosen_subprofiles, tight_seats, dealing_order
+            rng, deck, chosen_subprofiles, tight_seats, dealing_order,
+            rs_pre_selections=rs_pre_selections,
         )
 
         # ----- Early HCP rejection handling -----
@@ -1758,7 +2009,10 @@ def _build_single_constrained_deal_v2(
 
         # Match all seats against their constraints.
         all_matched = True
-        random_suit_choices: Dict[Seat, List[str]] = {}
+        # Pre-seed random_suit_choices with RS pre-selections so that:
+        #   (a) RS matching uses the pre-committed suits instead of random,
+        #   (b) PC/OC seats can see partner/opponent RS choices immediately.
+        random_suit_choices: Dict[Seat, List[str]] = dict(rs_pre_selections)
         # Per-attempt tracking for global attribution.
         checked_seats_in_attempt: List[Seat] = []
         first_failed_seat: Optional[Seat] = None
@@ -1789,6 +2043,7 @@ def _build_single_constrained_deal_v2(
                 chosen_subprofile_index_1based=idx0 + 1,
                 random_suit_choices=random_suit_choices,
                 rng=rng,
+                rs_pre_selections=rs_pre_selections,
             )
 
             if matched and chosen_rs is not None:

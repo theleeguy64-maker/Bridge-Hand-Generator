@@ -4,9 +4,9 @@
 
 ```
 bridge_engine/
-├── deal_generator.py      (2,107 lines) - Main pipeline + v2 shape help + HCP feasibility
+├── deal_generator.py      (2,362 lines) - Main pipeline + v2 shape help + HCP feasibility + RS pre-selection
 ├── hand_profile_model.py    (921 lines) - Data models
-├── seat_viability.py        (538 lines) - Constraint matching
+├── seat_viability.py        (601 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (512 lines) - Validation
 ├── orchestrator.py          (524 lines) - CLI/session management
 ├── profile_cli.py           (968 lines) - Profile commands
@@ -171,7 +171,7 @@ _construct_hand_for_seat(rng, deck, min_suit_counts)
 *Fully removed in dead code cleanup (#4, #4b). Policy seam, RS bucket tracking,
 PC/OC nudge blocks, and shadow probes have all been deleted.*
 
-### v3: Shape-Based Help System (✅ D0-D6 Complete)
+### v3: Shape-Based Help System (✅ D0-D6 Complete, RS Pre-Selection #8 Complete)
 
 **Key insight:** Select subprofiles FIRST, then use shape probability table to
 identify tight seats and pre-allocate 50% of their suit minima.
@@ -180,16 +180,20 @@ identify tight seats and pre-allocate 50% of their suit minima.
 ```
 _select_subprofiles_for_board(rng, profile, dealing_order)
     ↓
-_dispersion_check(chosen_subprofiles)  → set of tight seats
+_pre_select_rs_suits(rng, chosen_subprofiles) → Dict[Seat, List[str]]
     ↓
-_deal_with_help(rng, deck, chosen_subs, tight_seats, dealing_order)
-    ├─ Tight seats: _pre_allocate() + _random_deal() fill to 13
-    ├─ Non-tight seats: _random_deal(13)
-    └─ Last seat: gets remainder
+_dispersion_check(chosen_subs, rs_pre_selections)  → set of tight seats
     ↓
-_match_seat() per seat (RS first, then others)
+_deal_with_help(rng, deck, subs, tight_seats, order, rs_pre_selections)
+    Phase 1: Pre-allocate ALL tight seats (standard + RS)
+    Phase 2: HCP feasibility check on all pre-allocated seats
+    Phase 3: Fill each seat to 13 cards (last seat gets pre-allocated + remainder)
+    ↓
+_match_seat(... rs_pre_selections) per seat (RS first, then others)
     ↓
 Success → Deal | Failure → retry (up to MAX_BOARD_ATTEMPTS)
+    ↓ (every RS_REROLL_INTERVAL attempts)
+Re-select RS suits to avoid "stuck with bad suit" scenarios
 ```
 
 **Constants:**
@@ -198,14 +202,34 @@ Success → Deal | Failure → retry (up to MAX_BOARD_ATTEMPTS)
 | `SHAPE_PROB_GTE` | Dict[0-13→float] | P(>=N cards in suit) |
 | `SHAPE_PROB_THRESHOLD` | 0.19 | Cutoff for "tight" seats |
 | `PRE_ALLOCATE_FRACTION` | 0.50 | Fraction of suit minima to pre-allocate |
+| `RS_REROLL_INTERVAL` | 2000 | Re-select RS suits every N attempts |
 
 **Functions** (all in `deal_generator.py`):
-- `_dispersion_check(chosen_subs, threshold)` → set of tight seats
+- `_pre_select_rs_suits(rng, chosen_subs)` → Dict[Seat, List[str]] — pre-select RS suits before dealing
+- `_dispersion_check(chosen_subs, threshold, rs_pre_selections)` → set of tight seats
 - `_random_deal(rng, deck, n)` → List[Card] (mutates deck)
 - `_pre_allocate(rng, deck, subprofile, fraction)` → List[Card] (mutates deck)
-- `_deal_with_help(rng, deck, subs, tight_seats, order)` → Dict[Seat, List[Card]]
+- `_pre_allocate_rs(rng, deck, subprofile, pre_selected_suits, fraction)` → List[Card] (mutates deck)
+- `_deal_with_help(rng, deck, subs, tight_seats, order, rs_pre_selections)` → (Dict[Seat, List[Card]], None) | (None, Seat)
 - `_select_subprofiles_for_board(rng, profile, dealing_order)` → (subs, indices)
 - `_build_single_constrained_deal_v2(rng, profile, board_number)` → Deal
+
+**RS Pre-Selection** (`#8`):
+
+Before dealing, `_pre_select_rs_suits()` randomly chooses which RS suits to use
+for each seat with an RS constraint. This makes RS constraints visible to the
+dispersion check and pre-allocation, which previously only saw standard constraints.
+
+```
+For each RS seat:
+    chosen_suits = rng.sample(allowed_suits, required_suits_count)
+    → used by _dispersion_check to flag tight RS seats
+    → used by _pre_allocate_rs to pre-deal cards of chosen suit
+    → used by _match_seat to skip random suit selection (use pre-committed suits)
+```
+
+The 3-phase `_deal_with_help` restructure ensures ALL tight seats (including the
+last seat in dealing order) get pre-allocation, not just the first N-1.
 
 **HCP Feasibility Check** (`ENABLE_HCP_FEASIBILITY_CHECK = True`):
 
@@ -227,9 +251,10 @@ Functions:
 Constants: `ENABLE_HCP_FEASIBILITY_CHECK = True`, `HCP_FEASIBILITY_NUM_SD = 1.0`
 
 **Status:** Profiles A-E all work. Profile E (6 spades + 10-12 HCP) generates
-successfully with v2 shape help + HCP feasibility rejection.
+successfully with v2 shape help + HCP feasibility rejection. "Defense to 3 Weak 2s"
+now generates 2/20 boards (was 0/20 before RS pre-selection).
 
-**Tests:** 75 in `test_shape_help_v3.py`, 36 in `test_hcp_feasibility.py`, 7 in `test_profile_e_v2_hcp_gate.py`
+**Tests:** 75 in `test_shape_help_v3.py`, 36 in `test_hcp_feasibility.py`, 7 in `test_profile_e_v2_hcp_gate.py`, 32 in `test_rs_pre_selection.py`, 2 in `test_defense_weak2s_diagnostic.py`
 
 ## Index Coupling
 
@@ -315,9 +340,11 @@ _construct_hand_for_seat(rng, deck, min_suit_counts) -> List[Card]
 # v2 shape help system
 _build_single_constrained_deal_v2(rng, profile, board_number) -> Deal
 _select_subprofiles_for_board(rng, profile, dealing_order) -> (subs, indices)
-_dispersion_check(chosen_subs, threshold) -> set[Seat]
-_deal_with_help(rng, deck, subs, tight_seats, order) -> (Dict[Seat, List[Card]], None) | (None, Seat)
+_pre_select_rs_suits(rng, chosen_subs) -> Dict[Seat, List[str]]
+_dispersion_check(chosen_subs, threshold, rs_pre_selections) -> set[Seat]
+_deal_with_help(rng, deck, subs, tight_seats, order, rs_pre_selections) -> (Dict[Seat, List[Card]], None) | (None, Seat)
 _pre_allocate(rng, deck, subprofile, fraction) -> List[Card]
+_pre_allocate_rs(rng, deck, subprofile, pre_selected_suits, fraction) -> List[Card]
 _random_deal(rng, deck, n) -> List[Card]
 _card_hcp(card) -> int
 _deck_hcp_stats(deck) -> (hcp_sum, hcp_sum_sq)
@@ -326,10 +353,10 @@ _check_hcp_feasibility(drawn_hcp, cards_remaining, deck_size, ...) -> bool
 
 ### seat_viability.py
 ```python
-_match_seat(profile, seat, hand, seat_profile, chosen_sub, ...) -> (bool, Optional[List[str]])
-_match_subprofile(analysis, seat, sub, random_suit_choices, rng) -> (bool, Optional[List[str]])
+_match_seat(profile, seat, hand, seat_profile, chosen_sub, ..., rs_pre_selections) -> (bool, Optional[List[str]])
+_match_subprofile(analysis, seat, sub, random_suit_choices, rng, pre_selected_suits) -> (bool, Optional[List[str]])
 _match_standard(analysis, std) -> bool
-_match_random_suit_with_attempt(...) -> (bool, Optional[List[str]])
+_match_random_suit_with_attempt(..., pre_selected_suits) -> (bool, Optional[List[str]])
 _match_partner_contingent(...) -> bool
 _compute_suit_analysis(hand) -> SuitAnalysis
 ```
@@ -344,7 +371,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**380 tests (380 passed, 4 skipped)** organized by:
+**414 tests (414 passed, 4 skipped)** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`
@@ -354,6 +381,8 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 - **v3 shape help**: `test_shape_help_v3.py` (75 tests — D1-D7)
 - **HCP feasibility**: `test_hcp_feasibility.py` (36 tests — unit + integration)
 - **Profile E e2e**: `test_profile_e_v2_hcp_gate.py` (7 tests — v2 builder + pipeline)
+- **RS pre-selection**: `test_rs_pre_selection.py` (32 tests — B1-B4 unit tests)
+- **Defense to Weak 2s**: `test_defense_weak2s_diagnostic.py` (2 tests — diagnostic + pipeline)
 - **v2 comparison**: `test_v2_comparison.py` (6 gated — `RUN_V2_BENCHMARKS=1`)
 
 **Untested modules** (low risk):

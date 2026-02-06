@@ -124,9 +124,14 @@ def _match_random_suit_with_attempt(
     analysis: SuitAnalysis,
     rs: RandomSuitConstraintData,
     rng: random.Random,
+    pre_selected_suits: Optional[List[str]] = None,
 ) -> tuple[bool, Optional[List[str]]]:
     """
     Like _match_random_suit, but returns the attempted chosen suits even on failure.
+
+    When pre_selected_suits is provided (from RS pre-selection in the v2
+    builder), those suits are used instead of randomly sampling.  This
+    ensures consistency between pre-allocation and matching.
 
     Returns:
       (matched, attempted_or_chosen_suits_or_None)
@@ -137,7 +142,11 @@ def _match_random_suit_with_attempt(
     if rs.required_suits_count > len(allowed):
         return False, None
 
-    chosen_suits = rng.sample(allowed, rs.required_suits_count)
+    # Use pre-committed suits when available; otherwise random sample.
+    if pre_selected_suits is not None:
+        chosen_suits = list(pre_selected_suits)
+    else:
+        chosen_suits = rng.sample(allowed, rs.required_suits_count)
 
     ranges_by_suit: Dict[str, object] = {}
 
@@ -215,9 +224,14 @@ def _match_subprofile(
     sub: SubProfile,
     random_suit_choices: Dict[Seat, List[str]],
     rng: random.Random,
+    pre_selected_suits: Optional[List[str]] = None,
 ) -> Tuple[bool, Optional[List[str]], Optional[str]]:
     """
     Attempt to match a single SubProfile to this 13-card hand.
+
+    When pre_selected_suits is provided (from RS pre-selection in the v2
+    builder), those suits are passed to the RS matcher so it uses the
+    pre-committed suits instead of randomly choosing.
 
     Returns:
       (matched, chosen_random_suits_for_this_seat_or_None, fail_reason)
@@ -240,7 +254,8 @@ def _match_subprofile(
         and sub.opponents_contingent_suit_constraint is None
     ):
         matched, chosen = _match_random_suit_with_attempt(
-            analysis, sub.random_suit_constraint, rng
+            analysis, sub.random_suit_constraint, rng,
+            pre_selected_suits=pre_selected_suits,
         )
         if not matched:
             # Piece 3 signal: return attempted suits even on failure
@@ -373,6 +388,7 @@ def _match_seat(
     chosen_subprofile_index_1based: Optional[int],
     random_suit_choices: Dict[Seat, List[str]],
     rng: random.Random,
+    rs_pre_selections: Optional[Dict[Seat, List[str]]] = None,
 ) -> Tuple[bool, Optional[List[str]], Optional[str]]:
     """
     Match a 13-card hand against the chosen SubProfile for a given seat.
@@ -382,6 +398,10 @@ def _match_seat(
       • Otherwise, use the pre-selected SubProfile for this seat for the entire deal.
         We do NOT randomly switch subprofiles per attempt; uniform 1/N selection
         across deals is handled by the caller.
+
+    When rs_pre_selections is provided (from RS pre-selection in the v2
+    builder), this seat's pre-selected RS suits are threaded down to the
+    RS matcher so it uses the pre-committed suits instead of random sampling.
 
     Returns:
       (matched, chosen_random_suits_for_this_seat_or_None, fail_reason)
@@ -406,6 +426,11 @@ def _match_seat(
 
     analysis = _compute_suit_analysis(hand)
 
+    # Extract this seat's RS pre-selection (if any) to thread down.
+    seat_pre = None
+    if rs_pre_selections and seat in rs_pre_selections:
+        seat_pre = rs_pre_selections[seat]
+
     last_chosen: Optional[List[str]] = None
     last_fail_reason: Optional[str] = None
 
@@ -416,6 +441,7 @@ def _match_seat(
             sub=sub,
             random_suit_choices=random_suit_choices,
             rng=rng,
+            pre_selected_suits=seat_pre,
         )
         if chosen:
             last_chosen = chosen

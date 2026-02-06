@@ -56,12 +56,23 @@
 - ✅ Profile E generates successfully via v2 + shape help + HCP feasibility rejection
 - ✅ End-to-end tests prove it: 10 boards via v2 builder, 5 boards via generate_deals() pipeline
 
+### 8. [x] RS-Aware Pre-Selection for v2 Shape Help
+- **Problem**: "Defense to 3 Weak 2s" profile failed 100% (0/20 boards, 200,000 attempts). RS constraints invisible to v2 shape help — W needs 6-card suit but `_dispersion_check` and `_pre_allocate` only see standard constraints.
+- ✅ **Batch 1**: `_pre_select_rs_suits()` — pre-select RS suit(s) before dealing (10 tests)
+- ✅ **Batch 2**: Extended `_dispersion_check()` with RS awareness — RS suits flagged tight (8 tests)
+- ✅ **Batch 3**: `_pre_allocate_rs()` — pre-allocate cards for RS pre-selected suits (8 tests)
+- ✅ **Batch 4**: Extended `_deal_with_help()` with RS pre-allocation support (6 tests)
+- ✅ **Batch 5**: Main wiring — v2 builder calls `_pre_select_rs_suits()`, passes to dispersion/help/matching; `seat_viability.py` extended with optional `pre_selected_suits` params; `RS_REROLL_INTERVAL = 2000`; restructured `_deal_with_help()` to 3-phase (all tight seats pre-allocated, including last seat)
+- ✅ **Batch 6**: End-to-end tests — "Defense to Weak 2s" now generates 2/20 boards (was 0/20); diagnostic + pipeline tests pass
+- deal_generator.py: 2,107 → 2,362 lines (+255); seat_viability.py: 538 → 601 lines (+63)
+- New test file: `test_rs_pre_selection.py` (32 tests); updated `test_defense_weak2s_diagnostic.py`, `test_hcp_feasibility.py`
+
 ---
 
 ## Enhancements
 
 ### 7. [ ] Refactor large files
-- `deal_generator.py` (2,107 lines) — split v1/v2, helpers, HCP feasibility, constants into separate modules
+- `deal_generator.py` (2,362 lines) — split v1/v2, helpers, HCP feasibility, RS pre-selection, constants into separate modules
 - `hand_profile_model.py` (921 lines) — split data models from logic
 - `profile_cli.py` (968 lines) — split command handlers
 - `orchestrator.py` (524 lines) — split session management from CLI routing
@@ -69,16 +80,17 @@
 ---
 
 ## Summary
-Architecture: 7 (7 done) | Enhancements: 1 | **Total: 1 pending**
+Architecture: 8 (8 done) | Enhancements: 1 | **Total: 1 pending**
 
-**Tests**: 380 passed, 4 skipped | **Branch**: refactor/deal-generator
+**Tests**: 414 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 ---
 
-## Completed (34 items + #5, #6)
+## Completed (34 items + #5, #6, #8)
 <details>
 <summary>Click to expand</summary>
 
+- RS-aware pre-selection (#8): pre-select RS suits before dealing, extend dispersion/help/matching — "Defense to Weak 2s" now viable
 - HCP feasibility rejection (#5): `_check_hcp_feasibility()` active, 43 tests, Profile E end-to-end proven
 - Profile E viability (#6): resolved — v1-only issue, v2 has no early termination
 - Dead code cleanup: removed 5 stubs, 2 flags, 2 hooks, simplified _get_constructive_mode (−161 lines, −25 tests)
