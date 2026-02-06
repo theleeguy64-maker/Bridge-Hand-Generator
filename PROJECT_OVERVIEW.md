@@ -79,13 +79,13 @@ Per-attempt tracking for diagnostics:
 - Base Smart Hand Order algorithm for optimal dealing order
 - Local failure attribution with rotation benchmarks
 - Dead code cleanup complete (#4, #4b): removed stubs, flags, hooks, cascading dead code
-- 337 tests passing, 4 skipped
+- HCP feasibility rejection (#5 Batches 1-3): gated early rejection of hands with infeasible HCP after pre-allocation
+- 373 tests passing, 4 skipped
 
 ### Remaining Work
-1. **HCP help** (#5) — extend pre-allocation to bias card selection for tight HCP
-2. **Profile E viability** (#6) — viability check rejects Profile E too early (100-attempt probe fails seat N before real 10,000-attempt loop)
-3. **Refactor large files** (#7) — split deal_generator.py (1,896), hand_profile_model.py (921), profile_cli.py (968)
-4. **Metrics Export CLI** (#8) — `export-metrics <profile> [--boards N]`
+1. **HCP help** (#5) — flip gate on, test Profile E; follow up with guided card selection if needed
+2. **Profile E viability** (#6) — viability check rejects Profile E too early (may be resolved by #5)
+3. **Refactor large files** (#7) — split deal_generator.py (2,107), hand_profile_model.py (921), profile_cli.py (968)
 
 ## Design Principles
 
@@ -98,7 +98,7 @@ Per-attempt tracking for diagnostics:
 
 | File | Purpose |
 |------|---------|
-| `deal_generator.py` | Main pipeline, v1 + v2 shape help, failure attribution |
+| `deal_generator.py` | Main pipeline, v1 + v2 shape help, HCP feasibility, failure attribution |
 | `hand_profile_model.py` | Data models: SubProfile, SeatProfile, HandProfile |
 | `seat_viability.py` | Constraint matching: _match_seat, _match_subprofile |
 | `hand_profile_validate.py` | Profile validation |

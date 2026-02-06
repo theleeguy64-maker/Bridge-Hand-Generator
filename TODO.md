@@ -43,42 +43,43 @@
 - ✅ Removed unused `Mapping` import
 - deal_generator.py: 2,241 → 1,896 lines (−345); orchestrator.py: 705 → 524 lines (−181)
 
-### 5. [ ] HCP Help
-- Extend `_pre_allocate()` to bias toward high/low cards for tight HCP constraints
-- Needed for Profile E (6 spades + 10-12 HCP)
+### 5. [~] HCP Feasibility Rejection (gated)
+- ✅ **Batch 1**: `_card_hcp()`, `_deck_hcp_stats()`, `_check_hcp_feasibility()` + 26 unit tests
+- ✅ **Batch 2**: Gated HCP check in `_deal_with_help()` + v2 builder attribution handling
+- ✅ **Batch 3**: 10 integration tests (gate on/off, rejection/feasible, edge cases)
+- Gate: `ENABLE_HCP_FEASIBILITY_CHECK = False` — flip to True when proven end-to-end
+- **Next**: Flip gate on, test Profile E end-to-end; if still failing, follow up with guided card selection (bias `_pre_allocate` toward target HCP density)
 
 ### 6. [ ] Profile E viability check fails too early
 - Profile E Test ("tight point and suit constraints_plus") fails at viability check: "Profile declared unviable for board 1 after 100 attempts. Unviable seat(s): ['N']. These seats have >90% failure rate with sufficient attempts."
 - The viability probe (100 attempts) rejects seat N before the real 10,000-attempt loop even starts
-- Either: (a) viability threshold is too aggressive for tight profiles, (b) v2 shape help isn't used during viability checking, or (c) HCP Help (#5) is a prerequisite
-- Likely related to #5 — tight HCP + shape constraints need smarter pre-allocation to pass viability
+- Note: "100 attempts" error comes from v1 builder's `MIN_ATTEMPTS_FOR_UNVIABLE_CHECK`, not v2. With v2 active, this may manifest differently (10,000-attempt exhaustion instead)
+- Likely related to #5 — HCP feasibility rejection (and possibly guided card selection) may be prerequisites
 
 ---
 
 ## Enhancements
 
 ### 7. [ ] Refactor large files
-- `deal_generator.py` (1,896 lines) — split v1/v2, helpers, constants into separate modules
+- `deal_generator.py` (2,107 lines) — split v1/v2, helpers, HCP feasibility, constants into separate modules
 - `hand_profile_model.py` (921 lines) — split data models from logic
 - `profile_cli.py` (968 lines) — split command handlers
 - `orchestrator.py` (524 lines) — split session management from CLI routing
 
-### 8. [ ] Metrics Export CLI
-- `export-metrics <profile> [--boards N]`
-
 ---
 
 ## Summary
-Architecture: 7 (5 done, 2 pending) | Enhancements: 2 | **Total: 5**
+Architecture: 7 (5 done, 1 in progress, 1 pending) | Enhancements: 1 | **Total: 4**
 
-**Tests**: 337 passed, 4 skipped | **Branch**: refactor/deal-generator
+**Tests**: 373 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 ---
 
-## Completed (34 items)
+## Completed (34 items + #5 Batches 1-3)
 <details>
 <summary>Click to expand</summary>
 
+- HCP feasibility rejection (#5): gated `_check_hcp_feasibility()` + integration in `_deal_with_help` + 36 tests
 - Dead code cleanup: removed 5 stubs, 2 flags, 2 hooks, simplified _get_constructive_mode (−161 lines, −25 tests)
 - v2 shape-based help system: D0-D9 complete (dispersion check, pre-allocation, deal_with_help, v2 MVP, attribution, benchmarks, swap)
 - Magic profile name checks, constraint state to v2, "too hard = unviable" rule

@@ -4,7 +4,7 @@
 
 ```
 bridge_engine/
-├── deal_generator.py      (1,896 lines) - Main pipeline + v2 shape help
+├── deal_generator.py      (2,107 lines) - Main pipeline + v2 shape help + HCP feasibility
 ├── hand_profile_model.py    (921 lines) - Data models
 ├── seat_viability.py        (538 lines) - Constraint matching
 ├── hand_profile_validate.py (512 lines) - Validation
@@ -207,9 +207,29 @@ Success → Deal | Failure → retry (up to MAX_BOARD_ATTEMPTS)
 - `_select_subprofiles_for_board(rng, profile, dealing_order)` → (subs, indices)
 - `_build_single_constrained_deal_v2(rng, profile, board_number)` → Deal
 
-**Status:** Profiles A-D work. Profile E (shape+HCP) needs HCP help (future).
+**HCP Feasibility Check** (gated — `ENABLE_HCP_FEASIBILITY_CHECK = False`):
 
-**Tests:** 66 tests in `test_shape_help_v3.py`
+After pre-allocation, checks whether the remaining random fill can plausibly
+land the seat's total HCP within its target range.  Uses finite population
+sampling statistics (expected value ± 1 SD).
+
+```
+drawn_HCP + E[additional] ± SD → [ExpDown, ExpUp]
+Reject if ExpDown > target_max OR ExpUp < target_min
+```
+
+Functions:
+- `_card_hcp(card)` → A=4, K=3, Q=2, J=1, else 0
+- `_deck_hcp_stats(deck)` → (hcp_sum, hcp_sum_sq)
+- `_check_hcp_feasibility(drawn_hcp, cards_remaining, deck_size, ...)` → bool
+- `_deal_with_help(...)` → `(hands, None)` or `(None, rejected_seat)`
+
+Constants: `ENABLE_HCP_FEASIBILITY_CHECK`, `HCP_FEASIBILITY_NUM_SD`
+
+**Status:** Profiles A-D work. Profile E (shape+HCP): HCP feasibility rejection
+built and gated. Next: flip gate on, test Profile E end-to-end.
+
+**Tests:** 75 tests in `test_shape_help_v3.py`, 36 tests in `test_hcp_feasibility.py`
 
 ## Index Coupling
 
@@ -296,9 +316,12 @@ _construct_hand_for_seat(rng, deck, min_suit_counts) -> List[Card]
 _build_single_constrained_deal_v2(rng, profile, board_number) -> Deal
 _select_subprofiles_for_board(rng, profile, dealing_order) -> (subs, indices)
 _dispersion_check(chosen_subs, threshold) -> set[Seat]
-_deal_with_help(rng, deck, subs, tight_seats, order) -> Dict[Seat, List[Card]]
+_deal_with_help(rng, deck, subs, tight_seats, order) -> (Dict[Seat, List[Card]], None) | (None, Seat)
 _pre_allocate(rng, deck, subprofile, fraction) -> List[Card]
 _random_deal(rng, deck, n) -> List[Card]
+_card_hcp(card) -> int
+_deck_hcp_stats(deck) -> (hcp_sum, hcp_sum_sq)
+_check_hcp_feasibility(drawn_hcp, cards_remaining, deck_size, ...) -> bool
 ```
 
 ### seat_viability.py
@@ -321,7 +344,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**337 tests (337 passed, 4 skipped)** organized by:
+**373 tests (373 passed, 4 skipped)** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`
@@ -329,6 +352,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 - Profile viability: `test_profile_viability_*.py`
 - Benchmarks: `test_profile_e_*.py`
 - **v3 shape help**: `test_shape_help_v3.py` (75 tests — D1-D7)
+- **HCP feasibility**: `test_hcp_feasibility.py` (36 tests — unit + integration)
 - **v2 comparison**: `test_v2_comparison.py` (6 gated — `RUN_V2_BENCHMARKS=1`)
 
 **Untested modules** (low risk):

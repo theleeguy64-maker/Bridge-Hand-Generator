@@ -1,20 +1,31 @@
 # tests/test_hcp_feasibility.py
 """
-Unit tests for HCP feasibility utilities (TODO #5).
+Unit tests and integration tests for HCP feasibility utilities (TODO #5).
 
-Tests call the functions directly — no dependency on the ENABLE_HCP_FEASIBILITY_CHECK
-gate flag.  These prove the math works regardless of whether the gate is on or off.
+Part 1 (unit tests): Call the functions directly — no dependency on
+  ENABLE_HCP_FEASIBILITY_CHECK gate flag.  Prove the math works.
+
+Part 2 (integration tests): Monkeypatch the gate to True and verify that
+  _deal_with_help correctly rejects infeasible hands and passes feasible ones.
+  Uses real StandardSuitConstraints / SubProfile dataclasses (not dummies).
 """
 from __future__ import annotations
 
 import math
+import random
 import pytest
 
+import bridge_engine.deal_generator as dg
 from bridge_engine.deal_generator import (
     _card_hcp,
     _deck_hcp_stats,
     _check_hcp_feasibility,
     _build_deck,
+)
+from bridge_engine.hand_profile import (
+    StandardSuitConstraints,
+    SubProfile,
+    SuitRange,
 )
 
 
@@ -255,3 +266,305 @@ class TestCheckHcpFeasibility:
             deck_size=30, deck_hcp_sum=15, deck_hcp_sum_sq=45,
             target_min=0, target_max=37,
         ) is True
+
+
+# ---------------------------------------------------------------------------
+# Integration tests: _deal_with_help with HCP feasibility gate
+#
+# These tests activate ENABLE_HCP_FEASIBILITY_CHECK via monkeypatch and
+# verify that _deal_with_help correctly rejects or accepts hands based on
+# HCP feasibility after pre-allocation.  Uses real dataclass types
+# (StandardSuitConstraints, SubProfile, SuitRange) — not test dummies —
+# because the gated code reads std.total_min_hcp / std.total_max_hcp.
+# ---------------------------------------------------------------------------
+
+
+def _open_suit_range() -> SuitRange:
+    """Fully open suit range (0-13 cards, 0-37 HCP)."""
+    return SuitRange()
+
+
+def _open_standard(total_min: int = 0, total_max: int = 37) -> StandardSuitConstraints:
+    """Open standard constraints with configurable total HCP."""
+    sr = _open_suit_range()
+    return StandardSuitConstraints(
+        spades=sr, hearts=sr, diamonds=sr, clubs=sr,
+        total_min_hcp=total_min, total_max_hcp=total_max,
+    )
+
+
+def _open_subprofile(total_min: int = 0, total_max: int = 37) -> SubProfile:
+    """Open subprofile with configurable total HCP."""
+    return SubProfile(standard=_open_standard(total_min, total_max))
+
+
+def _tight_spades_subprofile(
+    min_spades: int = 6,
+    total_min: int = 0,
+    total_max: int = 37,
+) -> SubProfile:
+    """Subprofile with tight spade constraint and configurable total HCP."""
+    return SubProfile(
+        standard=StandardSuitConstraints(
+            spades=SuitRange(min_cards=min_spades, max_cards=13),
+            hearts=SuitRange(),
+            diamonds=SuitRange(),
+            clubs=SuitRange(),
+            total_min_hcp=total_min,
+            total_max_hcp=total_max,
+        )
+    )
+
+
+DEALING_ORDER = ["N", "E", "S", "W"]
+
+
+class TestDealWithHelpHcpGate:
+    """Integration tests for HCP feasibility check in _deal_with_help.
+
+    These tests monkeypatch ENABLE_HCP_FEASIBILITY_CHECK to True and verify
+    that the gated check correctly rejects infeasible hands and passes
+    feasible ones.  Uses real dataclass types (not test dummies).
+    """
+
+    # -- Rejection cases (gate ON, impossible HCP) --
+
+    def test_gate_on_rejects_impossible_low_hcp(self, monkeypatch):
+        """North needs 6+ spades but only 0-2 total HCP — impossible.
+
+        Pre-alloc gives 3 spades (50% of 6).  Even if all are spot cards
+        (0 HCP drawn), the expected additional HCP from 10 random cards
+        is ~8.2, giving ExpDown ≈ 4.4 > 2 = target_max.  Rejection fires
+        regardless of which spade cards are picked.
+        """
+        monkeypatch.setattr(dg, "ENABLE_HCP_FEASIBILITY_CHECK", True)
+
+        sub_n = _tight_spades_subprofile(min_spades=6, total_min=0, total_max=2)
+        sub_open = _open_subprofile()
+        subs = {"N": sub_n, "E": sub_open, "S": sub_open, "W": sub_open}
+
+        # Try several seeds — all should reject North.
+        for seed in [42, 99, 123, 777, 2024]:
+            rng = random.Random(seed)
+            deck = dg._build_deck()
+            hands, rejected = dg._deal_with_help(
+                rng, deck, subs, {"N"}, DEALING_ORDER
+            )
+            assert hands is None, f"seed={seed}: expected rejection but got hands"
+            assert rejected == "N", f"seed={seed}: expected N rejected, got {rejected}"
+
+    def test_gate_on_rejects_impossible_high_hcp(self, monkeypatch):
+        """North needs 6+ spades and 35-37 total HCP — impossible.
+
+        Pre-alloc gives at most 9 HCP (AS+KS+QS).  Expected additional from
+        10 random cards is ~6-8.  ExpUp ≈ 12-19, well below target_min=35.
+        Always rejected (too low to reach 35).
+        """
+        monkeypatch.setattr(dg, "ENABLE_HCP_FEASIBILITY_CHECK", True)
+
+        sub_n = _tight_spades_subprofile(min_spades=6, total_min=35, total_max=37)
+        sub_open = _open_subprofile()
+        subs = {"N": sub_n, "E": sub_open, "S": sub_open, "W": sub_open}
+
+        for seed in [42, 99, 123]:
+            rng = random.Random(seed)
+            deck = dg._build_deck()
+            hands, rejected = dg._deal_with_help(
+                rng, deck, subs, {"N"}, DEALING_ORDER
+            )
+            assert hands is None, f"seed={seed}: expected rejection"
+            assert rejected == "N", f"seed={seed}: expected N rejected"
+
+    def test_gate_on_first_tight_seat_rejected_stops_early(self, monkeypatch):
+        """Multiple tight seats: rejection at first infeasible seat aborts deal.
+
+        North is first in dealing order with impossible HCP.  South is also
+        tight with impossible HCP but never gets checked because North's
+        rejection aborts the deal early.
+        """
+        monkeypatch.setattr(dg, "ENABLE_HCP_FEASIBILITY_CHECK", True)
+
+        sub_impossible = _tight_spades_subprofile(
+            min_spades=6, total_min=0, total_max=2,
+        )
+        sub_open = _open_subprofile()
+        subs = {
+            "N": sub_impossible,
+            "E": sub_open,
+            "S": sub_impossible,   # Also impossible, but never reached
+            "W": sub_open,
+        }
+
+        rng = random.Random(42)
+        deck = dg._build_deck()
+        hands, rejected = dg._deal_with_help(
+            rng, deck, subs, {"N", "S"}, DEALING_ORDER
+        )
+        assert hands is None
+        assert rejected == "N"  # North is first in dealing order
+
+    # -- Feasible cases (gate ON, reachable HCP) --
+
+    def test_gate_on_passes_feasible_wide_hcp(self, monkeypatch):
+        """North needs 6+ spades, 0-37 HCP — always feasible.
+
+        The full 0-37 range encompasses all possible HCP outcomes.
+        No pre-allocation can make the hand infeasible.
+        """
+        monkeypatch.setattr(dg, "ENABLE_HCP_FEASIBILITY_CHECK", True)
+
+        sub_n = _tight_spades_subprofile(min_spades=6, total_min=0, total_max=37)
+        sub_open = _open_subprofile()
+        subs = {"N": sub_n, "E": sub_open, "S": sub_open, "W": sub_open}
+
+        for seed in [42, 99, 123]:
+            rng = random.Random(seed)
+            deck = dg._build_deck()
+            hands, rejected = dg._deal_with_help(
+                rng, deck, subs, {"N"}, DEALING_ORDER
+            )
+            assert hands is not None, f"seed={seed}: should not reject"
+            assert rejected is None, f"seed={seed}: should not have rejected seat"
+            assert len(hands["N"]) == 13
+
+    def test_gate_on_passes_feasible_moderate_hcp(self, monkeypatch):
+        """North needs 6+ spades, 5-20 HCP — well within expected range.
+
+        Expected total HCP ~8-16 after pre-alloc + fill.  The 5-20 target
+        comfortably overlaps with the 1-SD confidence interval in all cases.
+        """
+        monkeypatch.setattr(dg, "ENABLE_HCP_FEASIBILITY_CHECK", True)
+
+        sub_n = _tight_spades_subprofile(min_spades=6, total_min=5, total_max=20)
+        sub_open = _open_subprofile()
+        subs = {"N": sub_n, "E": sub_open, "S": sub_open, "W": sub_open}
+
+        for seed in [42, 99, 123]:
+            rng = random.Random(seed)
+            deck = dg._build_deck()
+            hands, rejected = dg._deal_with_help(
+                rng, deck, subs, {"N"}, DEALING_ORDER
+            )
+            assert hands is not None, f"seed={seed}: should not reject"
+            assert rejected is None
+
+    # -- Gate OFF: no rejection regardless --
+
+    def test_gate_off_no_rejection_even_for_impossible(self):
+        """Gate OFF (default): impossible HCP proceeds without rejection.
+
+        Same impossible scenario as test_gate_on_rejects_impossible_low_hcp,
+        but with the gate in its default False state.  _deal_with_help should
+        return hands normally — the HCP check never runs.
+        """
+        # Verify gate is off (no monkeypatch).
+        assert dg.ENABLE_HCP_FEASIBILITY_CHECK is False
+
+        sub_n = _tight_spades_subprofile(min_spades=6, total_min=0, total_max=2)
+        sub_open = _open_subprofile()
+        subs = {"N": sub_n, "E": sub_open, "S": sub_open, "W": sub_open}
+
+        rng = random.Random(42)
+        deck = dg._build_deck()
+        hands, rejected = dg._deal_with_help(
+            rng, deck, subs, {"N"}, DEALING_ORDER
+        )
+        assert hands is not None, "Gate OFF should not reject"
+        assert rejected is None
+        assert len(hands["N"]) == 13
+
+    # -- Edge cases: when HCP check is skipped --
+
+    def test_gate_on_non_tight_seats_not_checked(self, monkeypatch):
+        """Gate ON but no tight seats — HCP check never activates.
+
+        Non-tight seats skip pre-allocation entirely, so the HCP check
+        (which runs after pre-alloc) never fires.
+        """
+        monkeypatch.setattr(dg, "ENABLE_HCP_FEASIBILITY_CHECK", True)
+
+        # Impossible HCP (0-2) but NOT tight — no pre-alloc, no check.
+        sub = _open_subprofile(total_min=0, total_max=2)
+        subs = {"N": sub, "E": sub, "S": sub, "W": sub}
+
+        rng = random.Random(42)
+        deck = dg._build_deck()
+        hands, rejected = dg._deal_with_help(
+            rng, deck, subs, set(), DEALING_ORDER  # Empty tight_seats
+        )
+        assert hands is not None, "Non-tight seats should not trigger HCP check"
+        assert rejected is None
+
+    def test_gate_on_tight_seat_empty_prealloc_skips_check(self, monkeypatch):
+        """Tight seat where pre-allocation returns empty skips HCP check.
+
+        min_spades=1 → pre-alloc = floor(1 × 0.5) = 0 cards → empty list.
+        The HCP check only fires when pre is non-empty, so it's skipped.
+        """
+        monkeypatch.setattr(dg, "ENABLE_HCP_FEASIBILITY_CHECK", True)
+
+        # min_spades=1: pre-alloc = floor(0.5) = 0 → empty.
+        sub_n = _tight_spades_subprofile(min_spades=1, total_min=0, total_max=2)
+        sub_open = _open_subprofile()
+        subs = {"N": sub_n, "E": sub_open, "S": sub_open, "W": sub_open}
+
+        rng = random.Random(42)
+        deck = dg._build_deck()
+        hands, rejected = dg._deal_with_help(
+            rng, deck, subs, {"N"}, DEALING_ORDER
+        )
+        # Pre-alloc is empty → HCP check skipped → hands returned.
+        assert hands is not None, "Empty pre-alloc should skip HCP check"
+        assert rejected is None
+
+    def test_gate_on_last_seat_never_checked(self, monkeypatch):
+        """Last seat in dealing order gets remainder — no pre-alloc or HCP check.
+
+        West is last in dealing order.  Even though it's tight with impossible
+        HCP, it simply receives whatever cards remain after the other 3 seats
+        are dealt.  The HCP check never fires for the last seat.
+        """
+        monkeypatch.setattr(dg, "ENABLE_HCP_FEASIBILITY_CHECK", True)
+
+        # W is last with impossible HCP, but last seat is never pre-allocated.
+        sub_impossible = _tight_spades_subprofile(
+            min_spades=6, total_min=0, total_max=2,
+        )
+        sub_open = _open_subprofile()
+        subs = {
+            "N": sub_open, "E": sub_open, "S": sub_open,
+            "W": sub_impossible,
+        }
+
+        rng = random.Random(42)
+        deck = dg._build_deck()
+        hands, rejected = dg._deal_with_help(
+            rng, deck, subs, {"W"}, DEALING_ORDER
+        )
+        # W is last → gets remainder, no pre-alloc, no HCP check.
+        assert hands is not None
+        assert rejected is None
+
+    def test_gate_on_deck_integrity_after_rejection(self, monkeypatch):
+        """After early HCP rejection, deck is partially consumed (not empty).
+
+        When rejection fires, pre-allocated cards have been removed from the
+        deck but no further dealing happens.  Verify the deck still has cards.
+        """
+        monkeypatch.setattr(dg, "ENABLE_HCP_FEASIBILITY_CHECK", True)
+
+        sub_n = _tight_spades_subprofile(min_spades=6, total_min=0, total_max=2)
+        sub_open = _open_subprofile()
+        subs = {"N": sub_n, "E": sub_open, "S": sub_open, "W": sub_open}
+
+        rng = random.Random(42)
+        deck = dg._build_deck()
+        original_size = len(deck)
+
+        hands, rejected = dg._deal_with_help(
+            rng, deck, subs, {"N"}, DEALING_ORDER
+        )
+        assert rejected == "N"
+        # Pre-alloc removed 3 spades from the deck (floor(6*0.5)=3).
+        # Deck should have 49 cards remaining (52 - 3 pre-allocated).
+        assert len(deck) == original_size - 3
