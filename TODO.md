@@ -27,10 +27,18 @@
 - ✅ One-line change at `generate_deals()` call site — v2 is now the active production path
 - Profile E (6 spades + 10-12 HCP) now generates deals successfully
 
-### 4. [ ] Review deal_generator.py for old/unused code
-- Now that v2 is the active path, audit for dead code from v1 constructive help
-- See ARCHITECTURE.md "Known Structural Issues" for starting list
-- Candidates: `_build_rs_bucket_snapshot()`, `_nonstandard_constructive_help_enabled()`, v2 nonstandard stubs, old 5-gate logic, `ENABLE_CONSTRUCTIVE_HELP` flags
+### 4. [x] Review deal_generator.py for old/unused code (stubs & flags)
+- ✅ Removed 5 dead stub functions: `_build_rs_bucket_snapshot()`, `_nonstandard_constructive_help_enabled()`, `_v2_oc_nudge_try_alternates()`, `_v2_pc_nudge_try_alternates()`, `_v2_order_rs_suits_weighted()`
+- ✅ Removed 2 always-False flags: `ENABLE_CONSTRUCTIVE_HELP`, `ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD`
+- ✅ Removed 2 test-only debug hooks: `_DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW`, `_DEBUG_NONSTANDARD_CONSTRUCTIVE_V2_POLICY`
+- ✅ Simplified `_get_constructive_mode()` to always return all-False
+- ✅ Deleted 7 test files, cleaned up 5 more (25 tests removed)
+- deal_generator.py: 2,402 → 2,241 lines (−161)
+
+### 4b. [ ] Remove cascading dead code from v1 builder
+- Now that nonstandard flags are gone, several functions and inline code blocks inside the v1 builder are provably unreachable
+- Candidates: `_shadow_probe_nonstandard_constructive()`, `_nonstandard_constructive_v2_policy()`, `_build_constraint_flags_per_seat()`, inline PC/OC nudge blocks, dead variables (rs_bucket_snapshot, seat_subprofile_stats, v2_policy)
+- Also: shadow-related functions in `orchestrator.py` and admin menu item 4
 
 ### 5. [ ] HCP Help
 - Extend `_pre_allocate()` to bias toward high/low cards for tight HCP constraints
@@ -41,7 +49,7 @@
 ## Enhancements
 
 ### 7. [ ] Refactor large files
-- `deal_generator.py` (2,402 lines) — split v1/v2, helpers, constants into separate modules
+- `deal_generator.py` (2,241 lines) — split v1/v2, helpers, constants into separate modules
 - `hand_profile_model.py` (921 lines) — split data models from logic
 - `profile_cli.py` (968 lines) — split command handlers
 - `orchestrator.py` (705 lines) — split session management from CLI routing
@@ -52,16 +60,17 @@
 ---
 
 ## Summary
-Architecture: 5 (3 done, 2 pending) | Enhancements: 2 | **Total: 5**
+Architecture: 6 (4 done, 2 pending) | Enhancements: 2 | **Total: 6**
 
-**Tests**: 362 passed, 5 skipped | **Branch**: refactor/deal-generator
+**Tests**: 337 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 ---
 
-## Completed (32 items)
+## Completed (33 items)
 <details>
 <summary>Click to expand</summary>
 
+- Dead code cleanup: removed 5 stubs, 2 flags, 2 hooks, simplified _get_constructive_mode (−161 lines, −25 tests)
 - v2 shape-based help system: D0-D9 complete (dispersion check, pre-allocation, deal_with_help, v2 MVP, attribution, benchmarks, swap)
 - Magic profile name checks, constraint state to v2, "too hard = unviable" rule
 - Subprofile viability tracking, HCP vs shape classification, attribution to policy
