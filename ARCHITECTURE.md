@@ -160,7 +160,7 @@ _construct_hand_for_seat(rng, deck, min_suit_counts)
   → Fill remaining to 13 from rest of deck
 ```
 
-### v2: Nonstandard Constructive (Experimental)
+### v2: Nonstandard Constructive (Legacy — Experimental)
 
 **Pieces:**
 - Piece 0: Policy seam entry
@@ -172,6 +172,46 @@ _construct_hand_for_seat(rng, deck, min_suit_counts)
 - Piece 6: RS bucket updates on success
 
 **Current state:** Policy seam exists but returns empty dict. Not yet wired.
+
+### v3: Shape-Based Help System (✅ D0-D6 Complete)
+
+**Key insight:** Select subprofiles FIRST, then use shape probability table to
+identify tight seats and pre-allocate 50% of their suit minima.
+
+**Pipeline:**
+```
+_select_subprofiles_for_board(rng, profile, dealing_order)
+    ↓
+_dispersion_check(chosen_subprofiles)  → set of tight seats
+    ↓
+_deal_with_help(rng, deck, chosen_subs, tight_seats, dealing_order)
+    ├─ Tight seats: _pre_allocate() + _random_deal() fill to 13
+    ├─ Non-tight seats: _random_deal(13)
+    └─ Last seat: gets remainder
+    ↓
+_match_seat() per seat (RS first, then others)
+    ↓
+Success → Deal | Failure → retry (up to MAX_BOARD_ATTEMPTS)
+```
+
+**Constants:**
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `SHAPE_PROB_GTE` | Dict[0-13→float] | P(>=N cards in suit) |
+| `SHAPE_PROB_THRESHOLD` | 0.19 | Cutoff for "tight" seats |
+| `PRE_ALLOCATE_FRACTION` | 0.50 | Fraction of suit minima to pre-allocate |
+
+**Functions** (all in `deal_generator.py`):
+- `_dispersion_check(chosen_subs, threshold)` → set of tight seats
+- `_random_deal(rng, deck, n)` → List[Card] (mutates deck)
+- `_pre_allocate(rng, deck, subprofile, fraction)` → List[Card] (mutates deck)
+- `_deal_with_help(rng, deck, subs, tight_seats, order)` → Dict[Seat, List[Card]]
+- `_select_subprofiles_for_board(rng, profile, dealing_order)` → (subs, indices)
+- `_build_single_constrained_deal_v2(rng, profile, board_number)` → Deal
+
+**Status:** Profiles A-D work. Profile E (shape+HCP) needs HCP help (future).
+
+**Tests:** 66 tests in `test_shape_help_v3.py`
 
 ## Index Coupling
 
@@ -275,13 +315,14 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**56 test files, 165 tests** organized by:
+**353 tests (353 passed, 4 skipped)** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`, `test_nonstandard_v2_*.py`
 - Index coupling: `test_f3_opener_responder_coupling.py`, `test_ew_index_coupling.py`
 - Profile viability: `test_profile_viability_*.py`
 - Benchmarks: `test_profile_e_*.py`, `test_constructive_benchmark_*.py`
+- **v3 shape help**: `test_shape_help_v3.py` (66 tests — D1-D6)
 
 **Untested modules** (low risk):
 - `profile_convert.py` - file I/O logic (should add tests)

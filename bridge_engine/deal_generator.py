@@ -197,6 +197,38 @@ ROTATE_MAP: Dict[Seat, Seat] = {
     "W": "E",
 }
 
+# ---------------------------------------------------------------------------
+# Shape probability table (v2 help system)
+#
+# P(random 13-card hand has >= N cards in one suit).
+# Derived from hypergeometric distribution: X ~ Hypergeometric(N=52, K=13, n=13).
+# Used by _dispersion_check() to identify tight seats needing shape help.
+# ---------------------------------------------------------------------------
+SHAPE_PROB_GTE: Dict[int, float] = {
+    0:  1.000,
+    1:  0.987,
+    2:  0.920,
+    3:  0.710,
+    4:  0.430,
+    5:  0.189,
+    6:  0.063,
+    7:  0.021,
+    8:  0.005,
+    9:  0.001,
+    10: 0.0002,
+    11: 0.00002,
+    12: 0.000001,
+    13: 0.00000003,
+}
+
+# Probability threshold: seats with any suit at or below this probability
+# are considered "tight" and eligible for shape pre-allocation help.
+SHAPE_PROB_THRESHOLD: float = 0.19
+
+# Fraction of suit minima to pre-allocate for tight seats.
+# 50% balances helping enough vs not depleting the deck for other seats.
+PRE_ALLOCATE_FRACTION: float = 0.50
+
 # Toggleable debug flag for Section C
 DEBUG_SECTION_C: bool = False
 
@@ -1138,6 +1170,320 @@ def _construct_hand_for_seat(
     return hand
 
 
+# ---------------------------------------------------------------------------
+# v2 shape-based help system helpers
+# ---------------------------------------------------------------------------
+
+
+def _dispersion_check(
+    chosen_subprofiles: Dict[Seat, "SubProfile"],
+    threshold: float = SHAPE_PROB_THRESHOLD,
+) -> set:
+    """
+    Identify seats with tight shape constraints that need pre-allocation help.
+
+    For each seat, examines every suit's min_cards in the standard constraints.
+    If any suit has P(>= min_cards) <= threshold, the seat is "tight".
+
+    Args:
+        chosen_subprofiles: The selected subprofile for each seat.
+        threshold: Probability cutoff (default 0.19 = 19%).
+
+    Returns:
+        Set of seat names (e.g. {"N", "S"}) that need shape help.
+        Empty set if no seats are tight.
+    """
+    tight_seats: set = set()
+
+    for seat, sub in chosen_subprofiles.items():
+        std = getattr(sub, "standard", None)
+        if std is None:
+            continue
+
+        # Check each suit for tight shape constraints.
+        for suit_attr in ("spades", "hearts", "diamonds", "clubs"):
+            suit_range = getattr(std, suit_attr, None)
+            if suit_range is None:
+                continue
+            min_cards = getattr(suit_range, "min_cards", 0)
+            if min_cards <= 0:
+                continue
+            prob = SHAPE_PROB_GTE.get(min_cards, 0.0)
+            if prob <= threshold:
+                tight_seats.add(seat)
+                break  # One tight suit is enough to flag the seat
+
+    return tight_seats
+
+
+def _random_deal(
+    rng: random.Random,
+    deck: List[Card],
+    n: int,
+) -> List[Card]:
+    """
+    Deal n random cards from deck, removing them from deck (mutating).
+
+    If deck has fewer than n cards, deals whatever remains.
+    If n <= 0, returns empty list.
+
+    Args:
+        rng: Random number generator.
+        deck: Mutable list of cards to draw from. Modified in place.
+        n: Number of cards to deal.
+
+    Returns:
+        List of dealt cards (may be fewer than n if deck was smaller).
+    """
+    if n <= 0:
+        return []
+    take = min(n, len(deck))
+    if take <= 0:
+        return []
+
+    # Random selection, then remove from deck via set lookup (O(n)).
+    hand = rng.sample(deck, take)
+    hand_set = set(hand)
+    deck[:] = [c for c in deck if c not in hand_set]
+    return hand
+
+
+def _pre_allocate(
+    rng: random.Random,
+    deck: List[Card],
+    subprofile: "SubProfile",
+    fraction: float = PRE_ALLOCATE_FRACTION,
+) -> List[Card]:
+    """
+    Pre-allocate a fraction of suit minima for a tight seat.
+
+    For each suit in the subprofile's standard constraints, if min_cards > 0,
+    allocate floor(min_cards * fraction) cards of that suit from the deck.
+
+    This helps tight seats get a head start on their required suits without
+    over-constraining the deck for other seats.
+
+    Args:
+        rng: Random number generator.
+        deck: Mutable list of cards. Modified in place (cards removed).
+        subprofile: The chosen subprofile for this seat.
+        fraction: Fraction of minima to pre-allocate (default 0.50).
+
+    Returns:
+        List of pre-allocated cards (may be empty).
+    """
+    import math
+
+    std = getattr(subprofile, "standard", None)
+    if std is None:
+        return []
+
+    pre_allocated: List[Card] = []
+
+    # Process each suit's minimum.  Card format is rank+suit, e.g. "AS".
+    # Suit letter is at index 1 (S/H/D/C).
+    for suit_letter, suit_attr in [
+        ("S", "spades"), ("H", "hearts"),
+        ("D", "diamonds"), ("C", "clubs"),
+    ]:
+        suit_range = getattr(std, suit_attr, None)
+        if suit_range is None:
+            continue
+        min_cards = getattr(suit_range, "min_cards", 0)
+        if min_cards <= 0:
+            continue
+
+        to_allocate = math.floor(min_cards * fraction)
+        if to_allocate <= 0:
+            continue
+
+        # Find cards of this suit in the deck.
+        available = [c for c in deck if len(c) >= 2 and c[1] == suit_letter]
+        if not available:
+            continue
+
+        # Don't try to allocate more than available.
+        actual = min(to_allocate, len(available))
+        chosen = rng.sample(available, actual)
+        pre_allocated.extend(chosen)
+
+        # Remove chosen cards from deck (O(n) via set lookup).
+        chosen_set = set(chosen)
+        deck[:] = [c for c in deck if c not in chosen_set]
+
+    return pre_allocated
+
+
+def _deal_with_help(
+    rng: random.Random,
+    deck: List[Card],
+    chosen_subprofiles: Dict[Seat, "SubProfile"],
+    tight_seats: set,
+    dealing_order: List[Seat],
+) -> Dict[Seat, List[Card]]:
+    """
+    Deal 52 cards to 4 seats, giving shape help to tight seats.
+
+    For each seat in dealing_order:
+      - If tight: pre-allocate fraction of suit minima, fill to 13 randomly
+      - If not tight (and not last): deal 13 random cards
+      - Last seat: gets whatever remains (always 13 if deck started at 52)
+
+    Mutates deck (empties it).
+
+    Args:
+        rng: Random number generator.
+        deck: 52-card deck (mutable, will be emptied).
+        chosen_subprofiles: Selected subprofile per seat.
+        tight_seats: Set of seats needing shape help.
+        dealing_order: Order to deal seats.
+
+    Returns:
+        Dict mapping each seat to its 13-card hand.
+    """
+    hands: Dict[Seat, List[Card]] = {}
+
+    for i, seat in enumerate(dealing_order):
+        is_last = (i == len(dealing_order) - 1)
+
+        if is_last:
+            # Last seat gets whatever remains in the deck.
+            hands[seat] = list(deck)
+            deck.clear()
+        elif seat in tight_seats:
+            # Tight seat: pre-allocate suit minima, then fill to 13.
+            sub = chosen_subprofiles.get(seat)
+            if sub is not None:
+                pre = _pre_allocate(rng, deck, sub)
+                remaining_needed = 13 - len(pre)
+                fill = _random_deal(rng, deck, remaining_needed)
+                hands[seat] = pre + fill
+            else:
+                hands[seat] = _random_deal(rng, deck, 13)
+        else:
+            # Non-tight seat: deal 13 random cards.
+            hands[seat] = _random_deal(rng, deck, 13)
+
+    return hands
+
+
+# ---------------------------------------------------------------------------
+# Subprofile selection (extracted from _build_single_constrained_deal closure
+# so v2 can reuse it without duplication).
+# ---------------------------------------------------------------------------
+
+def _select_subprofiles_for_board(
+    rng: random.Random,
+    profile: HandProfile,
+    dealing_order: List[Seat],
+) -> Tuple[Dict[Seat, SubProfile], Dict[Seat, int]]:
+    """
+    Select a concrete subprofile index for each seat.
+
+    NS:
+      * If ns_index_coupling_enabled is True and both N/S have >1 subprofiles
+        and equal lengths, use index coupling:
+          - choose an NS "driver" (via ns_driver_seat or opener in dealing order),
+          - pick its index by weights,
+          - force responder to use same index.
+
+    EW:
+      * Always index-coupled when both E/W have >1 subprofiles and equal lengths,
+        using the first EW seat in dealing_order as the driver.
+
+    Any remaining seats just choose their own index by their local weights.
+    """
+    chosen_subprofiles: Dict[Seat, SubProfile] = {}
+    chosen_indices: Dict[Seat, int] = {}
+
+    # --- NS coupling logic -------------------------------------------------
+    north_sp = profile.seat_profiles.get("N")
+    south_sp = profile.seat_profiles.get("S")
+
+    ns_coupling_enabled = bool(
+        getattr(profile, "ns_index_coupling_enabled", True)
+    )
+
+    ns_coupling_possible = (
+        ns_coupling_enabled
+        and isinstance(north_sp, SeatProfile)
+        and isinstance(south_sp, SeatProfile)
+        and len(north_sp.subprofiles) > 1
+        and len(south_sp.subprofiles) > 1
+        and len(north_sp.subprofiles) == len(south_sp.subprofiles)
+    )
+
+    if ns_coupling_possible:
+        # Determine NS driver seat.
+        ns_driver: Optional[Seat] = profile.ns_driver_seat(rng)
+        if ns_driver not in ("N", "S"):
+            # Fall back to first NS seat in dealing order.
+            ns_driver = next(
+                (s for s in dealing_order if s in ("N", "S")), "N"
+            )
+
+        ns_follower: Seat = "S" if ns_driver == "N" else "N"
+
+        driver_sp = profile.seat_profiles.get(ns_driver)
+        follower_sp = profile.seat_profiles.get(ns_follower)
+
+        if isinstance(driver_sp, SeatProfile) and isinstance(
+            follower_sp, SeatProfile
+        ):
+            idx = _choose_index_for_seat(rng, driver_sp)
+            chosen_indices[ns_driver] = idx
+            chosen_indices[ns_follower] = idx
+            chosen_subprofiles[ns_driver] = driver_sp.subprofiles[idx]
+            chosen_subprofiles[ns_follower] = follower_sp.subprofiles[idx]
+
+    # --- EW coupling logic -------------------------------------------------
+    east_sp = profile.seat_profiles.get("E")
+    west_sp = profile.seat_profiles.get("W")
+
+    ew_coupling_possible = (
+        isinstance(east_sp, SeatProfile)
+        and isinstance(west_sp, SeatProfile)
+        and len(east_sp.subprofiles) > 1
+        and len(west_sp.subprofiles) > 1
+        and len(east_sp.subprofiles) == len(west_sp.subprofiles)
+    )
+
+    if ew_coupling_possible:
+        # EW "driver" = first of E/W in dealing_order.
+        ew_driver: Seat = next(
+            (s for s in dealing_order if s in ("E", "W")), "E"
+        )
+        ew_follower: Seat = "W" if ew_driver == "E" else "E"
+
+        driver_sp = profile.seat_profiles.get(ew_driver)
+        follower_sp = profile.seat_profiles.get(ew_follower)
+
+        if isinstance(driver_sp, SeatProfile) and isinstance(
+            follower_sp, SeatProfile
+        ):
+            idx = _choose_index_for_seat(rng, driver_sp)
+            chosen_indices[ew_driver] = idx
+            chosen_indices[ew_follower] = idx
+            chosen_subprofiles[ew_driver] = driver_sp.subprofiles[idx]
+            chosen_subprofiles[ew_follower] = follower_sp.subprofiles[idx]
+
+    # --- Remaining seats (including unconstrained or single-subprofile) ---
+    for seat_name, seat_profile in profile.seat_profiles.items():
+        if not isinstance(seat_profile, SeatProfile):
+            continue
+        if not seat_profile.subprofiles:
+            # Unconstrained seat – nothing to select.
+            continue
+        if seat_name in chosen_indices:
+            continue
+
+        idx = _choose_index_for_seat(rng, seat_profile)
+        chosen_indices[seat_name] = idx
+        chosen_subprofiles[seat_name] = seat_profile.subprofiles[idx]
+
+    return chosen_subprofiles, chosen_indices
+
+
 def _build_single_constrained_deal(
     rng: random.Random,
     profile: HandProfile,
@@ -1198,118 +1544,8 @@ def _build_single_constrained_deal(
     # -------------------------------------------------------------------
 
     # Decide which constructive modes are active for this profile.
-    constructive_mode = _get_constructive_mode(profile)
-
-    def _select_subprofiles_for_board(
-        profile: HandProfile,
-    ) -> Tuple[Dict[Seat, SubProfile], Dict[Seat, int]]:
-        """
-        Select a concrete subprofile index for each seat.
-
-        NS:
-          * If ns_index_coupling_enabled is True and both N/S have >1 subprofiles
-            and equal lengths, use index coupling:
-              - choose an NS "driver" (via ns_driver_seat or opener in dealing order),
-              - pick its index by weights,
-              - force responder to use same index.
-
-        EW:
-          * Always index-coupled when both E/W have >1 subprofiles and equal lengths,
-            using the first EW seat in dealing_order as the driver.
-
-        Any remaining seats just choose their own index by their local weights.
-        """
-        chosen_subprofiles: Dict[Seat, SubProfile] = {}
-        chosen_indices: Dict[Seat, int] = {}
-
-        # --- NS coupling logic -------------------------------------------------
-        north_sp = profile.seat_profiles.get("N")
-        south_sp = profile.seat_profiles.get("S")
-
-        ns_coupling_enabled = bool(
-            getattr(profile, "ns_index_coupling_enabled", True)
-        )
-
-        ns_coupling_possible = (
-            ns_coupling_enabled
-            and isinstance(north_sp, SeatProfile)
-            and isinstance(south_sp, SeatProfile)
-            and len(north_sp.subprofiles) > 1
-            and len(south_sp.subprofiles) > 1
-            and len(north_sp.subprofiles) == len(south_sp.subprofiles)
-        )
-
-        if ns_coupling_possible:
-            # Determine NS driver seat.
-            ns_driver: Optional[Seat] = profile.ns_driver_seat(rng)
-            if ns_driver not in ("N", "S"):
-                # Fall back to first NS seat in dealing order.
-                ns_driver = next(
-                    (s for s in dealing_order if s in ("N", "S")), "N"
-                )
-
-            ns_follower: Seat = "S" if ns_driver == "N" else "N"
-
-            driver_sp = profile.seat_profiles.get(ns_driver)
-            follower_sp = profile.seat_profiles.get(ns_follower)
-
-            if isinstance(driver_sp, SeatProfile) and isinstance(
-                follower_sp, SeatProfile
-            ):
-                idx = _choose_index_for_seat(rng, driver_sp)
-                chosen_indices[ns_driver] = idx
-                chosen_indices[ns_follower] = idx
-                chosen_subprofiles[ns_driver] = driver_sp.subprofiles[idx]
-                chosen_subprofiles[ns_follower] = follower_sp.subprofiles[idx]
-
-        # --- EW coupling logic -------------------------------------------------
-        east_sp = profile.seat_profiles.get("E")
-        west_sp = profile.seat_profiles.get("W")
-
-        ew_coupling_possible = (
-            isinstance(east_sp, SeatProfile)
-            and isinstance(west_sp, SeatProfile)
-            and len(east_sp.subprofiles) > 1
-            and len(west_sp.subprofiles) > 1
-            and len(east_sp.subprofiles) == len(west_sp.subprofiles)
-        )
-
-        if ew_coupling_possible:
-            # EW "driver" = first of E/W in dealing_order.
-            ew_driver: Seat = next(
-                (s for s in dealing_order if s in ("E", "W")), "E"
-            )
-            ew_follower: Seat = "W" if ew_driver == "E" else "E"
-
-            driver_sp = profile.seat_profiles.get(ew_driver)
-            follower_sp = profile.seat_profiles.get(ew_follower)
-
-            if isinstance(driver_sp, SeatProfile) and isinstance(
-                follower_sp, SeatProfile
-            ):
-                idx = _choose_index_for_seat(rng, driver_sp)
-                chosen_indices[ew_driver] = idx
-                chosen_indices[ew_follower] = idx
-                chosen_subprofiles[ew_driver] = driver_sp.subprofiles[idx]
-                chosen_subprofiles[ew_follower] = follower_sp.subprofiles[idx]
-
-        # --- Remaining seats (including unconstrained or single-subprofile) ---
-        for seat_name, seat_profile in profile.seat_profiles.items():
-            if not isinstance(seat_profile, SeatProfile):
-                continue
-            if not seat_profile.subprofiles:
-                # Unconstrained seat – nothing to select.
-                continue
-            if seat_name in chosen_indices:
-                continue
-
-            idx = _choose_index_for_seat(rng, seat_profile)
-            chosen_indices[seat_name] = idx
-            chosen_subprofiles[seat_name] = seat_profile.subprofiles[idx]
-
-        return chosen_subprofiles, chosen_indices
-
-    # Decide which constructive-help modes are allowed for this profile.
+    # (Note: the first assignment at the old line 1201 was dead code —
+    #  always overwritten here before use.  Kept just one.)
     constructive_mode = _get_constructive_mode(profile)
 
     # -----------------------------------------------------------------------
@@ -1359,7 +1595,9 @@ def _build_single_constrained_deal(
                 cfg=_HARDEST_SEAT_CONFIG,
             )
         # Choose subprofiles for this board (index-coupled where applicable).
-        chosen_subprofiles, chosen_indices = _select_subprofiles_for_board(profile)
+        chosen_subprofiles, chosen_indices = _select_subprofiles_for_board(
+            rng, profile, dealing_order
+        )
 
         # Keep a snapshot of indices from this attempt for debug reporting.
         last_chosen_indices = dict(chosen_indices)
@@ -1797,6 +2035,152 @@ def _build_single_constrained_deal(
         f"after {MAX_BOARD_ATTEMPTS} attempts."
     )
         
+# ---------------------------------------------------------------------------
+# v2 constrained deal builder (shape-based help system)
+# ---------------------------------------------------------------------------
+
+
+def _build_single_constrained_deal_v2(
+    rng: random.Random,
+    profile: "HandProfile",
+    board_number: int,
+) -> "Deal":
+    """
+    Build a single constrained deal using shape-based help (v2 algorithm).
+
+    Key differences from v1 (_build_single_constrained_deal):
+      - Uses _dispersion_check() to identify tight seats BEFORE dealing
+      - Pre-allocates 50% of suit minima for tight seats via _deal_with_help()
+      - No hardest-seat selection or v1 constructive gates
+      - Simplified failure tracking (full attribution added in D7)
+
+    Old v1 function remains untouched.  This is a parallel implementation.
+
+    Args:
+        rng: Random number generator (seeded for reproducibility).
+        profile: The HandProfile with seat constraints.
+        board_number: 1-based board number.
+
+    Returns:
+        A Deal instance with matched hands.
+
+    Raises:
+        DealGenerationError: If no valid deal found after MAX_BOARD_ATTEMPTS.
+    """
+    dealing_order: List[Seat] = list(profile.hand_dealing_order)
+
+    # ------------------------------------------------------------------
+    # FAST PATH: invariants-safety profiles (same as v1)
+    # ------------------------------------------------------------------
+    if getattr(profile, "is_invariants_safety_profile", False):
+        deck = _build_deck()
+        rng.shuffle(deck)
+        hands: Dict[Seat, List[Card]] = {}
+        idx = 0
+        for seat in dealing_order:
+            hands[seat] = deck[idx : idx + 13]
+            idx += 13
+        vul_idx = (board_number - 1) % len(VULNERABILITY_SEQUENCE)
+        return Deal(
+            board_number=board_number,
+            dealer=profile.dealer,
+            vulnerability=VULNERABILITY_SEQUENCE[vul_idx],
+            hands=hands,
+        )
+
+    # ------------------------------------------------------------------
+    # Full constrained path
+    # ------------------------------------------------------------------
+
+    # Select subprofiles once per board (index-coupled where applicable).
+    chosen_subprofiles, chosen_indices = _select_subprofiles_for_board(
+        rng, profile, dealing_order
+    )
+
+    # Identify tight seats that need shape help.
+    tight_seats = _dispersion_check(chosen_subprofiles)
+
+    # Build processing order: RS seats first so PC/OC can see partner's
+    # RS choices, then everything else.
+    rs_seats: List[Seat] = []
+    other_seats: List[Seat] = []
+    for seat in dealing_order:
+        sp = profile.seat_profiles.get(seat)
+        if not isinstance(sp, SeatProfile) or not sp.subprofiles:
+            continue
+        sub = chosen_subprofiles.get(seat)
+        if sub and getattr(sub, "random_suit_constraint", None) is not None:
+            rs_seats.append(seat)
+        else:
+            other_seats.append(seat)
+    processing_order: List[Seat] = rs_seats + other_seats
+
+    # Per-board tracking (minimal for MVP; full attribution in D7).
+    board_attempts = 0
+
+    while board_attempts < MAX_BOARD_ATTEMPTS:
+        board_attempts += 1
+
+        # Build and shuffle a full deck.
+        deck = _build_deck()
+        rng.shuffle(deck)
+
+        # Deal with shape help for tight seats.
+        hands = _deal_with_help(
+            rng, deck, chosen_subprofiles, tight_seats, dealing_order
+        )
+
+        # Match all seats against their constraints.
+        all_matched = True
+        random_suit_choices: Dict[Seat, List[str]] = {}
+
+        for seat in processing_order:
+            sp = profile.seat_profiles.get(seat)
+            if not isinstance(sp, SeatProfile) or not sp.subprofiles:
+                continue
+
+            sub = chosen_subprofiles.get(seat)
+            idx0 = chosen_indices.get(seat)
+
+            if sub is None or idx0 is None:
+                all_matched = False
+                break
+
+            matched, chosen_rs, _fail_reason = _match_seat(
+                profile=profile,
+                seat=seat,
+                hand=hands[seat],
+                seat_profile=sp,
+                chosen_subprofile=sub,
+                chosen_subprofile_index_1based=idx0 + 1,
+                random_suit_choices=random_suit_choices,
+                rng=rng,
+            )
+
+            if matched and chosen_rs is not None:
+                # Store RS choice so PC/OC seats can reference it.
+                random_suit_choices[seat] = chosen_rs
+
+            if not matched:
+                all_matched = False
+                break
+
+        if all_matched:
+            vul_idx = (board_number - 1) % len(VULNERABILITY_SEQUENCE)
+            return Deal(
+                board_number=board_number,
+                dealer=profile.dealer,
+                vulnerability=VULNERABILITY_SEQUENCE[vul_idx],
+                hands=hands,
+            )
+
+    # Exhausted all attempts.
+    raise DealGenerationError(
+        f"v2: Failed to construct constrained deal for board {board_number} "
+        f"after {MAX_BOARD_ATTEMPTS} attempts."
+    )
+
+
 # ---------------------------------------------------------------------------
 # Simple (fallback) generator for non-HandProfile objects
 # ---------------------------------------------------------------------------
