@@ -111,41 +111,6 @@ def _is_unviable_bucket(bucket: object) -> bool:
     return "unviable" in text   
     
     
-from typing import Dict, List  # already present at top of file
-
-# ...
-
-def _build_rs_bucket_snapshot(
-    random_suit_choices: Dict[Seat, List[str]],
-) -> Dict[Seat, str]:
-    """
-    Build a lightweight summary of Random-Suit choices for this *attempt*.
-
-    For each seat that recorded RS choices, we assign a simple bucket:
-      - "none"        -> no recorded RS choice (defensive fallback)
-      - "<S>"         -> exactly one unique suit (e.g. "S", "H", "D", "C")
-      - "multi:<...>" -> multiple distinct suits seen this attempt, with
-                         the unique suits concatenated in sorted order.
-
-    This is used only for shadow / debug tooling; it does not affect
-    how deals are built or matched.
-    """
-    snapshot: Dict[Seat, str] = {}
-
-    for seat, suits in random_suit_choices.items():
-        if not suits:
-            bucket = "none"
-        else:
-            unique_suits = sorted(set(suits))
-            if len(unique_suits) == 1:
-                bucket = unique_suits[0]
-            else:
-                bucket = "multi:" + "".join(unique_suits)
-        snapshot[seat] = bucket
-
-    return snapshot 
-
-
 def _weighted_choice_index(rng: random.Random, weights: Sequence[float]) -> int:
     """
     Choose an index according to non-negative weights.
@@ -535,21 +500,6 @@ def _build_constraint_flags_per_seat(
     return flags
 
 
-def _nonstandard_constructive_help_enabled(profile: HandProfile) -> bool:
-    """
-    Gate for any future constructive help that touches non-standard constraints
-    (Random Suit, Partner-Contingent, Opponents-Contingent).
-
-    For now this is just a global flag. In v2 we can extend this to honour
-    profile-level metadata (e.g. an explicit opt-in on experimental profiles).
-    Invariants-safety profiles are always excluded.
-    """
-    if getattr(profile, "is_invariants_safety_profile", False):
-        # Safety profiles must never see constructive help of any kind.
-        return False
-    return bool(ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD)
-
-
 # ---------------------------------------------------------------------------
 # Constructive help feature flags
 # ---------------------------------------------------------------------------
@@ -658,133 +608,6 @@ def classify_viability(successes: int, attempts: int) -> str:
     return "likely"
     
     
-def _v2_oc_nudge_try_alternates(
-    *,
-    constructive_mode: dict,
-    seat_profile: object,
-    chosen_sub: object,
-    idx0: int,
-    match_fn,
-):
-    """
-    Piece 5 helper: if v2 enabled and current chosen OC subprofile fails, try alternate OC subprofiles.
-
-    match_fn(alt_sub, alt_i0) -> (matched: bool, chosen_rs)
-    Returns: (matched, chosen_rs, chosen_sub, idx0)
-    """
-    if not constructive_mode.get("nonstandard_v2", False):
-        return False, None, chosen_sub, idx0
-    if getattr(chosen_sub, "opponents_contingent_suit_constraint", None) is None:
-        return False, None, chosen_sub, idx0
-    subprofiles = getattr(seat_profile, "subprofiles", None)
-    if not subprofiles or len(subprofiles) <= 1:
-        return False, None, chosen_sub, idx0
-
-    for alt_i0, alt_sub in enumerate(subprofiles):
-        if alt_i0 == idx0:
-            continue
-        if getattr(alt_sub, "opponents_contingent_suit_constraint", None) is None:
-            continue
-
-        alt_matched, alt_chosen_rs = match_fn(alt_sub, alt_i0)
-        if alt_matched:
-            return True, alt_chosen_rs, alt_sub, alt_i0
-
-    return False, None, chosen_sub, idx0    
-    
-    
-def _v2_pc_nudge_try_alternates(
-    *,
-    constructive_mode: dict,
-    seat_profile: "SeatProfile",
-    chosen_sub: object,
-    idx0: int,
-    match_fn,
-):
-    """
-    Piece 4 helper: if v2 enabled and current chosen PC subprofile fails, try alternate PC subprofiles.
-
-    match_fn(alt_sub, alt_i0) -> (matched: bool, chosen_rs)
-    Returns: (matched, chosen_rs, chosen_sub, idx0)
-    """
-    # Only run in v2 and only for PC-shaped chosen_sub.
-    if not constructive_mode.get("nonstandard_v2", False):
-        return False, None, chosen_sub, idx0
-    if getattr(chosen_sub, "partner_contingent_constraint", None) is None:
-        return False, None, chosen_sub, idx0
-    if not getattr(seat_profile, "subprofiles", None) or len(seat_profile.subprofiles) <= 1:
-        return False, None, chosen_sub, idx0
-
-    # Try alternates in stable order.
-    for alt_i0, alt_sub in enumerate(seat_profile.subprofiles):
-        if alt_i0 == idx0:
-            continue
-        if getattr(alt_sub, "partner_contingent_constraint", None) is None:
-            continue
-
-        alt_matched, alt_chosen_rs = match_fn(alt_sub, alt_i0)
-        if alt_matched:
-            return True, alt_chosen_rs, alt_sub, alt_i0
-
-    return False, None, chosen_sub, idx0    
-    
-    
-def _v2_order_rs_suits_weighted(
-    candidate_suits: list[str],
-    rs_entry: object,
-    *,
-    alpha: float = 0.2,
-    w_min: float = 0.9,
-    w_max: float = 1.1,
-) -> list[str]:
-    """
-    Piece 3: Order RS suits by a clamped weight derived from attempt-local success rate.
-
-    For each suit s:
-      seen = buckets[s].seen_attempts (default 0)
-      matched = buckets[s].matched_attempts (default 0)
-      rate = matched / max(1, seen)
-      weight = clamp(1 + alpha*(rate - 0.5), w_min, w_max)
-
-    Return suits ordered by:
-      1) weight desc
-      2) seen asc
-      3) original order (stable)
-    """
-    if not candidate_suits:
-        return []
-
-    buckets = {}
-    if isinstance(rs_entry, dict):
-        buckets = rs_entry.get("buckets") or {}
-    if not isinstance(buckets, dict):
-        buckets = {}
-
-    def clamp(x: float) -> float:
-        return w_min if x < w_min else (w_max if x > w_max else x)
-
-    pos = {s: i for i, s in enumerate(candidate_suits)}
-
-    stats: dict[str, tuple[int, int]] = {}
-    for s in candidate_suits:
-        v = buckets.get(s)
-        if isinstance(v, dict):
-            seen = int(v.get("seen_attempts", 0) or 0)
-            matched = int(v.get("matched_attempts", 0) or 0)
-        else:
-            seen, matched = 0, 0
-        stats[s] = (seen, matched)
-
-    def key(s: str):
-        seen, matched = stats[s]
-        rate = matched / max(1, seen)
-        weight = clamp(1.0 + alpha * (rate - 0.5))
-        # sort: weight desc, seen asc, original order
-        return (-weight, seen, pos[s])
-
-    return sorted(candidate_suits, key=key)
-        
-
 def _choose_index_for_seat(
     rng: random.Random,
     seat_profile: SeatProfile,

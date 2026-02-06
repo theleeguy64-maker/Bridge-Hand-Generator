@@ -13,20 +13,6 @@ def test_nonstandard_constructive_help_flag_defaults_off() -> None:
     assert deal_generator.ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD is False
 
 
-def test_nonstandard_constructive_helper_gate_is_false_for_safety_profile() -> None:
-    """
-    Even if someone flips the global flag in the future, invariants-safety
-    profiles must never see non-standard constructive help.
-    """
-    class _DummySafetyProfile:
-        # Duck-typed shape: _nonstandard_constructive_help_enabled only cares
-        # about this flag at the moment.
-        is_invariants_safety_profile = True
-
-    profile = _DummySafetyProfile()
-    assert deal_generator._nonstandard_constructive_help_enabled(profile) is False  # type: ignore[attr-defined]
-
-
 # Optional: future sandbox factory for RS+PC v2 work.
 # This is intentionally unused for now; it just gives us a named test-only
 # profile we can hook up once we start experimenting with non-standard
