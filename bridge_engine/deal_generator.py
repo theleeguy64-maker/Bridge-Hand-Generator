@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Callable, Dict, List, Optional, Sequence, Tuple, Any
 
+import math
 import random
 
 from .setup_env import SetupResult
@@ -193,6 +194,21 @@ SHAPE_PROB_THRESHOLD: float = 0.19
 # Fraction of suit minima to pre-allocate for tight seats.
 # 50% balances helping enough vs not depleting the deck for other seats.
 PRE_ALLOCATE_FRACTION: float = 0.50
+
+# ---------------------------------------------------------------------------
+# HCP feasibility check constants (TODO #5)
+# ---------------------------------------------------------------------------
+
+# Gate flag for HCP feasibility rejection during pre-allocation.
+# When False (default), the HCP check is completely inert — no behaviour change.
+# Flip to True to activate early rejection of hands whose pre-allocated cards
+# make the target HCP range statistically implausible.
+ENABLE_HCP_FEASIBILITY_CHECK: bool = False
+
+# Number of standard deviations for the HCP feasibility confidence interval.
+# At 1.0 SD, ~68% of outcomes fall within [ExpDown, ExpUp].  Rejecting outside
+# this band means "even a 1-sigma-favourable outcome can't reach the target".
+HCP_FEASIBILITY_NUM_SD: float = 1.0
 
 # Toggleable debug flag for Section C
 DEBUG_SECTION_C: bool = False
@@ -819,6 +835,125 @@ def _random_deal(
     hand_set = set(hand)
     deck[:] = [c for c in deck if c not in hand_set]
     return hand
+
+
+# ---------------------------------------------------------------------------
+# HCP feasibility utilities (TODO #5)
+#
+# These functions support early rejection of hands whose pre-allocated cards
+# make the target HCP range statistically implausible.  The check runs after
+# shape pre-allocation but before the random fill, saving the cost of dealing
+# + matching when the hand is already doomed.
+#
+# Math: sampling r cards without replacement from a deck of d cards.
+#   E[additional HCP]   = r × μ           where μ = hcp_sum / d
+#   Var[additional HCP]  = r × σ² × (d-r)/(d-1)   (finite population correction)
+#   σ²                   = hcp_sum_sq / d - μ²
+#   ExpDown = drawn_HCP + E[additional] − num_sd × SD
+#   ExpUp   = drawn_HCP + E[additional] + num_sd × SD
+#   Reject if ExpDown > target_max  OR  ExpUp < target_min
+# ---------------------------------------------------------------------------
+
+# HCP values for card ranks — same mapping as HCP_MAP in seat_viability.py.
+_HCP_BY_RANK: Dict[str, int] = {"A": 4, "K": 3, "Q": 2, "J": 1}
+
+
+def _card_hcp(card: Card) -> int:
+    """
+    Return the HCP (high card points) value of a single card.
+
+    A=4, K=3, Q=2, J=1, all others=0.  Card format is rank+suit, e.g. "AS".
+    """
+    if not card:
+        return 0
+    return _HCP_BY_RANK.get(card[0], 0)
+
+
+def _deck_hcp_stats(deck: List[Card]) -> Tuple[int, int]:
+    """
+    Compute aggregate HCP statistics for a deck (or partial deck) of cards.
+
+    Returns (hcp_sum, hcp_sum_sq) in a single pass:
+      hcp_sum    — total HCP across all cards
+      hcp_sum_sq — sum of squared HCP values (needed for variance calculation)
+
+    For a full 52-card deck: hcp_sum = 40, hcp_sum_sq = 120.
+    """
+    hcp_sum = 0
+    hcp_sum_sq = 0
+    for card in deck:
+        v = _card_hcp(card)
+        hcp_sum += v
+        hcp_sum_sq += v * v
+    return hcp_sum, hcp_sum_sq
+
+
+def _check_hcp_feasibility(
+    drawn_hcp: int,
+    cards_remaining: int,
+    deck_size: int,
+    deck_hcp_sum: int,
+    deck_hcp_sum_sq: int,
+    target_min: int,
+    target_max: int,
+    num_sd: float = HCP_FEASIBILITY_NUM_SD,
+) -> bool:
+    """
+    Check whether a target HCP range is still achievable given what has been
+    drawn so far and the composition of the remaining deck.
+
+    Args:
+        drawn_hcp:       HCP already committed to this hand.
+        cards_remaining: Number of cards still to be dealt to this hand.
+        deck_size:       Number of cards currently in the deck.
+        deck_hcp_sum:    Sum of HCP values of cards in the deck.
+        deck_hcp_sum_sq: Sum of squared HCP values of cards in the deck.
+        target_min:      Minimum acceptable total HCP for the hand.
+        target_max:      Maximum acceptable total HCP for the hand.
+        num_sd:          Number of standard deviations for the confidence band.
+
+    Returns:
+        True  — target range is still plausible (don't reject).
+        False — target range is statistically implausible (reject this hand).
+    """
+    # ---- Edge case: hand is complete ----
+    if cards_remaining <= 0:
+        return target_min <= drawn_hcp <= target_max
+
+    # ---- Edge case: deck too small for a meaningful variance calc ----
+    if deck_size <= 0:
+        # No cards left to draw — compare what we have.
+        return target_min <= drawn_hcp <= target_max
+
+    # ---- Population mean and variance of remaining deck ----
+    mu = deck_hcp_sum / deck_size
+    sigma_sq = deck_hcp_sum_sq / deck_size - mu * mu
+
+    # ---- Expected additional HCP ----
+    expected_additional = cards_remaining * mu
+    expected_total = drawn_hcp + expected_additional
+
+    # ---- Variance of additional HCP (finite population correction) ----
+    if deck_size <= 1:
+        # Only one card remains — no variance; we'll draw it deterministically.
+        var_additional = 0.0
+    else:
+        fpc = (deck_size - cards_remaining) / (deck_size - 1)
+        var_additional = cards_remaining * sigma_sq * fpc
+
+    sd_additional = math.sqrt(max(0.0, var_additional))
+
+    # ---- Confidence interval for total HCP ----
+    exp_down = expected_total - num_sd * sd_additional
+    exp_up = expected_total + num_sd * sd_additional
+
+    # ---- Feasibility test ----
+    # Reject if even the favourable end of the prediction can't reach the target.
+    if exp_down > target_max:
+        return False   # Already too high — even low-side can't stay under max.
+    if exp_up < target_min:
+        return False   # Too low — even high-side can't reach min.
+    return True
 
 
 def _pre_allocate(
