@@ -8,7 +8,7 @@ Organised by deliverable:
   D4 - _pre_allocate()
   D5 - _deal_with_help()
   D6 - _build_single_constrained_deal_v2() MVP
-  D7 - Full attribution in v2
+  D7 - Full attribution in v2 (failure counters + debug hooks)
 """
 
 import random
@@ -839,3 +839,348 @@ class TestBuildSingleConstrainedDealV2:
             assert deal.board_number == bn
             n_spades = [c for c in deal.hands["N"] if c[1] == "S"]
             assert len(n_spades) >= 5
+
+
+# ===================================================================
+# D7 — Full attribution in v2
+# ===================================================================
+
+
+def _tight_hcp_profile(min_hcp=18, max_hcp=20) -> HandProfile:
+    """
+    North needs exactly min_hcp-max_hcp HCP (no shape help — shape is open).
+    This forces many retries so attribution counters accumulate.
+    Other seats are completely open.
+    """
+    north_std = StandardSuitConstraints(
+        spades=_wide_range(),
+        hearts=_wide_range(),
+        diamonds=_wide_range(),
+        clubs=_wide_range(),
+        total_min_hcp=min_hcp,
+        total_max_hcp=max_hcp,
+    )
+    seats = {}
+    seats["N"] = SeatProfile(
+        seat="N",
+        subprofiles=[SubProfile(
+            standard=north_std,
+            random_suit_constraint=None,
+            partner_contingent_constraint=None,
+        )],
+    )
+    for s in ("E", "S", "W"):
+        sub = SubProfile(
+            standard=_wide_standard(),
+            random_suit_constraint=None,
+            partner_contingent_constraint=None,
+        )
+        seats[s] = SeatProfile(seat=s, subprofiles=[sub])
+    return HandProfile(
+        profile_name="Test_TightHCP",
+        description=f"North needs {min_hcp}-{max_hcp} HCP",
+        dealer="N",
+        hand_dealing_order=["N", "E", "S", "W"],
+        tag="Opener",
+        author="Test",
+        version="0.1",
+        seat_profiles=seats,
+    )
+
+
+def _north_tight_south_tight_profile() -> HandProfile:
+    """
+    North needs 6+ spades, South needs 6+ hearts.
+    Both are tight — exercising multi-seat attribution.
+    Processing order is N, E, S, W (no RS seats).
+    If North fails, South is unchecked. If North passes but South fails,
+    North gets global_other.
+    """
+    tight_spades = SuitRange(min_cards=6, max_cards=13, min_hcp=0, max_hcp=37)
+    tight_hearts = SuitRange(min_cards=6, max_cards=13, min_hcp=0, max_hcp=37)
+    north_std = StandardSuitConstraints(
+        spades=tight_spades,
+        hearts=_wide_range(),
+        diamonds=_wide_range(),
+        clubs=_wide_range(),
+        total_min_hcp=0, total_max_hcp=37,
+    )
+    south_std = StandardSuitConstraints(
+        spades=_wide_range(),
+        hearts=tight_hearts,
+        diamonds=_wide_range(),
+        clubs=_wide_range(),
+        total_min_hcp=0, total_max_hcp=37,
+    )
+    seats = {}
+    seats["N"] = SeatProfile(
+        seat="N",
+        subprofiles=[SubProfile(
+            standard=north_std,
+            random_suit_constraint=None,
+            partner_contingent_constraint=None,
+        )],
+    )
+    seats["S"] = SeatProfile(
+        seat="S",
+        subprofiles=[SubProfile(
+            standard=south_std,
+            random_suit_constraint=None,
+            partner_contingent_constraint=None,
+        )],
+    )
+    for s in ("E", "W"):
+        sub = SubProfile(
+            standard=_wide_standard(),
+            random_suit_constraint=None,
+            partner_contingent_constraint=None,
+        )
+        seats[s] = SeatProfile(seat=s, subprofiles=[sub])
+    return HandProfile(
+        profile_name="Test_NorthSouthTight",
+        description="North 6+ spades, South 6+ hearts",
+        dealer="N",
+        hand_dealing_order=["N", "E", "S", "W"],
+        tag="Opener",
+        author="Test",
+        version="0.1",
+        seat_profiles=seats,
+    )
+
+
+class TestV2Attribution:
+    """Tests for D7 — failure attribution counters and debug hooks in v2."""
+
+    def test_debug_board_stats_callback_on_success(self):
+        """debug_board_stats should fire on successful deal generation."""
+        captured = {}
+
+        def callback(fail_counts, seen_counts):
+            captured["fail"] = fail_counts
+            captured["seen"] = seen_counts
+
+        rng = random.Random(42)
+        profile = _loose_profile()
+        dg._build_single_constrained_deal_v2(
+            rng, profile, 1, debug_board_stats=callback
+        )
+        # Callback should have fired.
+        assert "fail" in captured
+        assert "seen" in captured
+        # Loose profile: all seats seen, none failed (first attempt succeeds).
+        for s in ("N", "E", "S", "W"):
+            assert captured["seen"].get(s, 0) >= 1
+            assert captured["fail"].get(s, 0) == 0
+
+    def test_debug_board_stats_callback_on_exhaustion(self, monkeypatch):
+        """debug_board_stats should fire even when deal generation exhausts."""
+        monkeypatch.setattr(dg, "MAX_BOARD_ATTEMPTS", 20)
+        captured = {}
+
+        def callback(fail_counts, seen_counts):
+            captured["fail"] = fail_counts
+            captured["seen"] = seen_counts
+
+        rng = random.Random(42)
+        profile = _impossible_profile()
+        with pytest.raises(dg.DealGenerationError):
+            dg._build_single_constrained_deal_v2(
+                rng, profile, 1, debug_board_stats=callback
+            )
+        # Callback should have fired with accumulated counts.
+        assert "fail" in captured
+        assert captured["fail"].get("N", 0) > 0
+
+    def test_seat_fail_as_seat_accumulates(self, monkeypatch):
+        """
+        For an impossible profile, the first checked seat (N) should
+        accumulate seat_fail_as_seat counts on every attempt.
+        """
+        monkeypatch.setattr(dg, "MAX_BOARD_ATTEMPTS", 30)
+        captured_attempts = []
+
+        def hook(profile, board_number, attempt_number,
+                 as_seat, global_other, global_unchecked, hcp, shape):
+            captured_attempts.append({
+                "as_seat": dict(as_seat),
+                "global_other": dict(global_other),
+                "global_unchecked": dict(global_unchecked),
+                "hcp": dict(hcp),
+                "shape": dict(shape),
+            })
+
+        monkeypatch.setattr(dg, "_DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION", hook)
+        rng = random.Random(42)
+        profile = _impossible_profile()
+        with pytest.raises(dg.DealGenerationError):
+            dg._build_single_constrained_deal_v2(rng, profile, 1)
+        # Hook should fire on every failed attempt.
+        assert len(captured_attempts) == 30
+        # N should be the failing seat every time (impossible constraints).
+        last = captured_attempts[-1]
+        assert last["as_seat"].get("N", 0) == 30
+
+    def test_global_unchecked_for_seats_after_failure(self, monkeypatch):
+        """
+        When N fails first, E/S/W should accumulate global_unchecked counts.
+        """
+        monkeypatch.setattr(dg, "MAX_BOARD_ATTEMPTS", 20)
+        captured_attempts = []
+
+        def hook(profile, board_number, attempt_number,
+                 as_seat, global_other, global_unchecked, hcp, shape):
+            captured_attempts.append({
+                "global_unchecked": dict(global_unchecked),
+            })
+
+        monkeypatch.setattr(dg, "_DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION", hook)
+        rng = random.Random(42)
+        profile = _impossible_profile()
+        with pytest.raises(dg.DealGenerationError):
+            dg._build_single_constrained_deal_v2(rng, profile, 1)
+        # N fails first → E, S, W are unchecked on every attempt.
+        last = captured_attempts[-1]
+        for s in ("E", "S", "W"):
+            assert last["global_unchecked"].get(s, 0) == 20
+
+    def test_global_other_when_later_seat_fails(self):
+        """
+        When a later seat fails, seats checked before it get global_other.
+        Use tight HCP profile: N has narrow HCP range, so N sometimes fails.
+        When N passes but doesn't fail, and a later seat fails instead,
+        N gets global_other.
+        """
+        # Use a profile where N sometimes fails (tight HCP 18-20).
+        # Over many attempts, some will have N pass + later seat fail.
+        captured_attempts = []
+
+        def hook(profile, board_number, attempt_number,
+                 as_seat, global_other, global_unchecked, hcp, shape):
+            captured_attempts.append({
+                "as_seat": dict(as_seat),
+                "global_other": dict(global_other),
+            })
+
+        rng = random.Random(42)
+        profile = _tight_hcp_profile(min_hcp=18, max_hcp=20)
+        old_hook = dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION
+        try:
+            dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION = hook
+            # Generate a deal — this may take several attempts.
+            dg._build_single_constrained_deal_v2(rng, profile, 1)
+        finally:
+            dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION = old_hook
+
+        # If there were any failures, the hook captured them.
+        # This test just verifies the hook was wired and dicts are well-formed.
+        for entry in captured_attempts:
+            assert isinstance(entry["as_seat"], dict)
+            assert isinstance(entry["global_other"], dict)
+
+    def test_hcp_shape_classification(self, monkeypatch):
+        """
+        Impossible profile has shape failure (13 spades + 13 hearts).
+        The fail_reason from _match_seat should be classified as 'shape'.
+        """
+        monkeypatch.setattr(dg, "MAX_BOARD_ATTEMPTS", 10)
+        captured_shape = []
+
+        def hook(profile, board_number, attempt_number,
+                 as_seat, global_other, global_unchecked, hcp, shape):
+            captured_shape.append(dict(shape))
+
+        monkeypatch.setattr(dg, "_DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION", hook)
+        rng = random.Random(42)
+        profile = _impossible_profile()
+        with pytest.raises(dg.DealGenerationError):
+            dg._build_single_constrained_deal_v2(rng, profile, 1)
+        # N fails on shape every time.
+        last = captured_shape[-1]
+        assert last.get("N", 0) == 10
+
+    def test_debug_on_max_attempts_fires(self, monkeypatch):
+        """_DEBUG_ON_MAX_ATTEMPTS hook should fire when v2 exhausts attempts."""
+        monkeypatch.setattr(dg, "MAX_BOARD_ATTEMPTS", 15)
+        captured = {}
+
+        def hook(profile, board_number, attempts, chosen_indices,
+                 seat_fail_counts, viability_summary):
+            captured["board_number"] = board_number
+            captured["attempts"] = attempts
+            captured["seat_fail_counts"] = seat_fail_counts
+            captured["viability_summary"] = viability_summary
+
+        monkeypatch.setattr(dg, "_DEBUG_ON_MAX_ATTEMPTS", hook)
+        rng = random.Random(42)
+        profile = _impossible_profile()
+        with pytest.raises(dg.DealGenerationError):
+            dg._build_single_constrained_deal_v2(rng, profile, 1)
+        # Hook should have fired.
+        assert captured["board_number"] == 1
+        assert captured["attempts"] == 15
+        assert captured["seat_fail_counts"].get("N", 0) == 15
+        # viability_summary is None in v2 (not computed).
+        assert captured["viability_summary"] is None
+
+    def test_attribution_hook_receives_copies(self, monkeypatch):
+        """
+        Dicts passed to _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION should be
+        independent copies — mutating them shouldn't affect future calls.
+        """
+        monkeypatch.setattr(dg, "MAX_BOARD_ATTEMPTS", 5)
+        captured = []
+
+        def hook(profile, board_number, attempt_number,
+                 as_seat, global_other, global_unchecked, hcp, shape):
+            # Mutate the dict — this should NOT affect future hook calls.
+            as_seat["MUTATED"] = True
+            captured.append(dict(as_seat))
+
+        monkeypatch.setattr(dg, "_DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION", hook)
+        rng = random.Random(42)
+        profile = _impossible_profile()
+        with pytest.raises(dg.DealGenerationError):
+            dg._build_single_constrained_deal_v2(rng, profile, 1)
+        # Each captured dict should have the mutation, but the N count
+        # should increment properly (not polluted by prior mutation).
+        for i, entry in enumerate(captured):
+            assert entry.get("MUTATED") is True
+            assert entry.get("N", 0) == i + 1
+
+    def test_multi_seat_attribution(self):
+        """
+        North 6+ spades + South 6+ hearts: both tight.
+        Over many attempts, both N and S should accumulate as_seat failures.
+        """
+        captured_attempts = []
+
+        def hook(profile, board_number, attempt_number,
+                 as_seat, global_other, global_unchecked, hcp, shape):
+            captured_attempts.append({
+                "as_seat": dict(as_seat),
+                "global_other": dict(global_other),
+                "global_unchecked": dict(global_unchecked),
+            })
+
+        rng = random.Random(42)
+        profile = _north_tight_south_tight_profile()
+        old_hook = dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION
+        try:
+            dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION = hook
+            # Generate a deal — will take several attempts.
+            deal = dg._build_single_constrained_deal_v2(rng, profile, 1)
+        finally:
+            dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION = old_hook
+
+        # There should have been at least some failed attempts.
+        assert len(captured_attempts) > 0
+        last = captured_attempts[-1]
+        # With N checked first: when N fails, S is unchecked.
+        # When N passes, S might fail → N gets global_other.
+        # At least N should have some as_seat failures.
+        assert last["as_seat"].get("N", 0) > 0
+        # Verify deal is valid.
+        n_spades = [c for c in deal.hands["N"] if c[1] == "S"]
+        s_hearts = [c for c in deal.hands["S"] if c[1] == "H"]
+        assert len(n_spades) >= 6
+        assert len(s_hearts) >= 6

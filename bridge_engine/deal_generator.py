@@ -2044,6 +2044,9 @@ def _build_single_constrained_deal_v2(
     rng: random.Random,
     profile: "HandProfile",
     board_number: int,
+    debug_board_stats: Optional[
+        Callable[["SeatFailCounts", "SeatSeenCounts"], None]
+    ] = None,
 ) -> "Deal":
     """
     Build a single constrained deal using shape-based help (v2 algorithm).
@@ -2052,7 +2055,8 @@ def _build_single_constrained_deal_v2(
       - Uses _dispersion_check() to identify tight seats BEFORE dealing
       - Pre-allocates 50% of suit minima for tight seats via _deal_with_help()
       - No hardest-seat selection or v1 constructive gates
-      - Simplified failure tracking (full attribution added in D7)
+      - Full failure attribution (seat_fail_as_seat, global_other,
+        global_unchecked, hcp, shape) + debug hooks
 
     Old v1 function remains untouched.  This is a parallel implementation.
 
@@ -2060,6 +2064,8 @@ def _build_single_constrained_deal_v2(
         rng: Random number generator (seeded for reproducibility).
         profile: The HandProfile with seat constraints.
         board_number: 1-based board number.
+        debug_board_stats: Optional callback receiving (seat_fail_counts,
+            seat_seen_counts) on success or exhaustion.
 
     Returns:
         A Deal instance with matched hands.
@@ -2115,7 +2121,22 @@ def _build_single_constrained_deal_v2(
             other_seats.append(seat)
     processing_order: List[Seat] = rs_seats + other_seats
 
-    # Per-board tracking (minimal for MVP; full attribution in D7).
+    # ------------------------------------------------------------------
+    # Per-board failure attribution counters (D7)
+    # ------------------------------------------------------------------
+    # seat_fail_as_seat: seat was the first to fail on an attempt
+    seat_fail_as_seat: Dict[Seat, int] = {}
+    # seat_fail_global_other: seat passed, but a later seat failed
+    seat_fail_global_other: Dict[Seat, int] = {}
+    # seat_fail_global_unchecked: seat was never checked (early break)
+    seat_fail_global_unchecked: Dict[Seat, int] = {}
+    # HCP vs shape breakdown of seat-level failures
+    seat_fail_hcp: Dict[Seat, int] = {}
+    seat_fail_shape: Dict[Seat, int] = {}
+    # Simple per-seat fail/seen counters (for debug_board_stats callback)
+    seat_fail_counts: Dict[Seat, int] = {}
+    seat_seen_counts: Dict[Seat, int] = {}
+
     board_attempts = 0
 
     while board_attempts < MAX_BOARD_ATTEMPTS:
@@ -2133,6 +2154,10 @@ def _build_single_constrained_deal_v2(
         # Match all seats against their constraints.
         all_matched = True
         random_suit_choices: Dict[Seat, List[str]] = {}
+        # Per-attempt tracking for global attribution.
+        checked_seats_in_attempt: List[Seat] = []
+        first_failed_seat: Optional[Seat] = None
+        first_failed_stage_idx: Optional[int] = None
 
         for seat in processing_order:
             sp = profile.seat_profiles.get(seat)
@@ -2146,7 +2171,11 @@ def _build_single_constrained_deal_v2(
                 all_matched = False
                 break
 
-            matched, chosen_rs, _fail_reason = _match_seat(
+            # Track that we checked this seat.
+            checked_seats_in_attempt.append(seat)
+            seat_seen_counts[seat] = seat_seen_counts.get(seat, 0) + 1
+
+            matched, chosen_rs, fail_reason = _match_seat(
                 profile=profile,
                 seat=seat,
                 hand=hands[seat],
@@ -2163,9 +2192,64 @@ def _build_single_constrained_deal_v2(
 
             if not matched:
                 all_matched = False
+                seat_fail_counts[seat] = seat_fail_counts.get(seat, 0) + 1
+
+                # This seat is the first failing seat on this attempt.
+                seat_fail_as_seat[seat] = seat_fail_as_seat.get(seat, 0) + 1
+
+                # Classify failure as HCP vs shape.
+                if fail_reason == "hcp":
+                    seat_fail_hcp[seat] = seat_fail_hcp.get(seat, 0) + 1
+                elif fail_reason == "shape":
+                    seat_fail_shape[seat] = seat_fail_shape.get(seat, 0) + 1
+                # else: "other" or None — not classified
+
+                # Record first-failure markers (only once per attempt).
+                if first_failed_seat is None:
+                    first_failed_seat = seat
+                    first_failed_stage_idx = len(checked_seats_in_attempt) - 1
+
                 break
 
+        # ---- Attempt-level global attribution ----
+        if not all_matched and first_failed_stage_idx is not None:
+            # Seats checked BEFORE the first failure → "globally impacted (other)"
+            for s in checked_seats_in_attempt[:first_failed_stage_idx]:
+                seat_fail_global_other[s] = (
+                    seat_fail_global_other.get(s, 0) + 1
+                )
+
+            # Seats NOT checked because we broke early → "globally unchecked"
+            checked_set = set(checked_seats_in_attempt)
+            for s in processing_order:
+                sp = profile.seat_profiles.get(s)
+                if not isinstance(sp, SeatProfile) or not sp.subprofiles:
+                    continue
+                if s not in checked_set:
+                    seat_fail_global_unchecked[s] = (
+                        seat_fail_global_unchecked.get(s, 0) + 1
+                    )
+
+            # Fire per-attempt debug hook (copies to prevent mutation).
+            if _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION is not None:
+                try:
+                    _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION(
+                        profile,
+                        board_number,
+                        board_attempts,
+                        dict(seat_fail_as_seat),
+                        dict(seat_fail_global_other),
+                        dict(seat_fail_global_unchecked),
+                        dict(seat_fail_hcp),
+                        dict(seat_fail_shape),
+                    )
+                except Exception:
+                    pass  # Debug hooks must never interfere with generation.
+
         if all_matched:
+            # Fire debug_board_stats callback on success.
+            if debug_board_stats is not None:
+                debug_board_stats(dict(seat_fail_counts), dict(seat_seen_counts))
             vul_idx = (board_number - 1) % len(VULNERABILITY_SEQUENCE)
             return Deal(
                 board_number=board_number,
@@ -2174,7 +2258,23 @@ def _build_single_constrained_deal_v2(
                 hands=hands,
             )
 
-    # Exhausted all attempts.
+    # Exhausted all attempts — fire hooks before raising.
+    if debug_board_stats is not None:
+        debug_board_stats(dict(seat_fail_counts), dict(seat_seen_counts))
+
+    if _DEBUG_ON_MAX_ATTEMPTS is not None:
+        try:
+            _DEBUG_ON_MAX_ATTEMPTS(
+                profile,
+                board_number,
+                board_attempts,
+                dict(chosen_indices),
+                dict(seat_fail_counts),
+                None,  # viability_summary (not computed in v2)
+            )
+        except Exception:
+            pass  # Debug hooks must never interfere with error reporting.
+
     raise DealGenerationError(
         f"v2: Failed to construct constrained deal for board {board_number} "
         f"after {MAX_BOARD_ATTEMPTS} attempts."

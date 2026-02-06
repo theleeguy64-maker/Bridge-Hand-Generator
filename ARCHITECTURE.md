@@ -330,14 +330,15 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**353 tests (353 passed, 4 skipped)** organized by:
+**362 tests (362 passed, 5 skipped)** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`, `test_nonstandard_v2_*.py`
 - Index coupling: `test_f3_opener_responder_coupling.py`, `test_ew_index_coupling.py`
 - Profile viability: `test_profile_viability_*.py`
 - Benchmarks: `test_profile_e_*.py`, `test_constructive_benchmark_*.py`
-- **v3 shape help**: `test_shape_help_v3.py` (66 tests — D1-D6)
+- **v3 shape help**: `test_shape_help_v3.py` (75 tests — D1-D7)
+- **v2 comparison**: `test_v2_comparison.py` (6 gated — `RUN_V2_BENCHMARKS=1`)
 
 **Untested modules** (low risk):
 - `profile_convert.py` - file I/O logic (should add tests)
