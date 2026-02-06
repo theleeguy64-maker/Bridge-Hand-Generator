@@ -47,6 +47,12 @@
 - Extend `_pre_allocate()` to bias toward high/low cards for tight HCP constraints
 - Needed for Profile E (6 spades + 10-12 HCP)
 
+### 6. [ ] Profile E viability check fails too early
+- Profile E Test ("tight point and suit constraints_plus") fails at viability check: "Profile declared unviable for board 1 after 100 attempts. Unviable seat(s): ['N']. These seats have >90% failure rate with sufficient attempts."
+- The viability probe (100 attempts) rejects seat N before the real 10,000-attempt loop even starts
+- Either: (a) viability threshold is too aggressive for tight profiles, (b) v2 shape help isn't used during viability checking, or (c) HCP Help (#5) is a prerequisite
+- Likely related to #5 — tight HCP + shape constraints need smarter pre-allocation to pass viability
+
 ---
 
 ## Enhancements
@@ -63,7 +69,7 @@
 ---
 
 ## Summary
-Architecture: 6 (5 done, 1 pending) | Enhancements: 2 | **Total: 4**
+Architecture: 7 (5 done, 2 pending) | Enhancements: 2 | **Total: 5**
 
 **Tests**: 337 passed, 4 skipped | **Branch**: refactor/deal-generator
 
