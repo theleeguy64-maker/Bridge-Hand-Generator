@@ -116,111 +116,6 @@ def _yes_no(prompt: str, default: bool = True) -> bool:
         print("Please answer 'y' or 'n'.")
 
 
-def _install_nonstandard_shadow_print_hook() -> None:
-    """
-    Install a default printer for the non-standard constructive shadow probe.
-
-    This is only used in the Exec CLI. Tests are free to monkeypatch
-    deal_generator._DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW as needed.
-    """
-    hook_attr = "_DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW"
-
-    # Older engines might not expose the hook at all; in that case do nothing.
-    if not hasattr(deal_generator, hook_attr):
-        return
-
-    # If something else has already installed a hook, don't override it.
-    if getattr(deal_generator, hook_attr) is not None:
-        return
-
-    def _print_shadow(
-        profile,
-        board_number: int,
-        attempt_number: int,
-        chosen_indices,
-        seat_fail_counts,
-        seat_seen_counts,
-        viability_summary,
-        rs_bucket_snapshot,
-    ) -> None:
-        # Very simple stdout dump; this only runs when
-        # ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD is True inside the engine.
-        print("\n[NONSTANDARD CONSTRUCTIVE SHADOW]")
-        print(
-            f"profile={getattr(profile, 'profile_name', '<unnamed>')!r} "
-            f"board={board_number} attempt={attempt_number}"
-        )
-        print("  chosen_indices    :", dict(chosen_indices))
-        print("  seat_fail_counts  :", dict(seat_fail_counts))
-        print("  seat_seen_counts  :", dict(seat_seen_counts))
-        print("  viability_summary :", dict(viability_summary))
-        print("  RS buckets:")
-        print(_format_nonstandard_rs_buckets(rs_bucket_snapshot))
-        print("[END NONSTANDARD CONSTRUCTIVE SHADOW]\n")
-
-    setattr(deal_generator, hook_attr, _print_shadow)
-    
-    
-def _toggle_nonstandard_shadow_flag() -> None:
-    """
-    Toggle deal_generator.ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD at runtime.
-
-    This is used only from the Admin menu in the Exec CLI.
-    """
-    current = getattr(deal_generator, "ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD", False)
-    new_value = not current
-    setattr(deal_generator, "ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD", new_value)
-
-    state_str = "ENABLED" if new_value else "DISABLED"
-    print(
-        "\n[ADMIN] Non-standard constructive shadow "
-        f"(ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD) is now {state_str}.\n"
-    )    
-
-
-def _format_nonstandard_rs_buckets(
-    rs_bucket_snapshot: Dict[str, Dict[str, Any]],
-) -> str:
-    """
-    Pretty-print the RS bucket snapshot shape produced by
-    _shadow_probe_nonstandard_constructive for manual inspection.
-
-    Expected shape per RS seat:
-      {
-          "total_seen_attempts": int,
-          "total_matched_attempts": int,
-          "buckets": {
-              "<label>": {
-                  "seen_attempts": int,
-                  "matched_attempts": int,
-              },
-              ...
-          },
-      }
-    """
-    if not rs_bucket_snapshot:
-        return "    (no Random-Suit stats collected)"
-
-    lines: list[str] = []
-
-    for seat, stats in rs_bucket_snapshot.items():
-        total_seen = stats.get("total_seen_attempts", 0)
-        total_matched = stats.get("total_matched_attempts", 0)
-        lines.append(
-            f"    Seat {seat}: total_seen={total_seen}, total_matched={total_matched}"
-        )
-
-        buckets = stats.get("buckets") or {}
-        for label, bucket_stats in buckets.items():
-            seen = bucket_stats.get("seen_attempts", 0)
-            matched = bucket_stats.get("matched_attempts", 0)
-            lines.append(
-                f"      bucket={label!r}: seen={seen}, matched={matched}"
-            )
-
-    return "\n".join(lines)
-
-
 # ---------------------------------------------------------------------------
 # Profile discovery / selection for deal generation (Session bundles)
 # ---------------------------------------------------------------------------
@@ -518,11 +413,6 @@ def main_menu() -> None:
     """
     Top-level interactive menu for the Bridge Hand Generator.
     """
-    # Install a default non-standard constructive shadow printer for Exec.
-    # This is a no-op if the engine doesn't expose the hook or if something
-    # else has already installed one.
-    _install_nonstandard_shadow_print_hook()
-
     while True:
         print("\n=== Bridge Hand Generator ===")
         print("0) Exit")
@@ -567,50 +457,32 @@ def admin_menu() -> None:
     Admin / tools submenu (LIN combiner, draft tools, etc.).
     """
     while True:
-        # Reflect current non-standard shadow flag in the menu text.
-        shadow_enabled = getattr(
-            deal_generator,
-            "ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD",
-            False,
-        )
-        shadow_status = "ON" if shadow_enabled else "OFF"
-
         print("\n=== Bridge Hand Generator – Admin ===")
         print("0) Exit")
         print("1) LIN Combiner")
         print("2) Recover/Delete *_TEST.json drafts")
         print("3) Help")
-        print(
-            f"4) Toggle non-standard constructive shadow "
-            f"(ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD, currently: {shadow_status})"
-        )
 
         choice = _input_int(
-            "Choose [0-4] [0]: ",
+            "Choose [0-3] [0]: ",
             default=0,
             minimum=0,
-            maximum=4,
+            maximum=3,
             show_range_suffix=False,
         )
 
         if choice == 0:
-            # Back to main menu
             break
 
         elif choice == 1:
-            # Interactive LIN combiner (see lin_tools.combine_lin_files_interactive)
             lin_tools.combine_lin_files_interactive()
 
         elif choice == 2:
-            # Same behaviour as old _admin_menu
             profile_cli.run_draft_tools()
 
         elif choice == 3:
             print()
-            print(get_menu_help("admin_menu"))
-
-        elif choice == 4:
-            _toggle_nonstandard_shadow_flag()            
+            print(get_menu_help("admin_menu"))            
 
 
 # Backwards-compatible alias for any legacy callers/tests

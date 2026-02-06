@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Mapping, Callable, Dict, List, Optional, Sequence, Tuple, Any
+from typing import Iterable, Callable, Dict, List, Optional, Sequence, Tuple, Any
 
 import random
 
@@ -312,172 +312,6 @@ def _is_shape_dominant_failure(
     shape_ratio = shape_fails / float(total_classified)
     return shape_ratio >= min_shape_ratio
 
-
-
-def _shadow_probe_nonstandard_constructive(
-    profile: HandProfile,
-    board_number: int,
-    attempt_number: int,
-    chosen_indices: Dict[Seat, int],
-    seat_fail_counts: SeatFailCounts,
-    seat_seen_counts: SeatSeenCounts,
-    viability_summary: Dict[Seat, str],
-    rs_bucket_snapshot: Dict[Seat, Dict[str, int]],
-) -> None:
-    """
-    Shadow-only probe for non-standard (e.g. Random-Suit / PC) constructive v2.
-
-    This is intentionally a no-op unless:
-      * ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD is True, and
-      * _DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW is set to a callable.
-
-    It must never affect real deal generation; it just forwards a snapshot
-    of the current stats / buckets to the debug hook.
-    """
-    if _DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW is None:
-        return
-
-    # Forward a snapshot to the debug hook.
-    try:
-        _DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW(
-            profile,
-            board_number,
-            attempt_number,
-            dict(chosen_indices),
-            dict(seat_fail_counts),
-            dict(seat_seen_counts),
-            dict(viability_summary),
-            dict(rs_bucket_snapshot),  # <- yes, include the RS buckets here
-        )
-    except Exception:
-        # Debug hooks must never interfere with normal deal generation.
-        pass
-
-
-
-def _nonstandard_constructive_v2_policy(
-    *,
-    profile: HandProfile,
-    board_number: int,
-    attempt_number: int,
-    chosen_indices: Optional[Dict[Seat, int]] = None,
-    seat_fail_counts: Optional[SeatFailCounts] = None,
-    seat_seen_counts: Optional[SeatSeenCounts] = None,
-    viability_summary: Optional[Dict[Seat, str]] = None,
-    rs_bucket_snapshot: Optional[Dict[Seat, Dict[str, int]]] = None,
-    constraint_flags: Optional[Dict[Seat, Dict[str, bool]]] = None,  # P1.2: per-seat RS/PC/OC flags
-    subprofile_stats: Optional[Dict[Seat, Dict[int, Dict[str, int]]]] = None,  # P1.4: per-subprofile tracking
-) -> Dict[str, object]:
-    """Return policy hints for non-standard constructive help v2.
-
-    Piece 0 seam: this is called when constructive_mode["nonstandard_v2"] is enabled.
-    By default it returns an empty dict and must not affect deal-generation behaviour.
-
-    Tests may monkeypatch _DEBUG_NONSTANDARD_CONSTRUCTIVE_V2_POLICY to observe calls.
-
-    P1.2 addition: constraint_flags provides per-seat mapping of which constraint
-    types (RS, PC, OC) are active on the chosen subprofile for each seat.
-
-    P1.4 addition: subprofile_stats provides per-subprofile success/failure counts
-    for smarter nudging decisions. Shape: {seat: {subprofile_idx: {"seen": N, "failed": M}}}
-    """
-    # Defensive gating: even if a caller invokes this directly, do not run
-    # policy hooks unless v2 is actually enabled for this profile.
-    # This guarantees invariants-safety profiles can never observe v2 hooks
-    # even if a test or caller bypasses _build_single_constrained_deal.
-    try:
-        if not _get_constructive_mode(profile).get("nonstandard_v2", False):
-            return {}
-    except Exception:
-        # If the profile doesn't have the expected fields for gating, treat as disabled.
-        return {}
-
-    hook = _DEBUG_NONSTANDARD_CONSTRUCTIVE_V2_POLICY
-    if hook is None:
-        return {}
-
-    # Backwards-compat chain:
-    # - P1.4 (10 args): includes subprofile_stats
-    # - P1.2 (9 args): includes constraint_flags
-    # - Piece 1 (8 args): no constraint_flags
-    # - Piece 0 (3 args): minimal signature
-    try:
-        # P1.4: full signature with subprofile_stats
-        result = hook(
-            profile,
-            board_number,
-            attempt_number,
-            dict(chosen_indices or {}),
-            dict(seat_fail_counts or {}),
-            dict(seat_seen_counts or {}),
-            dict(viability_summary or {}),
-            dict(rs_bucket_snapshot or {}),
-            dict(constraint_flags or {}),
-            {seat: dict(idx_stats) for seat, idx_stats in (subprofile_stats or {}).items()},
-        )
-    except TypeError:
-        try:
-            # P1.2: 9-arg signature (no subprofile_stats)
-            result = hook(
-                profile,
-                board_number,
-                attempt_number,
-                dict(chosen_indices or {}),
-                dict(seat_fail_counts or {}),
-                dict(seat_seen_counts or {}),
-                dict(viability_summary or {}),
-                dict(rs_bucket_snapshot or {}),
-                dict(constraint_flags or {}),
-            )
-        except TypeError:
-            try:
-                # Piece 1: 8-arg signature (no constraint_flags)
-                result = hook(
-                    profile,
-                    board_number,
-                    attempt_number,
-                    dict(chosen_indices or {}),
-                    dict(seat_fail_counts or {}),
-                    dict(seat_seen_counts or {}),
-                    dict(viability_summary or {}),
-                    dict(rs_bucket_snapshot or {}),
-                )
-            except TypeError:
-                # Piece 0: minimal 3-arg signature
-                result = hook(profile, board_number, attempt_number)
-    if result is None:
-        return {}
-
-    if not isinstance(result, Mapping):
-        raise TypeError(
-            "_DEBUG_NONSTANDARD_CONSTRUCTIVE_V2_POLICY must return a Mapping[str, object] or None"
-        )
-
-    # Materialise to a plain dict to prevent surprising mutation/aliasing.
-    return dict(result)
-
-
-def _build_constraint_flags_per_seat(
-    chosen_subprofiles: Dict[Seat, "SubProfile"],
-) -> Dict[Seat, Dict[str, bool]]:
-    """
-    Build a mapping of constraint type flags per seat.
-
-    For each seat in chosen_subprofiles, returns which constraint types
-    (RS, PC, OC) are active on the chosen subprofile. This allows the
-    v2 policy seam to make constraint-aware decisions.
-
-    Returns:
-        {"N": {"has_rs": False, "has_pc": False, "has_oc": False}, ...}
-    """
-    flags: Dict[Seat, Dict[str, bool]] = {}
-    for seat, sub in chosen_subprofiles.items():
-        flags[seat] = {
-            "has_rs": getattr(sub, "random_suit_constraint", None) is not None,
-            "has_pc": getattr(sub, "partner_contingent_constraint", None) is not None,
-            "has_oc": getattr(sub, "opponents_contingent_suit_constraint", None) is not None,
-        }
-    return flags
 
 
 # Default thresholds used by _build_single_constrained_deal.
@@ -1304,24 +1138,11 @@ def _build_single_constrained_deal(
     # NEW: breakdown of seat-level failures by cause (HCP vs shape)
     seat_fail_hcp: Dict[Seat, int] = {}
     seat_fail_shape: Dict[Seat, int] = {}
-    # P1.4: Per-subprofile tracking for smarter nudging decisions.
-    # Shape: {seat: {subprofile_idx: {"seen": int, "failed": int}}}
-    seat_subprofile_stats: Dict[Seat, Dict[int, Dict[str, int]]] = {}
-
     while board_attempts < MAX_BOARD_ATTEMPTS:
         board_attempts += 1
 
-        # Non-standard constructive help v2 (Piece 0/1 seam).
-        # We invoke the v2 policy *after* matching a full attempt so it can
-        # observe attempt-local stats (RS buckets, viability summary, etc.).
-        # For now, the returned policy hints are ignored and must not affect
-        # deal-generation behaviour.
-        v2_policy: Dict[str, object] = {}
-
         # Decide which seat, if any, looks "hardest" for this board.
-        # We use the v1 constructive algorithm for standard seats, but allow v2-on-std
-        # to trigger the same mechanism for review.
-        allow_std_constructive = constructive_mode["standard"] or constructive_mode.get("nonstandard_v2", False)
+        allow_std_constructive = constructive_mode["standard"]
 
         help_seat: Optional[Seat] = None
         if allow_std_constructive:
@@ -1347,29 +1168,6 @@ def _build_single_constrained_deal(
 
         hands: Dict[Seat, List[Card]] = {}
 
-        # RS-specific per-attempt stats used only by the non-standard
-        # constructive shadow probe.
-        #
-        # Shape:
-        #   {
-        #       seat: {
-        #           "total_seen_attempts": int,
-        #           "total_matched_attempts": int,
-        #           "buckets": {
-        #               "<bucket_key>": {
-        #                   "seen_attempts": int,
-        #                   "matched_attempts": int,
-        #               },
-        #               ...
-        #           },
-        #       },
-        #       ...
-        #   }
-        rs_bucket_snapshot: Dict[
-            Seat,
-            Dict[str, object],
-        ] = {}
-        
         # --------------------------
         # Optional constructive path
         # --------------------------
@@ -1512,31 +1310,12 @@ def _build_single_constrained_deal(
             chosen_sub = chosen_subprofiles.get(seat)
             idx0 = chosen_indices.get(seat)
 
-            # P1.4: Track at subprofile granularity
-            if idx0 is not None:
-                if seat not in seat_subprofile_stats:
-                    seat_subprofile_stats[seat] = {}
-                if idx0 not in seat_subprofile_stats[seat]:
-                    seat_subprofile_stats[seat][idx0] = {"seen": 0, "failed": 0}
-                seat_subprofile_stats[seat][idx0]["seen"] += 1
-
             # Defensive: if we didn't pick a subprofile, treat as seat-level failure.
             if chosen_sub is None or idx0 is None:
                 matched = False
                 chosen_rs = None
                 fail_reason = "other"  # No subprofile to classify against
             else:
-                # Is this seat using Random Suit on this attempt?     
-                is_rs_seat = getattr(chosen_sub, "random_suit_constraint", None) is not None
-
-                rs_entry = None
-                if is_rs_seat:
-                    rs_entry = rs_bucket_snapshot.setdefault(
-                        seat,
-                        {"total_seen_attempts": 0, "total_matched_attempts": 0, "buckets": {}},
-                    )
-                    rs_entry["total_seen_attempts"] += 1
-
                 # Match the seat against profile constraints
                 matched, chosen_rs, fail_reason = _match_seat(
                     profile=profile,
@@ -1549,93 +1328,10 @@ def _build_single_constrained_deal(
                     rng=rng,
                 )
 
-                # RS bucket accounting
-                if is_rs_seat and rs_entry is not None and chosen_rs is not None:
-                    if isinstance(chosen_rs, (list, tuple)):
-                        bucket_key = ",".join(str(x) for x in chosen_rs)
-                    else:
-                        bucket_key = str(chosen_rs)
-
-                    buckets = rs_entry["buckets"]
-                    bucket_entry = buckets.setdefault(bucket_key, {"seen_attempts": 0, "matched_attempts": 0})
-                    bucket_entry["seen_attempts"] += 1
-                    if matched:
-                        bucket_entry["matched_attempts"] += 1
-
-                # PC nudge (v2 only)
-                if (
-                    constructive_mode.get("nonstandard_v2", False)
-                    and not matched
-                    and getattr(chosen_sub, "partner_contingent_constraint", None) is not None
-                    and len(seat_profile.subprofiles) > 1
-                ):
-                    for alt_i0, alt_sub in enumerate(seat_profile.subprofiles):
-                        if alt_i0 == idx0:
-                            continue
-                        if getattr(alt_sub, "partner_contingent_constraint", None) is None:
-                            continue
-
-                        alt_matched, alt_chosen_rs, _ = _match_seat(
-                            profile=profile,
-                            seat=seat,
-                            hand=hands[seat],
-                            seat_profile=seat_profile,
-                            chosen_subprofile=alt_sub,
-                            chosen_subprofile_index_1based=alt_i0 + 1,
-                            random_suit_choices=random_suit_choices,
-                            rng=rng,
-                        )
-                        if alt_matched:
-                            matched, chosen_rs = alt_matched, alt_chosen_rs
-                            chosen_sub = alt_sub
-                            idx0 = alt_i0
-                            chosen_subprofiles[seat] = alt_sub
-                            chosen_indices[seat] = alt_i0
-                            break
-
-                # OC nudge (v2 only)
-                if (
-                    constructive_mode.get("nonstandard_v2", False)
-                    and not matched
-                    and getattr(chosen_sub, "opponents_contingent_suit_constraint", None) is not None
-                    and len(seat_profile.subprofiles) > 1
-                ):
-                    for alt_i0, alt_sub in enumerate(seat_profile.subprofiles):
-                        if alt_i0 == idx0:
-                            continue
-                        if getattr(alt_sub, "opponents_contingent_suit_constraint", None) is None:
-                            continue
-
-                        alt_matched, alt_chosen_rs, _ = _match_seat(
-                            profile=profile,
-                            seat=seat,
-                            hand=hands[seat],
-                            seat_profile=seat_profile,
-                            chosen_subprofile=alt_sub,
-                            chosen_subprofile_index_1based=alt_i0 + 1,
-                            random_suit_choices=random_suit_choices,
-                            rng=rng,
-                        )
-                        if alt_matched:
-                            matched, chosen_rs = alt_matched, alt_chosen_rs
-                            chosen_sub = alt_sub
-                            idx0 = alt_i0
-                            chosen_subprofiles[seat] = alt_sub
-                            chosen_indices[seat] = alt_i0
-                            break
-
-                if is_rs_seat and rs_entry is not None and matched:
-                    rs_entry["total_matched_attempts"] += 1
-
             # ---- Final seat-level failure decision for this seat ----
             if not matched:
                 all_matched = False
                 seat_fail_counts[seat] = seat_fail_counts.get(seat, 0) + 1
-
-                # P1.4: Track failure at subprofile granularity
-                if idx0 is not None and seat in seat_subprofile_stats:
-                    if idx0 in seat_subprofile_stats[seat]:
-                        seat_subprofile_stats[seat][idx0]["failed"] += 1
 
                 # This seat is the first failing seat on this attempt.
                 seat_fail_as_seat[seat] = seat_fail_as_seat.get(seat, 0) + 1
@@ -1688,47 +1384,6 @@ def _build_single_constrained_deal(
                 except Exception:
                     pass
                                         
-        # After matching all seats for this attempt, optionally run the
-        # v2 policy seam and/or the non-standard shadow probe with up-to-date
-        # viability stats.
-        if constructive_mode["nonstandard_v2"] or constructive_mode["nonstandard_shadow"]:
-            viability_summary_after = _summarize_profile_viability(
-                seat_fail_counts,
-                seat_seen_counts,
-            )
-
-            if constructive_mode["nonstandard_v2"]:
-                # Piece 1: pass the same rich attempt-local stats that the
-                # shadow probe sees. For now, the returned policy hints are
-                # intentionally ignored.
-                # P1.2: Also pass per-seat constraint flags (RS/PC/OC).
-                # P1.4: Also pass per-subprofile tracking stats.
-                constraint_flags = _build_constraint_flags_per_seat(chosen_subprofiles)
-                v2_policy = _nonstandard_constructive_v2_policy(
-                    profile=profile,
-                    board_number=board_number,
-                    attempt_number=board_attempts,
-                    chosen_indices=chosen_indices,
-                    seat_fail_counts=seat_fail_counts,
-                    seat_seen_counts=seat_seen_counts,
-                    viability_summary=viability_summary_after,
-                    rs_bucket_snapshot=rs_bucket_snapshot,
-                    constraint_flags=constraint_flags,
-                    subprofile_stats=seat_subprofile_stats,
-                )
-
-            if constructive_mode["nonstandard_shadow"]:
-                _shadow_probe_nonstandard_constructive(
-                    profile=profile,
-                    board_number=board_number,
-                    attempt_number=board_attempts,
-                    chosen_indices=chosen_indices,
-                    seat_fail_counts=seat_fail_counts,
-                    seat_seen_counts=seat_seen_counts,
-                    viability_summary=viability_summary_after,
-                    rs_bucket_snapshot=rs_bucket_snapshot,
-                )
-
         if all_matched:
             if debug_board_stats is not None:
                 debug_board_stats(dict(seat_fail_counts), dict(seat_seen_counts))

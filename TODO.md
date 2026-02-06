@@ -35,10 +35,13 @@
 - ✅ Deleted 7 test files, cleaned up 5 more (25 tests removed)
 - deal_generator.py: 2,402 → 2,241 lines (−161)
 
-### 4b. [ ] Remove cascading dead code from v1 builder
-- Now that nonstandard flags are gone, several functions and inline code blocks inside the v1 builder are provably unreachable
-- Candidates: `_shadow_probe_nonstandard_constructive()`, `_nonstandard_constructive_v2_policy()`, `_build_constraint_flags_per_seat()`, inline PC/OC nudge blocks, dead variables (rs_bucket_snapshot, seat_subprofile_stats, v2_policy)
-- Also: shadow-related functions in `orchestrator.py` and admin menu item 4
+### 4b. [x] Remove cascading dead code from v1 builder
+- ✅ Removed 3 dead functions: `_shadow_probe_nonstandard_constructive()`, `_nonstandard_constructive_v2_policy()`, `_build_constraint_flags_per_seat()`
+- ✅ Removed inline PC/OC nudge blocks + nonstandard call site block from v1 builder
+- ✅ Removed dead variables: `rs_bucket_snapshot`, `seat_subprofile_stats`, `v2_policy`, RS bucket tracking
+- ✅ Removed shadow functions from orchestrator.py + admin menu item 4
+- ✅ Removed unused `Mapping` import
+- deal_generator.py: 2,241 → 1,896 lines (−345); orchestrator.py: 705 → 524 lines (−181)
 
 ### 5. [ ] HCP Help
 - Extend `_pre_allocate()` to bias toward high/low cards for tight HCP constraints
@@ -49,10 +52,10 @@
 ## Enhancements
 
 ### 7. [ ] Refactor large files
-- `deal_generator.py` (2,241 lines) — split v1/v2, helpers, constants into separate modules
+- `deal_generator.py` (1,896 lines) — split v1/v2, helpers, constants into separate modules
 - `hand_profile_model.py` (921 lines) — split data models from logic
 - `profile_cli.py` (968 lines) — split command handlers
-- `orchestrator.py` (705 lines) — split session management from CLI routing
+- `orchestrator.py` (524 lines) — split session management from CLI routing
 
 ### 8. [ ] Metrics Export CLI
 - `export-metrics <profile> [--boards N]`
@@ -60,13 +63,13 @@
 ---
 
 ## Summary
-Architecture: 6 (4 done, 2 pending) | Enhancements: 2 | **Total: 6**
+Architecture: 6 (5 done, 1 pending) | Enhancements: 2 | **Total: 4**
 
 **Tests**: 337 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 ---
 
-## Completed (33 items)
+## Completed (34 items)
 <details>
 <summary>Click to expand</summary>
 
