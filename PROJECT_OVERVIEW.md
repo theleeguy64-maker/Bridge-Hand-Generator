@@ -75,17 +75,16 @@ Per-attempt tracking for diagnostics:
 - Profile validation and viability checking
 - Constrained deal generation with retry loop (v2 active path, v1 available for rollback)
 - v2 shape-based help system (D0-D9 complete, production path)
-- Profiles A-D work with v2 (tight shape constraints handled)
+- Profiles A-E all work with v2 (tight shape + HCP constraints handled)
+- HCP feasibility rejection (#5): early rejection of hands with infeasible HCP after pre-allocation
+- Profile E (6 spades + 10-12 HCP) generates successfully end-to-end
 - Base Smart Hand Order algorithm for optimal dealing order
 - Local failure attribution with rotation benchmarks
 - Dead code cleanup complete (#4, #4b): removed stubs, flags, hooks, cascading dead code
-- HCP feasibility rejection (#5 Batches 1-3): gated early rejection of hands with infeasible HCP after pre-allocation
-- 373 tests passing, 4 skipped
+- 380 tests passing, 4 skipped
 
 ### Remaining Work
-1. **HCP help** (#5) — flip gate on, test Profile E; follow up with guided card selection if needed
-2. **Profile E viability** (#6) — viability check rejects Profile E too early (may be resolved by #5)
-3. **Refactor large files** (#7) — split deal_generator.py (2,107), hand_profile_model.py (921), profile_cli.py (968)
+1. **Refactor large files** (#7) — split deal_generator.py (2,107), hand_profile_model.py (921), profile_cli.py (968)
 
 ## Design Principles
 

@@ -98,8 +98,8 @@ class _DummyStandard:
         self.hearts = _DummySuitRange(min_cards=h)
         self.diamonds = _DummySuitRange(min_cards=d)
         self.clubs = _DummySuitRange(min_cards=c)
-        self.total_hcp_min = 0
-        self.total_hcp_max = 37
+        self.total_min_hcp = 0
+        self.total_max_hcp = 37
 
 
 class _DummySubProfile:

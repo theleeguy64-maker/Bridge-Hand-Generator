@@ -450,15 +450,14 @@ class TestDealWithHelpHcpGate:
 
     # -- Gate OFF: no rejection regardless --
 
-    def test_gate_off_no_rejection_even_for_impossible(self):
-        """Gate OFF (default): impossible HCP proceeds without rejection.
+    def test_gate_off_no_rejection_even_for_impossible(self, monkeypatch):
+        """Gate OFF: impossible HCP proceeds without rejection.
 
         Same impossible scenario as test_gate_on_rejects_impossible_low_hcp,
-        but with the gate in its default False state.  _deal_with_help should
+        but with the gate explicitly set to False.  _deal_with_help should
         return hands normally — the HCP check never runs.
         """
-        # Verify gate is off (no monkeypatch).
-        assert dg.ENABLE_HCP_FEASIBILITY_CHECK is False
+        monkeypatch.setattr(dg, "ENABLE_HCP_FEASIBILITY_CHECK", False)
 
         sub_n = _tight_spades_subprofile(min_spades=6, total_min=0, total_max=2)
         sub_open = _open_subprofile()

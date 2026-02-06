@@ -43,18 +43,18 @@
 - ✅ Removed unused `Mapping` import
 - deal_generator.py: 2,241 → 1,896 lines (−345); orchestrator.py: 705 → 524 lines (−181)
 
-### 5. [~] HCP Feasibility Rejection (gated)
+### 5. [x] HCP Feasibility Rejection
 - ✅ **Batch 1**: `_card_hcp()`, `_deck_hcp_stats()`, `_check_hcp_feasibility()` + 26 unit tests
-- ✅ **Batch 2**: Gated HCP check in `_deal_with_help()` + v2 builder attribution handling
+- ✅ **Batch 2**: HCP check in `_deal_with_help()` + v2 builder attribution handling
 - ✅ **Batch 3**: 10 integration tests (gate on/off, rejection/feasible, edge cases)
-- Gate: `ENABLE_HCP_FEASIBILITY_CHECK = False` — flip to True when proven end-to-end
-- **Next**: Flip gate on, test Profile E end-to-end; if still failing, follow up with guided card selection (bias `_pre_allocate` toward target HCP density)
+- ✅ **Batch 4**: Gate flipped to True, Profile E end-to-end tests (7 tests: v2 builder + full pipeline)
+- `ENABLE_HCP_FEASIBILITY_CHECK = True` — active in production
+- Profile E (6 spades + 10-12 HCP) generates successfully with v2 + HCP rejection
 
-### 6. [ ] Profile E viability check fails too early
-- Profile E Test ("tight point and suit constraints_plus") fails at viability check: "Profile declared unviable for board 1 after 100 attempts. Unviable seat(s): ['N']. These seats have >90% failure rate with sufficient attempts."
-- The viability probe (100 attempts) rejects seat N before the real 10,000-attempt loop even starts
-- Note: "100 attempts" error comes from v1 builder's `MIN_ATTEMPTS_FOR_UNVIABLE_CHECK`, not v2. With v2 active, this may manifest differently (10,000-attempt exhaustion instead)
-- Likely related to #5 — HCP feasibility rejection (and possibly guided card selection) may be prerequisites
+### 6. [x] Profile E viability check fails too early
+- ✅ **Resolved**: The "100 attempts" error was v1-only (`MIN_ATTEMPTS_FOR_UNVIABLE_CHECK` in v1 builder). The v2 builder (active since D9) has no early termination — uses full 10,000 attempts.
+- ✅ Profile E generates successfully via v2 + shape help + HCP feasibility rejection
+- ✅ End-to-end tests prove it: 10 boards via v2 builder, 5 boards via generate_deals() pipeline
 
 ---
 
@@ -69,17 +69,18 @@
 ---
 
 ## Summary
-Architecture: 7 (5 done, 1 in progress, 1 pending) | Enhancements: 1 | **Total: 4**
+Architecture: 7 (7 done) | Enhancements: 1 | **Total: 1 pending**
 
-**Tests**: 373 passed, 4 skipped | **Branch**: refactor/deal-generator
+**Tests**: 380 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 ---
 
-## Completed (34 items + #5 Batches 1-3)
+## Completed (34 items + #5, #6)
 <details>
 <summary>Click to expand</summary>
 
-- HCP feasibility rejection (#5): gated `_check_hcp_feasibility()` + integration in `_deal_with_help` + 36 tests
+- HCP feasibility rejection (#5): `_check_hcp_feasibility()` active, 43 tests, Profile E end-to-end proven
+- Profile E viability (#6): resolved — v1-only issue, v2 has no early termination
 - Dead code cleanup: removed 5 stubs, 2 flags, 2 hooks, simplified _get_constructive_mode (−161 lines, −25 tests)
 - v2 shape-based help system: D0-D9 complete (dispersion check, pre-allocation, deal_with_help, v2 MVP, attribution, benchmarks, swap)
 - Magic profile name checks, constraint state to v2, "too hard = unviable" rule

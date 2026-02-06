@@ -207,7 +207,7 @@ Success → Deal | Failure → retry (up to MAX_BOARD_ATTEMPTS)
 - `_select_subprofiles_for_board(rng, profile, dealing_order)` → (subs, indices)
 - `_build_single_constrained_deal_v2(rng, profile, board_number)` → Deal
 
-**HCP Feasibility Check** (gated — `ENABLE_HCP_FEASIBILITY_CHECK = False`):
+**HCP Feasibility Check** (`ENABLE_HCP_FEASIBILITY_CHECK = True`):
 
 After pre-allocation, checks whether the remaining random fill can plausibly
 land the seat's total HCP within its target range.  Uses finite population
@@ -224,12 +224,12 @@ Functions:
 - `_check_hcp_feasibility(drawn_hcp, cards_remaining, deck_size, ...)` → bool
 - `_deal_with_help(...)` → `(hands, None)` or `(None, rejected_seat)`
 
-Constants: `ENABLE_HCP_FEASIBILITY_CHECK`, `HCP_FEASIBILITY_NUM_SD`
+Constants: `ENABLE_HCP_FEASIBILITY_CHECK = True`, `HCP_FEASIBILITY_NUM_SD = 1.0`
 
-**Status:** Profiles A-D work. Profile E (shape+HCP): HCP feasibility rejection
-built and gated. Next: flip gate on, test Profile E end-to-end.
+**Status:** Profiles A-E all work. Profile E (6 spades + 10-12 HCP) generates
+successfully with v2 shape help + HCP feasibility rejection.
 
-**Tests:** 75 tests in `test_shape_help_v3.py`, 36 tests in `test_hcp_feasibility.py`
+**Tests:** 75 in `test_shape_help_v3.py`, 36 in `test_hcp_feasibility.py`, 7 in `test_profile_e_v2_hcp_gate.py`
 
 ## Index Coupling
 
@@ -344,7 +344,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**373 tests (373 passed, 4 skipped)** organized by:
+**380 tests (380 passed, 4 skipped)** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`
@@ -353,6 +353,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 - Benchmarks: `test_profile_e_*.py`
 - **v3 shape help**: `test_shape_help_v3.py` (75 tests — D1-D7)
 - **HCP feasibility**: `test_hcp_feasibility.py` (36 tests — unit + integration)
+- **Profile E e2e**: `test_profile_e_v2_hcp_gate.py` (7 tests — v2 builder + pipeline)
 - **v2 comparison**: `test_v2_comparison.py` (6 gated — `RUN_V2_BENCHMARKS=1`)
 
 **Untested modules** (low risk):
