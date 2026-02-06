@@ -96,16 +96,6 @@ def make_rs_pc_sandbox_profile() -> _SandboxProfile:
 # ---------------------------------------------------------------------------
 
 
-def test_nonstandard_constructive_flag_defaults_off() -> None:
-    """
-    Guardrail: future v2 flag must default to False.
-
-    This ensures any change to the default requires updating this test
-    consciously.
-    """
-    assert deal_generator.ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD is False
-
-
 def test_rs_pc_sandbox_profile_shape() -> None:
     """
     Basic sanity on the RS/PC sandbox profile:

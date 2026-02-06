@@ -1,18 +1,5 @@
 # tests/test_constructive_help_nonstandard_flag.py
 
-from bridge_engine import deal_generator
-
-
-def test_nonstandard_constructive_help_flag_defaults_off() -> None:
-    """
-    Sanity check: the non-standard constructive-help flag must be OFF by default.
-
-    This ensures that any future RS/PC/OC-aware constructive helper cannot
-    accidentally activate without an explicit opt-in change (and test update).
-    """
-    assert deal_generator.ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD is False
-
-
 # Optional: future sandbox factory for RS+PC v2 work.
 # This is intentionally unused for now; it just gives us a named test-only
 # profile we can hook up once we start experimenting with non-standard

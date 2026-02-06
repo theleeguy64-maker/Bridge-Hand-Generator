@@ -203,29 +203,9 @@ DEBUG_SECTION_C: bool = False
 #   (profile, board_number, attempts, chosen_indices, seat_fail_counts)
 _DEBUG_ON_MAX_ATTEMPTS: Optional[Callable[..., None]] = None
 
-# Test-only shadow-mode hook for future non-standard constructive help (Random Suit / PC / OC).
-# Production code never sets this; tests may monkeypatch it.
-_DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW: Optional[Callable[..., None]] = None
-
 # Debug hook: invoked when standard constructive help (v1) is actually used.
 # Signature: (profile, board_number, attempt_number, help_seat) -> None
 _DEBUG_STANDARD_CONSTRUCTIVE_USED = None
-
-# Test-only hook seam for real non-standard constructive help v2.
-# Production code never sets this; tests may monkeypatch it.
-#
-# Expected signature (Piece 1):
-#   (
-#     profile,
-#     board_number,
-#     attempt_number,
-#     chosen_indices,
-#     seat_fail_counts,
-#     seat_seen_counts,
-#     viability_summary,
-#     rs_bucket_snapshot,
-#   ) -> Mapping[str, object] | None
-_DEBUG_NONSTANDARD_CONSTRUCTIVE_V2_POLICY: Optional[Callable[..., Mapping[str, object]]] = None
 
 # Debug hook: per-attempt failure attribution
 # Signature:
@@ -500,26 +480,6 @@ def _build_constraint_flags_per_seat(
     return flags
 
 
-# ---------------------------------------------------------------------------
-# Constructive help feature flags
-# ---------------------------------------------------------------------------
-
-# v1: standard-only constructive help (uses only standard suit minima and
-# never touches RS / PC / OC semantics). This remains OFF by default and
-# is currently only enabled in tests via monkeypatch.
-ENABLE_CONSTRUCTIVE_HELP: bool = False
-
-# v2 (future): experimental constructive help for non-standard seats
-# (Random Suit / Partner Contingent / Opponents Contingent).
-#
-# IMPORTANT:
-#   * This flag must remain False in production.
-#   * Tests or sandboxes may temporarily flip it via monkeypatch, but
-#     the core deal generator must not depend on it being True.
-#   * As of now, this flag is deliberately unused; it exists purely as a
-#     configuration placeholder for future 1.C.5 work.
-ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD: bool = False
-
 # Default thresholds used by _build_single_constrained_deal.
 _HARDEST_SEAT_CONFIG: HardestSeatConfig = HardestSeatConfig()
 
@@ -635,58 +595,14 @@ def _get_constructive_mode(profile: HandProfile) -> dict[str, bool]:
     """
     Decide which constructive-help modes are eligible for this profile.
 
-    This centralises the wiring between global flags and any profile
-    metadata, so v2 non-standard constructive help can plug in later
-    without scattering checks everywhere.
-
-    Modes:
-      * 'standard'          : v1 standard-only constructive help
-      * 'nonstandard_shadow': RS/PC/OC shadow probe only (no behavioural change)
-      * 'nonstandard_v2'    : future real non-standard constructive help
-
-    Current behaviour is intentionally backwards-compatible:
-      * v1 constructive help is controlled by ENABLE_CONSTRUCTIVE_HELP,
-        unless a profile explicitly sets `disable_constructive_help=True`.
-      * nonstandard_shadow is controlled only by ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD.
-      * v2 (non-standard) constructive help is off by default and would be
-        controlled by ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD plus an optional
-        profile opt-in flag `enable_nonstandard_constructive_v2`.
+    Currently all modes are disabled. The v1 constructive help code paths
+    remain in the builder but are never activated. The feature flags that
+    previously gated these modes have been removed.
     """
-    # Invariants-safety profiles never get constructive help or nonstandard
-    # probes of any kind.
-    if getattr(profile, "is_invariants_safety_profile", False):
-        return {
-            "standard": False,
-            "nonstandard_shadow": False,
-            "nonstandard_v2": False,
-        }
-
-    # v1 / standard-only constructive help.
-    disabled = bool(getattr(profile, "disable_constructive_help", False))
-    enable_standard = bool(ENABLE_CONSTRUCTIVE_HELP and not disabled)
-
-    # Shadow-only non-standard probe: purely observational. Tests expect this
-    # to fire when ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD is True, even if
-    # ENABLE_CONSTRUCTIVE_HELP is False.
-    enable_nonstandard_shadow = bool(ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD)
-
-    # v2 / real non-standard constructive help: keep disabled for now.
-    global_nonstandard_v2 = bool(
-        ENABLE_CONSTRUCTIVE_HELP and ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD
-    )
-    profile_opt = getattr(profile, "enable_nonstandard_constructive_v2", None)
-
-    if profile_opt is None:
-        # Backwards compat: if the profile doesn't say anything, rely only
-        # on the global flag.
-        enable_nonstandard_v2 = global_nonstandard_v2
-    else:
-        enable_nonstandard_v2 = global_nonstandard_v2 and bool(profile_opt)
-
     return {
-        "standard": enable_standard,
-        "nonstandard_shadow": enable_nonstandard_shadow,
-        "nonstandard_v2": enable_nonstandard_v2,
+        "standard": False,
+        "nonstandard_shadow": False,
+        "nonstandard_v2": False,
     }
         
     

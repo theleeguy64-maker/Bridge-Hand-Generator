@@ -49,63 +49,14 @@ def test_constructive_help_harness_builds_deals(tmp_path: pytest.TempPathFactory
     setup = _make_setup(tmp_path)
     profile = _DummyProfile()
 
-    # Ensure the global flag is definitely off for this sanity test.
-    old_flag = deal_generator.ENABLE_CONSTRUCTIVE_HELP
-    deal_generator.ENABLE_CONSTRUCTIVE_HELP = False
-    try:
-        deal_set = deal_generator.generate_deals(
-            setup=setup,
-            profile=profile,
-            num_deals=8,
-        )
-        assert len(deal_set.deals) == 8
-    finally:
-        deal_generator.ENABLE_CONSTRUCTIVE_HELP = old_flag
+    deal_set = deal_generator.generate_deals(
+        setup=setup,
+        profile=profile,
+        num_deals=8,
+    )
+    assert len(deal_set.deals) == 8
 
 
-def test_constructive_help_does_not_increase_failures_for_hard_seat(
-    tmp_path: pytest.TempPathFactory,
-) -> None:
-    """
-    For v1, we don't try to *prove* constructive help improves anything;
-    we only assert that toggling the flag from False->True does not make
-    things worse for the simple fallback-profile path:
-
-      - Both runs produce the requested number of deals.
-      - No DealGenerationError is raised in either mode.
-
-    Later, once we have a stable "hard" standard-only profile and
-    diagnostics, we can tighten this into a true comparative test.
-    """
-    setup = _make_setup(tmp_path)
-    profile = _DummyProfile()
-
-    old_flag = deal_generator.ENABLE_CONSTRUCTIVE_HELP
-
-    try:
-        # Baseline: help disabled
-        deal_generator.ENABLE_CONSTRUCTIVE_HELP = False
-        baseline_set = deal_generator.generate_deals(
-            setup=setup,
-            profile=profile,
-            num_deals=12,
-        )
-
-        # Experimental: help enabled
-        deal_generator.ENABLE_CONSTRUCTIVE_HELP = True
-        helped_set = deal_generator.generate_deals(
-            setup=setup,
-            profile=profile,
-            num_deals=12,
-        )
-
-        assert len(baseline_set.deals) == 12
-        assert len(helped_set.deals) == 12
-
-    finally:
-        deal_generator.ENABLE_CONSTRUCTIVE_HELP = old_flag
-        
-        
 def test_viability_summary_matches_classify_viability() -> None:
     """
     Smoke test for the diagnostic viability summary helper.

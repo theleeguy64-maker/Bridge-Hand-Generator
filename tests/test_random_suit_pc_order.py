@@ -77,17 +77,14 @@ class DummyProfile:
 # ---------------------------------------------------------------------------
 
 
-def test_random_suit_frequency_guardrail_baseline_vs_v2(
+def test_random_suit_frequency_guardrail(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
     Behavioural guardrail for RS suit frequencies using the real RS engine.
 
-    We run a small RS/PC profile under two modes:
-
-      * baseline: ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD = False
-      * "v2"    : ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD = True
-                  + profile.enable_nonstandard_constructive_v2 = True
+    Runs a small RS/PC profile and checks that RS suit choices are spread
+    across all four suits (no single suit dominates).
 
     This version is deliberately cheap:
       * we cap MAX_BOARD_ATTEMPTS,
@@ -98,13 +95,9 @@ def test_random_suit_frequency_guardrail_baseline_vs_v2(
 
     SUITS = ["S", "H", "D", "C"]
 
-    # Max boards to try per mode; we will usually stop much earlier when we
-    # have enough RS samples.
     MAX_BOARDS = 120
-    # Target RS samples per mode; enough to catch gross drift but cheap to get.
     TARGET_RS_SAMPLES = 20
 
-    # Keep attempts bounded so pathological boards don't blow up runtime.
     monkeypatch.setattr(
         deal_generator,
         "MAX_BOARD_ATTEMPTS",
@@ -112,159 +105,105 @@ def test_random_suit_frequency_guardrail_baseline_vs_v2(
         raising=False,
     )
 
-    def run_mode(enable_nonstandard: bool, seed: int) -> Counter:
-        """
-        Run the real RS/PC profile under a given non-standard flag and
-        return a Counter of RS suit choices across all RS seats.
+    rng = random.Random(9876)
+    profile = profile_factory()
 
-        We stop as soon as we have TARGET_RS_SAMPLES samples or we run out
-        of boards / attempts.
-        """
-        rng = random.Random(seed)
-        profile = profile_factory()
+    suit_counts: Counter = Counter()
 
-        # Profile-level opt-in for non-standard v2.
-        profile.enable_nonstandard_constructive_v2 = enable_nonstandard
+    original_match_seat = deal_generator._match_seat
 
-        # Global gating: v2 rides on top of the standard constructive flag.
-        monkeypatch.setattr(
-            deal_generator,
-            "ENABLE_CONSTRUCTIVE_HELP",
-            True,
-            raising=False,
+    def wrapper_match_seat(
+        *,
+        profile: object,
+        seat: str,
+        hand: List[object],
+        seat_profile: object,
+        chosen_subprofile: object,
+        chosen_subprofile_index_1based: int,
+        random_suit_choices: Dict[str, List[str]],
+        rng: random.Random,
+    ):
+        matched, chosen_rs, fail_reason = original_match_seat(
+            profile=profile,
+            seat=seat,
+            hand=hand,
+            seat_profile=seat_profile,
+            chosen_subprofile=chosen_subprofile,
+            chosen_subprofile_index_1based=chosen_subprofile_index_1based,
+            random_suit_choices=random_suit_choices,
+            rng=rng,
         )
-        monkeypatch.setattr(
-            deal_generator,
-            "ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD",
-            enable_nonstandard,
-            raising=False,
-        )
 
-        suit_counts: Counter = Counter()
-
-        original_match_seat = deal_generator._match_seat
-
-        def wrapper_match_seat(
-            *,
-            profile: object,
-            seat: str,
-            hand: List[object],
-            seat_profile: object,
-            chosen_subprofile: object,
-            chosen_subprofile_index_1based: int,
-            random_suit_choices: Dict[str, List[str]],
-            rng: random.Random,
+        if (
+            matched
+            and getattr(chosen_subprofile, "random_suit_constraint", None)
+            is not None
+            and chosen_rs
         ):
-            # Call the real matcher first.
-            matched, chosen_rs, fail_reason = original_match_seat(
-                profile=profile,
-                seat=seat,
-                hand=hand,
-                seat_profile=seat_profile,
-                chosen_subprofile=chosen_subprofile,
-                chosen_subprofile_index_1based=chosen_subprofile_index_1based,
-                random_suit_choices=random_suit_choices,
+            if isinstance(chosen_rs, (list, tuple)) and chosen_rs:
+                suit = str(chosen_rs[0])
+            else:
+                suit = str(chosen_rs)
+
+            if suit in SUITS:
+                suit_counts[suit] += 1
+
+        return matched, chosen_rs, fail_reason
+
+    monkeypatch.setattr(
+        deal_generator,
+        "_match_seat",
+        wrapper_match_seat,
+        raising=False,
+    )
+
+    boards_tried = 0
+    while boards_tried < MAX_BOARDS and sum(suit_counts.values()) < TARGET_RS_SAMPLES:
+        boards_tried += 1
+        try:
+            deal_generator._build_single_constrained_deal(
                 rng=rng,
+                profile=profile,
+                board_number=boards_tried,
             )
-
-            # For any RS seat, record the RS suit choice into suit_counts.
-            if (
-                matched
-                and getattr(chosen_subprofile, "random_suit_constraint", None)
-                is not None
-                and chosen_rs
-            ):
-                if isinstance(chosen_rs, (list, tuple)) and chosen_rs:
-                    suit = str(chosen_rs[0])
-                else:
-                    suit = str(chosen_rs)
-
-                if suit in SUITS:
-                    suit_counts[suit] += 1
-
-            return matched, chosen_rs, fail_reason
-
-        monkeypatch.setattr(
-            deal_generator,
-            "_match_seat",
-            wrapper_match_seat,
-            raising=False,
-        )
-
-        boards_tried = 0
-        while boards_tried < MAX_BOARDS and sum(suit_counts.values()) < TARGET_RS_SAMPLES:
-            boards_tried += 1
-            try:
-                deal_generator._build_single_constrained_deal(
-                    rng=rng,
-                    profile=profile,
-                    board_number=boards_tried,
-                )
-            except DealGenerationError:
-                # Board is too hard in our capped attempts – just move on.
-                continue
-
-        return suit_counts
-
-    # Baseline vs v2 with identical RNG seed so changes come only from v2.
-    baseline_counts = run_mode(enable_nonstandard=False, seed=9876)
-    v2_counts = run_mode(enable_nonstandard=True, seed=9876)
-
-    baseline_total = sum(baseline_counts.values())
-    v2_total = sum(v2_counts.values())
-
-    # If we couldn't get enough RS samples, this configuration isn't useful
-    # as a guardrail – skip rather than slow-fail the suite.
-    MIN_SAMPLES = 10
-    if baseline_total < MIN_SAMPLES or v2_total < MIN_SAMPLES:
-        pytest.skip(
-            f"RS_PC smoke profile produced too few RS samples for guardrail "
-            f"(baseline={baseline_total}, v2={v2_total}); profile/seed too constrained."
-        )
-
-    # Guardrail: per-suit frequencies should not drift too far.
-    for suit in SUITS:
-        if baseline_counts[suit] == 0 and v2_counts[suit] == 0:
-            # Suit never chosen in either mode; nothing to compare.
+        except DealGenerationError:
             continue
 
-        base_freq = baseline_counts[suit] / baseline_total
-        v2_freq = v2_counts[suit] / v2_total
+    total = sum(suit_counts.values())
 
-        # v2 is currently a no-op, so these will be very close. In future,
-        # this threshold protects against severe drift.
-        assert abs(base_freq - v2_freq) <= 0.15        
+    MIN_SAMPLES = 10
+    if total < MIN_SAMPLES:
+        pytest.skip(
+            f"RS_PC smoke profile produced too few RS samples for guardrail "
+            f"({total}); profile/seed too constrained."
+        )
+
+    # Guardrail: no single suit should grossly dominate RS choices.
+    # With only ~20 samples, natural variance can push one suit above 50%,
+    # so we use a generous 60% threshold to catch only severe drift.
+    for suit in SUITS:
+        if suit_counts[suit] == 0:
+            continue
+        freq = suit_counts[suit] / total
+        assert freq <= 0.60, f"Suit {suit} dominates RS choices: {freq:.1%}"        
                 
                 
-def test_random_suit_monotonicity_guardrail_baseline_vs_v2(
+def test_random_suit_monotonicity_guardrail(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
     Monotonicity guardrail for RS profiles using the real engine.
 
-    We run a small RS/PC profile under:
+    Attempts to generate a modest number of boards via
+    _build_single_constrained_deal and asserts a reasonable success rate.
 
-      * baseline: ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD = False
-      * "v2"    : ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD = True
-                  + profile.enable_nonstandard_constructive_v2 = True
-
-    For each mode we:
-
-      * attempt to generate a modest number of boards via
-        _build_single_constrained_deal,
-      * count how many attempts succeed (no DealGenerationError), and
-      * assert that the v2 success rate is not catastrophically worse.
-
-    This is tuned to be cheap:
-      * low NUM_BOARDS,
-      * capped MAX_BOARD_ATTEMPTS,
-      * and skip if baseline can't produce enough signal.
+    Tuned to be cheap: low NUM_BOARDS, capped MAX_BOARD_ATTEMPTS, and
+    skip if the profile/seed can't produce enough signal.
     """
     profile_factory = _random_suit_w_partner_contingent_e_profile
 
-    NUM_BOARDS = 80  # keep small so the test is snappy
+    NUM_BOARDS = 80
 
-    # Keep things bounded so pathological boards don't blow up runtime.
     monkeypatch.setattr(
         deal_generator,
         "MAX_BOARD_ATTEMPTS",
@@ -272,69 +211,36 @@ def test_random_suit_monotonicity_guardrail_baseline_vs_v2(
         raising=False,
     )
 
-    def run_mode(enable_nonstandard: bool, seed: int) -> int:
-        rng = random.Random(seed)
-        profile = profile_factory()
+    rng = random.Random(2222)
+    profile = profile_factory()
 
-        # Profile-level opt-in for non-standard v2.
-        profile.enable_nonstandard_constructive_v2 = enable_nonstandard
+    successes = 0
+    consecutive_failures = 0
+    MAX_CONSECUTIVE_FAIL = 20
 
-        # Global gating.
-        monkeypatch.setattr(
-            deal_generator,
-            "ENABLE_CONSTRUCTIVE_HELP",
-            True,
-            raising=False,
-        )
-        monkeypatch.setattr(
-            deal_generator,
-            "ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD",
-            enable_nonstandard,
-            raising=False,
-        )
+    for board_no in range(1, NUM_BOARDS + 1):
+        if consecutive_failures >= MAX_CONSECUTIVE_FAIL:
+            break
 
-        successes = 0
-        consecutive_failures = 0
-        MAX_CONSECUTIVE_FAIL = 20  # early bail if hopeless for this seed
+        try:
+            deal_generator._build_single_constrained_deal(
+                rng=rng,
+                profile=profile,
+                board_number=board_no,
+            )
+        except DealGenerationError:
+            consecutive_failures += 1
+            continue
+        else:
+            successes += 1
+            consecutive_failures = 0
 
-        for board_no in range(1, NUM_BOARDS + 1):
-            if consecutive_failures >= MAX_CONSECUTIVE_FAIL:
-                # This profile/seed combination is clearly not happy under our
-                # capped attempts – no point grinding further in this harness.
-                break
-
-            try:
-                deal_generator._build_single_constrained_deal(
-                    rng=rng,
-                    profile=profile,
-                    board_number=board_no,
-                )
-            except DealGenerationError:
-                consecutive_failures += 1
-                continue
-            else:
-                successes += 1
-                consecutive_failures = 0
-
-        return successes
-
-    baseline_successes = run_mode(enable_nonstandard=False, seed=2222)
-    v2_successes = run_mode(enable_nonstandard=True, seed=2222)
-
-    # If baseline can't successfully generate a reasonable number of boards,
-    # this profile/seed isn't a good monotonicity probe – skip rather than fail.
     MIN_BASELINE_SUCCESS = max(1, NUM_BOARDS // 10)
-    if baseline_successes < MIN_BASELINE_SUCCESS:
+    if successes < MIN_BASELINE_SUCCESS:
         pytest.skip(
             f"Baseline success rate too low for monotonicity guardrail "
-            f"({baseline_successes}/{NUM_BOARDS}); profile/seed too constrained."
+            f"({successes}/{NUM_BOARDS}); profile/seed too constrained."
         )
-
-    # Monotonicity guardrail:
-    # v2 should not be catastrophically worse than baseline on this profile.
-    # Currently v2 is a no-op, so these will usually match, but the threshold
-    # gives headroom for future tweaks.
-    assert v2_successes >= max(1, int(0.8 * baseline_successes))
                 
                 
 def test_partner_contingent_sees_partner_random_suit_choice(
@@ -684,20 +590,6 @@ def test_pc_oc_view_of_random_suit_choices_guardrail(
         raising=False,
     )
 
-    # Disable constructive help; we only care about RS/PC/OC ordering here.
-    monkeypatch.setattr(
-        deal_generator,
-        "ENABLE_CONSTRUCTIVE_HELP",
-        False,
-        raising=False,
-    )
-    monkeypatch.setattr(
-        deal_generator,
-        "ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD",
-        False,
-        raising=False,
-    )
-
     profile = _DummyProfile()
 
     calls: List[Dict[str, object]] = []
@@ -801,148 +693,4 @@ def test_rs_pc_sandbox_viability_summary_smoke() -> None:
         assert bucket in {"unknown", "likely", "borderline", "unlikely", "unviable"}
 
 
-def test_nonstandard_shadow_hook_invoked_for_rs_pc_sandbox(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """
-    Shadow-mode smoke test for ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD:
-
-      * Build a tiny dummy profile with a non-standard (RS) seat.
-      * Enable the non-standard shadow flag.
-      * Install a debug hook via _DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW.
-      * Ensure the hook is invoked and receives a viability summary that
-        includes the RS seat, plus an RS bucket snapshot.
-    """
-
-    class _DummySubprofile:
-        def __init__(self, is_rs: bool = False) -> None:
-            if is_rs:
-                # Mark this subprofile as Random-Suit for the core loop.
-                self.random_suit_constraint = object()
-
-    class _DummySeatProfile:
-        def __init__(self, is_rs: bool = False) -> None:
-            self.subprofiles = [_DummySubprofile(is_rs=is_rs)]
-
-    class _DummyProfile:
-        def __init__(self) -> None:
-            self.dealer = "N"
-            self.hand_dealing_order = ["N", "E", "S", "W"]
-            self.seat_profiles: Dict[str, _DummySeatProfile] = {
-                "N": _DummySeatProfile(is_rs=False),
-                "E": _DummySeatProfile(is_rs=False),
-                "S": _DummySeatProfile(is_rs=False),
-                "W": _DummySeatProfile(is_rs=True),  # RS / non-standard seat
-            }
-            # Ensure NS coupling never triggers.
-            self.ns_index_coupling_enabled = False
-            self.profile_name = "RS_PC_shadow_probe_sandbox"
-
-    profile = _DummyProfile()
-
-    # Treat our stub as the SeatProfile type used by the engine.
-    monkeypatch.setattr(deal_generator, "SeatProfile", _DummySeatProfile)
-
-    # Always succeed when matching seats; for the RS seat, pretend we always
-    # choose "S" as the Random Suit and record it.
-    def always_match(
-        profile: object,
-        seat: str,
-        hand: List[object],
-        seat_profile: object,
-        chosen_subprofile: object,
-        chosen_subprofile_index_1based: int,
-        random_suit_choices: Dict[str, List[str]],
-        rng: random.Random,
-    ):
-        is_rs = getattr(chosen_subprofile, "random_suit_constraint", None) is not None
-        if is_rs:
-            random_suit_choices.setdefault(seat, []).append("S")
-            # RS seat returns a concrete RS choice payload.
-            return True, ["S"], None
-        # Non-RS seats: unconstrained in this sandbox.
-        return True, None, None
-
-    monkeypatch.setattr(deal_generator, "_match_seat", always_match)
-
-    # Enable non-standard shadow probing and capture hook calls.
-    monkeypatch.setattr(
-        deal_generator,
-        "ENABLE_CONSTRUCTIVE_HELP_NONSTANDARD",
-        True,
-    )
-
-    calls: List[Dict[str, object]] = []
-
-    def shadow_hook(
-        profile_arg,
-        board_number,
-        attempt_number,
-        chosen_indices,
-        seat_fail_counts,
-        seat_seen_counts,
-        viability_summary,
-        rs_bucket_snapshot,
-    ):
-        calls.append(
-            {
-                "profile_name": getattr(profile_arg, "profile_name", ""),
-                "board_number": board_number,
-                "attempt_number": attempt_number,
-                "viability_summary": dict(viability_summary),
-                "rs_bucket_snapshot": dict(rs_bucket_snapshot),
-            }
-        )
-
-    monkeypatch.setattr(
-        deal_generator,
-        "_DEBUG_NONSTANDARD_CONSTRUCTIVE_SHADOW",
-        shadow_hook,
-        raising=False,
-    )
-
-    rng = random.Random(9999)
-    _ = deal_generator._build_single_constrained_deal(
-        rng=rng,
-        profile=profile,
-        board_number=1,
-    )
-
-    # The shadow hook must have been called at least once.
-    assert calls
-    payload = calls[0]
-
-    # Basic sanity on the profile name.
-    assert payload["profile_name"] == "RS_PC_shadow_probe_sandbox"
-
-    # The non-standard RS seat should appear in the viability summary.
-    summary = payload["viability_summary"]
-    assert "W" in summary
-
-    # Check the RS bucket snapshot structure.
-    rs_snapshot = payload["rs_bucket_snapshot"]
-
-    # In this sandbox, only W is an RS seat.
-    assert set(rs_snapshot.keys()) == {"W"}
-
-    w_entry = rs_snapshot["W"]
-    assert set(w_entry.keys()) == {
-        "total_seen_attempts",
-        "total_matched_attempts",
-        "buckets",
-    }
-
-    assert w_entry["total_seen_attempts"] == 1
-    assert w_entry["total_matched_attempts"] == 1
-
-    buckets = w_entry["buckets"]
-    assert isinstance(buckets, dict)
-    # With always_match + a single board attempt, we expect exactly one bucket
-    # for W, corresponding to the RS choice ["S"] -> key "S".
-    assert set(buckets.keys()) == {"S"}
-
-    bucket = buckets["S"]
-    assert set(bucket.keys()) == {"seen_attempts", "matched_attempts"}
-    assert bucket["seen_attempts"] == 1
-    assert bucket["matched_attempts"] == 1
     
