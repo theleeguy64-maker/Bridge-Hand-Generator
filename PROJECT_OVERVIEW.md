@@ -5,7 +5,7 @@
 Generate bridge card deals that satisfy complex constraint profiles. The system must:
 1. **Validate profiles** - Fail fast on mathematically impossible constraints
 2. **Generate deals** - Build 4-hand deals satisfying all seat constraints
-3. **Help intelligently** - Use constructive dealing only for the actual bottleneck seat
+3. **Help intelligently** - Pre-allocate cards for seats with tight shape constraints
 4. **Be diagnosable** - Provide stats explaining why profiles are hard or failing
 
 ## Core Problem
@@ -39,45 +39,53 @@ Match Each Seat (RS seats first, then others)
 Success → Return Deal | Failure → Retry (up to 10,000 attempts)
 ```
 
-### Helper Seat Selection (The Core Innovation)
+### Shape-Based Help System (v2 — The Core Innovation)
 
-**Old approach**: Global failure stats mixing direct failures with collateral damage.
+**Key insight**: Select subprofiles FIRST, then use a probability table to identify
+which seats have tight shape constraints and pre-allocate some of their required cards.
 
-**New approach**: Local, per-attempt attribution:
-- `seat_fail_as_seat` → "This seat actually failed" (used for helper selection)
+**Pipeline:**
+```
+Select subprofiles for board (weighted random, with NS/EW coupling)
+    ↓
+Dispersion check → identify tight seats (P(>=min_cards) ≤ 19%)
+    ↓
+Deal with help:
+  - Tight seats: pre-allocate 50% of suit minima, fill rest randomly
+  - Non-tight seats: deal 13 random cards
+  - Last seat: gets remainder
+    ↓
+Match all seats → Success or retry
+```
+
+**Why it works**: If North needs 6+ spades, random dealing has only 6.3% chance
+of delivering that. Pre-allocating 3 spades gives North a head start, dramatically
+reducing retry attempts.
+
+### Failure Attribution
+
+Per-attempt tracking for diagnostics:
+- `seat_fail_as_seat` → "This seat actually failed"
 - `seat_fail_global_other` → "This seat passed; someone else failed"
 - `seat_fail_global_unchecked` → "Never got checked due to early termination"
-
-**Decision rule**: The seat with the highest `seat_fail_as_seat` share (≥25%, ≥2× others) is the helper seat.
-
-### Constructive Dealing
-
-When a helper seat is identified:
-1. Extract suit minima from its constraints
-2. Build hand satisfying those minima first
-3. Fill remaining cards randomly
-4. This makes the hard seat easier to satisfy
-
-**v1 (Standard)**: Only for "standard" seats with simple suit minima.
-**v2 (Nonstandard)**: Experimental - RS reordering, PC/OC nudging.
 
 ## Current State
 
 ### What Works
 - Profile validation and viability checking
-- Constrained deal generation with retry loop
+- Constrained deal generation with retry loop (v1 active path)
+- v2 shape-based help system (D0-D6 complete, parallel to v1)
+- Profiles A-D work with v2 (tight shape constraints handled)
+- Base Smart Hand Order algorithm for optimal dealing order
 - Local failure attribution with rotation benchmarks
-- Profile E benchmark proves North is the bottleneck (~95% of failures)
+- 353 tests passing, 4 skipped
 
-### The Gap
-- v1 constructive has 4 gates that prevent it from firing for Profile E
-- The "standard vs nonstandard" distinction is the wrong axis
-- Real question: "Is this seat constrained enough, and failing in ways constructive can help?"
-
-### Pending Work
-1. Relax v1 gates so constructive actually fires for identified helper seats
-2. Complete HCP vs shape failure classification
-3. Add "too hard = unviable" declaration when success probability is negligible
+### Remaining Work
+1. **Full attribution in v2** (D7) — add seat_fail counters + debug hooks
+2. **Comparative benchmarks** (D8) — gated v1 vs v2 tests
+3. **Swap v2 into main loop** (D9) — one-line change
+4. **HCP help** — extend pre-allocation to bias card selection for tight HCP
+5. Profile E (6 spades + 10-12 HCP) still too hard — needs HCP help
 
 ## Design Principles
 
@@ -90,7 +98,7 @@ When a helper seat is identified:
 
 | File | Purpose |
 |------|---------|
-| `deal_generator.py` | Main pipeline, constructive help, failure attribution |
+| `deal_generator.py` | Main pipeline, v1 + v2 shape help, failure attribution |
 | `hand_profile_model.py` | Data models: SubProfile, SeatProfile, HandProfile |
 | `seat_viability.py` | Constraint matching: _match_seat, _match_subprofile |
 | `hand_profile_validate.py` | Profile validation |

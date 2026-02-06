@@ -4,7 +4,7 @@
 
 ```
 bridge_engine/
-├── deal_generator.py      (2,167 lines) - Main pipeline
+├── deal_generator.py      (2,402 lines) - Main pipeline + v2 shape help
 ├── hand_profile_model.py    (921 lines) - Data models
 ├── seat_viability.py        (538 lines) - Constraint matching
 ├── hand_profile_validate.py (512 lines) - Validation
@@ -71,14 +71,20 @@ _subprofile_is_viable()       # Deal & match test
 
 ### Stage C: Constrained Deal Generation
 
+**v1** (current active path):
 ```python
 _build_single_constrained_deal(rng, profile, board_number, debug_board_stats)
 ```
 
-**Per-board flow:**
+**v2** (shape-based help, parallel function — not yet swapped in):
+```python
+_build_single_constrained_deal_v2(rng, profile, board_number)
+```
+
+**v1 per-board flow:**
 ```
 1. Select subprofiles
-   _select_subprofiles_for_board(profile)
+   _select_subprofiles_for_board(rng, profile, dealing_order)
        → chosen_subs: Dict[Seat, SubProfile]
        → chosen_indices: Dict[Seat, int]
 
@@ -288,11 +294,20 @@ _DEBUG_NONSTANDARD_CONSTRUCTIVE_V2_POLICY  # Policy seam for v2
 
 ### deal_generator.py
 ```python
+# Main entry + v1
 generate_deals(setup, profile, num_deals, enable_rotation) -> DealSet
 _build_single_constrained_deal(rng, profile, board_number, debug) -> Deal
 _choose_hardest_seat_for_board(...) -> Optional[Seat]
 _extract_standard_suit_minima(profile, seat, subprofile) -> Dict[str, int]
 _construct_hand_for_seat(rng, deck, min_suit_counts) -> List[Card]
+
+# v2 shape help system
+_build_single_constrained_deal_v2(rng, profile, board_number) -> Deal
+_select_subprofiles_for_board(rng, profile, dealing_order) -> (subs, indices)
+_dispersion_check(chosen_subs, threshold) -> set[Seat]
+_deal_with_help(rng, deck, subs, tight_seats, order) -> Dict[Seat, List[Card]]
+_pre_allocate(rng, deck, subprofile, fraction) -> List[Card]
+_random_deal(rng, deck, n) -> List[Card]
 ```
 
 ### seat_viability.py
@@ -334,29 +349,27 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ### Duplicate Definitions (need cleanup)
 
-| File | Issue | Lines |
-|------|-------|-------|
-| `deal_generator.py` | `_weights_for_seat_profile()` x2 | 176-198, 563-585 |
-| `deal_generator.py` | `_choose_index_for_seat()` x2 | 201-212, 745-759 |
-| `deal_generator.py` | `_select_subprofiles_for_board()` nested duplicate | module + nested |
-| `hand_profile_model.py` | `SubProfile` class x2 | 384, 503 |
-| `orchestrator.py` | `_format_nonstandard_rs_buckets()` x2 | 119-159, 224-264 |
-| `profile_cli.py` | `draft_tools_action()` x2 | 288, 958 |
+| File | Issue |
+|------|-------|
+| `hand_profile_model.py` | `SubProfile` class x2 |
+| `orchestrator.py` | `_format_nonstandard_rs_buckets()` x2 |
+| `profile_cli.py` | `draft_tools_action()` x2 |
+
+*Resolved*: `_weights_for_seat_profile()`, `_choose_index_for_seat()`, `_select_subprofiles_for_board()` — duplicates cleaned up.
 
 ### Orphaned/Dead Code
 
-| File | Issue | Lines |
-|------|-------|-------|
-| `hand_profile_model.py` | Orphaned `from_dict()` at module level | 452-482 |
-| `deal_generator.py` | `passrandom_suit_choices` merge artifact | 365 |
-| `deal_generator.py` | Incomplete function bodies | 1128-1143, 2026-2042 |
-| `orchestrator.py` | Unreachable try-except | 463-472 |
+| File | Issue |
+|------|-------|
+| `hand_profile_model.py` | Orphaned `from_dict()` at module level |
+| `deal_generator.py` | `_build_rs_bucket_snapshot()`, `_nonstandard_constructive_help_enabled()` (unused) |
+| `deal_generator.py` | v2 nonstandard stubs: `_v2_pc_nudge_try_alternates()`, `_v2_oc_nudge_try_alternates()`, `_v2_order_rs_suits_weighted()` |
+| `orchestrator.py` | Unreachable try-except |
+
+*Resolved*: `passrandom_suit_choices` merge artifact — cleaned up.
 
 ### Missing Implementations
 
 | File | Issue |
 |------|-------|
 | `profile_store.py` | `list_drafts()` called but not defined |
-| `deal_generator.py` | `rng` parameter missing in several calls |
-
-See `TODO.md` for complete issue list with fix recommendations.
