@@ -446,7 +446,7 @@ class TestDealWithHelp:
         rng = random.Random(42)
         deck = self._make_deck()
         subs = {s: _DummySubProfile() for s in "NESW"}
-        hands = dg._deal_with_help(rng, deck, subs, set(), self._dealing_order())
+        hands, _ = dg._deal_with_help(rng, deck, subs, set(), self._dealing_order())
         all_cards = []
         for h in hands.values():
             all_cards.extend(h)
@@ -458,7 +458,7 @@ class TestDealWithHelp:
         rng = random.Random(42)
         deck = self._make_deck()
         subs = {s: _DummySubProfile() for s in "NESW"}
-        hands = dg._deal_with_help(rng, deck, subs, set(), self._dealing_order())
+        hands, _ = dg._deal_with_help(rng, deck, subs, set(), self._dealing_order())
         for seat, hand in hands.items():
             assert len(hand) == 13, f"{seat} has {len(hand)} cards, expected 13"
 
@@ -472,7 +472,7 @@ class TestDealWithHelp:
             "S": _DummySubProfile(),
             "W": _DummySubProfile(),
         }
-        hands = dg._deal_with_help(
+        hands, _ = dg._deal_with_help(
             rng, deck, subs, {"N"}, self._dealing_order()
         )
         n_spades = [c for c in hands["N"] if self._suit_of(c) == "S"]
@@ -489,7 +489,7 @@ class TestDealWithHelp:
             "S": _DummySubProfile(h=5),
             "W": _DummySubProfile(),
         }
-        hands = dg._deal_with_help(
+        hands, _ = dg._deal_with_help(
             rng, deck, subs, {"N", "S"}, self._dealing_order()
         )
         all_cards = []
@@ -503,7 +503,7 @@ class TestDealWithHelp:
         rng = random.Random(42)
         deck = self._make_deck()
         subs = {s: _DummySubProfile(s=5) for s in "NESW"}
-        hands = dg._deal_with_help(
+        hands, _ = dg._deal_with_help(
             rng, deck, subs, {"N", "E", "S", "W"}, self._dealing_order()
         )
         all_cards = []
@@ -516,7 +516,7 @@ class TestDealWithHelp:
         rng = random.Random(42)
         deck = self._make_deck()
         subs = {s: _DummySubProfile() for s in "NESW"}
-        hands = dg._deal_with_help(rng, deck, subs, set(), self._dealing_order())
+        hands, _ = dg._deal_with_help(rng, deck, subs, set(), self._dealing_order())
         # W is last in dealing order, should have 13 cards.
         assert len(hands["W"]) == 13
 
@@ -534,7 +534,7 @@ class TestDealWithHelp:
         deck = self._make_deck()
         order = ["S", "W", "N", "E"]
         subs = {s: _DummySubProfile() for s in "NESW"}
-        hands = dg._deal_with_help(rng, deck, subs, set(), order)
+        hands, _ = dg._deal_with_help(rng, deck, subs, set(), order)
         assert set(hands.keys()) == {"N", "E", "S", "W"}
 
     def test_all_tight_seats_still_valid(self):
@@ -547,7 +547,7 @@ class TestDealWithHelp:
             "S": _DummySubProfile(d=6),
             "W": _DummySubProfile(c=5),
         }
-        hands = dg._deal_with_help(
+        hands, _ = dg._deal_with_help(
             rng, deck, subs, {"N", "E", "S", "W"}, self._dealing_order()
         )
         all_cards = []
@@ -570,8 +570,8 @@ class TestDealWithHelp:
 
         deck1 = self._make_deck()
         deck2 = self._make_deck()
-        h1 = dg._deal_with_help(random.Random(55), deck1, subs, {"N"}, order)
-        h2 = dg._deal_with_help(random.Random(55), deck2, subs, {"N"}, order)
+        h1, _ = dg._deal_with_help(random.Random(55), deck1, subs, {"N"}, order)
+        h2, _ = dg._deal_with_help(random.Random(55), deck2, subs, {"N"}, order)
         assert h1 == h2
 
     def test_tight_seat_hand_has_13_even_with_pre_alloc(self):
@@ -585,7 +585,7 @@ class TestDealWithHelp:
             "S": _DummySubProfile(),
             "W": _DummySubProfile(),
         }
-        hands = dg._deal_with_help(
+        hands, _ = dg._deal_with_help(
             rng, deck, subs, {"N"}, self._dealing_order()
         )
         assert len(hands["N"]) == 13

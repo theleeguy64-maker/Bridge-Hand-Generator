@@ -1028,7 +1028,7 @@ def _deal_with_help(
     chosen_subprofiles: Dict[Seat, "SubProfile"],
     tight_seats: set,
     dealing_order: List[Seat],
-) -> Dict[Seat, List[Card]]:
+) -> Tuple[Optional[Dict[Seat, List[Card]]], Optional[Seat]]:
     """
     Deal 52 cards to 4 seats, giving shape help to tight seats.
 
@@ -1037,7 +1037,13 @@ def _deal_with_help(
       - If not tight (and not last): deal 13 random cards
       - Last seat: gets whatever remains (always 13 if deck started at 52)
 
-    Mutates deck (empties it).
+    When ENABLE_HCP_FEASIBILITY_CHECK is True, an early rejection check runs
+    after pre-allocation for each tight seat.  If the pre-allocated cards make
+    the seat's total HCP target statistically implausible, the function returns
+    (None, rejected_seat) immediately — saving the cost of dealing the
+    remaining cards and running the full matching pipeline.
+
+    Mutates deck (empties it, or partially empties on early rejection).
 
     Args:
         rng: Random number generator.
@@ -1047,7 +1053,8 @@ def _deal_with_help(
         dealing_order: Order to deal seats.
 
     Returns:
-        Dict mapping each seat to its 13-card hand.
+        (hands, None)           — on success: hands maps each seat to 13 cards.
+        (None, rejected_seat)   — on early HCP rejection: the seat that failed.
     """
     hands: Dict[Seat, List[Card]] = {}
 
@@ -1063,6 +1070,31 @@ def _deal_with_help(
             sub = chosen_subprofiles.get(seat)
             if sub is not None:
                 pre = _pre_allocate(rng, deck, sub)
+
+                # ----- HCP feasibility check (gated) -----
+                # After pre-allocating, check whether the remaining random fill
+                # can plausibly land this seat within its total HCP target.
+                # If not, reject early — don't bother dealing or matching.
+                if ENABLE_HCP_FEASIBILITY_CHECK:
+                    std = getattr(sub, "standard", None)
+                    if std is not None and pre:
+                        drawn_hcp = sum(_card_hcp(c) for c in pre)
+                        cards_remaining = 13 - len(pre)
+                        if cards_remaining > 0 and len(deck) > 0:
+                            hcp_sum, hcp_sum_sq = _deck_hcp_stats(deck)
+                            if not _check_hcp_feasibility(
+                                drawn_hcp,
+                                cards_remaining,
+                                len(deck),
+                                hcp_sum,
+                                hcp_sum_sq,
+                                std.total_min_hcp,
+                                std.total_max_hcp,
+                                HCP_FEASIBILITY_NUM_SD,
+                            ):
+                                return None, seat  # Early HCP rejection
+                # ----- end HCP feasibility check -----
+
                 remaining_needed = 13 - len(pre)
                 fill = _random_deal(rng, deck, remaining_needed)
                 hands[seat] = pre + fill
@@ -1072,7 +1104,7 @@ def _deal_with_help(
             # Non-tight seat: deal 13 random cards.
             hands[seat] = _random_deal(rng, deck, 13)
 
-    return hands
+    return hands, None
 
 
 # ---------------------------------------------------------------------------
@@ -1676,9 +1708,53 @@ def _build_single_constrained_deal_v2(
         rng.shuffle(deck)
 
         # Deal with shape help for tight seats.
-        hands = _deal_with_help(
+        hands, hcp_rejected_seat = _deal_with_help(
             rng, deck, chosen_subprofiles, tight_seats, dealing_order
         )
+
+        # ----- Early HCP rejection handling -----
+        # If _deal_with_help detected that a tight seat's pre-allocated cards
+        # make its HCP target statistically implausible, skip matching entirely.
+        if hcp_rejected_seat is not None:
+            # Attribute failure to the rejected seat (HCP-driven).
+            seat_fail_as_seat[hcp_rejected_seat] = (
+                seat_fail_as_seat.get(hcp_rejected_seat, 0) + 1
+            )
+            seat_fail_hcp[hcp_rejected_seat] = (
+                seat_fail_hcp.get(hcp_rejected_seat, 0) + 1
+            )
+            seat_fail_counts[hcp_rejected_seat] = (
+                seat_fail_counts.get(hcp_rejected_seat, 0) + 1
+            )
+            seat_seen_counts[hcp_rejected_seat] = (
+                seat_seen_counts.get(hcp_rejected_seat, 0) + 1
+            )
+            # All other constrained seats: globally unchecked.
+            for s in processing_order:
+                if s == hcp_rejected_seat:
+                    continue
+                sp_check = profile.seat_profiles.get(s)
+                if isinstance(sp_check, SeatProfile) and sp_check.subprofiles:
+                    seat_fail_global_unchecked[s] = (
+                        seat_fail_global_unchecked.get(s, 0) + 1
+                    )
+            # Fire per-attempt debug hook with current counters.
+            if _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION is not None:
+                try:
+                    _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION(
+                        profile,
+                        board_number,
+                        board_attempts,
+                        dict(seat_fail_as_seat),
+                        dict(seat_fail_global_other),
+                        dict(seat_fail_global_unchecked),
+                        dict(seat_fail_hcp),
+                        dict(seat_fail_shape),
+                    )
+                except Exception:
+                    pass  # Debug hooks must never interfere with generation.
+            continue  # Skip matching, next attempt.
+        # ----- end early HCP rejection handling -----
 
         # Match all seats against their constraints.
         all_matched = True
