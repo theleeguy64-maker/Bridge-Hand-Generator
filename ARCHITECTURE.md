@@ -4,11 +4,11 @@
 
 ```
 bridge_engine/
-├── deal_generator.py      (2,402 lines) - Main pipeline + v2 shape help
+├── deal_generator.py      (1,896 lines) - Main pipeline + v2 shape help
 ├── hand_profile_model.py    (921 lines) - Data models
 ├── seat_viability.py        (538 lines) - Constraint matching
 ├── hand_profile_validate.py (512 lines) - Validation
-├── orchestrator.py          (705 lines) - CLI/session management
+├── orchestrator.py          (524 lines) - CLI/session management
 ├── profile_cli.py           (968 lines) - Profile commands
 ├── profile_wizard.py        (164 lines) - Profile creation UI
 ├── profile_viability.py     (108 lines) - Profile-level viability
@@ -166,18 +166,10 @@ _construct_hand_for_seat(rng, deck, min_suit_counts)
   → Fill remaining to 13 from rest of deck
 ```
 
-### v2: Nonstandard Constructive (Legacy — Experimental)
+### v2: Nonstandard Constructive (Removed)
 
-**Pieces:**
-- Piece 0: Policy seam entry
-- Piece 1: Attempt-level inputs (viability, RS buckets)
-- Piece 2: RS suit reordering (explore vs exploit)
-- Piece 3: Track attempted RS suits on failure
-- Piece 4: PC nudge (try alternate PC subprofiles)
-- Piece 5: OC nudge (try alternate OC subprofiles)
-- Piece 6: RS bucket updates on success
-
-**Current state:** Policy seam exists but returns empty dict. Not yet wired.
+*Fully removed in dead code cleanup (#4, #4b). Policy seam, RS bucket tracking,
+PC/OC nudge blocks, and shadow probes have all been deleted.*
 
 ### v3: Shape-Based Help System (✅ D0-D6 Complete)
 
@@ -329,13 +321,13 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**362 tests (362 passed, 5 skipped)** organized by:
+**337 tests (337 passed, 4 skipped)** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
-- Nonstandard: `test_random_suit_*.py`, `test_nonstandard_v2_*.py`
+- Nonstandard: `test_random_suit_*.py`
 - Index coupling: `test_f3_opener_responder_coupling.py`, `test_ew_index_coupling.py`
 - Profile viability: `test_profile_viability_*.py`
-- Benchmarks: `test_profile_e_*.py`, `test_constructive_benchmark_*.py`
+- Benchmarks: `test_profile_e_*.py`
 - **v3 shape help**: `test_shape_help_v3.py` (75 tests — D1-D7)
 - **v2 comparison**: `test_v2_comparison.py` (6 gated — `RUN_V2_BENCHMARKS=1`)
 
@@ -352,7 +344,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 | File | Issue |
 |------|-------|
 | `hand_profile_model.py` | `SubProfile` class x2 |
-| `orchestrator.py` | `_format_nonstandard_rs_buckets()` x2 |
+| `orchestrator.py` | `_format_nonstandard_rs_buckets()` x2 — *removed in #4b* |
 | `profile_cli.py` | `draft_tools_action()` x2 |
 
 *Resolved*: `_weights_for_seat_profile()`, `_choose_index_for_seat()`, `_select_subprofiles_for_board()` — duplicates cleaned up.

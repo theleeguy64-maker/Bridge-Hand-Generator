@@ -73,19 +73,19 @@ Per-attempt tracking for diagnostics:
 
 ### What Works
 - Profile validation and viability checking
-- Constrained deal generation with retry loop (v1 active path)
-- v2 shape-based help system (D0-D6 complete, parallel to v1)
+- Constrained deal generation with retry loop (v2 active path, v1 available for rollback)
+- v2 shape-based help system (D0-D9 complete, production path)
 - Profiles A-D work with v2 (tight shape constraints handled)
 - Base Smart Hand Order algorithm for optimal dealing order
 - Local failure attribution with rotation benchmarks
-- 353 tests passing, 4 skipped
+- Dead code cleanup complete (#4, #4b): removed stubs, flags, hooks, cascading dead code
+- 337 tests passing, 4 skipped
 
 ### Remaining Work
-1. **Full attribution in v2** (D7) — add seat_fail counters + debug hooks
-2. **Comparative benchmarks** (D8) — gated v1 vs v2 tests
-3. **Swap v2 into main loop** (D9) — one-line change
-4. **HCP help** — extend pre-allocation to bias card selection for tight HCP
-5. Profile E (6 spades + 10-12 HCP) still too hard — needs HCP help
+1. **HCP help** (#5) — extend pre-allocation to bias card selection for tight HCP
+2. **Profile E viability** (#6) — viability check rejects Profile E too early (100-attempt probe fails seat N before real 10,000-attempt loop)
+3. **Refactor large files** (#7) — split deal_generator.py (1,896), hand_profile_model.py (921), profile_cli.py (968)
+4. **Metrics Export CLI** (#8) — `export-metrics <profile> [--boards N]`
 
 ## Design Principles
 
