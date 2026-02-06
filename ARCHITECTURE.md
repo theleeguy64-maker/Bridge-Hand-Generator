@@ -287,7 +287,6 @@ Tests: 56 tests in `test_default_dealing_order.py`
 ```python
 _DEBUG_ON_MAX_ATTEMPTS(...)              # Called on exhaustion
 _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION(...) # Called on each failed attempt
-_DEBUG_NONSTANDARD_CONSTRUCTIVE_V2_POLICY  # Policy seam for v2
 ```
 
 ## Key Functions
@@ -363,9 +362,11 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 | File | Issue |
 |------|-------|
 | `hand_profile_model.py` | Orphaned `from_dict()` at module level |
-| `deal_generator.py` | `_build_rs_bucket_snapshot()`, `_nonstandard_constructive_help_enabled()` (unused) |
-| `deal_generator.py` | v2 nonstandard stubs: `_v2_pc_nudge_try_alternates()`, `_v2_oc_nudge_try_alternates()`, `_v2_order_rs_suits_weighted()` |
 | `orchestrator.py` | Unreachable try-except |
+| `deal_generator.py` | Cascading dead code: `_shadow_probe_nonstandard_constructive()`, `_nonstandard_constructive_v2_policy()`, `_build_constraint_flags_per_seat()`, inline PC/OC nudge blocks |
+| `orchestrator.py` | Shadow-related functions (`_install_nonstandard_shadow_print_hook`, `_toggle_nonstandard_shadow_flag`, `_format_nonstandard_rs_buckets`) + admin menu item 4 |
+
+*Resolved*: `_build_rs_bucket_snapshot()`, `_nonstandard_constructive_help_enabled()`, v2 nonstandard stubs, `ENABLE_CONSTRUCTIVE_HELP` flags, debug hooks — removed.
 
 *Resolved*: `passrandom_suit_choices` merge artifact — cleaned up.
 
