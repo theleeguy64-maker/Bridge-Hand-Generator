@@ -101,21 +101,35 @@ def _match_standard(
     if not (std.total_min_hcp <= analysis.total_hcp <= std.total_max_hcp):
         return False, "hcp"
 
-    # Per-suit checks
-    for suit_name, sr in [
-        ("S", std.spades),
-        ("H", std.hearts),
-        ("D", std.diamonds),
-        ("C", std.clubs),
-    ]:
-        count = len(analysis.cards_by_suit[suit_name])
-        hcp = analysis.hcp_by_suit[suit_name]
-        # Shape check (card count) - checked before per-suit HCP
-        if not (sr.min_cards <= count <= sr.max_cards):
-            return False, "shape"
-        # Per-suit HCP check (HCP type failure)
-        if not (sr.min_hcp <= hcp <= sr.max_hcp):
-            return False, "hcp"
+    # Per-suit checks — unrolled to avoid constructing a temporary list
+    # of tuples on every call (this function is hot-path, called thousands
+    # of times per board attempt).
+    cards = analysis.cards_by_suit
+    hcp_by = analysis.hcp_by_suit
+
+    sr = std.spades
+    if not (sr.min_cards <= len(cards["S"]) <= sr.max_cards):
+        return False, "shape"
+    if not (sr.min_hcp <= hcp_by["S"] <= sr.max_hcp):
+        return False, "hcp"
+
+    sr = std.hearts
+    if not (sr.min_cards <= len(cards["H"]) <= sr.max_cards):
+        return False, "shape"
+    if not (sr.min_hcp <= hcp_by["H"] <= sr.max_hcp):
+        return False, "hcp"
+
+    sr = std.diamonds
+    if not (sr.min_cards <= len(cards["D"]) <= sr.max_cards):
+        return False, "shape"
+    if not (sr.min_hcp <= hcp_by["D"] <= sr.max_hcp):
+        return False, "hcp"
+
+    sr = std.clubs
+    if not (sr.min_cards <= len(cards["C"]) <= sr.max_cards):
+        return False, "shape"
+    if not (sr.min_hcp <= hcp_by["C"] <= sr.max_hcp):
+        return False, "hcp"
 
     return True, None
     

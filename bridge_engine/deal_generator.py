@@ -206,7 +206,7 @@ RS_REROLL_INTERVAL: int = 500
 # be feasible while 13/16 are nearly impossible).  Re-selecting gives us
 # multiple bites at finding a workable combo within the same board.
 # Set to 0 to disable subprofile re-rolling.
-SUBPROFILE_REROLL_INTERVAL: int = 5000
+SUBPROFILE_REROLL_INTERVAL: int = 1000
 
 # Number of retry attempts when pre-allocating RS suit cards to find a
 # sample whose HCP is on-track for the suit's HCP target.  This is a
@@ -465,10 +465,15 @@ def _choose_index_for_seat(
     return _weighted_choice_index(rng, weights)
 
 
+# Pre-built master deck: avoids 52 string concatenations per attempt.
+# _build_deck() returns a copy so callers can mutate freely.
+_MASTER_DECK: List[Card] = [
+    r + s for s in "SHDC" for r in "AKQJT98765432"
+]
+
+
 def _build_deck() -> List[Card]:
-    ranks = "AKQJT98765432"
-    suits = "SHDC"
-    return [r + s for s in suits for r in ranks]
+    return list(_MASTER_DECK)
 
 
 def _get_constructive_mode(profile: HandProfile) -> dict[str, bool]:
@@ -964,10 +969,11 @@ def _random_deal(
     if take <= 0:
         return []
 
-    # Random selection, then remove from deck via set lookup (O(n)).
-    hand = rng.sample(deck, take)
-    hand_set = set(hand)
-    deck[:] = [c for c in deck if c not in hand_set]
+    # The deck is already shuffled, so the first `take` cards are a random
+    # sample.  Slicing is much faster than rng.sample + set-filter:
+    # O(take) slice + O(remaining) shift vs O(take) sample + O(deck) filter.
+    hand = deck[:take]
+    del deck[:take]
     return hand
 
 
@@ -1120,6 +1126,11 @@ def _pre_allocate(
     if std is None:
         return []
 
+    # Build suit index once — avoids N full-deck scans (one per suit).
+    suit_cards: Dict[str, List[Card]] = {}
+    for c in deck:
+        suit_cards.setdefault(c[1], []).append(c)
+
     pre_allocated: List[Card] = []
 
     # Process each suit's minimum.  Card format is rank+suit, e.g. "AS".
@@ -1139,8 +1150,7 @@ def _pre_allocate(
         if to_allocate <= 0:
             continue
 
-        # Find cards of this suit in the deck.
-        available = [c for c in deck if len(c) >= 2 and c[1] == suit_letter]
+        available = suit_cards.get(suit_letter, [])
         if not available:
             continue
 
@@ -1149,8 +1159,9 @@ def _pre_allocate(
         chosen = rng.sample(available, actual)
         pre_allocated.extend(chosen)
 
-        # Remove chosen cards from deck (O(n) via set lookup).
-        chosen_set = set(chosen)
+    # Remove all chosen cards from deck in one pass (instead of per-suit).
+    if pre_allocated:
+        chosen_set = set(pre_allocated)
         deck[:] = [c for c in deck if c not in chosen_set]
 
     return pre_allocated
@@ -1221,6 +1232,12 @@ def _pre_allocate_rs(
             if idx < len(rs.suit_ranges):
                 ranges_by_suit[suit] = rs.suit_ranges[idx]
 
+    # Build suit index once — suits are disjoint so processing order
+    # doesn't affect available pools across different suits.
+    suit_cards: Dict[str, List[Card]] = {}
+    for c in deck:
+        suit_cards.setdefault(c[1], []).append(c)
+
     pre_allocated: List[Card] = []
 
     for suit_letter, sr in ranges_by_suit.items():
@@ -1232,8 +1249,7 @@ def _pre_allocate_rs(
         if to_allocate <= 0:
             continue
 
-        # Find cards of this suit in the deck.
-        available = [c for c in deck if len(c) >= 2 and c[1] == suit_letter]
+        available = suit_cards.get(suit_letter, [])
         if not available:
             continue
 
@@ -1272,8 +1288,9 @@ def _pre_allocate_rs(
 
         pre_allocated.extend(chosen)
 
-        # Remove chosen cards from deck.
-        chosen_set = set(chosen)
+    # Remove all chosen cards from deck in one pass (instead of per-suit).
+    if pre_allocated:
+        chosen_set = set(pre_allocated)
         deck[:] = [c for c in deck if c not in chosen_set]
 
     return pre_allocated
@@ -1343,7 +1360,24 @@ def _deal_with_help(
     # Phase 2: HCP feasibility check on all pre-allocated seats.
     # Run AFTER all pre-allocations so the deck state reflects all
     # reservations (more accurate feasibility statistics).
-    if ENABLE_HCP_FEASIBILITY_CHECK:
+    #
+    # Incremental HCP tracking: full deck always has hcp_sum=40,
+    # hcp_sum_sq=120.  Subtract pre-allocated cards' contributions
+    # to avoid scanning the remaining deck.
+    if ENABLE_HCP_FEASIBILITY_CHECK and pre_allocated:
+        # Compute deck HCP stats from known full-deck constants
+        # minus what was removed by pre-allocation.
+        removed_hcp_sum = 0
+        removed_hcp_sum_sq = 0
+        for cards in pre_allocated.values():
+            for c in cards:
+                v = _card_hcp(c)
+                removed_hcp_sum += v
+                removed_hcp_sum_sq += v * v
+        deck_hcp_sum = 40 - removed_hcp_sum
+        deck_hcp_sum_sq = 120 - removed_hcp_sum_sq
+        deck_size = len(deck)
+
         for seat in dealing_order:
             pre = pre_allocated.get(seat)
             if not pre:
@@ -1356,14 +1390,13 @@ def _deal_with_help(
                 continue
             drawn_hcp = sum(_card_hcp(c) for c in pre)
             cards_remaining = 13 - len(pre)
-            if cards_remaining > 0 and len(deck) > 0:
-                hcp_sum, hcp_sum_sq = _deck_hcp_stats(deck)
+            if cards_remaining > 0 and deck_size > 0:
                 if not _check_hcp_feasibility(
                     drawn_hcp,
                     cards_remaining,
-                    len(deck),
-                    hcp_sum,
-                    hcp_sum_sq,
+                    deck_size,
+                    deck_hcp_sum,
+                    deck_hcp_sum_sq,
                     std.total_min_hcp,
                     std.total_max_hcp,
                     HCP_FEASIBILITY_NUM_SD,
@@ -2115,6 +2148,31 @@ def _build_single_constrained_deal_v2(
             if sub is None or idx0 is None:
                 all_matched = False
                 break
+
+            # ---- Early total-HCP pre-check (perf optimisation) ----
+            # Quick O(13) sum before the full _match_seat / _compute_suit_analysis
+            # pipeline.  If the hand's total HCP is outside the subprofile's
+            # standard range, we can reject immediately — avoids suit analysis,
+            # RS matching, and all subprofile iteration overhead.
+            std_early = getattr(sub, "standard", None)
+            if std_early is not None:
+                hand_hcp_quick = sum(_card_hcp(c) for c in hands[seat])
+                if (
+                    hand_hcp_quick < std_early.total_min_hcp
+                    or hand_hcp_quick > std_early.total_max_hcp
+                ):
+                    # Count as checked + failed (HCP).
+                    checked_seats_in_attempt.append(seat)
+                    seat_seen_counts[seat] = seat_seen_counts.get(seat, 0) + 1
+                    all_matched = False
+                    seat_fail_counts[seat] = seat_fail_counts.get(seat, 0) + 1
+                    seat_fail_as_seat[seat] = seat_fail_as_seat.get(seat, 0) + 1
+                    seat_fail_hcp[seat] = seat_fail_hcp.get(seat, 0) + 1
+                    if first_failed_seat is None:
+                        first_failed_seat = seat
+                        first_failed_stage_idx = len(checked_seats_in_attempt) - 1
+                    break
+            # ---- end early total-HCP pre-check ----
 
             # Track that we checked this seat.
             checked_seats_in_attempt.append(seat)

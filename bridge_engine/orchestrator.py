@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -274,6 +275,7 @@ def _run_deal_generation_session() -> None:
 
     # --- Section C: deal generation ---
     print("\nSection C: generating deals ...")
+    gen_start = time.monotonic()
     try:
         deal_set: DealSet = generate_deals(
             setup=setup,
@@ -284,6 +286,7 @@ def _run_deal_generation_session() -> None:
     except DealGenerationError as exc:
         print(f"\nERROR during deal generation: {exc}")
         return
+    gen_elapsed = time.monotonic() - gen_start
 
     # --- Section D: output ---
     print("\nSection D: writing outputs ...")
@@ -304,6 +307,7 @@ def _run_deal_generation_session() -> None:
     print(f"Profile       : {profile.profile_name}")
     print(f"Owner         : {owner}")
     print(f"Deals created : {summary.num_deals}")
+    print(f"Time taken    : {gen_elapsed:.1f}s")
     print(f"TXT output    : {summary.txt_path}")
     print(f"LIN output    : {summary.lin_path}")
     if summary.warnings:

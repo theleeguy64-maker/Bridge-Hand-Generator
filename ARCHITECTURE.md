@@ -4,11 +4,11 @@
 
 ```
 bridge_engine/
-├── deal_generator.py      (2,445 lines) - Main pipeline + v2 shape help + HCP feasibility + RS pre-selection + board retry
+├── deal_generator.py      (2,530 lines) - Main pipeline + v2 shape help + HCP feasibility + RS pre-selection + board retry + perf opts
 ├── hand_profile_model.py    (921 lines) - Data models
-├── seat_viability.py        (601 lines) - Constraint matching + RS pre-selection threading
+├── seat_viability.py        (615 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (512 lines) - Validation
-├── orchestrator.py          (524 lines) - CLI/session management
+├── orchestrator.py          (528 lines) - CLI/session management + timing
 ├── profile_cli.py           (968 lines) - Profile commands
 ├── profile_wizard.py        (164 lines) - Profile creation UI
 ├── profile_viability.py     (108 lines) - Profile-level viability
@@ -207,7 +207,7 @@ Board-level retry in generate_deals (up to MAX_BOARD_RETRIES)
 | `SHAPE_PROB_THRESHOLD` | 0.19 | Cutoff for "tight" seats |
 | `PRE_ALLOCATE_FRACTION` | 0.50 | Fraction of suit minima to pre-allocate |
 | `RS_REROLL_INTERVAL` | 500 | Re-select RS suits every N attempts |
-| `SUBPROFILE_REROLL_INTERVAL` | 5000 | Re-select subprofiles every N attempts |
+| `SUBPROFILE_REROLL_INTERVAL` | 1000 | Re-select subprofiles every N attempts |
 | `RS_PRE_ALLOCATE_HCP_RETRIES` | 10 | Rejection sampling retries for HCP-targeted RS pre-alloc |
 | `MAX_BOARD_RETRIES` | 50 | Retries per board in generate_deals() |
 
@@ -256,6 +256,14 @@ Functions:
 - `_deal_with_help(...)` → `(hands, None)` or `(None, rejected_seat)`
 
 Constants: `ENABLE_HCP_FEASIBILITY_CHECK = True`, `HCP_FEASIBILITY_NUM_SD = 1.0`
+
+**Performance Optimizations (#10):**
+- `_MASTER_DECK` module-level constant — avoids 52 string concatenations per attempt
+- `_random_deal()` uses `deck[:take]` + `del` — deck is already shuffled, no need for `rng.sample()`
+- `_pre_allocate()` / `_pre_allocate_rs()` build suit index once, remove all in one pass
+- Incremental HCP tracking in `_deal_with_help()` Phase 2 — uses known full-deck values (40, 120)
+- Early total-HCP pre-check in v2 builder — quick O(13) sum before full `_match_seat()`
+- `_match_standard()` unrolled suit loop — direct attribute access, no temporary list construction
 
 **Status:** Profiles A-E all work. Profile E (6 spades + 10-12 HCP) generates
 successfully with v2 shape help + HCP feasibility rejection. "Defense to 3 Weak 2s"

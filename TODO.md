@@ -69,35 +69,47 @@
 ### 9. [x] Board-Level Retry + Production Hardening
 - **Problem**: "Defense to Weak 2s" passed tests (2/20 boards with known seeds) but crashed in production — `generate_deals()` failed on board 1 after 10,000 attempts.
 - ✅ **Board-level retries**: `generate_deals()` retries each board up to `MAX_BOARD_RETRIES = 50` times. Each retry starts from advanced RNG state → different subprofile selections, RS suits, random fills. Total budget per board: 50 × 10,000 = 500,000 attempts.
-- ✅ **Subprofile re-rolling**: `SUBPROFILE_REROLL_INTERVAL = 5000` — within each 10K-attempt retry, re-select subprofiles halfway through. Critical for profiles with many subprofile combos (N×E = 16 combos, some much easier than others).
+- ✅ **Subprofile re-rolling**: `SUBPROFILE_REROLL_INTERVAL = 1000` — within each 10K-attempt retry, re-select subprofiles to try different N/E combos. Critical for profiles with many subprofile combos (N×E = 16 combos, some much easier than others).
 - ✅ **HCP-targeted RS pre-allocation**: `RS_PRE_ALLOCATE_HCP_RETRIES = 10` — retry pre-allocation sampling to find cards whose HCP is on-track for the suit's target range.
 - ✅ **Faster RS re-rolling**: `RS_REROLL_INTERVAL` reduced from 2000 to 500.
 - **Result**: "Defense to 3 Weak 2s" generates 6 boards in ~50 seconds. Easy profiles still instant.
 - deal_generator.py: 2,362 → 2,445 lines (+83); seat_viability.py: 601 lines (unchanged)
+
+### 10. [x] Performance Optimizations (#2-#8)
+- ✅ **#2 Early total-HCP pre-check**: Quick HCP sum check before `_match_seat()` in v2 builder — rejects impossible hands without full matching
+- ✅ **#3 Reduce SUBPROFILE_REROLL_INTERVAL**: 5000 → 1000 for faster subprofile cycling
+- ✅ **#4 Pre-build master deck constant**: `_MASTER_DECK` module-level list avoids 52 string concatenations per attempt
+- ✅ **#5 Index-based dealing**: `deck[:take]` + `del deck[:take]` instead of `rng.sample()` + set-filter (deck already shuffled)
+- ✅ **#6 Pre-index deck by suit**: Build `{suit: [cards]}` dict once per pre-allocation call in `_pre_allocate()` and `_pre_allocate_rs()`, remove all chosen cards in one pass
+- ✅ **#7 Incremental HCP tracking**: Full deck always has hcp_sum=40, hcp_sum_sq=120; subtract pre-allocated cards' contributions instead of scanning remaining deck
+- ✅ **#8 Unroll `_match_standard` suit loop**: Direct attribute access instead of constructing `[("S", std.spades), ...]` list on every call (hot path)
+- **Result**: Test suite ~37s → ~30s (~19% faster). Production generation also faster.
+- deal_generator.py: 2,445 → 2,530 lines (+85); seat_viability.py: 601 → 615 lines (+14); orchestrator.py: 524 → 528 lines (+4)
 
 ---
 
 ## Enhancements
 
 ### 7. [ ] Refactor large files
-- `deal_generator.py` (2,445 lines) — split v1/v2, helpers, HCP feasibility, RS pre-selection, constants into separate modules
+- `deal_generator.py` (2,530 lines) — split v1/v2, helpers, HCP feasibility, RS pre-selection, constants into separate modules
 - `hand_profile_model.py` (921 lines) — split data models from logic
 - `profile_cli.py` (968 lines) — split command handlers
-- `orchestrator.py` (524 lines) — split session management from CLI routing
+- `orchestrator.py` (528 lines) — split session management from CLI routing
 
 ---
 
 ## Summary
-Architecture: 9 (9 done) | Enhancements: 1 | **Total: 1 pending**
+Architecture: 10 (10 done) | Enhancements: 1 | **Total: 1 pending**
 
 **Tests**: 414 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 ---
 
-## Completed (34 items + #5, #6, #8, #9)
+## Completed (34 items + #5, #6, #8, #9, #10)
 <details>
 <summary>Click to expand</summary>
 
+- Performance optimizations (#10): early HCP pre-check, master deck constant, index-based dealing, suit pre-indexing, incremental HCP tracking, unrolled _match_standard (~19% faster)
 - Board-level retry + production hardening (#9): 50 retries per board, subprofile re-roll, HCP-targeted RS pre-alloc — "Defense to Weak 2s" works in production (~50s for 6 boards)
 - RS-aware pre-selection (#8): pre-select RS suits before dealing, extend dispersion/help/matching — "Defense to Weak 2s" now viable
 - HCP feasibility rejection (#5): `_check_hcp_feasibility()` active, 43 tests, Profile E end-to-end proven

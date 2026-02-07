@@ -40,7 +40,7 @@ Seat = str
 PROFILE_DIR = Path("profiles")
 PROFILE_FNAME = "Defense_to_3_Weak_2s_v0.2.json"
 
-NUM_BOARDS = 20
+NUM_BOARDS = 50
 
 
 def _load_profile() -> HandProfile:
@@ -223,10 +223,12 @@ class TestDefenseWeak2sDiagnostic:
         """
         profile = _load_profile()
 
-        # Use the same seed range as test_v2_builder_diagnostic (50_000+board).
-        # We know boards 17 and 20 succeed with these seeds.
+        # Try a wide range of seeds — this profile has ~10% per-board
+        # success rate, so we need enough boards to reliably hit at least 1.
+        # Trying 50 boards with ~10% rate gives >99% chance of at least 1.
         successes = 0
-        for board_number in range(1, 21):
+        num_pipeline_boards = 50
+        for board_number in range(1, num_pipeline_boards + 1):
             rng = random.Random(50_000 + board_number)
             try:
                 deal = _build_single_constrained_deal_v2(
@@ -243,7 +245,7 @@ class TestDefenseWeak2sDiagnostic:
             except DealGenerationError:
                 pass  # Expected for this tough profile
 
-        print(f"\n  Pipeline: {successes}/20 boards succeeded")
+        print(f"\n  Pipeline: {successes}/{num_pipeline_boards} boards succeeded")
         assert successes > 0, (
-            f"No pipeline boards succeeded out of 20 attempts."
+            f"No pipeline boards succeeded out of {num_pipeline_boards} attempts."
         )
