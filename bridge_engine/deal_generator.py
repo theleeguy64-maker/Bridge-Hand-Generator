@@ -32,7 +32,8 @@ from .deal_generator_types import (   # explicit re-imports for linters / IDE
     MAX_BOARD_ATTEMPTS, MAX_ATTEMPTS_HAND_2_3, MIN_ATTEMPTS_FOR_UNVIABLE_CHECK,
     ROTATE_PROBABILITY, VULNERABILITY_SEQUENCE, ROTATE_MAP,
     SHAPE_PROB_GTE, SHAPE_PROB_THRESHOLD, PRE_ALLOCATE_FRACTION,
-    RS_REROLL_INTERVAL, SUBPROFILE_REROLL_INTERVAL, RS_PRE_ALLOCATE_HCP_RETRIES,
+    RS_REROLL_INTERVAL, SUBPROFILE_REROLL_INTERVAL,
+    RS_PRE_ALLOCATE_HCP_RETRIES, RS_PRE_ALLOCATE_FRACTION,
     MAX_BOARD_RETRIES, RESEED_TIME_THRESHOLD_SECONDS,
     CONSTRUCTIVE_MAX_SUM_MIN_CARDS,
     ENABLE_HCP_FEASIBILITY_CHECK, HCP_FEASIBILITY_NUM_SD, DEBUG_SECTION_C,
@@ -832,15 +833,15 @@ def _pre_allocate_rs(
     deck: List[Card],
     subprofile: "SubProfile",
     pre_selected_suits: List[str],
-    fraction: float = PRE_ALLOCATE_FRACTION,
+    fraction: float = RS_PRE_ALLOCATE_FRACTION,
 ) -> List[Card]:
     """
     Pre-allocate cards for RS (Random Suit) pre-selected suits.
 
-    Similar to _pre_allocate() but operates on the RS constraint's
-    suit_ranges for the pre-selected suits, rather than on the standard
-    constraints.  This enables the v2 help system to give RS seats
-    a head start on their required RS suits.
+    Uses RS_PRE_ALLOCATE_FRACTION (default 1.0) so RS suits are fully
+    populated at pre-allocation time with HCP targeting.  This avoids
+    the random fill blindly adding cards that bust the RS suit's HCP
+    window.  Standard pre-allocation still uses PRE_ALLOCATE_FRACTION.
 
     Handles pair_overrides: when required_suits_count == 2 and a matching
     pair override exists, uses the override ranges instead of the default

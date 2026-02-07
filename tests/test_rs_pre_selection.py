@@ -299,7 +299,7 @@ class TestPreAllocateRS:
     """Tests for _pre_allocate_rs()."""
 
     def test_single_suit_allocates_correct_count(self):
-        """RS min_cards=6, fraction=0.75 → pre-allocate 4 cards."""
+        """RS min_cards=6, default RS fraction=1.0 → pre-allocate 6 cards."""
         rs = _DummyRS(
             allowed_suits=["S", "H", "D"],
             required_suits_count=1,
@@ -308,7 +308,7 @@ class TestPreAllocateRS:
         sub = _DummySubProfile(rs=rs)
         deck = _make_deck()
         pre = dg._pre_allocate_rs(random.Random(42), deck, sub, ["H"])
-        assert len(pre) == 4  # floor(6 * 0.75) = 4
+        assert len(pre) == 6  # floor(6 * 1.0) = 6
 
     def test_pre_allocated_cards_are_from_correct_suit(self):
         """All pre-allocated cards should be from the pre-selected suit."""
@@ -359,7 +359,7 @@ class TestPreAllocateRS:
         assert pre == []
 
     def test_two_suits_allocates_both(self):
-        """2-suit RS pre-allocates from both suits."""
+        """2-suit RS pre-allocates from both suits (fraction=1.0)."""
         rs = _DummyRS(
             allowed_suits=["S", "H", "D"],
             required_suits_count=2,
@@ -371,12 +371,12 @@ class TestPreAllocateRS:
         sub = _DummySubProfile(rs=rs)
         deck = _make_deck()
         pre = dg._pre_allocate_rs(random.Random(42), deck, sub, ["S", "H"])
-        # floor(4 * 0.75) = 3 per suit → 6 total
-        assert len(pre) == 6
+        # floor(4 * 1.0) = 4 per suit → 8 total
+        assert len(pre) == 8
         s_cards = [c for c in pre if c[1] == "S"]
         h_cards = [c for c in pre if c[1] == "H"]
-        assert len(s_cards) == 3
-        assert len(h_cards) == 3
+        assert len(s_cards) == 4
+        assert len(h_cards) == 4
 
     def test_pair_overrides_used(self):
         """2-suit RS with matching pair_override uses override ranges."""
@@ -396,8 +396,8 @@ class TestPreAllocateRS:
         sub = _DummySubProfile(rs=rs)
         deck = _make_deck()
         pre = dg._pre_allocate_rs(random.Random(42), deck, sub, ["S", "H"])
-        # Override: S gets floor(5*0.75)=3, H gets floor(6*0.75)=4 → 7 total
-        assert len(pre) == 7
+        # Override: S gets floor(5*1.0)=5, H gets floor(6*1.0)=6 → 11 total
+        assert len(pre) == 11
 
     def test_custom_fraction(self):
         """Custom fraction changes allocation count."""

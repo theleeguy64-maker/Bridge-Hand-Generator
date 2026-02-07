@@ -79,7 +79,7 @@ Per-attempt tracking for diagnostics:
 - v2 shape-based help system (D0-D9 complete, production path)
 - RS-aware pre-selection (#8): RS suits pre-selected before dealing, visible to dispersion check and pre-allocation
 - Profiles A-E all work with v2 (tight shape + HCP constraints handled)
-- "Defense to 3 Weak 2s" profile generates 6 boards in ~50s via board-level retry (#9)
+- "Defense to 3 Weak 2s" profile generates 6 boards in ~1.5s (full RS pre-allocation #14; was ~50s before, was unviable before #8)
 - HCP feasibility rejection (#5): early rejection of hands with infeasible HCP after pre-allocation
 - Profile E (6 spades + 10-12 HCP) generates successfully end-to-end
 - 3-phase `_deal_with_help`: all tight seats (including last) get pre-allocation

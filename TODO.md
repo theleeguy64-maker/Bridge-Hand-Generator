@@ -101,6 +101,12 @@
 - ✅ Session summary shows avg/max per board time + re-seed count
 - **Motivation**: "Defense to Weak 2s" showed 6x time variance depending on seed (2.9s vs 17.2s for 6 boards)
 
+### 14. [x] Full RS Pre-Allocation (RS_PRE_ALLOCATE_FRACTION = 1.0)
+- ✅ `RS_PRE_ALLOCATE_FRACTION = 1.0` — pre-allocate 100% of RS suit min_cards with HCP targeting (separate from standard `PRE_ALLOCATE_FRACTION = 0.75`)
+- **Root cause**: With 0.75 fraction, W pre-allocated 4 of 6 RS cards; remaining 2 came from random fill blind to RS suit HCP window (5-7). This caused 89% of all W failures (71% of total failures).
+- **Result**: "Defense to Weak 2s" default seed 7.5s → 1.5s (**5x**), bad seed 22s → 1.1s (**20x**). Diagnostic: 8/20 → 20/20 boards, W failures 71% → 2.5%.
+- **Limitation**: For RS with card range (e.g. 6-7), fill can still add a card beyond min_cards without HCP awareness. Not an issue for current profiles (W has min=max=6). See #13.
+
 ---
 
 ## Enhancements
@@ -118,20 +124,27 @@
 - `profile_cli.py` (968 lines) — split command handlers
 - `orchestrator.py` (528 lines) — split session management from CLI routing
 
+### 13. [ ] HCP-aware constrained fill for RS range suits
+- When RS constraint allows a range (e.g. 6-7 cards), pre-allocation covers min_cards (6) with HCP targeting, but constrained fill can blindly add a 7th card that busts the RS suit HCP window
+- **Current impact**: None for "Defense to Weak 2s" (W has min=max=6). Theoretical concern for N/E subprofiles with 5-6 or 6-7 card RS ranges
+- **Options**: (a) cap fill at min_cards for RS suits (never add beyond pre-allocated), (b) make fill HCP-aware for RS suits
+- **Priority**: Low — only matters if future profiles have RS range + tight suit HCP
+
 ---
 
 ## Summary
-Architecture: 12 (12 done) | Enhancements: 1 | **Total: 1 pending**
+Architecture: 14 (13 done, 1 pending) | Enhancements: 1 | **Total: 2 pending**
 
 **Tests**: 414 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 ---
 
-## Completed (34 items + #5, #6, #8, #9, #10, #11, #12)
+## Completed (34 items + #5, #6, #8, #9, #10, #11, #12, #14)
 <details>
 <summary>Click to expand</summary>
 
-- Adaptive re-seeding (#12): per-board timing + automatic re-seed on slow boards (3s threshold) — eliminates 6x seed-dependent variance
+- Full RS pre-allocation (#14): RS_PRE_ALLOCATE_FRACTION=1.0 — pre-allocate all RS min_cards with HCP targeting. "Defense to Weak 2s" default seed 7.5s→1.5s (5x), bad seed 22s→1.1s (20x)
+- Adaptive re-seeding (#12): per-board timing + automatic re-seed on slow boards (1.75s threshold) — eliminates seed-dependent variance
 - Constrained fill + 0.75 fraction (#11): suit max + HCP max enforcement during fill, PRE_ALLOCATE_FRACTION 0.50→0.75 — W shape failures eliminated, HCP failures −81%
 - Performance optimizations (#10): early HCP pre-check, master deck constant, index-based dealing, suit pre-indexing, incremental HCP tracking, unrolled _match_standard (~19% faster)
 - Board-level retry + production hardening (#9): 50 retries per board, subprofile re-roll, HCP-targeted RS pre-alloc — "Defense to Weak 2s" works in production (~50s for 6 boards)

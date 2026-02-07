@@ -209,7 +209,8 @@ Adaptive re-seed: replace RNG with fresh SystemRandom seed
 |----------|-------|---------|
 | `SHAPE_PROB_GTE` | Dict[0-13→float] | P(>=N cards in suit) |
 | `SHAPE_PROB_THRESHOLD` | 0.19 | Cutoff for "tight" seats |
-| `PRE_ALLOCATE_FRACTION` | 0.75 | Fraction of suit minima to pre-allocate |
+| `PRE_ALLOCATE_FRACTION` | 0.75 | Fraction of standard suit minima to pre-allocate |
+| `RS_PRE_ALLOCATE_FRACTION` | 1.0 | Fraction of RS suit minima to pre-allocate (full, with HCP targeting) |
 | `RS_REROLL_INTERVAL` | 500 | Re-select RS suits every N attempts |
 | `SUBPROFILE_REROLL_INTERVAL` | 1000 | Re-select subprofiles every N attempts |
 | `RS_PRE_ALLOCATE_HCP_RETRIES` | 10 | Rejection sampling retries for HCP-targeted RS pre-alloc |
@@ -280,11 +281,13 @@ non-last seats.  Walks the shuffled deck and skips cards that would:
 Skipped cards remain in the deck for other seats.  `_get_suit_maxima()` extracts effective
 per-suit maximums from standard + RS constraints (including pair_overrides).
 
-`PRE_ALLOCATE_FRACTION` increased 0.50 → 0.75 for more aggressive pre-allocation.
+`PRE_ALLOCATE_FRACTION` increased 0.50 → 0.75 for more aggressive standard pre-allocation.
+`RS_PRE_ALLOCATE_FRACTION` = 1.0 — RS suits are fully populated at pre-allocation time
+with HCP targeting, avoiding blind random fill that busted RS suit HCP windows.
 
 **Status:** Profiles A-E all work. Profile E (6 spades + 10-12 HCP) generates
 successfully with v2 shape help + HCP feasibility rejection. "Defense to 3 Weak 2s"
-generates 6 boards in ~50s via board-level retry (was 0/20 before RS pre-selection).
+generates 6 boards in ~1.5s (was ~50s before full RS pre-allocation, was 0/20 before RS pre-selection).
 
 **Tests:** 75 in `test_shape_help_v3.py`, 36 in `test_hcp_feasibility.py`, 7 in `test_profile_e_v2_hcp_gate.py`, 32 in `test_rs_pre_selection.py`, 2 in `test_defense_weak2s_diagnostic.py`
 

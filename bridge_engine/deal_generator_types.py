@@ -163,6 +163,14 @@ SUBPROFILE_REROLL_INTERVAL: int = 1000
 # Set to 0 to disable HCP targeting (pure random pre-allocation).
 RS_PRE_ALLOCATE_HCP_RETRIES: int = 10
 
+# Fraction of RS suit minima to pre-allocate.  Set to 1.0 so that RS suits
+# are fully populated at pre-allocation time with HCP targeting.  This
+# avoids the random fill blindly adding cards that bust the RS suit's HCP
+# window (e.g. W in "Defense to Weak 2s" needs 5-7 HCP in exactly 6 cards;
+# pre-allocating only 4 left the remaining 2 to random fill, causing 89%
+# of W failures).  Standard constraints still use PRE_ALLOCATE_FRACTION.
+RS_PRE_ALLOCATE_FRACTION: float = 1.0
+
 # Maximum number of full retries per board in generate_deals().
 # Each retry calls the v2 builder with MAX_BOARD_ATTEMPTS attempts.
 # Between retries, the RNG has advanced significantly, so subprofile
