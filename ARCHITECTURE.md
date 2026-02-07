@@ -214,7 +214,7 @@ Adaptive re-seed: replace RNG with fresh SystemRandom seed
 | `SUBPROFILE_REROLL_INTERVAL` | 1000 | Re-select subprofiles every N attempts |
 | `RS_PRE_ALLOCATE_HCP_RETRIES` | 10 | Rejection sampling retries for HCP-targeted RS pre-alloc |
 | `MAX_BOARD_RETRIES` | 50 | Retries per board in generate_deals() |
-| `RESEED_TIME_THRESHOLD_SECONDS` | 3.0 | Per-board wall-clock budget before adaptive re-seeding |
+| `RESEED_TIME_THRESHOLD_SECONDS` | 1.75 | Per-board wall-clock budget before adaptive re-seeding |
 
 **Functions** (in `deal_generator.py` + `deal_generator_helpers.py`):
 - `_pre_select_rs_suits(rng, chosen_subs)` → Dict[Seat, List[str]] — pre-select RS suits before dealing

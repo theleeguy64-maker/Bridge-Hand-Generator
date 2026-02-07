@@ -178,7 +178,9 @@ MAX_BOARD_RETRIES: int = 50
 # a fresh random seed (via SystemRandom) to escape an unfavorable trajectory.
 # The timer resets after each re-seed, so multiple re-seeds per board are
 # possible.  Set to 0.0 to disable adaptive re-seeding entirely.
-RESEED_TIME_THRESHOLD_SECONDS: float = 3.0
+# 1.75s chosen because good seeds produce boards in 0.6-2.1s (avg ~1.2s);
+# a board still running at 1.75s is likely on an unfavorable trajectory.
+RESEED_TIME_THRESHOLD_SECONDS: float = 1.75
 
 # For v1 constructive sampling, only use suit minima when the total is
 # "reasonable" – we don't want to pre-commit too many cards.

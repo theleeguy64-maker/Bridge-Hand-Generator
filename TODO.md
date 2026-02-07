@@ -95,7 +95,7 @@
 - deal_generator.py: 2,530 → 2,678 lines (+148)
 
 ### 12. [x] Adaptive Re-Seeding + Per-Board Timing
-- ✅ `RESEED_TIME_THRESHOLD_SECONDS = 3.0` — per-board wall-clock budget before re-seeding
+- ✅ `RESEED_TIME_THRESHOLD_SECONDS = 1.75` — per-board wall-clock budget before re-seeding (tightened from 3.0; bad seed 101: 22s→6.8s = 3.2x speedup)
 - ✅ `generate_deals()` tracks per-board elapsed time; on timeout, replaces RNG with fresh `SystemRandom` seed
 - ✅ `DealSet` extended with `board_times: List[float]` and `reseed_count: int`
 - ✅ Session summary shows avg/max per board time + re-seed count
