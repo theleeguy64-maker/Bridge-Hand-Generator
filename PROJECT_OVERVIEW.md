@@ -91,7 +91,7 @@ Per-attempt tracking for diagnostics:
 - 414 tests passing, 4 skipped
 
 ### Remaining Work
-1. **Refactor large files** (#7) — split deal_generator.py (2,678), hand_profile_model.py (921), profile_cli.py (968)
+1. **Refactor large files** (#7) — Batches 1-2 done: deal_generator.py 2,678→2,122 + types (230) + helpers (444). Batches 3-5 pending (v1, v2, cleanup). Also: hand_profile_model.py (921), profile_cli.py (968)
 
 ## Design Principles
 
@@ -104,7 +104,9 @@ Per-attempt tracking for diagnostics:
 
 | File | Purpose |
 |------|---------|
-| `deal_generator.py` | Main pipeline, v1 + v2 shape help, HCP feasibility, failure attribution |
+| `deal_generator.py` | Facade + v1/v2 builders + generate_deals() + subprofile selection |
+| `deal_generator_types.py` | Types, constants, dataclasses, exception, debug hooks (leaf module) |
+| `deal_generator_helpers.py` | Shared utilities: viability, HCP, deck helpers, vulnerability/rotation |
 | `hand_profile_model.py` | Data models: SubProfile, SeatProfile, HandProfile |
 | `seat_viability.py` | Constraint matching: _match_seat, _match_subprofile |
 | `hand_profile_validate.py` | Profile validation |

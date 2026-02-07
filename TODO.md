@@ -99,7 +99,14 @@
 ## Enhancements
 
 ### 7. [ ] Refactor large files
-- `deal_generator.py` (2,678 lines) — split v1/v2, helpers, HCP feasibility, RS pre-selection, constants into separate modules
+- `deal_generator.py` — Batches 1-2 done (types + helpers extracted), Batches 3-5 pending (v1, v2, cleanup)
+  - ✅ **Batch 1**: `deal_generator_types.py` (230 lines) — types, constants, dataclasses, exception, debug hooks
+  - ✅ **Batch 2**: `deal_generator_helpers.py` (444 lines) — viability, HCP, deck, subprofile weights, vulnerability/rotation
+  - [ ] **Batch 3**: `deal_generator_v1.py` — v1 builder + hardest-seat + constructive help
+  - [ ] **Batch 4**: `deal_generator_v2.py` — v2 shape help + v2 builder (active path)
+  - [ ] **Batch 5**: Cleanup facade, verify, update docs
+  - `deal_generator.py`: 2,678 → 2,122 lines (−556 so far, target ~170 after all batches)
+  - NOTE: `_select_subprofiles_for_board` kept in facade (isinstance monkeypatch sensitivity)
 - `hand_profile_model.py` (921 lines) — split data models from logic
 - `profile_cli.py` (968 lines) — split command handlers
 - `orchestrator.py` (528 lines) — split session management from CLI routing

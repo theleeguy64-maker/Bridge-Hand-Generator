@@ -4,7 +4,9 @@
 
 ```
 bridge_engine/
-├── deal_generator.py      (2,678 lines) - Main pipeline + v2 shape help + HCP feasibility + RS pre-selection + board retry + perf opts + constrained fill
+├── deal_generator.py      (2,122 lines) - Facade + v1/v2 builders + generate_deals() + subprofile selection
+├── deal_generator_types.py  (230 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
+├── deal_generator_helpers.py (444 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (921 lines) - Data models
 ├── seat_viability.py        (615 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (512 lines) - Validation
@@ -211,7 +213,7 @@ Board-level retry in generate_deals (up to MAX_BOARD_RETRIES)
 | `RS_PRE_ALLOCATE_HCP_RETRIES` | 10 | Rejection sampling retries for HCP-targeted RS pre-alloc |
 | `MAX_BOARD_RETRIES` | 50 | Retries per board in generate_deals() |
 
-**Functions** (all in `deal_generator.py`):
+**Functions** (in `deal_generator.py` + `deal_generator_helpers.py`):
 - `_pre_select_rs_suits(rng, chosen_subs)` → Dict[Seat, List[str]] — pre-select RS suits before dealing
 - `_dispersion_check(chosen_subs, threshold, rs_pre_selections)` → set of tight seats
 - `_random_deal(rng, deck, n)` → List[Card] (mutates deck)
@@ -355,29 +357,67 @@ _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION(...) # Called on each failed attempt
 
 ## Key Functions
 
-### deal_generator.py
+### deal_generator_types.py (leaf — no bridge_engine imports)
 ```python
-# Main entry + v1
+# Types: Seat, Card, SeatFailCounts, SeatSeenCounts
+# Dataclasses: Deal, DealSet, SuitAnalysis, HardestSeatConfig
+# Exception: DealGenerationError
+# Constants: MAX_BOARD_ATTEMPTS, SHAPE_PROB_GTE, PRE_ALLOCATE_FRACTION, etc.
+# Debug hooks: _DEBUG_ON_MAX_ATTEMPTS, _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION
+# Master deck: _MASTER_DECK
+```
+
+### deal_generator_helpers.py
+```python
+# Viability
+classify_viability(successes, attempts) -> str
+_compute_viability_summary(fail_counts, seen_counts) -> Dict
+_summarize_profile_viability(fail_counts, seen_counts) -> Dict[Seat, str]
+_is_unviable_bucket(bucket) -> bool
+
+# Subprofile weights
+_weighted_choice_index(rng, weights) -> int
+_weights_for_seat_profile(seat_profile) -> List[float]
+_choose_index_for_seat(rng, seat_profile) -> int
+
+# Deck + constructive mode
+_build_deck() -> List[Card]
+_get_constructive_mode(profile) -> dict[str, bool]
+
+# HCP utilities
+_card_hcp(card) -> int
+_deck_hcp_stats(deck) -> (hcp_sum, hcp_sum_sq)
+_check_hcp_feasibility(drawn_hcp, cards_remaining, deck_size, ...) -> bool
+
+# Simple generator + enrichment
+_deal_single_board_simple(rng, board_number, dealer, dealing_order) -> Deal
+_apply_vulnerability_and_rotation(rng, deals, rotate) -> List[Deal]
+```
+
+### deal_generator.py (facade + builders)
+```python
+# Public API
 generate_deals(setup, profile, num_deals, enable_rotation) -> DealSet
+
+# Subprofile selection (kept here for monkeypatch compatibility)
+_select_subprofiles_for_board(rng, profile, dealing_order) -> (subs, indices)
+
+# v1 builder (legacy)
 _build_single_constrained_deal(rng, profile, board_number, debug) -> Deal
 _choose_hardest_seat_for_board(...) -> Optional[Seat]
 _extract_standard_suit_minima(profile, seat, subprofile) -> Dict[str, int]
 _construct_hand_for_seat(rng, deck, min_suit_counts) -> List[Card]
 
-# v2 shape help system
+# v2 shape help system (active path)
 _build_single_constrained_deal_v2(rng, profile, board_number) -> Deal
-_select_subprofiles_for_board(rng, profile, dealing_order) -> (subs, indices)
 _pre_select_rs_suits(rng, chosen_subs) -> Dict[Seat, List[str]]
 _dispersion_check(chosen_subs, threshold, rs_pre_selections) -> set[Seat]
-_deal_with_help(rng, deck, subs, tight_seats, order, rs_pre_selections) -> (Dict[Seat, List[Card]], None) | (None, Seat)
+_deal_with_help(rng, deck, subs, tight_seats, order, rs_pre_selections) -> (hands, None) | (None, Seat)
 _pre_allocate(rng, deck, subprofile, fraction) -> List[Card]
 _pre_allocate_rs(rng, deck, subprofile, pre_selected_suits, fraction) -> List[Card]
 _random_deal(rng, deck, n) -> List[Card]
 _get_suit_maxima(subprofile, rs_pre_selected) -> Dict[str, int]
 _constrained_fill(deck, n, pre_cards, suit_maxima, total_max_hcp) -> List[Card]
-_card_hcp(card) -> int
-_deck_hcp_stats(deck) -> (hcp_sum, hcp_sum_sq)
-_check_hcp_feasibility(drawn_hcp, cards_remaining, deck_size, ...) -> bool
 ```
 
 ### seat_viability.py
