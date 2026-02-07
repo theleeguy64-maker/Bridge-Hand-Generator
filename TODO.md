@@ -62,17 +62,25 @@
 - ✅ **Batch 2**: Extended `_dispersion_check()` with RS awareness — RS suits flagged tight (8 tests)
 - ✅ **Batch 3**: `_pre_allocate_rs()` — pre-allocate cards for RS pre-selected suits (8 tests)
 - ✅ **Batch 4**: Extended `_deal_with_help()` with RS pre-allocation support (6 tests)
-- ✅ **Batch 5**: Main wiring — v2 builder calls `_pre_select_rs_suits()`, passes to dispersion/help/matching; `seat_viability.py` extended with optional `pre_selected_suits` params; `RS_REROLL_INTERVAL = 2000`; restructured `_deal_with_help()` to 3-phase (all tight seats pre-allocated, including last seat)
-- ✅ **Batch 6**: End-to-end tests — "Defense to Weak 2s" now generates 2/20 boards (was 0/20); diagnostic + pipeline tests pass
-- deal_generator.py: 2,107 → 2,362 lines (+255); seat_viability.py: 538 → 601 lines (+63)
+- ✅ **Batch 5**: Main wiring — v2 builder calls `_pre_select_rs_suits()`, passes to dispersion/help/matching; `seat_viability.py` extended with optional `pre_selected_suits` params; restructured `_deal_with_help()` to 3-phase (all tight seats pre-allocated, including last seat)
+- ✅ **Batch 6**: End-to-end tests — diagnostic + pipeline tests pass
 - New test file: `test_rs_pre_selection.py` (32 tests); updated `test_defense_weak2s_diagnostic.py`, `test_hcp_feasibility.py`
+
+### 9. [x] Board-Level Retry + Production Hardening
+- **Problem**: "Defense to Weak 2s" passed tests (2/20 boards with known seeds) but crashed in production — `generate_deals()` failed on board 1 after 10,000 attempts.
+- ✅ **Board-level retries**: `generate_deals()` retries each board up to `MAX_BOARD_RETRIES = 50` times. Each retry starts from advanced RNG state → different subprofile selections, RS suits, random fills. Total budget per board: 50 × 10,000 = 500,000 attempts.
+- ✅ **Subprofile re-rolling**: `SUBPROFILE_REROLL_INTERVAL = 5000` — within each 10K-attempt retry, re-select subprofiles halfway through. Critical for profiles with many subprofile combos (N×E = 16 combos, some much easier than others).
+- ✅ **HCP-targeted RS pre-allocation**: `RS_PRE_ALLOCATE_HCP_RETRIES = 10` — retry pre-allocation sampling to find cards whose HCP is on-track for the suit's target range.
+- ✅ **Faster RS re-rolling**: `RS_REROLL_INTERVAL` reduced from 2000 to 500.
+- **Result**: "Defense to 3 Weak 2s" generates 6 boards in ~50 seconds. Easy profiles still instant.
+- deal_generator.py: 2,362 → 2,445 lines (+83); seat_viability.py: 601 lines (unchanged)
 
 ---
 
 ## Enhancements
 
 ### 7. [ ] Refactor large files
-- `deal_generator.py` (2,362 lines) — split v1/v2, helpers, HCP feasibility, RS pre-selection, constants into separate modules
+- `deal_generator.py` (2,445 lines) — split v1/v2, helpers, HCP feasibility, RS pre-selection, constants into separate modules
 - `hand_profile_model.py` (921 lines) — split data models from logic
 - `profile_cli.py` (968 lines) — split command handlers
 - `orchestrator.py` (524 lines) — split session management from CLI routing
@@ -80,16 +88,17 @@
 ---
 
 ## Summary
-Architecture: 8 (8 done) | Enhancements: 1 | **Total: 1 pending**
+Architecture: 9 (9 done) | Enhancements: 1 | **Total: 1 pending**
 
 **Tests**: 414 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 ---
 
-## Completed (34 items + #5, #6, #8)
+## Completed (34 items + #5, #6, #8, #9)
 <details>
 <summary>Click to expand</summary>
 
+- Board-level retry + production hardening (#9): 50 retries per board, subprofile re-roll, HCP-targeted RS pre-alloc — "Defense to Weak 2s" works in production (~50s for 6 boards)
 - RS-aware pre-selection (#8): pre-select RS suits before dealing, extend dispersion/help/matching — "Defense to Weak 2s" now viable
 - HCP feasibility rejection (#5): `_check_hcp_feasibility()` active, 43 tests, Profile E end-to-end proven
 - Profile E viability (#6): resolved — v1-only issue, v2 has no early termination

@@ -4,7 +4,7 @@
 
 ```
 bridge_engine/
-├── deal_generator.py      (2,362 lines) - Main pipeline + v2 shape help + HCP feasibility + RS pre-selection
+├── deal_generator.py      (2,445 lines) - Main pipeline + v2 shape help + HCP feasibility + RS pre-selection + board retry
 ├── hand_profile_model.py    (921 lines) - Data models
 ├── seat_viability.py        (601 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (512 lines) - Validation
@@ -192,8 +192,12 @@ _deal_with_help(rng, deck, subs, tight_seats, order, rs_pre_selections)
 _match_seat(... rs_pre_selections) per seat (RS first, then others)
     ↓
 Success → Deal | Failure → retry (up to MAX_BOARD_ATTEMPTS)
+    ↓ (every SUBPROFILE_REROLL_INTERVAL attempts)
+Re-select subprofiles (different N/E combos) + RS suits
     ↓ (every RS_REROLL_INTERVAL attempts)
 Re-select RS suits to avoid "stuck with bad suit" scenarios
+    ↓ (on board exhaustion)
+Board-level retry in generate_deals (up to MAX_BOARD_RETRIES)
 ```
 
 **Constants:**
@@ -202,7 +206,10 @@ Re-select RS suits to avoid "stuck with bad suit" scenarios
 | `SHAPE_PROB_GTE` | Dict[0-13→float] | P(>=N cards in suit) |
 | `SHAPE_PROB_THRESHOLD` | 0.19 | Cutoff for "tight" seats |
 | `PRE_ALLOCATE_FRACTION` | 0.50 | Fraction of suit minima to pre-allocate |
-| `RS_REROLL_INTERVAL` | 2000 | Re-select RS suits every N attempts |
+| `RS_REROLL_INTERVAL` | 500 | Re-select RS suits every N attempts |
+| `SUBPROFILE_REROLL_INTERVAL` | 5000 | Re-select subprofiles every N attempts |
+| `RS_PRE_ALLOCATE_HCP_RETRIES` | 10 | Rejection sampling retries for HCP-targeted RS pre-alloc |
+| `MAX_BOARD_RETRIES` | 50 | Retries per board in generate_deals() |
 
 **Functions** (all in `deal_generator.py`):
 - `_pre_select_rs_suits(rng, chosen_subs)` → Dict[Seat, List[str]] — pre-select RS suits before dealing
@@ -252,7 +259,7 @@ Constants: `ENABLE_HCP_FEASIBILITY_CHECK = True`, `HCP_FEASIBILITY_NUM_SD = 1.0`
 
 **Status:** Profiles A-E all work. Profile E (6 spades + 10-12 HCP) generates
 successfully with v2 shape help + HCP feasibility rejection. "Defense to 3 Weak 2s"
-now generates 2/20 boards (was 0/20 before RS pre-selection).
+generates 6 boards in ~50s via board-level retry (was 0/20 before RS pre-selection).
 
 **Tests:** 75 in `test_shape_help_v3.py`, 36 in `test_hcp_feasibility.py`, 7 in `test_profile_e_v2_hcp_gate.py`, 32 in `test_rs_pre_selection.py`, 2 in `test_defense_weak2s_diagnostic.py`
 

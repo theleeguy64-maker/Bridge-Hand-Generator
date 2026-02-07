@@ -198,7 +198,32 @@ PRE_ALLOCATE_FRACTION: float = 0.50
 # How often (in attempts) to re-roll the RS suit pre-selections within a board.
 # Re-rolling protects against "stuck with a bad suit choice" scenarios by
 # trying different RS suit combinations across chunks of attempts.
-RS_REROLL_INTERVAL: int = 2000
+RS_REROLL_INTERVAL: int = 500
+
+# How often (in attempts) to re-select subprofiles within a board.
+# This is critical for hard profiles where N/E have 4+ subprofiles each —
+# some subprofile combos are much easier than others (e.g. 3/16 combos might
+# be feasible while 13/16 are nearly impossible).  Re-selecting gives us
+# multiple bites at finding a workable combo within the same board.
+# Set to 0 to disable subprofile re-rolling.
+SUBPROFILE_REROLL_INTERVAL: int = 5000
+
+# Number of retry attempts when pre-allocating RS suit cards to find a
+# sample whose HCP is on-track for the suit's HCP target.  This is a
+# form of rejection sampling: try multiple random samples and pick the
+# first whose pro-rated HCP lands in the target range.
+# Set to 0 to disable HCP targeting (pure random pre-allocation).
+RS_PRE_ALLOCATE_HCP_RETRIES: int = 10
+
+# Maximum number of full retries per board in generate_deals().
+# Each retry calls the v2 builder with MAX_BOARD_ATTEMPTS attempts.
+# Between retries, the RNG has advanced significantly, so subprofile
+# selections, RS suits, and random fills will all be different.
+# For easy profiles, every board succeeds on the first try (retry 1).
+# For hard profiles (e.g. "Defense to Weak 2s"), multiple retries give
+# multiple chances to find a workable subprofile + RS combination.
+# Total budget per board = MAX_BOARD_RETRIES * MAX_BOARD_ATTEMPTS.
+MAX_BOARD_RETRIES: int = 50
 
 # ---------------------------------------------------------------------------
 # HCP feasibility check constants (TODO #5)
@@ -1214,7 +1239,37 @@ def _pre_allocate_rs(
 
         # Don't try to allocate more than available.
         actual = min(to_allocate, len(available))
-        chosen = rng.sample(available, actual)
+
+        # HCP-targeted rejection sampling: try multiple samples and pick
+        # the first whose pro-rated HCP is on-track for the suit's target.
+        # This dramatically improves success rates for tight HCP constraints
+        # (e.g. W in "Defense to Weak 2s" needs 5-7 HCP in exactly 6 cards).
+        min_hcp = getattr(sr, "min_hcp", None)
+        max_hcp = getattr(sr, "max_hcp", None)
+        use_hcp_targeting = (
+            RS_PRE_ALLOCATE_HCP_RETRIES > 0
+            and min_hcp is not None
+            and max_hcp is not None
+            and min_cards > 0
+        )
+
+        if use_hcp_targeting:
+            # Pro-rate HCP target to the pre-allocated card count.
+            # E.g. 6 cards need 5-7 HCP → 3 pre-allocated need 2-4 HCP.
+            target_low = math.floor(min_hcp * actual / min_cards)
+            target_high = math.ceil(max_hcp * actual / min_cards)
+
+            chosen = rng.sample(available, actual)
+            for _retry in range(RS_PRE_ALLOCATE_HCP_RETRIES):
+                sample_hcp = sum(_card_hcp(c) for c in chosen)
+                if target_low <= sample_hcp <= target_high:
+                    break  # Good HCP — use this sample.
+                # Bad HCP — resample.
+                chosen = rng.sample(available, actual)
+            # After retries, use whatever we ended up with (last sample).
+        else:
+            chosen = rng.sample(available, actual)
+
         pre_allocated.extend(chosen)
 
         # Remove chosen cards from deck.
@@ -1940,10 +1995,41 @@ def _build_single_constrained_deal_v2(
     while board_attempts < MAX_BOARD_ATTEMPTS:
         board_attempts += 1
 
-        # Periodic RS re-roll: try different RS suit combinations across
-        # chunks of attempts.  Subprofiles stay fixed (they're coupled to
-        # NS/EW indices), but the RS suit within the allowed set rotates.
+        # Periodic subprofile re-roll: try different subprofile combinations.
+        # This is critical for hard profiles with many subprofiles per seat
+        # (e.g. N/E each have 4 → 16 combos, some much easier than others).
+        # Re-selecting subprofiles also re-selects RS suits and rebuilds
+        # processing order since different subprofiles may have different
+        # constraint types (RS, OC, etc.).
         if (
+            board_attempts > 1
+            and SUBPROFILE_REROLL_INTERVAL > 0
+            and (board_attempts - 1) % SUBPROFILE_REROLL_INTERVAL == 0
+        ):
+            chosen_subprofiles, chosen_indices = _select_subprofiles_for_board(
+                rng, profile, dealing_order
+            )
+            rs_pre_selections = _pre_select_rs_suits(rng, chosen_subprofiles)
+            tight_seats = _dispersion_check(
+                chosen_subprofiles, rs_pre_selections=rs_pre_selections
+            )
+            # Rebuild processing order since RS seats may have changed.
+            rs_seats = []
+            other_seats = []
+            for seat in dealing_order:
+                sp = profile.seat_profiles.get(seat)
+                if not isinstance(sp, SeatProfile) or not sp.subprofiles:
+                    continue
+                sub = chosen_subprofiles.get(seat)
+                if sub and getattr(sub, "random_suit_constraint", None) is not None:
+                    rs_seats.append(seat)
+                else:
+                    other_seats.append(seat)
+            processing_order = rs_seats + other_seats
+
+        # Periodic RS re-roll (more frequent): try different RS suit
+        # combinations within the same subprofile selection.
+        elif (
             board_attempts > 1
             and RS_REROLL_INTERVAL > 0
             and (board_attempts - 1) % RS_REROLL_INTERVAL == 0
@@ -2340,14 +2426,36 @@ def generate_deals(
     # -------------------------
     # Full constrained path
     # -------------------------
+    #
+    # Board-level retry: each board gets up to MAX_BOARD_RETRIES chances.
+    # Each retry calls the v2 builder with a fresh RNG state (advanced by
+    # the previous failed attempt's 10K+ random operations), giving it
+    # different subprofile selections, RS suits, and random fills.
+    # For easy profiles, every board succeeds on retry 1 (no overhead).
+    # For hard profiles (e.g. "Defense to Weak 2s" at ~10% per-retry
+    # success rate), 50 retries gives ~99.5% per-board success.
     try:
         deals: List[Deal] = []
         for board_number in range(1, num_deals + 1):
-            deal = _build_single_constrained_deal_v2(
-                rng=rng,
-                profile=profile,
-                board_number=board_number,
-            )
+            deal = None
+            last_exc: Optional[Exception] = None
+            for _retry in range(MAX_BOARD_RETRIES):
+                try:
+                    deal = _build_single_constrained_deal_v2(
+                        rng=rng,
+                        profile=profile,
+                        board_number=board_number,
+                    )
+                    break  # Board succeeded.
+                except DealGenerationError as exc:
+                    last_exc = exc
+                    continue  # Retry with advanced RNG state.
+            if deal is None:
+                raise DealGenerationError(
+                    f"Failed to generate board {board_number} after "
+                    f"{MAX_BOARD_RETRIES} retries of "
+                    f"{MAX_BOARD_ATTEMPTS} attempts each."
+                ) from last_exc
             deals.append(deal)
 
         deals = _apply_vulnerability_and_rotation(
@@ -2356,6 +2464,8 @@ def generate_deals(
             rotate=enable_rotation,
         )
         return DealSet(deals=deals)
+    except DealGenerationError:
+        raise  # Pass through domain errors without wrapping.
     except Exception as exc:
         # Narrow scope catch-all, wrapped into domain error
         raise DealGenerationError(f"Failed to generate deals: {exc}") from exc
