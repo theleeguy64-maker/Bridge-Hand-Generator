@@ -4,8 +4,8 @@
 
 ```
 bridge_engine/
-├── deal_generator.py      (2,155 lines) - Facade + v1/v2 builders + generate_deals() + subprofile selection
-├── deal_generator_types.py  (254 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
+├── deal_generator.py      (2,183 lines) - Facade + v1/v2 builders + generate_deals() + subprofile selection
+├── deal_generator_types.py  (262 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (447 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (921 lines) - Data models
 ├── seat_viability.py        (615 lines) - Constraint matching + RS pre-selection threading
@@ -13,7 +13,7 @@ bridge_engine/
 ├── orchestrator.py          (528 lines) - CLI/session management + timing
 ├── profile_cli.py           (968 lines) - Profile commands
 ├── profile_wizard.py        (164 lines) - Profile creation UI
-├── profile_viability.py     (108 lines) - Profile-level viability
+├── profile_viability.py     (355 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py         (208 lines) - JSON persistence
 ├── lin_tools.py             (459 lines) - LIN file operations
 ├── deal_output.py           (330 lines) - Deal rendering
@@ -64,7 +64,12 @@ generate_deals(setup, profile, num_deals, enable_rotation=True) -> DealSet
 ```
 validate_profile()           # Structural validity
     ↓
-validate_profile_viability() # Constraint feasibility
+validate_profile_viability() # Constraint feasibility (3 steps):
+    Step 1: validate_profile_viability_light()  # Per-seat bounds checks
+    Step 2: _validate_ns_coupling()             # NS index-coupling joint viability
+    Step 3: _check_cross_seat_subprofile_viability()  # Cross-seat HCP + card-count (#16)
+            → warns for dead subprofiles
+            → raises ProfileError if ALL subs on any seat are dead
     ↓
 _subprofile_is_viable_light() # Quick bounds check
     ↓
@@ -181,6 +186,7 @@ identify tight seats and pre-allocate their suit minima (75% for standard, 100% 
 **Pipeline:**
 ```
 _select_subprofiles_for_board(rng, profile, dealing_order)
+    → retry up to MAX_SUBPROFILE_FEASIBILITY_RETRIES if _cross_seat_feasible() fails (#16)
     ↓
 _pre_select_rs_suits(rng, chosen_subprofiles) → Dict[Seat, List[str]]
     ↓
@@ -216,6 +222,7 @@ Adaptive re-seed: replace RNG with fresh SystemRandom seed
 | `RS_PRE_ALLOCATE_HCP_RETRIES` | 10 | Rejection sampling retries for HCP-targeted RS pre-alloc |
 | `MAX_BOARD_RETRIES` | 50 | Retries per board in generate_deals() |
 | `RESEED_TIME_THRESHOLD_SECONDS` | 1.75 | Per-board wall-clock budget before adaptive re-seeding |
+| `MAX_SUBPROFILE_FEASIBILITY_RETRIES` | 100 | Max retries for cross-seat feasible subprofile combo (#16) |
 
 **Functions** (in `deal_generator.py` + `deal_generator_helpers.py`):
 - `_pre_select_rs_suits(rng, chosen_subs)` → Dict[Seat, List[str]] — pre-select RS suits before dealing
@@ -408,6 +415,7 @@ _apply_vulnerability_and_rotation(rng, deals, rotate) -> List[Deal]
 generate_deals(setup, profile, num_deals, enable_rotation) -> DealSet
 
 # Subprofile selection (kept here for monkeypatch compatibility)
+# Includes cross-seat feasibility retry loop (#16)
 _select_subprofiles_for_board(rng, profile, dealing_order) -> (subs, indices)
 
 # v1 builder (legacy)
@@ -448,7 +456,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**414 tests (414 passed, 4 skipped)** organized by:
+**453 tests (453 passed, 4 skipped)** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`
@@ -460,6 +468,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 - **Profile E e2e**: `test_profile_e_v2_hcp_gate.py` (7 tests — v2 builder + pipeline)
 - **RS pre-selection**: `test_rs_pre_selection.py` (32 tests — B1-B4 unit tests)
 - **Defense to Weak 2s**: `test_defense_weak2s_diagnostic.py` (2 tests — diagnostic + pipeline)
+- **Cross-seat feasibility**: `test_cross_seat_feasibility.py` (39 tests — accessors, core, dead sub detection, runtime retry, integration)
 - **v2 comparison**: `test_v2_comparison.py` (6 gated — `RUN_V2_BENCHMARKS=1`)
 
 **Untested modules** (low risk):

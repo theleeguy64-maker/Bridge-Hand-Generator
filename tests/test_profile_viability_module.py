@@ -127,22 +127,28 @@ def test_validate_profile_viability_respects_coupling_disabled() -> None:
     When ns_index_coupling_enabled=False, NS coupling checks should be skipped.
 
     This means even impossible NS pairs won't cause validation to fail
-    (as long as each subprofile is individually viable).
+    (as long as each subprofile is individually viable and the cross-seat
+    check passes).
     """
-    # Create subprofiles that would fail coupling check if enabled
-    # N and S each want 7 spades - combined 14 > 13
-    n_sub = _make_subprofile(spade_min=7)
-    s_sub = _make_subprofile(spade_min=7)
+    # Create subprofiles that would fail coupling check if enabled at index 0.
+    # N[0] wants 7 spades, S[0] wants 7 spades → combined 14 > 13 (coupling fails).
+    # But N[1] wants 0 spades, S[1] wants 0 spades → best-case for cross-seat is 0.
+    # Cross-seat best case: N sub with 7 spades vs S best-case min 0 → 7+0=7 ≤ 13 → alive.
+    n_sub_tight = _make_subprofile(spade_min=7)
+    n_sub_loose = _make_subprofile(spade_min=0)
+    s_sub_tight = _make_subprofile(spade_min=7)
+    s_sub_loose = _make_subprofile(spade_min=0)
 
     profile = MockHandProfile(
         seat_profiles={
-            "N": SeatProfile(seat="N", subprofiles=[n_sub, n_sub]),
-            "S": SeatProfile(seat="S", subprofiles=[s_sub, s_sub]),
+            "N": SeatProfile(seat="N", subprofiles=[n_sub_tight, n_sub_loose]),
+            "S": SeatProfile(seat="S", subprofiles=[s_sub_tight, s_sub_loose]),
         },
         ns_index_coupling_enabled=False,  # Disable coupling checks
     )
 
-    # Should NOT raise because coupling is disabled
+    # Should NOT raise: coupling is disabled, and cross-seat check passes
+    # because best-case min for each seat is 0 spades.
     validate_profile_viability(profile)
 
 
@@ -177,29 +183,35 @@ def test_validate_profile_viability_unequal_subprofile_lengths() -> None:
     """
     Unequal N/S subprofile counts should skip NS coupling checks.
     """
-    # Would fail coupling if checked, but lengths are unequal
-    n_sub = _make_subprofile(spade_min=7)
-    s_sub = _make_subprofile(spade_min=7)
+    # Would fail coupling if checked, but lengths are unequal.
+    # Include a loose sub so cross-seat best-case is feasible (0+0=0 ≤ 13).
+    n_sub_tight = _make_subprofile(spade_min=7)
+    n_sub_loose = _make_subprofile(spade_min=0)
+    s_sub_tight = _make_subprofile(spade_min=7)
+    s_sub_loose = _make_subprofile(spade_min=0)
 
     profile = MockHandProfile(
         seat_profiles={
-            "N": SeatProfile(seat="N", subprofiles=[n_sub, n_sub]),
-            "S": SeatProfile(seat="S", subprofiles=[s_sub, s_sub, s_sub]),  # Different length
+            "N": SeatProfile(seat="N", subprofiles=[n_sub_tight, n_sub_loose]),
+            "S": SeatProfile(seat="S", subprofiles=[s_sub_tight, s_sub_loose, s_sub_loose]),  # Different length
         },
         ns_index_coupling_enabled=True,
     )
 
-    # Should NOT raise because lengths are unequal
+    # Should NOT raise: lengths are unequal (coupling skipped),
+    # and cross-seat passes because best-case min is 0.
     validate_profile_viability(profile)
 
 
 def test_validate_profile_viability_single_subprofile() -> None:
     """
     Single subprofile per seat should skip NS coupling checks.
+
+    Use spade_min=6 on each so cross-seat check passes (6+6=12 ≤ 13).
+    With only 1 sub per seat, coupling is skipped (requires >1 sub per seat).
     """
-    # Would fail coupling if checked, but each seat has only 1 subprofile
-    n_sub = _make_subprofile(spade_min=7)
-    s_sub = _make_subprofile(spade_min=7)
+    n_sub = _make_subprofile(spade_min=6)
+    s_sub = _make_subprofile(spade_min=6)
 
     profile = MockHandProfile(
         seat_profiles={
@@ -209,7 +221,8 @@ def test_validate_profile_viability_single_subprofile() -> None:
         ns_index_coupling_enabled=True,
     )
 
-    # Should NOT raise because each seat has only 1 subprofile
+    # Should NOT raise: single subprofile per seat skips coupling,
+    # and cross-seat passes (6+6=12 ≤ 13 per suit).
     validate_profile_viability(profile)
 
 

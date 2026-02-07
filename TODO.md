@@ -112,6 +112,15 @@
 - **Result**: "Defense to Weak 2s" default seed 7.5s → 1.5s (**5x**), bad seed 22s → 1.1s (**20x**). Diagnostic: 8/20 → 20/20 boards, W failures 71% → 2.5%.
 - **Limitation**: For RS with card range (e.g. 6-7), fill can still add a card beyond min_cards without HCP awareness. Not an issue for current profiles (W has min=max=6). See #13.
 
+### 16. [x] Cross-Seat HCP & Card-Count Feasibility Checks
+- **Problem**: "Defense to 3 Weak 2s" has 43.8% of N×E subprofile combos mathematically impossible (sum(min_hcp) > 40). Each impossible combo burns 1,000 attempts before re-rolling.
+- ✅ **Batch 1**: Core `_cross_seat_feasible()` function + 4 accessor helpers in `profile_viability.py` (21 tests)
+- ✅ **Batch 2**: Dead subprofile detection at validation time — `_check_cross_seat_subprofile_viability()` warns for dead subs, raises `ProfileError` if ALL subs on any seat are dead. Wired into `validate_profile_viability()` step 3. `hand_profile_validate.py` step 9 upgraded to extended validation. (10 tests)
+- ✅ **Batch 3**: Runtime feasibility retry in `_select_subprofiles_for_board()` — retries up to `MAX_SUBPROFILE_FEASIBILITY_RETRIES=100` times on infeasible combos. Dead N sub0 and E sub0 never selected. (6 tests)
+- ✅ **Batch 4**: Integration + benchmark — 20 boards Weak 2s end-to-end, selection comparison (2 tests)
+- **Result**: 0% infeasible subprofile selections (was 43.8%). Dead subs (N sub1, E sub1) eliminated at both validation and runtime. Zero overhead for fully-feasible profiles.
+- New test file: `test_cross_seat_feasibility.py` (39 tests)
+
 ---
 
 ## Enhancements
@@ -138,16 +147,17 @@
 ---
 
 ## Summary
-Architecture: 14 (14 done) | Enhancements: 2 (0 done) | **Total: 2 pending**
+Architecture: 15 (15 done) | Enhancements: 2 (0 done) | **Total: 2 pending**
 
-**Tests**: 414 passed, 4 skipped | **Branch**: refactor/deal-generator
+**Tests**: 453 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 ---
 
-## Completed (34 items + #5, #6, #8, #9, #10, #11, #12, #14, #15)
+## Completed (34 items + #5, #6, #8, #9, #10, #11, #12, #14, #15, #16)
 <details>
 <summary>Click to expand</summary>
 
+- Cross-seat feasibility checks (#16): `_cross_seat_feasible()` rejects impossible subprofile combos at both validation time (dead sub detection) and runtime (selection retry). Eliminates 43.8% wasted attempts on Weak 2s profile. 39 tests.
 - Hot-path micro-optimizations (#15): _CARD_HCP pre-built dict + pre-initialized suit dicts — eliminates 4.5M function calls + 7.4M setdefault calls. Weak 2s 250-board benchmark 20.52s→17.46s (15% faster)
 - Full RS pre-allocation (#14): RS_PRE_ALLOCATE_FRACTION=1.0 — pre-allocate all RS min_cards with HCP targeting. "Defense to Weak 2s" default seed 7.5s→1.5s (5x), bad seed 22s→1.1s (20x)
 - Adaptive re-seeding (#12): per-board timing + automatic re-seed on slow boards (1.75s threshold) — eliminates seed-dependent variance

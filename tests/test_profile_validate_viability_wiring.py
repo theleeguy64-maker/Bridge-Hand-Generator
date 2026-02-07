@@ -49,10 +49,11 @@ def _install_common_patches(monkeypatch, dummy_profile):
     )
 
 
-def test_validate_profile_calls_viability_light(monkeypatch) -> None:
+def test_validate_profile_calls_viability(monkeypatch) -> None:
     """
-    validate_profile(...) should invoke validate_profile_viability_light(...)
-    as part of its pipeline.
+    validate_profile(...) should invoke validate_profile_viability(...)
+    as part of its pipeline.  (Step 9 calls the extended viability check
+    which internally calls light + NS coupling + cross-seat checks.)
     """
     dummy_profile = _DummyProfile()
     _install_common_patches(monkeypatch, dummy_profile)
@@ -66,7 +67,7 @@ def test_validate_profile_calls_viability_light(monkeypatch) -> None:
 
     monkeypatch.setattr(
         hand_profile_validate,
-        "validate_profile_viability_light",
+        "validate_profile_viability",
         fake_viability,
     )
 
@@ -78,7 +79,7 @@ def test_validate_profile_calls_viability_light(monkeypatch) -> None:
 
 def test_validate_profile_propagates_viability_errors(monkeypatch) -> None:
     """
-    If validate_profile_viability_light(...) raises, validate_profile(...)
+    If validate_profile_viability(...) raises, validate_profile(...)
     must surface that error to the caller (not swallow it).
     """
     dummy_profile = _DummyProfile()
@@ -92,7 +93,7 @@ def test_validate_profile_propagates_viability_errors(monkeypatch) -> None:
 
     monkeypatch.setattr(
         hand_profile_validate,
-        "validate_profile_viability_light",
+        "validate_profile_viability",
         fake_viability,
     )
 

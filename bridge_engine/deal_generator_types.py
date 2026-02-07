@@ -171,6 +171,14 @@ RS_PRE_ALLOCATE_HCP_RETRIES: int = 10
 # of W failures).  Standard constraints still use PRE_ALLOCATE_FRACTION.
 RS_PRE_ALLOCATE_FRACTION: float = 1.0
 
+# Maximum retries when _select_subprofiles_for_board() picks an infeasible
+# combination (e.g. sum(min_hcp) > 40).  Each retry re-rolls all subprofile
+# indices while respecting NS/EW coupling.  For easy profiles (no dead subs),
+# this loop costs nothing — the first selection is always feasible.
+# For "Defense to Weak 2s" (43.8% of combos infeasible), this eliminates
+# all wasted 1000-attempt chunks on impossible combinations.
+MAX_SUBPROFILE_FEASIBILITY_RETRIES: int = 100
+
 # Maximum number of full retries per board in generate_deals().
 # Each retry calls the v2 builder with MAX_BOARD_ATTEMPTS attempts.
 # Between retries, the RNG has advanced significantly, so subprofile

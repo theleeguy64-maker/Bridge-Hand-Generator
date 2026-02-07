@@ -17,6 +17,7 @@ from .hand_profile import (
     PartnerContingentData,
 )
 from .seat_viability import _match_seat
+from .profile_viability import _cross_seat_feasible
 
 # ---------------------------------------------------------------------------
 # Re-export types, constants, dataclasses, exception, and debug hooks from
@@ -34,7 +35,7 @@ from .deal_generator_types import (   # explicit re-imports for linters / IDE
     SHAPE_PROB_GTE, SHAPE_PROB_THRESHOLD, PRE_ALLOCATE_FRACTION,
     RS_REROLL_INTERVAL, SUBPROFILE_REROLL_INTERVAL,
     RS_PRE_ALLOCATE_HCP_RETRIES, RS_PRE_ALLOCATE_FRACTION,
-    MAX_BOARD_RETRIES, RESEED_TIME_THRESHOLD_SECONDS,
+    MAX_BOARD_RETRIES, RESEED_TIME_THRESHOLD_SECONDS, MAX_SUBPROFILE_FEASIBILITY_RETRIES,
     CONSTRUCTIVE_MAX_SUM_MIN_CARDS,
     ENABLE_HCP_FEASIBILITY_CHECK, HCP_FEASIBILITY_NUM_SD, DEBUG_SECTION_C,
     _MASTER_DECK, _CARD_HCP,
@@ -1121,7 +1122,8 @@ def _select_subprofiles_for_board(
     dealing_order: List[Seat],
 ) -> Tuple[Dict[Seat, SubProfile], Dict[Seat, int]]:
     """
-    Select a concrete subprofile index for each seat.
+    Select a concrete subprofile index for each seat, with cross-seat
+    feasibility rejection.
 
     NS:
       * If ns_index_coupling_enabled is True and both N/S have >1 subprofiles
@@ -1135,95 +1137,121 @@ def _select_subprofiles_for_board(
         using the first EW seat in dealing_order as the driver.
 
     Any remaining seats just choose their own index by their local weights.
+
+    After selecting, _cross_seat_feasible() checks whether the chosen
+    combination can possibly succeed (HCP sums, per-suit card counts).
+    If infeasible, we retry up to MAX_SUBPROFILE_FEASIBILITY_RETRIES times.
+    If all retries are exhausted, the last selection is returned (the
+    attempt loop will handle it, but this should be extremely rare).
     """
-    chosen_subprofiles: Dict[Seat, SubProfile] = {}
-    chosen_indices: Dict[Seat, int] = {}
 
-    # --- NS coupling logic -------------------------------------------------
-    north_sp = profile.seat_profiles.get("N")
-    south_sp = profile.seat_profiles.get("S")
+    def _pick_once() -> Tuple[Dict[Seat, SubProfile], Dict[Seat, int]]:
+        """Single round of subprofile selection (no feasibility check)."""
+        chosen_subprofiles: Dict[Seat, SubProfile] = {}
+        chosen_indices: Dict[Seat, int] = {}
 
-    ns_coupling_enabled = bool(
-        getattr(profile, "ns_index_coupling_enabled", True)
-    )
+        # --- NS coupling logic ---------------------------------------------
+        north_sp = profile.seat_profiles.get("N")
+        south_sp = profile.seat_profiles.get("S")
 
-    ns_coupling_possible = (
-        ns_coupling_enabled
-        and isinstance(north_sp, SeatProfile)
-        and isinstance(south_sp, SeatProfile)
-        and len(north_sp.subprofiles) > 1
-        and len(south_sp.subprofiles) > 1
-        and len(north_sp.subprofiles) == len(south_sp.subprofiles)
-    )
-
-    if ns_coupling_possible:
-        # Determine NS driver seat.
-        ns_driver: Optional[Seat] = profile.ns_driver_seat(rng)
-        if ns_driver not in ("N", "S"):
-            # Fall back to first NS seat in dealing order.
-            ns_driver = next(
-                (s for s in dealing_order if s in ("N", "S")), "N"
-            )
-
-        ns_follower: Seat = "S" if ns_driver == "N" else "N"
-
-        driver_sp = profile.seat_profiles.get(ns_driver)
-        follower_sp = profile.seat_profiles.get(ns_follower)
-
-        if isinstance(driver_sp, SeatProfile) and isinstance(
-            follower_sp, SeatProfile
-        ):
-            idx = _choose_index_for_seat(rng, driver_sp)
-            chosen_indices[ns_driver] = idx
-            chosen_indices[ns_follower] = idx
-            chosen_subprofiles[ns_driver] = driver_sp.subprofiles[idx]
-            chosen_subprofiles[ns_follower] = follower_sp.subprofiles[idx]
-
-    # --- EW coupling logic -------------------------------------------------
-    east_sp = profile.seat_profiles.get("E")
-    west_sp = profile.seat_profiles.get("W")
-
-    ew_coupling_possible = (
-        isinstance(east_sp, SeatProfile)
-        and isinstance(west_sp, SeatProfile)
-        and len(east_sp.subprofiles) > 1
-        and len(west_sp.subprofiles) > 1
-        and len(east_sp.subprofiles) == len(west_sp.subprofiles)
-    )
-
-    if ew_coupling_possible:
-        # EW "driver" = first of E/W in dealing_order.
-        ew_driver: Seat = next(
-            (s for s in dealing_order if s in ("E", "W")), "E"
+        ns_coupling_enabled = bool(
+            getattr(profile, "ns_index_coupling_enabled", True)
         )
-        ew_follower: Seat = "W" if ew_driver == "E" else "E"
 
-        driver_sp = profile.seat_profiles.get(ew_driver)
-        follower_sp = profile.seat_profiles.get(ew_follower)
+        ns_coupling_possible = (
+            ns_coupling_enabled
+            and isinstance(north_sp, SeatProfile)
+            and isinstance(south_sp, SeatProfile)
+            and len(north_sp.subprofiles) > 1
+            and len(south_sp.subprofiles) > 1
+            and len(north_sp.subprofiles) == len(south_sp.subprofiles)
+        )
 
-        if isinstance(driver_sp, SeatProfile) and isinstance(
-            follower_sp, SeatProfile
-        ):
-            idx = _choose_index_for_seat(rng, driver_sp)
-            chosen_indices[ew_driver] = idx
-            chosen_indices[ew_follower] = idx
-            chosen_subprofiles[ew_driver] = driver_sp.subprofiles[idx]
-            chosen_subprofiles[ew_follower] = follower_sp.subprofiles[idx]
+        if ns_coupling_possible:
+            # Determine NS driver seat.
+            ns_driver: Optional[Seat] = profile.ns_driver_seat(rng)
+            if ns_driver not in ("N", "S"):
+                # Fall back to first NS seat in dealing order.
+                ns_driver = next(
+                    (s for s in dealing_order if s in ("N", "S")), "N"
+                )
 
-    # --- Remaining seats (including unconstrained or single-subprofile) ---
-    for seat_name, seat_profile in profile.seat_profiles.items():
-        if not isinstance(seat_profile, SeatProfile):
-            continue
-        if not seat_profile.subprofiles:
-            # Unconstrained seat – nothing to select.
-            continue
-        if seat_name in chosen_indices:
-            continue
+            ns_follower: Seat = "S" if ns_driver == "N" else "N"
 
-        idx = _choose_index_for_seat(rng, seat_profile)
-        chosen_indices[seat_name] = idx
-        chosen_subprofiles[seat_name] = seat_profile.subprofiles[idx]
+            driver_sp = profile.seat_profiles.get(ns_driver)
+            follower_sp = profile.seat_profiles.get(ns_follower)
 
+            if isinstance(driver_sp, SeatProfile) and isinstance(
+                follower_sp, SeatProfile
+            ):
+                idx = _choose_index_for_seat(rng, driver_sp)
+                chosen_indices[ns_driver] = idx
+                chosen_indices[ns_follower] = idx
+                chosen_subprofiles[ns_driver] = driver_sp.subprofiles[idx]
+                chosen_subprofiles[ns_follower] = follower_sp.subprofiles[idx]
+
+        # --- EW coupling logic ---------------------------------------------
+        east_sp = profile.seat_profiles.get("E")
+        west_sp = profile.seat_profiles.get("W")
+
+        ew_coupling_possible = (
+            isinstance(east_sp, SeatProfile)
+            and isinstance(west_sp, SeatProfile)
+            and len(east_sp.subprofiles) > 1
+            and len(west_sp.subprofiles) > 1
+            and len(east_sp.subprofiles) == len(west_sp.subprofiles)
+        )
+
+        if ew_coupling_possible:
+            # EW "driver" = first of E/W in dealing_order.
+            ew_driver: Seat = next(
+                (s for s in dealing_order if s in ("E", "W")), "E"
+            )
+            ew_follower: Seat = "W" if ew_driver == "E" else "E"
+
+            driver_sp = profile.seat_profiles.get(ew_driver)
+            follower_sp = profile.seat_profiles.get(ew_follower)
+
+            if isinstance(driver_sp, SeatProfile) and isinstance(
+                follower_sp, SeatProfile
+            ):
+                idx = _choose_index_for_seat(rng, driver_sp)
+                chosen_indices[ew_driver] = idx
+                chosen_indices[ew_follower] = idx
+                chosen_subprofiles[ew_driver] = driver_sp.subprofiles[idx]
+                chosen_subprofiles[ew_follower] = follower_sp.subprofiles[idx]
+
+        # --- Remaining seats (incl. unconstrained or single-subprofile) ----
+        for seat_name, seat_profile in profile.seat_profiles.items():
+            if not isinstance(seat_profile, SeatProfile):
+                continue
+            if not seat_profile.subprofiles:
+                # Unconstrained seat – nothing to select.
+                continue
+            if seat_name in chosen_indices:
+                continue
+
+            idx = _choose_index_for_seat(rng, seat_profile)
+            chosen_indices[seat_name] = idx
+            chosen_subprofiles[seat_name] = seat_profile.subprofiles[idx]
+
+        return chosen_subprofiles, chosen_indices
+
+    # --- Feasibility retry loop -------------------------------------------
+    # Try up to MAX_SUBPROFILE_FEASIBILITY_RETRIES times to find a feasible
+    # combination.  For easy profiles (all combos feasible) this always
+    # succeeds on the first try — zero overhead.  For hard profiles like
+    # "Defense to Weak 2s" (43.8% of N×E combos infeasible), this eliminates
+    # all wasted 1000-attempt chunks on impossible combinations.
+    for _ in range(MAX_SUBPROFILE_FEASIBILITY_RETRIES):
+        chosen_subprofiles, chosen_indices = _pick_once()
+        feasible, _reason = _cross_seat_feasible(chosen_subprofiles)
+        if feasible:
+            return chosen_subprofiles, chosen_indices
+
+    # All retries exhausted — return last selection and let the attempt loop
+    # handle it.  This should be extremely rare (only if ALL subprofile
+    # combos are infeasible, which the validation-time check already flags).
     return chosen_subprofiles, chosen_indices
 
 
