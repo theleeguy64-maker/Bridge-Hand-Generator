@@ -40,7 +40,7 @@ Seat = str
 PROFILE_DIR = Path("profiles")
 PROFILE_FNAME = "Defense_to_3_Weak_2s_v0.2.json"
 
-NUM_BOARDS = 50
+NUM_BOARDS = 20
 
 
 def _load_profile() -> HandProfile:
@@ -223,11 +223,10 @@ class TestDefenseWeak2sDiagnostic:
         """
         profile = _load_profile()
 
-        # Try a wide range of seeds — this profile has ~10% per-board
-        # success rate, so we need enough boards to reliably hit at least 1.
-        # Trying 50 boards with ~10% rate gives >99% chance of at least 1.
+        # 20 boards with ~44% per-board success rate gives >99.99% chance
+        # of at least 1 success. Kept at 20 to avoid bloating test suite time.
         successes = 0
-        num_pipeline_boards = 50
+        num_pipeline_boards = 20
         for board_number in range(1, num_pipeline_boards + 1):
             rng = random.Random(50_000 + board_number)
             try:
