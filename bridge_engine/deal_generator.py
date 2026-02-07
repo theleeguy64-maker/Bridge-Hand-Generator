@@ -5,6 +5,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Any
 
 import math
 import random
+import time
 
 from .setup_env import SetupResult
 from .hand_profile import (
@@ -32,7 +33,8 @@ from .deal_generator_types import (   # explicit re-imports for linters / IDE
     ROTATE_PROBABILITY, VULNERABILITY_SEQUENCE, ROTATE_MAP,
     SHAPE_PROB_GTE, SHAPE_PROB_THRESHOLD, PRE_ALLOCATE_FRACTION,
     RS_REROLL_INTERVAL, SUBPROFILE_REROLL_INTERVAL, RS_PRE_ALLOCATE_HCP_RETRIES,
-    MAX_BOARD_RETRIES, CONSTRUCTIVE_MAX_SUM_MIN_CARDS,
+    MAX_BOARD_RETRIES, RESEED_TIME_THRESHOLD_SECONDS,
+    CONSTRUCTIVE_MAX_SUM_MIN_CARDS,
     ENABLE_HCP_FEASIBILITY_CHECK, HCP_FEASIBILITY_NUM_SD, DEBUG_SECTION_C,
     _MASTER_DECK,
     _DEBUG_ON_MAX_ATTEMPTS, _DEBUG_STANDARD_CONSTRUCTIVE_USED,
@@ -2086,7 +2088,11 @@ def generate_deals(
     # success rate), 50 retries gives ~99.5% per-board success.
     try:
         deals: List[Deal] = []
+        board_times: List[float] = []   # Per-board elapsed seconds
+        reseed_count: int = 0           # Number of adaptive re-seeds
+
         for board_number in range(1, num_deals + 1):
+            board_start = time.monotonic()
             deal = None
             last_exc: Optional[Exception] = None
             for _retry in range(MAX_BOARD_RETRIES):
@@ -2099,7 +2105,27 @@ def generate_deals(
                     break  # Board succeeded.
                 except DealGenerationError as exc:
                     last_exc = exc
-                    continue  # Retry with advanced RNG state.
+
+                    # Adaptive re-seeding: if this board is taking too long,
+                    # the current RNG trajectory is probably unfavorable.
+                    # Replace with a fresh random seed (OS entropy) and keep
+                    # trying. The timer resets so the new seed gets a full
+                    # time budget.
+                    if RESEED_TIME_THRESHOLD_SECONDS > 0.0:
+                        elapsed = time.monotonic() - board_start
+                        if elapsed >= RESEED_TIME_THRESHOLD_SECONDS:
+                            new_seed = random.SystemRandom().randint(
+                                1, 2**31 - 1
+                            )
+                            rng = random.Random(new_seed)
+                            reseed_count += 1
+                            board_start = time.monotonic()
+
+                    continue  # Retry with advanced (or fresh) RNG state.
+
+            board_elapsed = time.monotonic() - board_start
+            board_times.append(board_elapsed)
+
             if deal is None:
                 raise DealGenerationError(
                     f"Failed to generate board {board_number} after "
@@ -2113,7 +2139,11 @@ def generate_deals(
             deals,
             rotate=enable_rotation,
         )
-        return DealSet(deals=deals)
+        return DealSet(
+            deals=deals,
+            board_times=board_times,
+            reseed_count=reseed_count,
+        )
     except DealGenerationError:
         raise  # Pass through domain errors without wrapping.
     except Exception as exc:

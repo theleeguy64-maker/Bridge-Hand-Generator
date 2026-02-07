@@ -88,6 +88,7 @@ Per-attempt tracking for diagnostics:
 - Dead code cleanup complete (#4, #4b): removed stubs, flags, hooks, cascading dead code
 - Performance optimizations (#10): master deck constant, index-based dealing, suit pre-indexing, incremental HCP, unrolled matching (~19% faster)
 - Constrained fill (#11): suit max + HCP max enforcement during dealing, PRE_ALLOCATE_FRACTION 0.75 — W shape failures eliminated, HCP failures -81%
+- Adaptive re-seeding (#12): per-board timing + auto re-seed on slow boards (3s threshold) — eliminates seed-dependent variance
 - 414 tests passing, 4 skipped
 
 ### Remaining Work

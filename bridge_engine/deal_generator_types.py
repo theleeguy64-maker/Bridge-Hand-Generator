@@ -7,7 +7,7 @@
 # All other deal_generator_* modules import from here.
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional
 
 # ---------------------------------------------------------------------------
@@ -44,6 +44,8 @@ class Deal:
 @dataclass(frozen=True)
 class DealSet:
     deals: List[Deal]
+    board_times: List[float] = field(default_factory=list)   # Per-board seconds
+    reseed_count: int = 0                                     # Number of mid-run re-seeds
 
 
 @dataclass(frozen=True)
@@ -170,6 +172,13 @@ RS_PRE_ALLOCATE_HCP_RETRIES: int = 10
 # multiple chances to find a workable subprofile + RS combination.
 # Total budget per board = MAX_BOARD_RETRIES * MAX_BOARD_ATTEMPTS.
 MAX_BOARD_RETRIES: int = 50
+
+# Per-board wall-clock time budget (seconds) before adaptive re-seeding.
+# If a board's retry loop exceeds this threshold, the RNG is replaced with
+# a fresh random seed (via SystemRandom) to escape an unfavorable trajectory.
+# The timer resets after each re-seed, so multiple re-seeds per board are
+# possible.  Set to 0.0 to disable adaptive re-seeding entirely.
+RESEED_TIME_THRESHOLD_SECONDS: float = 3.0
 
 # For v1 constructive sampling, only use suit minima when the total is
 # "reasonable" – we don't want to pre-commit too many cards.

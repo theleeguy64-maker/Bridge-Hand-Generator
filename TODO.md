@@ -94,6 +94,13 @@
 - **Result**: "Defense to Weak 2s" per-board success rate ~3.7x better. W shape failures eliminated, W HCP failures reduced 81%.
 - deal_generator.py: 2,530 → 2,678 lines (+148)
 
+### 12. [x] Adaptive Re-Seeding + Per-Board Timing
+- ✅ `RESEED_TIME_THRESHOLD_SECONDS = 3.0` — per-board wall-clock budget before re-seeding
+- ✅ `generate_deals()` tracks per-board elapsed time; on timeout, replaces RNG with fresh `SystemRandom` seed
+- ✅ `DealSet` extended with `board_times: List[float]` and `reseed_count: int`
+- ✅ Session summary shows avg/max per board time + re-seed count
+- **Motivation**: "Defense to Weak 2s" showed 6x time variance depending on seed (2.9s vs 17.2s for 6 boards)
+
 ---
 
 ## Enhancements
@@ -114,16 +121,17 @@
 ---
 
 ## Summary
-Architecture: 11 (11 done) | Enhancements: 1 | **Total: 1 pending**
+Architecture: 12 (12 done) | Enhancements: 1 | **Total: 1 pending**
 
 **Tests**: 414 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 ---
 
-## Completed (34 items + #5, #6, #8, #9, #10, #11)
+## Completed (34 items + #5, #6, #8, #9, #10, #11, #12)
 <details>
 <summary>Click to expand</summary>
 
+- Adaptive re-seeding (#12): per-board timing + automatic re-seed on slow boards (3s threshold) — eliminates 6x seed-dependent variance
 - Constrained fill + 0.75 fraction (#11): suit max + HCP max enforcement during fill, PRE_ALLOCATE_FRACTION 0.50→0.75 — W shape failures eliminated, HCP failures −81%
 - Performance optimizations (#10): early HCP pre-check, master deck constant, index-based dealing, suit pre-indexing, incremental HCP tracking, unrolled _match_standard (~19% faster)
 - Board-level retry + production hardening (#9): 50 retries per board, subprofile re-roll, HCP-targeted RS pre-alloc — "Defense to Weak 2s" works in production (~50s for 6 boards)

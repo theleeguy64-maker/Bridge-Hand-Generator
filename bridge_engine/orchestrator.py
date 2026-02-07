@@ -308,6 +308,16 @@ def _run_deal_generation_session() -> None:
     print(f"Owner         : {owner}")
     print(f"Deals created : {summary.num_deals}")
     print(f"Time taken    : {gen_elapsed:.1f}s")
+    # Per-board timing breakdown (populated by adaptive re-seeding feature).
+    # Use getattr for compatibility with test stubs / DummyDealSet objects.
+    _board_times = getattr(deal_set, "board_times", [])
+    _reseed_count = getattr(deal_set, "reseed_count", 0)
+    if _board_times:
+        avg_time = sum(_board_times) / len(_board_times)
+        max_time = max(_board_times)
+        print(f"Avg per board : {avg_time:.1f}s (max {max_time:.1f}s)")
+    if _reseed_count > 0:
+        print(f"Re-seeds      : {_reseed_count}")
     print(f"TXT output    : {summary.txt_path}")
     print(f"LIN output    : {summary.lin_path}")
     if summary.warnings:

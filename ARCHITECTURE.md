@@ -200,6 +200,8 @@ Re-select subprofiles (different N/E combos) + RS suits
 Re-select RS suits to avoid "stuck with bad suit" scenarios
     ↓ (on board exhaustion)
 Board-level retry in generate_deals (up to MAX_BOARD_RETRIES)
+    ↓ (if board elapsed > RESEED_TIME_THRESHOLD_SECONDS)
+Adaptive re-seed: replace RNG with fresh SystemRandom seed
 ```
 
 **Constants:**
@@ -212,6 +214,7 @@ Board-level retry in generate_deals (up to MAX_BOARD_RETRIES)
 | `SUBPROFILE_REROLL_INTERVAL` | 1000 | Re-select subprofiles every N attempts |
 | `RS_PRE_ALLOCATE_HCP_RETRIES` | 10 | Rejection sampling retries for HCP-targeted RS pre-alloc |
 | `MAX_BOARD_RETRIES` | 50 | Retries per board in generate_deals() |
+| `RESEED_TIME_THRESHOLD_SECONDS` | 3.0 | Per-board wall-clock budget before adaptive re-seeding |
 
 **Functions** (in `deal_generator.py` + `deal_generator_helpers.py`):
 - `_pre_select_rs_suits(rng, chosen_subs)` → Dict[Seat, List[str]] — pre-select RS suits before dealing
