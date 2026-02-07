@@ -53,16 +53,17 @@ Select subprofiles for board (weighted random, with NS/EW coupling)
 Dispersion check → identify tight seats (P(>=min_cards) ≤ 19%)
     ↓
 Deal with help:
-  - Tight seats: pre-allocate 50% of suit minima, fill rest randomly
-  - Non-tight seats: deal 13 random cards
-  - Last seat: gets remainder
+  - Tight seats: pre-allocate 75% of standard suit minima (100% for RS suits with HCP targeting)
+  - Non-tight seats: constrained fill (respects suit max + HCP max)
+  - Last seat: gets pre-allocated + remainder
     ↓
 Match all seats → Success or retry
 ```
 
 **Why it works**: If North needs 6+ spades, random dealing has only 6.3% chance
-of delivering that. Pre-allocating 3 spades gives North a head start, dramatically
-reducing retry attempts.
+of delivering that. Pre-allocating 5 spades (75%) gives North a head start,
+dramatically reducing retry attempts. RS suits get 100% pre-allocation with
+HCP targeting to satisfy tight suit-level HCP windows.
 
 ### Failure Attribution
 
@@ -88,11 +89,13 @@ Per-attempt tracking for diagnostics:
 - Dead code cleanup complete (#4, #4b): removed stubs, flags, hooks, cascading dead code
 - Performance optimizations (#10): master deck constant, index-based dealing, suit pre-indexing, incremental HCP, unrolled matching (~19% faster)
 - Constrained fill (#11): suit max + HCP max enforcement during dealing, PRE_ALLOCATE_FRACTION 0.75 — W shape failures eliminated, HCP failures -81%
-- Adaptive re-seeding (#12): per-board timing + auto re-seed on slow boards (3s threshold) — eliminates seed-dependent variance
+- Full RS pre-allocation (#14): RS_PRE_ALLOCATE_FRACTION=1.0 — RS suits fully populated at pre-allocation time with HCP targeting. "Defense to Weak 2s" 5-20x faster
+- Adaptive re-seeding (#12): per-board timing + auto re-seed on slow boards (1.75s threshold) — eliminates seed-dependent variance
 - 414 tests passing, 4 skipped
 
 ### Remaining Work
-1. **Refactor large files** (#7) — Batches 1-2 done: deal_generator.py 2,678→2,122 + types (230) + helpers (444). Batches 3-5 pending (v1, v2, cleanup). Also: hand_profile_model.py (921), profile_cli.py (968)
+1. **Refactor large files** (#7) — Batches 1-2 done: deal_generator.py 2,678→2,153 + types (249) + helpers (444). Batches 3-5 pending (v1, v2, cleanup). Also: hand_profile_model.py (921), profile_cli.py (968)
+2. **HCP-aware constrained fill for RS range suits** (#13) — Low priority. When RS allows a card range (e.g. 6-7), fill can blindly add a card beyond pre-allocated min_cards that busts the RS suit HCP window. Not an issue for current profiles.
 
 ## Design Principles
 

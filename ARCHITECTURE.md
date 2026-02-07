@@ -4,8 +4,8 @@
 
 ```
 bridge_engine/
-├── deal_generator.py      (2,122 lines) - Facade + v1/v2 builders + generate_deals() + subprofile selection
-├── deal_generator_types.py  (230 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
+├── deal_generator.py      (2,153 lines) - Facade + v1/v2 builders + generate_deals() + subprofile selection
+├── deal_generator_types.py  (249 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (444 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (921 lines) - Data models
 ├── seat_viability.py        (615 lines) - Constraint matching + RS pre-selection threading
@@ -176,7 +176,7 @@ PC/OC nudge blocks, and shadow probes have all been deleted.*
 ### v3: Shape-Based Help System (✅ D0-D6 Complete, RS Pre-Selection #8 Complete)
 
 **Key insight:** Select subprofiles FIRST, then use shape probability table to
-identify tight seats and pre-allocate 50% of their suit minima.
+identify tight seats and pre-allocate their suit minima (75% for standard, 100% for RS with HCP targeting).
 
 **Pipeline:**
 ```
@@ -368,7 +368,7 @@ _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION(...) # Called on each failed attempt
 # Types: Seat, Card, SeatFailCounts, SeatSeenCounts
 # Dataclasses: Deal, DealSet, SuitAnalysis, HardestSeatConfig
 # Exception: DealGenerationError
-# Constants: MAX_BOARD_ATTEMPTS, SHAPE_PROB_GTE, PRE_ALLOCATE_FRACTION, etc.
+# Constants: MAX_BOARD_ATTEMPTS, SHAPE_PROB_GTE, PRE_ALLOCATE_FRACTION, RS_PRE_ALLOCATE_FRACTION, etc.
 # Debug hooks: _DEBUG_ON_MAX_ATTEMPTS, _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION
 # Master deck: _MASTER_DECK
 ```

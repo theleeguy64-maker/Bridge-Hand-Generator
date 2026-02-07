@@ -118,7 +118,7 @@
   - [ ] **Batch 3**: `deal_generator_v1.py` — v1 builder + hardest-seat + constructive help
   - [ ] **Batch 4**: `deal_generator_v2.py` — v2 shape help + v2 builder (active path)
   - [ ] **Batch 5**: Cleanup facade, verify, update docs
-  - `deal_generator.py`: 2,678 → 2,122 lines (−556 so far, target ~170 after all batches)
+  - `deal_generator.py`: 2,678 → 2,153 lines (−525 so far, target ~170 after all batches)
   - NOTE: `_select_subprofiles_for_board` kept in facade (isinstance monkeypatch sensitivity)
 - `hand_profile_model.py` (921 lines) — split data models from logic
 - `profile_cli.py` (968 lines) — split command handlers
@@ -133,7 +133,7 @@
 ---
 
 ## Summary
-Architecture: 14 (13 done, 1 pending) | Enhancements: 1 | **Total: 2 pending**
+Architecture: 13 (13 done) | Enhancements: 2 (0 done) | **Total: 2 pending**
 
 **Tests**: 414 passed, 4 skipped | **Branch**: refactor/deal-generator
 
