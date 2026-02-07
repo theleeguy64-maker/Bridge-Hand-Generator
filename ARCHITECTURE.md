@@ -4,7 +4,7 @@
 
 ```
 bridge_engine/
-├── deal_generator.py      (2,530 lines) - Main pipeline + v2 shape help + HCP feasibility + RS pre-selection + board retry + perf opts
+├── deal_generator.py      (2,678 lines) - Main pipeline + v2 shape help + HCP feasibility + RS pre-selection + board retry + perf opts + constrained fill
 ├── hand_profile_model.py    (921 lines) - Data models
 ├── seat_viability.py        (615 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (512 lines) - Validation
@@ -205,7 +205,7 @@ Board-level retry in generate_deals (up to MAX_BOARD_RETRIES)
 |----------|-------|---------|
 | `SHAPE_PROB_GTE` | Dict[0-13→float] | P(>=N cards in suit) |
 | `SHAPE_PROB_THRESHOLD` | 0.19 | Cutoff for "tight" seats |
-| `PRE_ALLOCATE_FRACTION` | 0.50 | Fraction of suit minima to pre-allocate |
+| `PRE_ALLOCATE_FRACTION` | 0.75 | Fraction of suit minima to pre-allocate |
 | `RS_REROLL_INTERVAL` | 500 | Re-select RS suits every N attempts |
 | `SUBPROFILE_REROLL_INTERVAL` | 1000 | Re-select subprofiles every N attempts |
 | `RS_PRE_ALLOCATE_HCP_RETRIES` | 10 | Rejection sampling retries for HCP-targeted RS pre-alloc |
@@ -264,6 +264,18 @@ Constants: `ENABLE_HCP_FEASIBILITY_CHECK = True`, `HCP_FEASIBILITY_NUM_SD = 1.0`
 - Incremental HCP tracking in `_deal_with_help()` Phase 2 — uses known full-deck values (40, 120)
 - Early total-HCP pre-check in v2 builder — quick O(13) sum before full `_match_seat()`
 - `_match_standard()` unrolled suit loop — direct attribute access, no temporary list construction
+
+**Constrained Fill (#11):**
+
+Phase 3 of `_deal_with_help()` uses `_constrained_fill()` instead of `_random_deal()` for
+non-last seats.  Walks the shuffled deck and skips cards that would:
+1. Bust a suit's max_cards (shape constraint enforcement)
+2. Push total HCP over total_max_hcp (HCP constraint enforcement — spot cards always accepted)
+
+Skipped cards remain in the deck for other seats.  `_get_suit_maxima()` extracts effective
+per-suit maximums from standard + RS constraints (including pair_overrides).
+
+`PRE_ALLOCATE_FRACTION` increased 0.50 → 0.75 for more aggressive pre-allocation.
 
 **Status:** Profiles A-E all work. Profile E (6 spades + 10-12 HCP) generates
 successfully with v2 shape help + HCP feasibility rejection. "Defense to 3 Weak 2s"
@@ -361,6 +373,8 @@ _deal_with_help(rng, deck, subs, tight_seats, order, rs_pre_selections) -> (Dict
 _pre_allocate(rng, deck, subprofile, fraction) -> List[Card]
 _pre_allocate_rs(rng, deck, subprofile, pre_selected_suits, fraction) -> List[Card]
 _random_deal(rng, deck, n) -> List[Card]
+_get_suit_maxima(subprofile, rs_pre_selected) -> Dict[str, int]
+_constrained_fill(deck, n, pre_cards, suit_maxima, total_max_hcp) -> List[Card]
 _card_hcp(card) -> int
 _deck_hcp_stats(deck) -> (hcp_sum, hcp_sum_sq)
 _check_hcp_feasibility(drawn_hcp, cards_remaining, deck_size, ...) -> bool

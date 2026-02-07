@@ -566,6 +566,6 @@ class TestDealWithHelpHcpGate:
             rng, deck, subs, {"N"}, DEALING_ORDER
         )
         assert rejected == "N"
-        # Pre-alloc removed 3 spades from the deck (floor(6*0.5)=3).
-        # Deck should have 49 cards remaining (52 - 3 pre-allocated).
-        assert len(deck) == original_size - 3
+        # Pre-alloc removed 4 spades from the deck (floor(6*0.75)=4).
+        # Deck should have 48 cards remaining (52 - 4 pre-allocated).
+        assert len(deck) == original_size - 4

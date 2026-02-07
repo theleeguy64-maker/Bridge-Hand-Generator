@@ -193,7 +193,7 @@ SHAPE_PROB_THRESHOLD: float = 0.19
 
 # Fraction of suit minima to pre-allocate for tight seats.
 # 50% balances helping enough vs not depleting the deck for other seats.
-PRE_ALLOCATE_FRACTION: float = 0.50
+PRE_ALLOCATE_FRACTION: float = 0.75
 
 # How often (in attempts) to re-roll the RS suit pre-selections within a board.
 # Re-rolling protects against "stuck with a bad suit choice" scenarios by
@@ -977,6 +977,138 @@ def _random_deal(
     return hand
 
 
+def _get_suit_maxima(
+    subprofile: "SubProfile",
+    rs_pre_selected: Optional[List[str]] = None,
+) -> Dict[str, int]:
+    """
+    Extract the effective max_cards per suit from a subprofile.
+
+    Combines standard constraint maxima with RS constraint maxima for
+    pre-selected suits.  Returns a dict mapping suit letter → max cards.
+
+    E.g. standard has max_cards=13 for all suits, but RS says max=6 for
+    spades → effective max for S is 6.
+    """
+    maxima: Dict[str, int] = {"S": 13, "H": 13, "D": 13, "C": 13}
+
+    # Standard constraints.
+    std = getattr(subprofile, "standard", None)
+    if std is not None:
+        for suit_letter, suit_attr in [
+            ("S", "spades"), ("H", "hearts"),
+            ("D", "diamonds"), ("C", "clubs"),
+        ]:
+            sr = getattr(std, suit_attr, None)
+            if sr is not None:
+                mc = getattr(sr, "max_cards", 13)
+                if mc < maxima[suit_letter]:
+                    maxima[suit_letter] = mc
+
+    # RS constraints: enforce max_cards for pre-selected suits.
+    rs = getattr(subprofile, "random_suit_constraint", None)
+    if rs is not None and rs_pre_selected:
+        # Resolve effective ranges (respecting pair_overrides).
+        ranges_by_suit: Dict[str, object] = {}
+        if (
+            rs.required_suits_count == 2
+            and rs.pair_overrides
+            and len(rs_pre_selected) == 2
+        ):
+            sorted_pair = tuple(sorted(rs_pre_selected))
+            matched = None
+            for po in rs.pair_overrides:
+                if tuple(sorted(po.suits)) == sorted_pair:
+                    matched = po
+                    break
+            if matched is not None:
+                ranges_by_suit[matched.suits[0]] = matched.first_range
+                ranges_by_suit[matched.suits[1]] = matched.second_range
+            else:
+                for idx, suit in enumerate(rs_pre_selected):
+                    if idx < len(rs.suit_ranges):
+                        ranges_by_suit[suit] = rs.suit_ranges[idx]
+        else:
+            for idx, suit in enumerate(rs_pre_selected):
+                if idx < len(rs.suit_ranges):
+                    ranges_by_suit[suit] = rs.suit_ranges[idx]
+
+        for suit_letter, sr in ranges_by_suit.items():
+            mc = getattr(sr, "max_cards", 13)
+            if mc < maxima[suit_letter]:
+                maxima[suit_letter] = mc
+
+    return maxima
+
+
+def _constrained_fill(
+    deck: List[Card],
+    n: int,
+    pre_cards: List[Card],
+    suit_maxima: Dict[str, int],
+    total_max_hcp: int = 40,
+) -> List[Card]:
+    """
+    Fill n cards from a shuffled deck, skipping cards that would bust
+    a suit maximum or push total HCP over the maximum.  Skipped cards
+    remain in the deck for other seats.
+
+    Since the deck is already shuffled, walking front-to-back and
+    accepting/skipping is equivalent to random selection with rejection.
+
+    Args:
+        deck: Shuffled deck (mutable, modified in place).
+        n: Number of cards to fill.
+        pre_cards: Cards already in hand (pre-allocated), used to count
+            current suit holdings and HCP.
+        suit_maxima: Max cards per suit {S: max, H: max, D: max, C: max}.
+        total_max_hcp: Maximum total HCP for the hand (default 40 = no limit).
+
+    Returns:
+        List of accepted cards (may be fewer than n if deck exhausted).
+    """
+    if n <= 0:
+        return []
+
+    # Count suits and HCP already held from pre-allocation.
+    suit_count: Dict[str, int] = {"S": 0, "H": 0, "D": 0, "C": 0}
+    current_hcp = 0
+    for c in pre_cards:
+        suit_count[c[1]] += 1
+        current_hcp += _card_hcp(c)
+
+    accepted: List[Card] = []
+    remaining: List[Card] = []
+
+    for card in deck:
+        if len(accepted) >= n:
+            # Already have enough — push rest to remaining untouched.
+            remaining.append(card)
+            continue
+
+        card_hcp = _card_hcp(card)
+        suit = card[1]
+
+        # Skip if this card would bust the suit maximum.
+        if suit_count[suit] >= suit_maxima.get(suit, 13):
+            remaining.append(card)
+            continue
+
+        # Skip if this honor card would push total HCP over the maximum.
+        # Only skip cards with HCP > 0 — spot cards are always accepted
+        # since they don't change the HCP situation.
+        if card_hcp > 0 and current_hcp + card_hcp > total_max_hcp:
+            remaining.append(card)
+            continue
+
+        accepted.append(card)
+        suit_count[suit] += 1
+        current_hcp += card_hcp
+
+    deck[:] = remaining
+    return accepted
+
+
 # ---------------------------------------------------------------------------
 # HCP feasibility utilities (TODO #5)
 #
@@ -1404,6 +1536,8 @@ def _deal_with_help(
                     return None, seat  # Early HCP rejection
 
     # Phase 3: Fill each seat to 13 cards.
+    # For non-last seats, use constrained fill to skip cards that would
+    # bust a suit maximum.  Skipped cards stay in the deck for later seats.
     for i, seat in enumerate(dealing_order):
         is_last = (i == len(dealing_order) - 1)
         pre = pre_allocated.get(seat, [])
@@ -1412,14 +1546,28 @@ def _deal_with_help(
             # Last seat: pre-allocated cards + whatever remains in the deck.
             hands[seat] = pre + list(deck)
             deck.clear()
-        elif pre:
-            # Tight seat with pre-allocation: fill to 13 randomly.
-            remaining_needed = 13 - len(pre)
-            fill = _random_deal(rng, deck, remaining_needed)
-            hands[seat] = pre + fill
         else:
-            # Non-tight seat: deal 13 random cards.
-            hands[seat] = _random_deal(rng, deck, 13)
+            remaining_needed = 13 - len(pre)
+            sub = chosen_subprofiles.get(seat)
+            if sub is not None:
+                # Constrained fill: skip cards that would bust suit max
+                # or push total HCP over the maximum.
+                rs_for_seat = (
+                    rs_pre_selections.get(seat)
+                    if rs_pre_selections else None
+                )
+                maxima = _get_suit_maxima(sub, rs_for_seat)
+                std = getattr(sub, "standard", None)
+                max_hcp = (
+                    getattr(std, "total_max_hcp", 40)
+                    if std is not None else 40
+                )
+                fill = _constrained_fill(
+                    deck, remaining_needed, pre, maxima, max_hcp
+                )
+            else:
+                fill = _random_deal(rng, deck, remaining_needed)
+            hands[seat] = pre + fill
 
     return hands, None
 

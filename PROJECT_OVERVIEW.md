@@ -87,10 +87,11 @@ Per-attempt tracking for diagnostics:
 - Local failure attribution with rotation benchmarks
 - Dead code cleanup complete (#4, #4b): removed stubs, flags, hooks, cascading dead code
 - Performance optimizations (#10): master deck constant, index-based dealing, suit pre-indexing, incremental HCP, unrolled matching (~19% faster)
+- Constrained fill (#11): suit max + HCP max enforcement during dealing, PRE_ALLOCATE_FRACTION 0.75 — W shape failures eliminated, HCP failures -81%
 - 414 tests passing, 4 skipped
 
 ### Remaining Work
-1. **Refactor large files** (#7) — split deal_generator.py (2,530), hand_profile_model.py (921), profile_cli.py (968)
+1. **Refactor large files** (#7) — split deal_generator.py (2,678), hand_profile_model.py (921), profile_cli.py (968)
 
 ## Design Principles
 

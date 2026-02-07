@@ -16,7 +16,7 @@
 - ✅ `SHAPE_PROB_GTE` table + `SHAPE_PROB_THRESHOLD` + `PRE_ALLOCATE_FRACTION` (D1)
 - ✅ `_dispersion_check()` identifies tight seats (D2)
 - ✅ `_random_deal()` helper (D3)
-- ✅ `_pre_allocate()` — 50% of suit minima (D4)
+- ✅ `_pre_allocate()` — 75% of suit minima (D4)
 - ✅ `_deal_with_help()` orchestrator (D5)
 - ✅ `_build_single_constrained_deal_v2()` MVP (D6)
 - ✅ Full attribution: seat_fail_as_seat, global_other, global_unchecked, hcp, shape + debug hooks (D7)
@@ -86,12 +86,20 @@
 - **Result**: Test suite ~37s → ~30s (~19% faster). Production generation also faster.
 - deal_generator.py: 2,445 → 2,530 lines (+85); seat_viability.py: 601 → 615 lines (+14); orchestrator.py: 524 → 528 lines (+4)
 
+### 11. [x] Constrained Fill + PRE_ALLOCATE_FRACTION 0.75
+- ✅ **PRE_ALLOCATE_FRACTION 0.50 → 0.75**: More aggressive pre-allocation gives tight seats a bigger head start. "Defense to Weak 2s" success rate 6/50 → 22/50 boards per 10K attempts.
+- ✅ **Constrained fill — suit max enforcement**: `_constrained_fill()` walks the shuffled deck and skips cards that would bust a suit's max_cards. Eliminated 100% of W shape failures (27K → 0).
+- ✅ **Constrained fill — HCP max enforcement**: Also skips honor cards (A/K/Q/J) that would push total HCP over the seat's total_max_hcp. Reduced W HCP failures 81% (155K → 29K).
+- ✅ **`_get_suit_maxima()`**: Extracts effective per-suit max_cards from standard + RS constraints (respects pair_overrides).
+- **Result**: "Defense to Weak 2s" per-board success rate ~3.7x better. W shape failures eliminated, W HCP failures reduced 81%.
+- deal_generator.py: 2,530 → 2,678 lines (+148)
+
 ---
 
 ## Enhancements
 
 ### 7. [ ] Refactor large files
-- `deal_generator.py` (2,530 lines) — split v1/v2, helpers, HCP feasibility, RS pre-selection, constants into separate modules
+- `deal_generator.py` (2,678 lines) — split v1/v2, helpers, HCP feasibility, RS pre-selection, constants into separate modules
 - `hand_profile_model.py` (921 lines) — split data models from logic
 - `profile_cli.py` (968 lines) — split command handlers
 - `orchestrator.py` (528 lines) — split session management from CLI routing
@@ -99,16 +107,17 @@
 ---
 
 ## Summary
-Architecture: 10 (10 done) | Enhancements: 1 | **Total: 1 pending**
+Architecture: 11 (11 done) | Enhancements: 1 | **Total: 1 pending**
 
 **Tests**: 414 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 ---
 
-## Completed (34 items + #5, #6, #8, #9, #10)
+## Completed (34 items + #5, #6, #8, #9, #10, #11)
 <details>
 <summary>Click to expand</summary>
 
+- Constrained fill + 0.75 fraction (#11): suit max + HCP max enforcement during fill, PRE_ALLOCATE_FRACTION 0.50→0.75 — W shape failures eliminated, HCP failures −81%
 - Performance optimizations (#10): early HCP pre-check, master deck constant, index-based dealing, suit pre-indexing, incremental HCP tracking, unrolled _match_standard (~19% faster)
 - Board-level retry + production hardening (#9): 50 retries per board, subprofile re-roll, HCP-targeted RS pre-alloc — "Defense to Weak 2s" works in production (~50s for 6 boards)
 - RS-aware pre-selection (#8): pre-select RS suits before dealing, extend dispersion/help/matching — "Defense to Weak 2s" now viable

@@ -71,8 +71,8 @@ class TestShapeProbGTE:
         assert dg.SHAPE_PROB_THRESHOLD == 0.19
 
     def test_pre_allocate_fraction_default(self):
-        """Default pre-allocation fraction should be 0.50."""
-        assert dg.PRE_ALLOCATE_FRACTION == 0.50
+        """Default pre-allocation fraction should be 0.75."""
+        assert dg.PRE_ALLOCATE_FRACTION == 0.75
 
 
 # ===================================================================
@@ -301,23 +301,23 @@ class TestPreAllocate:
     def _suit_of(self, card):
         return card[1] if len(card) >= 2 else ""
 
-    def test_6_spades_gives_3(self):
-        """min_cards=6 at 50% → 3 spade cards pre-allocated."""
+    def test_6_spades_gives_4(self):
+        """min_cards=6 at 75% → floor(4.5) = 4 spade cards pre-allocated."""
         rng = random.Random(42)
         deck = self._make_deck()
         sub = _DummySubProfile(s=6)
         result = dg._pre_allocate(rng, deck, sub)
         spades = [c for c in result if self._suit_of(c) == "S"]
-        assert len(spades) == 3
+        assert len(spades) == 4
 
-    def test_5_hearts_gives_2(self):
-        """min_cards=5 at 50% → floor(2.5) = 2 heart cards pre-allocated."""
+    def test_5_hearts_gives_3(self):
+        """min_cards=5 at 75% → floor(3.75) = 3 heart cards pre-allocated."""
         rng = random.Random(42)
         deck = self._make_deck()
         sub = _DummySubProfile(h=5)
         result = dg._pre_allocate(rng, deck, sub)
         hearts = [c for c in result if self._suit_of(c) == "H"]
-        assert len(hearts) == 2
+        assert len(hearts) == 3
 
     def test_1_club_gives_0(self):
         """min_cards=1 at 50% → floor(0.5) = 0, returns empty."""
@@ -327,26 +327,26 @@ class TestPreAllocate:
         result = dg._pre_allocate(rng, deck, sub)
         assert result == []
 
-    def test_4_diamonds_gives_2(self):
-        """min_cards=4 at 50% → 2 diamond cards."""
+    def test_4_diamonds_gives_3(self):
+        """min_cards=4 at 75% → 3 diamond cards."""
         rng = random.Random(42)
         deck = self._make_deck()
         sub = _DummySubProfile(d=4)
         result = dg._pre_allocate(rng, deck, sub)
         diamonds = [c for c in result if self._suit_of(c) == "D"]
-        assert len(diamonds) == 2
+        assert len(diamonds) == 3
 
     def test_multiple_suits(self):
-        """6 spades + 5 hearts → 3 spades + 2 hearts = 5 total."""
+        """6 spades + 5 hearts → 4 spades + 3 hearts = 7 total."""
         rng = random.Random(42)
         deck = self._make_deck()
         sub = _DummySubProfile(s=6, h=5)
         result = dg._pre_allocate(rng, deck, sub)
         spades = [c for c in result if self._suit_of(c) == "S"]
         hearts = [c for c in result if self._suit_of(c) == "H"]
-        assert len(spades) == 3
-        assert len(hearts) == 2
-        assert len(result) == 5
+        assert len(spades) == 4
+        assert len(hearts) == 3
+        assert len(result) == 7
 
     def test_all_zero_min_returns_empty(self):
         """All suits min_cards=0 should return empty."""
@@ -1162,7 +1162,10 @@ class TestV2Attribution:
                 "global_unchecked": dict(global_unchecked),
             })
 
-        rng = random.Random(42)
+        # Seed 0 ensures the deal doesn't succeed on the very first
+        # attempt (which can happen with aggressive pre-allocation),
+        # so the attribution hook fires at least once.
+        rng = random.Random(0)
         profile = _north_tight_south_tight_profile()
         old_hook = dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION
         try:
