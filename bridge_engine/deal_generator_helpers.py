@@ -17,7 +17,7 @@ from .deal_generator_types import (
     Deal,
     VULNERABILITY_SEQUENCE, ROTATE_MAP, ROTATE_PROBABILITY,
     PRE_ALLOCATE_FRACTION, HCP_FEASIBILITY_NUM_SD,
-    _MASTER_DECK,
+    _MASTER_DECK, _CARD_HCP,
 )
 from .hand_profile import (
     HandProfile,
@@ -260,10 +260,12 @@ def _card_hcp(card: Card) -> int:
     Return the HCP (high card points) value of a single card.
 
     A=4, K=3, Q=2, J=1, all others=0.  Card format is rank+suit, e.g. "AS".
+    Uses pre-built _CARD_HCP dict for O(1) lookup without function-call overhead
+    on the hot path.  Callers in tight loops should use _CARD_HCP[card] directly.
     """
     if not card:
         return 0
-    return _HCP_BY_RANK.get(card[0], 0)
+    return _CARD_HCP.get(card, 0)
 
 
 def _deck_hcp_stats(deck: List[Card]) -> Tuple[int, int]:
@@ -278,8 +280,9 @@ def _deck_hcp_stats(deck: List[Card]) -> Tuple[int, int]:
     """
     hcp_sum = 0
     hcp_sum_sq = 0
+    card_hcp = _CARD_HCP  # local alias avoids repeated global lookup
     for card in deck:
-        v = _card_hcp(card)
+        v = card_hcp[card]
         hcp_sum += v
         hcp_sum_sq += v * v
     return hcp_sum, hcp_sum_sq

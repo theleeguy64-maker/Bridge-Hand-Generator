@@ -37,7 +37,7 @@ from .deal_generator_types import (   # explicit re-imports for linters / IDE
     MAX_BOARD_RETRIES, RESEED_TIME_THRESHOLD_SECONDS,
     CONSTRUCTIVE_MAX_SUM_MIN_CARDS,
     ENABLE_HCP_FEASIBILITY_CHECK, HCP_FEASIBILITY_NUM_SD, DEBUG_SECTION_C,
-    _MASTER_DECK,
+    _MASTER_DECK, _CARD_HCP,
     _DEBUG_ON_MAX_ATTEMPTS, _DEBUG_STANDARD_CONSTRUCTIVE_USED,
     _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION,
 )
@@ -714,7 +714,7 @@ def _constrained_fill(
     current_hcp = 0
     for c in pre_cards:
         suit_count[c[1]] += 1
-        current_hcp += _card_hcp(c)
+        current_hcp += _CARD_HCP[c]
 
     accepted: List[Card] = []
     remaining: List[Card] = []
@@ -725,7 +725,7 @@ def _constrained_fill(
             remaining.append(card)
             continue
 
-        card_hcp = _card_hcp(card)
+        card_hcp = _CARD_HCP[card]
         suit = card[1]
 
         # Skip if this card would bust the suit maximum.
@@ -788,9 +788,10 @@ def _pre_allocate(
         return []
 
     # Build suit index once — avoids N full-deck scans (one per suit).
-    suit_cards: Dict[str, List[Card]] = {}
+    # Pre-initialized dict avoids setdefault overhead on every card.
+    suit_cards: Dict[str, List[Card]] = {"S": [], "H": [], "D": [], "C": []}
     for c in deck:
-        suit_cards.setdefault(c[1], []).append(c)
+        suit_cards[c[1]].append(c)
 
     pre_allocated: List[Card] = []
 
@@ -895,9 +896,10 @@ def _pre_allocate_rs(
 
     # Build suit index once — suits are disjoint so processing order
     # doesn't affect available pools across different suits.
-    suit_cards: Dict[str, List[Card]] = {}
+    # Pre-initialized dict avoids setdefault overhead on every card.
+    suit_cards: Dict[str, List[Card]] = {"S": [], "H": [], "D": [], "C": []}
     for c in deck:
-        suit_cards.setdefault(c[1], []).append(c)
+        suit_cards[c[1]].append(c)
 
     pre_allocated: List[Card] = []
 
@@ -938,7 +940,7 @@ def _pre_allocate_rs(
 
             chosen = rng.sample(available, actual)
             for _retry in range(RS_PRE_ALLOCATE_HCP_RETRIES):
-                sample_hcp = sum(_card_hcp(c) for c in chosen)
+                sample_hcp = sum(_CARD_HCP[c] for c in chosen)
                 if target_low <= sample_hcp <= target_high:
                     break  # Good HCP — use this sample.
                 # Bad HCP — resample.
@@ -1032,7 +1034,7 @@ def _deal_with_help(
         removed_hcp_sum_sq = 0
         for cards in pre_allocated.values():
             for c in cards:
-                v = _card_hcp(c)
+                v = _CARD_HCP[c]
                 removed_hcp_sum += v
                 removed_hcp_sum_sq += v * v
         deck_hcp_sum = 40 - removed_hcp_sum
@@ -1049,7 +1051,7 @@ def _deal_with_help(
             std = getattr(sub, "standard", None)
             if std is None:
                 continue
-            drawn_hcp = sum(_card_hcp(c) for c in pre)
+            drawn_hcp = sum(_CARD_HCP[c] for c in pre)
             cards_remaining = 13 - len(pre)
             if cards_remaining > 0 and deck_size > 0:
                 if not _check_hcp_feasibility(
@@ -1840,7 +1842,7 @@ def _build_single_constrained_deal_v2(
             # RS matching, and all subprofile iteration overhead.
             std_early = getattr(sub, "standard", None)
             if std_early is not None:
-                hand_hcp_quick = sum(_card_hcp(c) for c in hands[seat])
+                hand_hcp_quick = sum(_CARD_HCP[c] for c in hands[seat])
                 if (
                     hand_hcp_quick < std_early.total_min_hcp
                     or hand_hcp_quick > std_early.total_max_hcp

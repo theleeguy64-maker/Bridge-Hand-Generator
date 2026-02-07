@@ -221,6 +221,11 @@ _MASTER_DECK: List[Card] = [
     r + s for s in "SHDC" for r in "AKQJT98765432"
 ]
 
+# Pre-built HCP lookup for every card in the deck.
+# Avoids per-call function overhead on the hot path (4.5M+ calls/run).
+# A=4, K=3, Q=2, J=1, all others=0.
+_CARD_HCP: Dict[str, int] = {card: {"A": 4, "K": 3, "Q": 2, "J": 1}.get(card[0], 0) for card in _MASTER_DECK}
+
 
 # ---------------------------------------------------------------------------
 # Debug hooks

@@ -101,6 +101,11 @@
 - ✅ Session summary shows avg/max per board time + re-seed count
 - **Motivation**: "Defense to Weak 2s" showed 6x time variance depending on seed (2.9s vs 17.2s for 6 boards)
 
+### 15. [x] Hot-Path Micro-Optimizations (_CARD_HCP + setdefault elimination)
+- ✅ **`_CARD_HCP` dict**: Pre-built 52-card HCP lookup in `deal_generator_types.py` — eliminates `_card_hcp()` function-call overhead on 4.5M+ calls/run. 6 hot-path call sites use `_CARD_HCP[c]` directly; `_card_hcp()` retained for external/test callers.
+- ✅ **Pre-initialized suit dicts**: `_pre_allocate()` and `_pre_allocate_rs()` use `{"S": [], "H": [], "D": [], "C": []}` instead of `setdefault()` — eliminates 7.4M `setdefault` calls.
+- **Result**: 250-board Weak 2s benchmark 20.52s → 17.46s (**15% faster**), function calls 57.8M → 41.4M (**−28%**). Test suite 4.04s → 3.61s (**−11%**).
+
 ### 14. [x] Full RS Pre-Allocation (RS_PRE_ALLOCATE_FRACTION = 1.0)
 - ✅ `RS_PRE_ALLOCATE_FRACTION = 1.0` — pre-allocate 100% of RS suit min_cards with HCP targeting (separate from standard `PRE_ALLOCATE_FRACTION = 0.75`)
 - **Root cause**: With 0.75 fraction, W pre-allocated 4 of 6 RS cards; remaining 2 came from random fill blind to RS suit HCP window (5-7). This caused 89% of all W failures (71% of total failures).
@@ -133,16 +138,17 @@
 ---
 
 ## Summary
-Architecture: 13 (13 done) | Enhancements: 2 (0 done) | **Total: 2 pending**
+Architecture: 14 (14 done) | Enhancements: 2 (0 done) | **Total: 2 pending**
 
 **Tests**: 414 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 ---
 
-## Completed (34 items + #5, #6, #8, #9, #10, #11, #12, #14)
+## Completed (34 items + #5, #6, #8, #9, #10, #11, #12, #14, #15)
 <details>
 <summary>Click to expand</summary>
 
+- Hot-path micro-optimizations (#15): _CARD_HCP pre-built dict + pre-initialized suit dicts — eliminates 4.5M function calls + 7.4M setdefault calls. Weak 2s 250-board benchmark 20.52s→17.46s (15% faster)
 - Full RS pre-allocation (#14): RS_PRE_ALLOCATE_FRACTION=1.0 — pre-allocate all RS min_cards with HCP targeting. "Defense to Weak 2s" default seed 7.5s→1.5s (5x), bad seed 22s→1.1s (20x)
 - Adaptive re-seeding (#12): per-board timing + automatic re-seed on slow boards (1.75s threshold) — eliminates seed-dependent variance
 - Constrained fill + 0.75 fraction (#11): suit max + HCP max enforcement during fill, PRE_ALLOCATE_FRACTION 0.50→0.75 — W shape failures eliminated, HCP failures −81%

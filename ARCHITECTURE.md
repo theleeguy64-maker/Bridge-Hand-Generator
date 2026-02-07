@@ -4,9 +4,9 @@
 
 ```
 bridge_engine/
-├── deal_generator.py      (2,153 lines) - Facade + v1/v2 builders + generate_deals() + subprofile selection
-├── deal_generator_types.py  (249 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
-├── deal_generator_helpers.py (444 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
+├── deal_generator.py      (2,155 lines) - Facade + v1/v2 builders + generate_deals() + subprofile selection
+├── deal_generator_types.py  (254 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
+├── deal_generator_helpers.py (447 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (921 lines) - Data models
 ├── seat_viability.py        (615 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (512 lines) - Validation
@@ -263,10 +263,11 @@ Functions:
 
 Constants: `ENABLE_HCP_FEASIBILITY_CHECK = True`, `HCP_FEASIBILITY_NUM_SD = 1.0`
 
-**Performance Optimizations (#10):**
+**Performance Optimizations (#10, #15):**
 - `_MASTER_DECK` module-level constant — avoids 52 string concatenations per attempt
+- `_CARD_HCP` pre-built dict — O(1) HCP lookup per card, eliminates 4.5M+ function calls per run (#15)
 - `_random_deal()` uses `deck[:take]` + `del` — deck is already shuffled, no need for `rng.sample()`
-- `_pre_allocate()` / `_pre_allocate_rs()` build suit index once, remove all in one pass
+- `_pre_allocate()` / `_pre_allocate_rs()` build suit index once with pre-initialized dict, remove all in one pass
 - Incremental HCP tracking in `_deal_with_help()` Phase 2 — uses known full-deck values (40, 120)
 - Early total-HCP pre-check in v2 builder — quick O(13) sum before full `_match_seat()`
 - `_match_standard()` unrolled suit loop — direct attribute access, no temporary list construction
@@ -371,6 +372,7 @@ _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION(...) # Called on each failed attempt
 # Constants: MAX_BOARD_ATTEMPTS, SHAPE_PROB_GTE, PRE_ALLOCATE_FRACTION, RS_PRE_ALLOCATE_FRACTION, etc.
 # Debug hooks: _DEBUG_ON_MAX_ATTEMPTS, _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION
 # Master deck: _MASTER_DECK
+# Pre-built HCP: _CARD_HCP (dict of all 52 cards → HCP values)
 ```
 
 ### deal_generator_helpers.py
