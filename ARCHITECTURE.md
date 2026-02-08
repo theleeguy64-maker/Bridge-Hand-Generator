@@ -4,7 +4,8 @@
 
 ```
 bridge_engine/
-├── deal_generator.py      (2,183 lines) - Facade + v1/v2 builders + generate_deals() + subprofile selection
+├── deal_generator.py      (1,158 lines) - Facade: v1 builder + subprofile selection + generate_deals() + re-exports
+├── deal_generator_v2.py   (1,087 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py  (262 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (447 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (921 lines) - Data models
@@ -224,7 +225,7 @@ Adaptive re-seed: replace RNG with fresh SystemRandom seed
 | `RESEED_TIME_THRESHOLD_SECONDS` | 1.75 | Per-board wall-clock budget before adaptive re-seeding |
 | `MAX_SUBPROFILE_FEASIBILITY_RETRIES` | 100 | Max retries for cross-seat feasible subprofile combo (#16) |
 
-**Functions** (in `deal_generator.py` + `deal_generator_helpers.py`):
+**Functions** (in `deal_generator_v2.py` + `deal_generator_helpers.py`):
 - `_pre_select_rs_suits(rng, chosen_subs)` → Dict[Seat, List[str]] — pre-select RS suits before dealing
 - `_dispersion_check(chosen_subs, threshold, rs_pre_selections)` → set of tight seats
 - `_random_deal(rng, deck, n)` → List[Card] (mutates deck)
@@ -409,7 +410,7 @@ _deal_single_board_simple(rng, board_number, dealer, dealing_order) -> Deal
 _apply_vulnerability_and_rotation(rng, deals, rotate) -> List[Deal]
 ```
 
-### deal_generator.py (facade + builders)
+### deal_generator.py (facade — 1,158 lines)
 ```python
 # Public API
 generate_deals(setup, profile, num_deals, enable_rotation) -> DealSet
@@ -418,22 +419,35 @@ generate_deals(setup, profile, num_deals, enable_rotation) -> DealSet
 # Includes cross-seat feasibility retry loop (#16)
 _select_subprofiles_for_board(rng, profile, dealing_order) -> (subs, indices)
 
-# v1 builder (legacy)
+# v1 builder (legacy, still in facade — Batch 4B will extract)
 _build_single_constrained_deal(rng, profile, board_number, debug) -> Deal
 _choose_hardest_seat_for_board(...) -> Optional[Seat]
 _extract_standard_suit_minima(profile, seat, subprofile) -> Dict[str, int]
 _construct_hand_for_seat(rng, deck, min_suit_counts) -> List[Card]
 
-# v2 shape help system (active path)
-_build_single_constrained_deal_v2(rng, profile, board_number) -> Deal
-_pre_select_rs_suits(rng, chosen_subs) -> Dict[Seat, List[str]]
+# Re-exports from deal_generator_v2 (v2 active path)
+_build_single_constrained_deal_v2, _dispersion_check, _pre_select_rs_suits,
+_random_deal, _get_suit_maxima, _constrained_fill, _pre_allocate,
+_pre_allocate_rs, _deal_with_help
+```
+
+### deal_generator_v2.py (v2 shape-help — 1,087 lines)
+```python
+# v2 shape help helpers
 _dispersion_check(chosen_subs, threshold, rs_pre_selections) -> set[Seat]
-_deal_with_help(rng, deck, subs, tight_seats, order, rs_pre_selections) -> (hands, None) | (None, Seat)
-_pre_allocate(rng, deck, subprofile, fraction) -> List[Card]
-_pre_allocate_rs(rng, deck, subprofile, pre_selected_suits, fraction) -> List[Card]
+_pre_select_rs_suits(rng, chosen_subs) -> Dict[Seat, List[str]]
 _random_deal(rng, deck, n) -> List[Card]
 _get_suit_maxima(subprofile, rs_pre_selected) -> Dict[str, int]
 _constrained_fill(deck, n, pre_cards, suit_maxima, total_max_hcp) -> List[Card]
+_pre_allocate(rng, deck, subprofile, fraction) -> List[Card]
+_pre_allocate_rs(rng, deck, subprofile, pre_selected_suits, fraction) -> List[Card]
+_deal_with_help(rng, deck, subs, tight_seats, order, rs_pre_selections) -> (hands, None) | (None, Seat)
+
+# v2 builder (active production path)
+_build_single_constrained_deal_v2(rng, profile, board_number) -> Deal
+
+# Late import pattern: reads _dg.MAX_BOARD_ATTEMPTS, _dg.ENABLE_HCP_FEASIBILITY_CHECK,
+# _dg._DEBUG_ON_* through facade module at call time for monkeypatch compatibility.
 ```
 
 ### seat_viability.py
