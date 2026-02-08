@@ -179,20 +179,15 @@
 - Consolidate exclusion editors (`_edit_subprofile_exclusions()` vs `_edit_subprofile_exclusions_for_seat()`)
 - **Priority**: Medium — reduces ~150 lines of duplication
 
-### 22. [ ] Standardize `ns_role_mode` defaults
-- `hand_profile_model.py` defaults to `"north_drives"`
-- `profile_wizard.py` forces `"no_driver_no_index"`
-- `hand_profile_validate.py` defaults to `"no_driver_no_index"` for legacy
-- Pick one default and use it consistently
-- **Priority**: Medium — inconsistency could cause subtle behavior differences
+### 22. [x] Standardize `ns_role_mode` defaults
+- ✅ All 8 locations now consistently use `"no_driver_no_index"` as default
+- ✅ Dataclass field, `to_dict()`, `from_dict()`, `ns_driver_seat()`, validate, wizard — all aligned
 
-### 23. [ ] Profile CLI cleanup (`profile_cli.py`)
-- Remove unused imports (`Any`, `Dict`)
-- Extract pure logic from `edit_profile_action()` (160 lines, deep nesting)
-- Narrow overly broad `except Exception` handlers
-- Duplicate profile summary printing (view action vs print impl) — consolidate
-- `draft_tools_action()` defined x2 — remove duplicate
-- **Priority**: Low — code quality
+### 23. [x] Profile CLI cleanup (`profile_cli.py`)
+- ✅ Removed unused imports (`Any`, `Dict`)
+- ✅ Narrowed `except Exception` to `(JSONDecodeError, TypeError, KeyError, ValueError)` in `_load_profiles()`
+- ✅ Extracted `_print_profile_metadata()` + `_print_profile_constraints()` — eliminates duplicate metadata printing
+- ✅ `draft_tools_action()` duplicate already removed in prior work
 
 ### 24. [x] Duplicate definitions in `hand_profile_model.py`
 - ✅ Already resolved — duplicate `SubProfile` and orphaned `from_dict()` were cleaned up in #19
@@ -216,7 +211,7 @@
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 13 (11 done) | **Total: 3 pending**
+Architecture: 15 (15 done) | Enhancements: 13 (13 done) | **Total: 1 pending**
 
 **Tests**: 465 passed, 4 skipped | **Branch**: refactor/deal-generator
 

@@ -11,10 +11,10 @@ bridge_engine/
 ├── deal_generator_helpers.py (447 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (832 lines) - Data models
 ├── seat_viability.py        (615 lines) - Constraint matching + RS pre-selection threading
-├── hand_profile_validate.py (512 lines) - Validation
+├── hand_profile_validate.py (519 lines) - Validation
 ├── profile_diagnostic.py     (209 lines) - Generic profile diagnostic runner (Admin menu)
 ├── orchestrator.py          (549 lines) - CLI/session management + timing
-├── profile_cli.py           (957 lines) - Profile commands
+├── profile_cli.py           (938 lines) - Profile commands
 ├── profile_wizard.py        (164 lines) - Profile creation UI
 ├── profile_viability.py     (355 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py         (249 lines) - JSON persistence (atomic writes, error-tolerant loading)
@@ -522,7 +522,6 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 | File | Issue |
 |------|-------|
 | `orchestrator.py` | `_format_nonstandard_rs_buckets()` x2 — *removed in #4b* |
-| `profile_cli.py` | `draft_tools_action()` x2 |
 
 *Resolved*: `_weights_for_seat_profile()`, `_choose_index_for_seat()`, `_select_subprofiles_for_board()` — duplicates cleaned up.
 

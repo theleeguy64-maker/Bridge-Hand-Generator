@@ -92,7 +92,8 @@ def test_view_and_optional_print_profile_action_uses_printer(monkeypatch, tmp_pa
     view_and_optional_print_profile_action should:
       - load profiles
       - choose one
-      - call _print_full_profile_details when the user says 'yes'
+      - call _print_profile_metadata and _print_profile_constraints
+        when the user says 'yes'
     """
 
     profile = _make_dummy_profile("ViewMe")
@@ -107,20 +108,27 @@ def test_view_and_optional_print_profile_action_uses_printer(monkeypatch, tmp_pa
     # Make _yes_no always say "yes" so printing is triggered
     monkeypatch.setattr(pc, "_yes_no", lambda prompt, default=True: True)
 
-    calls: dict[str, list] = {"printed": []}
+    calls: dict[str, list] = {"metadata": [], "constraints": []}
 
-    def fake_print_full_profile_details(p: HandProfile, pth: Path) -> None:
-        calls["printed"].append((p, pth))
+    def fake_print_metadata(p: HandProfile, pth: Path) -> None:
+        calls["metadata"].append((p, pth))
 
-    monkeypatch.setattr(pc, "_print_full_profile_details", fake_print_full_profile_details)
+    def fake_print_constraints(p: HandProfile) -> None:
+        calls["constraints"].append(p)
+
+    monkeypatch.setattr(pc, "_print_profile_metadata", fake_print_metadata)
+    monkeypatch.setattr(pc, "_print_profile_constraints", fake_print_constraints)
 
     # Run
     capsys.readouterr()
     pc.view_and_optional_print_profile_action()
     captured = capsys.readouterr()
 
-    # Assert print was called exactly once with the selected profile
-    assert len(calls["printed"]) == 1
-    printed_profile, printed_path = calls["printed"][0]
-    assert printed_profile is profile
-    assert printed_path == path
+    # Metadata is called once for summary, and once more for TXT export
+    # (_yes_no always returns True, so TXT export is also triggered).
+    assert len(calls["metadata"]) >= 1
+    assert calls["metadata"][0] == (profile, path)
+
+    # Constraints are called once for screen, and once more for TXT export.
+    assert len(calls["constraints"]) >= 1
+    assert calls["constraints"][0] is profile

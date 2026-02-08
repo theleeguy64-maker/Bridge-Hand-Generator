@@ -622,8 +622,8 @@ class HandProfile:
     author: str = ""
     version: str = ""
     rotate_deals_by_default: bool = True
-    # "north_drives" (default), "south_drives", or "random_driver".
-    ns_role_mode: str = "north_drives"
+    # "no_driver_no_index" (default), "north_drives", "south_drives", or "random_driver".
+    ns_role_mode: str = "no_driver_no_index"
     subprofile_exclusions: List["SubprofileExclusionData"] = field(default_factory=list)
 
     # Explicit flags replacing magic profile name checks (P1.1 refactor)
@@ -823,8 +823,8 @@ class HandProfile:
             "author": self.author,
             "version": self.version,
             "rotate_deals_by_default": getattr(self, "rotate_deals_by_default", True),
-            # NEW: persist NS role mode, defaulting for legacy HandProfile objects
-            "ns_role_mode": getattr(self, "ns_role_mode", "north_drives"),         
+            # Persist NS role mode (consistent default across all paths)
+            "ns_role_mode": getattr(self, "ns_role_mode", "no_driver_no_index"),
             "seat_profiles": {
                 seat: sp.to_dict() for seat, sp in self.seat_profiles.items()
             },
