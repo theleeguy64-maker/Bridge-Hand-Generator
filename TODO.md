@@ -194,10 +194,9 @@
 - `draft_tools_action()` defined x2 — remove duplicate
 - **Priority**: Low — code quality
 
-### 24. [ ] Duplicate definitions in `hand_profile_model.py`
-- `SubProfile` class defined x2 — remove first incomplete definition
-- Orphaned module-level `from_dict()` — remove or wire up
-- **Priority**: Medium — same pattern as #19 bugs
+### 24. [x] Duplicate definitions in `hand_profile_model.py`
+- ✅ Already resolved — duplicate `SubProfile` and orphaned `from_dict()` were cleaned up in #19
+- ✅ Removed duplicate unreachable `return None` in `ns_driver_seat()`
 
 ### 25. [x] Stale code in `orchestrator.py`
 - ✅ Simplified `_run_profile_management()` — removed unreachable hasattr fallback chain and error path
@@ -217,7 +216,7 @@
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 13 (10 done) | **Total: 4 pending**
+Architecture: 15 (15 done) | Enhancements: 13 (11 done) | **Total: 3 pending**
 
 **Tests**: 465 passed, 4 skipped | **Branch**: refactor/deal-generator
 

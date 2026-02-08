@@ -749,12 +749,9 @@ class HandProfile:
         if mode in ("no_driver", "no_driver_no_index"):
             return None
 
-        # Unknown / future values: treat as “no driver”
+        # Unknown / future values: treat as "no driver"
         return None
 
-        # Unknown / future values: treat as “no driver”
-        return None
-               
     def ns_role_buckets(self) -> Dict[Seat, Dict[str, List[SubProfile]]]:
         """
         For NS seats only, group subprofiles into three buckets by ns_role_usage:
