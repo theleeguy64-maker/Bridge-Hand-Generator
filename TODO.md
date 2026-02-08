@@ -136,8 +136,8 @@
   - `deal_generator.py`: 2,183 → 398 lines (−1,785); `deal_generator_v1.py`: 795; `deal_generator_v2.py`: 1,113; `_types`: 262; `_helpers`: 452
   - NOTE: `_select_subprofiles_for_board` kept in facade (isinstance monkeypatch sensitivity)
   - NOTE: v1 and v2 both use late import `from . import deal_generator as _dg` for monkeypatchable values
-- `hand_profile_model.py` (921 lines) — split data models from logic
-- `profile_cli.py` (968 lines) — split command handlers
+- `hand_profile_model.py` (835 lines) — split data models from logic
+- `profile_cli.py` (957 lines) — split command handlers
 - `orchestrator.py` (528 lines) — split session management from CLI routing
 
 ### 17. [x] Profile Diagnostic Tool (Admin Menu)
@@ -165,7 +165,7 @@
 ## Summary
 Architecture: 15 (15 done) | Enhancements: 4 (3 done) | **Total: 1 pending**
 
-**Tests**: 458 passed, 4 skipped | **Branch**: refactor/deal-generator
+**Tests**: 465 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 
