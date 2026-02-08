@@ -8,10 +8,6 @@ Design goals:
 """
 
 from __future__ import annotations
-from pathlib import Path
-
-from dataclasses import replace
-from typing import Optional
 
 # ---- Model + validation seams (tests monkeypatch these) ----------------------
 # HandProfile/validate_profile are expected to be available here so tests can do:
@@ -26,7 +22,6 @@ from .hand_profile import HandProfile, validate_profile
 # `bridge_engine.profile_wizard._input_int` and wizard code will see it.
 
 from . import wizard_flow
-from .cli_io import clear_screen
 
 from .wizard_io import (  # type: ignore
     clear_screen,
@@ -63,7 +58,7 @@ try:
         _build_queen_range_for_prompt,
         _build_jack_range_for_prompt,
     )
-except Exception:
+except ImportError:
     # Not all versions have these helpers; ignore if absent.
     pass
 

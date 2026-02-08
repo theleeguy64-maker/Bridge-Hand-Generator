@@ -375,13 +375,13 @@ def _constrained_fill(
 
 
 # ---------------------------------------------------------------------------
-# HCP feasibility utilities (TODO #5)
+# HCP feasibility utilities
 #
 # These functions support early rejection of hands whose pre-allocated cards
 # make the target HCP range statistically implausible.  The check runs after
-# shape pre-allocation but before the random fill, saving the cost of dealing
+# shape pre-allocation but before the random fill, saving the cost of dealing.
 # HCP utilities (_card_hcp, _deck_hcp_stats, _check_hcp_feasibility) are
-# imported from deal_generator_helpers (re-exported via *)
+# imported from deal_generator_helpers (re-exported via *).
 
 def _pre_allocate(
     rng: random.Random,

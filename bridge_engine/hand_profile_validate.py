@@ -285,9 +285,9 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
     #   - no_driver_no_index                           → no driver semantics, skip checks
     #
     # Back-compat:
-    #   - missing/blank ns_role_mode → treated as "north_drives" (legacy behavior)
+    #   - missing/blank ns_role_mode → treated as "no_driver_no_index" (skip checks)
     #   - unknown/future values      → treated as "no_driver_no_index" (lenient)
-    mode = getattr(profile, "ns_role_mode", "north_drives") or "north_drives"
+    mode = getattr(profile, "ns_role_mode", "no_driver_no_index") or "no_driver_no_index"
     mode = (mode or "").strip()
 
     if mode in ("no_driver", "no_driver_no_index"):
@@ -444,7 +444,7 @@ def validate_profile(data: Any) -> HandProfile:
     - Applies an F5 legacy normalisation shim for old schema_version=0 data:
         * rotate_deals_by_default defaults to True
         * subprofile_exclusions defaults to []
-        * ns_role_mode defaults to "north_drives"
+        * ns_role_mode defaults to "no_driver_no_index"
     - Normalises subprofile weights as per tests in test_weighted_subprofiles:
         * If all weights are 0 → equalise to 100 / N each
         * If any weight is negative → ProfileError

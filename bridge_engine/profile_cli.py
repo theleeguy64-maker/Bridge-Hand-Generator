@@ -33,7 +33,7 @@ import io
 
 from contextlib import redirect_stdout
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from .menu_help import get_menu_help
 from .cli_io import _yes_no as _yes_no  # keep name for tests to monkeypatch
@@ -200,7 +200,7 @@ def _load_profiles() -> List[Tuple[Path, HandProfile]]:
                 data = json.load(f)
             profile = HandProfile.from_dict(data)
             results.append((path, profile))
-        except Exception as exc:
+        except (json.JSONDecodeError, TypeError, KeyError, ValueError) as exc:
             print(
                 f"WARNING: Failed to load profile from {path}: {exc}",
                 file=sys.stderr,
@@ -447,9 +447,8 @@ def _print_opponent_contingent_constraint(
     _print_suit_range("Suit", oc.suit_range, indent + "  ")
 
 
-def _print_full_profile_details_impl(profile: HandProfile, path: Path) -> None:
-    """Print full details of a profile, including constraints."""
-    print("\n=== Full Profile Details ===")
+def _print_profile_metadata(profile: HandProfile, path: Path) -> None:
+    """Print profile metadata header (name, tag, dealer, etc.)."""
     print(f"Name        : {profile.profile_name}")
     print(f"Description : {profile.description}")
     print(f"Tag         : {profile.tag}")
@@ -459,15 +458,18 @@ def _print_full_profile_details_impl(profile: HandProfile, path: Path) -> None:
     print(f"File        : {path}")
     print(f"Dealing ord.: {profile.hand_dealing_order}")
     print(f"Rotate deals: {getattr(profile, 'rotate_deals_by_default', True)}")
-    
-    ns_mode = getattr(profile, "ns_role_mode", "north_drives")
+
+    ns_mode = getattr(profile, "ns_role_mode", "no_driver_no_index")
     ns_mode_pretty = {
         "north_drives": "North usually drives",
         "south_drives": "South usually drives",
         "random_driver": "Random between N/S",
     }.get(ns_mode, ns_mode)
-    print(f"NS mode: {ns_mode_pretty}")
-    
+    print(f"NS mode     : {ns_mode_pretty}")
+
+
+def _print_profile_constraints(profile: HandProfile) -> None:
+    """Print per-seat constraints (subprofiles, RS, PC, OC, exclusions)."""
     print("\nSeat profiles (in dealing order):")
     for seat in profile.hand_dealing_order:
         sp = profile.seat_profiles.get(seat)
@@ -503,8 +505,15 @@ def _print_full_profile_details_impl(profile: HandProfile, path: Path) -> None:
                     sub.opponents_contingent_suit_constraint,
                     indent="    ",
                 )
-                
+
         _print_subprofile_exclusions(profile, seat, indent="  ")
+
+
+def _print_full_profile_details_impl(profile: HandProfile, path: Path) -> None:
+    """Print full details of a profile: metadata + constraints."""
+    print("\n=== Full Profile Details ===")
+    _print_profile_metadata(profile, path)
+    _print_profile_constraints(profile)
 
 
 def _parse_hand_dealing_order(s: str) -> list[str] | None:
@@ -595,45 +604,17 @@ def view_and_optional_print_profile_action() -> None:
         return
     path, profile = chosen
 
-    # Summary / metadata
+    # Metadata (printed once — shared helper avoids duplication)
     print("\n--- Profile Summary ---")
-    print(f"Name        : {profile.profile_name}")
-    print(f"Description : {profile.description}")
-    print(f"Tag         : {profile.tag}")
-    print(f"Dealer      : {profile.dealer}")
-    print(f"Author      : {getattr(profile, 'author', '')}")
-    print(f"Version     : {getattr(profile, 'version', '')}")
-    print(f"File        : {path}")
-    print(f"Dealing ord.: {profile.hand_dealing_order}")
-    print("Seat profiles:")
-    for seat in profile.hand_dealing_order:
-        sp = profile.seat_profiles.get(seat)
-        if sp is None:
-            continue
-        print(f"  Seat {seat}: {len(sp.subprofiles)} sub-profile(s)")
-        exclusions = [
-            e for e in getattr(profile, "subprofile_exclusions", [])
-            if getattr(e, "seat", None) == seat
-        ]
-        if exclusions:
-            items = []
-            for e in exclusions:
-                idx = getattr(e, "subprofile_index", None)
-                if getattr(e, "excluded_shapes", None):
-                    items.append(f"{idx}:shapes")
-                elif getattr(e, "clauses", None):
-                    items.append(f"{idx}:rule")
-                else:
-                    items.append(f"{idx}:?")
-            print(f"    Exclusions: " + ", ".join(items))
-            
+    _print_profile_metadata(profile, path)
+
     # Offer to print full constraints (default = YES)
     print_full = prompt_yes_no(
-        "\nPrint full profile details including constraints?",
+        "\nPrint full constraints?",
         default=True,
     )
     if print_full:
-        _print_full_profile_details(profile, path)
+        _print_profile_constraints(profile)
 
     # Optional: export full profile details to TXT under out/profile_constraints/
     export_txt = prompt_yes_no(

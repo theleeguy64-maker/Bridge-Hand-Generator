@@ -160,10 +160,58 @@
 - ✅ 5 unit tests in `test_shape_help_v3.py` (blocks honor, allows spots, backward compat, multi-suit, under-limit)
 - **Zero overhead** when `rs_suit_hcp_max=None` (default for non-RS seats)
 
+### 19. [x] Profile management bug fixes (blocking bugs)
+- ✅ Added `to_dict()`/`from_dict()` to `SubprofileExclusionData` — profiles with exclusions crashed on load/save
+- ✅ Fixed `validate()` bug — `len(seat_profile.subprofiles)` not `len(seat_profiles)`
+- ✅ Removed duplicate `SubprofileExclusionClause` — consolidated to single frozen definition
+- ✅ Removed dead `_render_full_profile_details_text()` from `profile_cli.py`
+- 7 tests added for exclusion serialization round-trips and validation
+
+### 20. [x] Profile store safety (`profile_store.py`)
+- ✅ `_load_profiles()` uses `HandProfile.from_dict()` with try/except for `(JSONDecodeError, TypeError, KeyError, ValueError)` — corrupted files skip with warning instead of crashing
+- ✅ `_atomic_write()` helper: `tempfile.mkstemp()` + `os.fdopen()` + `os.replace()` — crash-safe writes
+- ✅ All 3 write sites use `_atomic_write()`: `_save_profile_to_path()`, `save_profile()`, `autosave_profile_draft()`
+
+### 21. [ ] Wizard cleanup (`wizard_flow.py`)
+- Consolidate 3 autosave definitions (lines 420, 968, 1624) into 1
+- Remove dead functions: `_prompt_random_suit_constraint()`, `_default_dealing_order_for_dealer()`
+- Unify duplicated SuitRange builders (`_build_suit_range_for_prompt()` vs `_prompt_suit_range()`)
+- Consolidate exclusion editors (`_edit_subprofile_exclusions()` vs `_edit_subprofile_exclusions_for_seat()`)
+- **Priority**: Medium — reduces ~150 lines of duplication
+
+### 22. [x] Standardize `ns_role_mode` defaults
+- ✅ All 8 locations now consistently use `"no_driver_no_index"` as default
+- ✅ Dataclass field, `to_dict()`, `from_dict()`, `ns_driver_seat()`, validate, wizard — all aligned
+
+### 23. [x] Profile CLI cleanup (`profile_cli.py`)
+- ✅ Removed unused imports (`Any`, `Dict`)
+- ✅ Narrowed `except Exception` to `(JSONDecodeError, TypeError, KeyError, ValueError)` in `_load_profiles()`
+- ✅ Extracted `_print_profile_metadata()` + `_print_profile_constraints()` — eliminates duplicate metadata printing
+- ✅ `draft_tools_action()` duplicate already removed in prior work
+
+### 24. [x] Duplicate definitions in `hand_profile_model.py`
+- ✅ Already resolved — duplicate `SubProfile` and orphaned `from_dict()` were cleaned up in #19
+- ✅ Removed duplicate unreachable `return None` in `ns_driver_seat()`
+
+### 25. [x] Stale code in `orchestrator.py`
+- ✅ Simplified `_run_profile_management()` — removed unreachable hasattr fallback chain and error path
+
+### 26. [x] Profile wizard facade cleanup (`profile_wizard.py`)
+- ✅ Removed unused imports (`Path`, `replace`)
+- ✅ Removed duplicate `clear_screen` import (was imported from both `cli_io` and `wizard_io`)
+- ✅ Narrowed `except Exception` to `except ImportError` on optional helper imports
+
+### 27. [x] Profile store minor cleanup (`profile_store.py`)
+- ✅ Consistent trailing `"\n"` on all JSON writes (all 3 write sites)
+- ✅ Narrowed `except Exception` to `except OSError` in `delete_draft_for_canonical()`
+
+### 28. [x] Remove stale TODO comments in code
+- ✅ Removed `(TODO #5)` from headers in `deal_generator_v2.py` and `deal_generator_types.py`
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 4 (3 done) | **Total: 1 pending**
+Architecture: 15 (15 done) | Enhancements: 13 (13 done) | **Total: 1 pending**
 
 **Tests**: 465 passed, 4 skipped | **Branch**: refactor/deal-generator
 
@@ -171,10 +219,14 @@ Architecture: 15 (15 done) | Enhancements: 4 (3 done) | **Total: 1 pending**
 
 ---
 
-## Completed (34 items + #5, #6, #8, #9, #10, #11, #12, #14, #15, #16, #17)
+## Completed (34 items + #5, #6, #8, #9, #10, #11, #12, #13, #14, #15, #16, #17, #19)
 <details>
 <summary>Click to expand</summary>
 
+- Profile store safety (#20): `_load_profiles()` error handling + `_atomic_write()` for crash-safe writes on all 3 write sites
+- Profile store cleanup (#27): consistent trailing newline + narrowed `except OSError`
+- Profile management bug fixes (#19): SubprofileExclusionData serialization, validate() fix, duplicate class removal, dead function removal. 7 tests.
+- HCP-aware constrained fill (#13): per-suit HCP max enforcement in _constrained_fill() for RS range suits. 5 tests.
 - Profile Diagnostic tool (#17): generic diagnostic runner in Admin menu — pick any profile, run v2 builder with failure attribution, see per-board results + aggregate summary
 - Cross-seat feasibility checks (#16): `_cross_seat_feasible()` rejects impossible subprofile combos at both validation time (dead sub detection) and runtime (selection retry). Eliminates 43.8% wasted attempts on Weak 2s profile. 39 tests.
 - Hot-path micro-optimizations (#15): _CARD_HCP pre-built dict + pre-initialized suit dicts — eliminates 4.5M function calls + 7.4M setdefault calls. Weak 2s 250-board benchmark 20.52s→17.46s (15% faster)
