@@ -4,7 +4,7 @@
 
 ```
 bridge_engine/
-├── deal_generator.py        (428 lines) - Facade: subprofile selection + generate_deals() + re-exports
+├── deal_generator.py        (398 lines) - Facade: subprofile selection + generate_deals() + re-exports
 ├── deal_generator_v1.py     (795 lines) - v1 builder + hardest-seat + constructive help (legacy)
 ├── deal_generator_v2.py   (1,070 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py  (262 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
@@ -412,7 +412,7 @@ _deal_single_board_simple(rng, board_number, dealer, dealing_order) -> Deal
 _apply_vulnerability_and_rotation(rng, deals, rotate) -> List[Deal]
 ```
 
-### deal_generator.py (facade — 428 lines)
+### deal_generator.py (facade — 398 lines)
 ```python
 # Public API
 generate_deals(setup, profile, num_deals, enable_rotation) -> DealSet
@@ -493,7 +493,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**453 tests (453 passed, 4 skipped)** organized by:
+**453 passed, 4 skipped** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`

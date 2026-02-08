@@ -1,9 +1,25 @@
 # bridge_engine/deal_generator.py
+#
+# Facade module for the deal generation system.
+#
+# This module re-exports all public names from the sub-modules so that
+# existing callers (import dg; dg.Deal, dg.MAX_BOARD_ATTEMPTS, etc.)
+# continue to work unchanged.  The actual implementations live in:
+#
+#   deal_generator_types.py   — types, constants, dataclasses, debug hooks
+#   deal_generator_helpers.py — shared utilities (viability, HCP, deck, etc.)
+#   deal_generator_v1.py      — v1 builder + hardest-seat + constructive help
+#   deal_generator_v2.py      — v2 shape-based help system (active path)
+#
+# This module retains:
+#   _select_subprofiles_for_board() — must live here because tests
+#       monkeypatch deal_generator.SeatProfile for isinstance checks
+#   generate_deals() — public entry point
+#
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple
 
-import math
 import random
 import time
 
@@ -12,9 +28,6 @@ from .hand_profile import (
     HandProfile,
     SeatProfile,
     SubProfile,
-    StandardSuitConstraints,
-    RandomSuitConstraintData,
-    PartnerContingentData,
 )
 from .seat_viability import _match_seat
 from .profile_viability import _cross_seat_feasible
@@ -55,13 +68,8 @@ from .deal_generator_helpers import (   # explicit re-imports for linters / IDE
     _vulnerability_for_board,
 )
 
-
-
-
-
-
 # ---------------------------------------------------------------------------
-# v1 builder helpers — extracted to deal_generator_v1.py (#7 Batch 4B)
+# v1 builder + helpers — extracted to deal_generator_v1.py (#7 Batch 4B)
 # ---------------------------------------------------------------------------
 from .deal_generator_v1 import (
     _seat_has_nonstandard_constraints,
@@ -73,21 +81,16 @@ from .deal_generator_v1 import (
     _build_single_constrained_deal,
 )
 
-
-
-
 # ---------------------------------------------------------------------------
-# v2 shape-based help system helpers — extracted to deal_generator_v2.py (#7)
+# v2 shape-based help system — extracted to deal_generator_v2.py (#7)
 # ---------------------------------------------------------------------------
 from .deal_generator_v2 import (
     _dispersion_check, _pre_select_rs_suits, _random_deal,
     _get_suit_maxima, _constrained_fill,
     _pre_allocate, _pre_allocate_rs,
     _deal_with_help,
+    _build_single_constrained_deal_v2,
 )
-
-
-
 
 # ---------------------------------------------------------------------------
 # Subprofile selection (extracted from _build_single_constrained_deal closure
@@ -239,41 +242,8 @@ def _select_subprofiles_for_board(
 
 
 # ---------------------------------------------------------------------------
-# v2 constrained deal builder — extracted to deal_generator_v2.py (#7)
-# ---------------------------------------------------------------------------
-from .deal_generator_v2 import _build_single_constrained_deal_v2
-
-
-
-
-# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
-# TEMPORARY TEST HOOKS / ESCAPE HATCHES (deal regeneration)
-#
-# 1) Profile "Test_RandomSuit_W_PC_E"
-#    - generate_deals() currently routes this profile through
-#      Random Suit constraint and relaxes full-table matching.
-#    - This exists solely to satisfy Section C's Random Suit W + PC E tests,
-#      while we stabilise the full Random Suit + Partner Contingent pipeline.
-#    - TODO(deal-regenerator):
-#        Replace this special-case with the normal constrained C1 pipeline
-#        once RS + PC semantics and seat viability are fully implemented and
-#        tested end-to-end.
-#
-# 2) Profile "Test profile" (deal_invariants smoke test)
-#    - generate_deals() currently short-circuits the constrained path and
-#      uses the simple _deal_single_board_simple() pipeline for this profile.
-#    - This is purely to let test_deal_invariants.py exercise basic card
-#      invariants without being blocked by constraint/viability issues.
-#    - TODO(deal-regenerator):
-#        Remove this special-case and make the invariants test run through
-#        the real constrained C1 pipeline once it is robust for simple
-#        standard-only profiles.
-# -----------------------------------------------------------------------------
 
 
 def generate_deals(

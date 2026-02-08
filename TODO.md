@@ -125,15 +125,15 @@
 
 ## Enhancements
 
-### 7. [ ] Refactor large files
-- `deal_generator.py` — Batches 1-4A done, Batches 4B+5 pending (v1 extraction, cleanup)
+### 7. [x] Refactor deal_generator.py (Batches 1-5 complete)
+- `deal_generator.py` — all 5 batches done
   - ✅ **Batch 1**: `deal_generator_types.py` (262 lines) — types, constants, dataclasses, exception, debug hooks
   - ✅ **Batch 2**: `deal_generator_helpers.py` (447 lines) — viability, HCP, deck, subprofile weights, vulnerability/rotation
   - ✅ **Batch 3**: `deal_generator_v2.py` — 8 v2 shape-help helpers extracted (LOW RISK)
   - ✅ **Batch 4A**: v2 builder moved to `deal_generator_v2.py` (MEDIUM RISK)
   - ✅ **Batch 4B**: `deal_generator_v1.py` (795 lines) — v1 builder + hardest-seat + constructive help extracted with late-import pattern
-  - [ ] **Batch 5**: Cleanup facade, verify, update docs
-  - `deal_generator.py`: 2,183 → 428 lines (−1,755); `deal_generator_v1.py`: 795 lines; `deal_generator_v2.py`: 1,070 lines
+  - ✅ **Batch 5**: Cleanup facade — removed unused imports, consolidated re-exports, removed stale comments, added module docstring
+  - `deal_generator.py`: 2,183 → 398 lines (−1,785); `deal_generator_v1.py`: 795; `deal_generator_v2.py`: 1,070; `_types`: 262; `_helpers`: 452
   - NOTE: `_select_subprofiles_for_board` kept in facade (isinstance monkeypatch sensitivity)
   - NOTE: v1 and v2 both use late import `from . import deal_generator as _dg` for monkeypatchable values
 - `hand_profile_model.py` (921 lines) — split data models from logic
@@ -162,7 +162,7 @@
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 4 (1 done) | **Total: 3 pending**
+Architecture: 15 (15 done) | Enhancements: 4 (2 done) | **Total: 2 pending**
 
 **Tests**: 453 passed, 4 skipped | **Branch**: refactor/deal-generator
 
