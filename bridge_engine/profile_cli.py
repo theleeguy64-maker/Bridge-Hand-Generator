@@ -447,24 +447,6 @@ def _print_opponent_contingent_constraint(
     _print_suit_range("Suit", oc.suit_range, indent + "  ")
 
 
-def _render_full_profile_details_text(profile: HandProfile, path: Path) -> str:
-    """
-    Render the full profile details (same format as _print_full_profile_details)
-    into a single string.
-    """
-    import io
-    from contextlib import redirect_stdout
-
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        # Reuse the existing printer's logic *temporarily* by capturing stdout.
-        # BUT: we must avoid recursion, so this helper must be called by the printer,
-        # not call the printer.
-        #
-        # Therefore: move the original print logic into a private inner function.
-        pass  # replaced below
-
-
 def _print_full_profile_details_impl(profile: HandProfile, path: Path) -> None:
     """Print full details of a profile, including constraints."""
     print("\n=== Full Profile Details ===")

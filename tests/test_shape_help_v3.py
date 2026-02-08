@@ -1187,3 +1187,94 @@ class TestV2Attribution:
         s_hearts = [c for c in deal.hands["S"] if c[1] == "H"]
         assert len(n_spades) >= 6
         assert len(s_hearts) >= 6
+
+
+# ===================================================================
+# #13 — _constrained_fill() with rs_suit_hcp_max
+# ===================================================================
+
+
+def test_constrained_fill_rs_hcp_max_blocks_honor():
+    """An honor card that would bust the per-suit HCP cap is skipped."""
+    # Deck has Ace of Hearts (4 HCP) then spot cards.
+    deck = ["AH", "2S", "3D", "4C", "5S", "6D", "7C"]
+    pre_cards = ["KH", "QH"]  # Already 3 + 2 = 5 HCP in hearts
+    maxima = {"S": 13, "H": 13, "D": 13, "C": 13}
+
+    # Hearts capped at 7 HCP — adding AH (4) would make 9 > 7, so skip.
+    result = dg._constrained_fill(
+        deck, 3, pre_cards, maxima, 40, rs_suit_hcp_max={"H": 7}
+    )
+
+    # AH should be skipped; 3 spot cards accepted instead.
+    assert "AH" not in result
+    assert len(result) == 3
+    # AH should remain in the deck.
+    assert "AH" in deck
+
+
+def test_constrained_fill_rs_hcp_max_allows_spot_cards():
+    """Spot cards (0 HCP) are always accepted for RS suits."""
+    # Pre-cards already at the HCP cap for hearts.
+    deck = ["2H", "3H", "4S", "5D"]
+    pre_cards = ["AH", "KH"]  # 4 + 3 = 7 HCP in hearts
+    maxima = {"S": 13, "H": 13, "D": 13, "C": 13}
+
+    # Hearts capped at 7 — but 2H and 3H are spots (0 HCP), so accepted.
+    result = dg._constrained_fill(
+        deck, 3, pre_cards, maxima, 40, rs_suit_hcp_max={"H": 7}
+    )
+
+    assert "2H" in result
+    assert "3H" in result
+    assert len(result) == 3
+
+
+def test_constrained_fill_rs_hcp_max_none_no_effect():
+    """rs_suit_hcp_max=None behaves identically to before (backward compat)."""
+    deck_a = ["AH", "KH", "2S", "3D", "4C", "5S", "6D"]
+    deck_b = list(deck_a)
+    pre_cards = []
+    maxima = {"S": 13, "H": 13, "D": 13, "C": 13}
+
+    result_a = dg._constrained_fill(deck_a, 4, pre_cards, maxima, 40)
+    result_b = dg._constrained_fill(
+        deck_b, 4, pre_cards, maxima, 40, rs_suit_hcp_max=None
+    )
+
+    assert result_a == result_b
+    assert deck_a == deck_b
+
+
+def test_constrained_fill_rs_hcp_max_multiple_suits():
+    """Two RS suits with different HCP caps, both enforced."""
+    # AH (4 HCP) and AD (4 HCP) should be skipped by their respective caps.
+    deck = ["AH", "AD", "2S", "3C", "4S", "5C", "6S"]
+    pre_cards = ["KH", "KD"]  # 3 HCP in H, 3 HCP in D
+    maxima = {"S": 13, "H": 13, "D": 13, "C": 13}
+
+    # H capped at 5, D capped at 4 — AH (3+4=7>5) and AD (3+4=7>4) both skip.
+    result = dg._constrained_fill(
+        deck, 4, pre_cards, maxima, 40,
+        rs_suit_hcp_max={"H": 5, "D": 4},
+    )
+
+    assert "AH" not in result
+    assert "AD" not in result
+    assert len(result) == 4
+
+
+def test_constrained_fill_rs_hcp_max_under_limit_accepted():
+    """Honor card that fits within the per-suit HCP cap is accepted."""
+    # JH (1 HCP) — pre has 2H (0 HCP), so suit total would be 1 <= 3.
+    deck = ["JH", "2S", "3D", "4C"]
+    pre_cards = ["2H"]  # 0 HCP in hearts
+    maxima = {"S": 13, "H": 13, "D": 13, "C": 13}
+
+    result = dg._constrained_fill(
+        deck, 3, pre_cards, maxima, 40, rs_suit_hcp_max={"H": 3}
+    )
+
+    # JH should be accepted (0 + 1 = 1 <= 3).
+    assert "JH" in result
+    assert len(result) == 3

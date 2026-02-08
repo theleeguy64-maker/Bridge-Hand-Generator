@@ -133,11 +133,11 @@
   - ✅ **Batch 4A**: v2 builder moved to `deal_generator_v2.py` (MEDIUM RISK)
   - ✅ **Batch 4B**: `deal_generator_v1.py` (795 lines) — v1 builder + hardest-seat + constructive help extracted with late-import pattern
   - ✅ **Batch 5**: Cleanup facade — removed unused imports, consolidated re-exports, removed stale comments, added module docstring
-  - `deal_generator.py`: 2,183 → 398 lines (−1,785); `deal_generator_v1.py`: 795; `deal_generator_v2.py`: 1,070; `_types`: 262; `_helpers`: 452
+  - `deal_generator.py`: 2,183 → 398 lines (−1,785); `deal_generator_v1.py`: 795; `deal_generator_v2.py`: 1,113; `_types`: 262; `_helpers`: 452
   - NOTE: `_select_subprofiles_for_board` kept in facade (isinstance monkeypatch sensitivity)
   - NOTE: v1 and v2 both use late import `from . import deal_generator as _dg` for monkeypatchable values
-- `hand_profile_model.py` (921 lines) — split data models from logic
-- `profile_cli.py` (968 lines) — split command handlers
+- `hand_profile_model.py` (835 lines) — split data models from logic
+- `profile_cli.py` (957 lines) — split command handlers
 - `orchestrator.py` (528 lines) — split session management from CLI routing
 
 ### 17. [x] Profile Diagnostic Tool (Admin Menu)
@@ -153,18 +153,19 @@
 - Introduce step objects or small state machine instead of one huge function
 - **Priority**: Low — large effort, would help testability
 
-### 13. [ ] HCP-aware constrained fill for RS range suits
-- When RS constraint allows a range (e.g. 6-7 cards), pre-allocation covers min_cards (6) with HCP targeting, but constrained fill can blindly add a 7th card that busts the RS suit HCP window
-- **Current impact**: None for "Defense to Weak 2s" (W has min=max=6). Theoretical concern for N/E subprofiles with 5-6 or 6-7 card RS ranges
-- **Options**: (a) cap fill at min_cards for RS suits (never add beyond pre-allocated), (b) make fill HCP-aware for RS suits
-- **Priority**: Low — only matters if future profiles have RS range + tight suit HCP
+### 13. [x] HCP-aware constrained fill for RS range suits
+- ✅ `_constrained_fill()` now accepts optional `rs_suit_hcp_max` parameter — per-suit HCP cap for RS suits
+- ✅ `_deal_with_help()` Phase 3 extracts per-suit HCP max from RS constraints via `_resolve_rs_ranges()` and passes to fill
+- ✅ Honor cards that would bust the per-suit cap are skipped; spot cards always accepted (0 HCP)
+- ✅ 5 unit tests in `test_shape_help_v3.py` (blocks honor, allows spots, backward compat, multi-suit, under-limit)
+- **Zero overhead** when `rs_suit_hcp_max=None` (default for non-RS seats)
 
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 4 (2 done) | **Total: 2 pending**
+Architecture: 15 (15 done) | Enhancements: 4 (3 done) | **Total: 1 pending**
 
-**Tests**: 453 passed, 4 skipped | **Branch**: refactor/deal-generator
+**Tests**: 465 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 

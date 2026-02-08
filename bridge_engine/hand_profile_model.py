@@ -12,11 +12,23 @@ class ProfileError(Exception):
 # Low-level constraint building blocks
 # ---------------------------------------------------------------------------
 
-@dataclass
+@dataclass(frozen=True)
 class SubprofileExclusionClause:
-    group: str          # "ANY", "MAJOR", "MINOR"
+    """A single clause in a subprofile exclusion rule."""
+    group: str      # "ANY", "MAJOR", "MINOR"
     length_eq: int
     count: int
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"group": self.group, "length_eq": self.length_eq, "count": self.count}
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SubprofileExclusionClause":
+        return cls(
+            group=str(data["group"]),
+            length_eq=int(data["length_eq"]),
+            count=int(data["count"]),
+        )
 
 @dataclass
 class SubprofileExclusionData:
@@ -25,15 +37,40 @@ class SubprofileExclusionData:
     excluded_shapes: Optional[list[str]] = None
     clauses: Optional[list[SubprofileExclusionClause]] = None
 
+    def to_dict(self) -> Dict[str, Any]:
+        d: Dict[str, Any] = {
+            "seat": self.seat,
+            "subprofile_index": self.subprofile_index,
+        }
+        if self.excluded_shapes is not None:
+            d["excluded_shapes"] = list(self.excluded_shapes)
+        if self.clauses is not None:
+            d["clauses"] = [c.to_dict() for c in self.clauses]
+        return d
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SubprofileExclusionData":
+        clauses_raw = data.get("clauses")
+        clauses = (
+            [SubprofileExclusionClause.from_dict(c) for c in clauses_raw]
+            if clauses_raw is not None else None
+        )
+        return cls(
+            seat=str(data["seat"]),
+            subprofile_index=int(data["subprofile_index"]),
+            excluded_shapes=data.get("excluded_shapes"),
+            clauses=clauses,
+        )
+
     def validate(self, profile: "HandProfile") -> None:
         if self.seat not in ("N", "E", "S", "W"):
             raise ProfileError(f"Invalid seat in exclusion: {self.seat}")
 
-        seat_profiles = profile.seat_profiles.get(self.seat)
-        if seat_profiles is None:
+        seat_profile = profile.seat_profiles.get(self.seat)
+        if seat_profile is None:
             raise ProfileError(f"Seat {self.seat} not present in profile")
 
-        if not (1 <= self.subprofile_index <= len(seat_profiles)):
+        if not (1 <= self.subprofile_index <= len(seat_profile.subprofiles)):
             raise ProfileError(
                 f"Invalid subprofile index {self.subprofile_index} "
                 f"for seat {self.seat}"
@@ -378,24 +415,6 @@ class OpponentContingentSuitData:
 # ---------------------------------------------------------------------------
 # SubProfile & SeatProfile
 # ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class SubprofileExclusionClause:
-    group: str      # "ANY", "MAJOR", "MINOR"
-    length_eq: int
-    count: int
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {"group": self.group, "length_eq": self.length_eq, "count": self.count}
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SubprofileExclusionClause":
-        return cls(
-            group=str(data["group"]),
-            length_eq=int(data["length_eq"]),
-            count=int(data["count"]),
-        )
 
 
 @dataclass(frozen=True)

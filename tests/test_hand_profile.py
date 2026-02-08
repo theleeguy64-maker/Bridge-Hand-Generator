@@ -13,6 +13,8 @@ from bridge_engine.hand_profile import (
     SubProfile,
     SeatProfile,
     HandProfile,
+    SubprofileExclusionClause,
+    SubprofileExclusionData,
     validate_profile,
     ProfileError,
 )
@@ -285,4 +287,104 @@ def test_rotate_default_missing_key_defaults_to_true(make_valid_profile) -> None
     loaded = HandProfile.from_dict(data)
     # When the key is missing, we expect a default of True
     assert loaded.rotate_deals_by_default is True
+
+
+# ===================================================================
+# SubprofileExclusionClause / SubprofileExclusionData serialization
+# ===================================================================
+
+
+def test_exclusion_clause_round_trip() -> None:
+    """SubprofileExclusionClause round-trips through to_dict / from_dict."""
+    clause = SubprofileExclusionClause(group="MAJOR", length_eq=5, count=2)
+    d = clause.to_dict()
+    restored = SubprofileExclusionClause.from_dict(d)
+    assert restored == clause
+    assert d == {"group": "MAJOR", "length_eq": 5, "count": 2}
+
+
+def test_exclusion_clause_is_frozen() -> None:
+    """SubprofileExclusionClause is frozen (immutable)."""
+    clause = SubprofileExclusionClause(group="ANY", length_eq=3, count=1)
+    with pytest.raises(AttributeError):
+        clause.group = "MINOR"  # type: ignore[misc]
+
+
+def test_exclusion_data_round_trip_with_shapes() -> None:
+    """SubprofileExclusionData with excluded_shapes round-trips."""
+    exc = SubprofileExclusionData(
+        seat="N", subprofile_index=1,
+        excluded_shapes=["5332", "4432"],
+    )
+    d = exc.to_dict()
+    restored = SubprofileExclusionData.from_dict(d)
+    assert restored.seat == "N"
+    assert restored.subprofile_index == 1
+    assert restored.excluded_shapes == ["5332", "4432"]
+    assert restored.clauses is None
+
+
+def test_exclusion_data_round_trip_with_clauses() -> None:
+    """SubprofileExclusionData with clauses round-trips."""
+    exc = SubprofileExclusionData(
+        seat="S", subprofile_index=2,
+        clauses=[
+            SubprofileExclusionClause(group="ANY", length_eq=6, count=1),
+            SubprofileExclusionClause(group="MINOR", length_eq=4, count=2),
+        ],
+    )
+    d = exc.to_dict()
+    restored = SubprofileExclusionData.from_dict(d)
+    assert restored.seat == "S"
+    assert restored.subprofile_index == 2
+    assert restored.excluded_shapes is None
+    assert len(restored.clauses) == 2
+    assert restored.clauses[0].group == "ANY"
+    assert restored.clauses[1].group == "MINOR"
+
+
+def test_exclusion_data_omits_none_fields() -> None:
+    """to_dict() omits excluded_shapes and clauses when they are None."""
+    exc = SubprofileExclusionData(seat="E", subprofile_index=1)
+    d = exc.to_dict()
+    assert "excluded_shapes" not in d
+    assert "clauses" not in d
+    assert d == {"seat": "E", "subprofile_index": 1}
+
+
+def test_profile_round_trip_with_exclusions(make_valid_profile) -> None:
+    """HandProfile with non-empty exclusions survives to_dict / from_dict."""
+    profile = make_valid_profile()
+    exclusions = [
+        SubprofileExclusionData(
+            seat="N", subprofile_index=1,
+            excluded_shapes=["5332"],
+        ),
+    ]
+    # Build a new profile with exclusions.
+    data = profile.to_dict()
+    data["subprofile_exclusions"] = [e.to_dict() for e in exclusions]
+    loaded = HandProfile.from_dict(data)
+
+    assert len(loaded.subprofile_exclusions) == 1
+    assert loaded.subprofile_exclusions[0].seat == "N"
+    assert loaded.subprofile_exclusions[0].excluded_shapes == ["5332"]
+
+    # Round-trip again to verify to_dict works on loaded profile.
+    data2 = loaded.to_dict()
+    loaded2 = HandProfile.from_dict(data2)
+    assert len(loaded2.subprofile_exclusions) == 1
+    assert loaded2.subprofile_exclusions[0].seat == "N"
+
+
+def test_exclusion_validate_catches_bad_subprofile_index(make_valid_profile) -> None:
+    """validate() correctly checks subprofile_index against seat's subprofile count."""
+    profile = make_valid_profile()
+    # Index 99 should be out of range (each seat has 1 subprofile).
+    exc = SubprofileExclusionData(
+        seat="N", subprofile_index=99,
+        excluded_shapes=["5332"],
+    )
+    with pytest.raises(ProfileError, match="Invalid subprofile index"):
+        exc.validate(profile)
 

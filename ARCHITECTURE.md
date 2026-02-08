@@ -6,15 +6,15 @@
 bridge_engine/
 ├── deal_generator.py        (398 lines) - Facade: subprofile selection + generate_deals() + re-exports
 ├── deal_generator_v1.py     (795 lines) - v1 builder + hardest-seat + constructive help (legacy)
-├── deal_generator_v2.py   (1,070 lines) - v2 shape-help helpers + v2 builder (active path)
+├── deal_generator_v2.py   (1,113 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py  (262 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (447 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
-├── hand_profile_model.py    (921 lines) - Data models
+├── hand_profile_model.py    (835 lines) - Data models
 ├── seat_viability.py        (615 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (512 lines) - Validation
 ├── profile_diagnostic.py     (209 lines) - Generic profile diagnostic runner (Admin menu)
 ├── orchestrator.py          (574 lines) - CLI/session management + timing
-├── profile_cli.py           (968 lines) - Profile commands
+├── profile_cli.py           (957 lines) - Profile commands
 ├── profile_wizard.py        (164 lines) - Profile creation UI
 ├── profile_viability.py     (355 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py         (208 lines) - JSON persistence
@@ -288,6 +288,7 @@ Phase 3 of `_deal_with_help()` uses `_constrained_fill()` instead of `_random_de
 non-last seats.  Walks the shuffled deck and skips cards that would:
 1. Bust a suit's max_cards (shape constraint enforcement)
 2. Push total HCP over total_max_hcp (HCP constraint enforcement — spot cards always accepted)
+3. Exceed per-suit HCP cap for RS suits (#13 — `rs_suit_hcp_max` param, spot cards always accepted)
 
 Skipped cards remain in the deck for other seats.  `_get_suit_maxima()` extracts effective
 per-suit maximums from standard + RS constraints (including pair_overrides).
@@ -461,7 +462,7 @@ _dispersion_check(chosen_subs, threshold, rs_pre_selections) -> set[Seat]
 _pre_select_rs_suits(rng, chosen_subs) -> Dict[Seat, List[str]]
 _random_deal(rng, deck, n) -> List[Card]
 _get_suit_maxima(subprofile, rs_pre_selected) -> Dict[str, int]
-_constrained_fill(deck, n, pre_cards, suit_maxima, total_max_hcp) -> List[Card]
+_constrained_fill(deck, n, pre_cards, suit_maxima, total_max_hcp, rs_suit_hcp_max=None) -> List[Card]
 _pre_allocate(rng, deck, subprofile, fraction) -> List[Card]
 _pre_allocate_rs(rng, deck, subprofile, pre_selected_suits, fraction) -> List[Card]
 _deal_with_help(rng, deck, subs, tight_seats, order, rs_pre_selections) -> (hands, None) | (None, Seat)
@@ -493,14 +494,14 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**453 passed, 4 skipped** organized by:
+**465 passed, 4 skipped** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`
 - Index coupling: `test_f3_opener_responder_coupling.py`, `test_ew_index_coupling.py`
 - Profile viability: `test_profile_viability_*.py`
 - Benchmarks: `test_profile_e_*.py`
-- **v3 shape help**: `test_shape_help_v3.py` (75 tests — D1-D7)
+- **v3 shape help**: `test_shape_help_v3.py` (80 tests — D1-D7 + #13 RS suit HCP)
 - **HCP feasibility**: `test_hcp_feasibility.py` (36 tests — unit + integration)
 - **Profile E e2e**: `test_profile_e_v2_hcp_gate.py` (7 tests — v2 builder + pipeline)
 - **RS pre-selection**: `test_rs_pre_selection.py` (32 tests — B1-B4 unit tests)
@@ -540,6 +541,8 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ### Missing Implementations
 
-| File | Issue |
-|------|-------|
-| `profile_store.py` | `list_drafts()` called but not defined |
+*Resolved*: `profile_store.py` `list_drafts()` — already implemented (lines 59-65).
+
+*Resolved*: `hand_profile_model.py` duplicate `SubprofileExclusionClause` — consolidated to single frozen definition with serialization. Added missing `to_dict()`/`from_dict()` to `SubprofileExclusionData`. Fixed `validate()` bug (`len(seat_profile.subprofiles)` not `len(seat_profiles)`).
+
+*Resolved*: `profile_cli.py` dead `_render_full_profile_details_text()` — removed.
