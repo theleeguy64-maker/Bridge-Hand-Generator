@@ -334,34 +334,9 @@ def _run_deal_generation_session() -> None:
 
 
 def _run_profile_management() -> None:
-    """
-    Launch the Profile Manager UI.
-
-    We prefer profile_cli.run_profile_manager() if available, and fall
-    back to profile_cli.main(). This avoids spurious "main() is not
-    defined" errors when the module layout changes.
-    """
-    try:
-        from bridge_engine import profile_cli  # type: ignore[import]
-    except Exception as exc:  # pragma: no cover (should not happen in normal runs)
-        print("ERROR: Could not import profile_cli:", exc)
-        return
-
-    # Preferred entrypoint.
-    if hasattr(profile_cli, "run_profile_manager"):
-        profile_cli.run_profile_manager()  # type: ignore[attr-defined]
-        return
-
-    # Backwards-compatible entrypoint.
-    if hasattr(profile_cli, "main"):
-        profile_cli.main()  # type: ignore[attr-defined]
-        return
-
-    # If we get here, something is genuinely wrong with the module.
-    print(
-        "ERROR: profile_cli.run_profile_manager() / profile_cli.main() "
-        "is not defined. Please ensure profile_cli.py has an entrypoint."
-    )
+    """Launch the Profile Manager UI."""
+    from bridge_engine import profile_cli  # type: ignore[import]
+    profile_cli.run_profile_manager()
 
 
 # Public wrappers (kept for any external callers)

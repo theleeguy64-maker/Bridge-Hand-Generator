@@ -13,11 +13,11 @@ bridge_engine/
 ├── seat_viability.py        (615 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (512 lines) - Validation
 ├── profile_diagnostic.py     (209 lines) - Generic profile diagnostic runner (Admin menu)
-├── orchestrator.py          (574 lines) - CLI/session management + timing
+├── orchestrator.py          (549 lines) - CLI/session management + timing
 ├── profile_cli.py           (957 lines) - Profile commands
 ├── profile_wizard.py        (164 lines) - Profile creation UI
 ├── profile_viability.py     (355 lines) - Profile-level viability + cross-seat feasibility
-├── profile_store.py         (208 lines) - JSON persistence
+├── profile_store.py         (249 lines) - JSON persistence (atomic writes, error-tolerant loading)
 ├── lin_tools.py             (459 lines) - LIN file operations
 ├── deal_output.py           (330 lines) - Deal rendering
 ├── lin_encoder.py           (188 lines) - LIN format encoding
@@ -546,3 +546,5 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 *Resolved*: `hand_profile_model.py` duplicate `SubprofileExclusionClause` — consolidated to single frozen definition with serialization. Added missing `to_dict()`/`from_dict()` to `SubprofileExclusionData`. Fixed `validate()` bug (`len(seat_profile.subprofiles)` not `len(seat_profiles)`).
 
 *Resolved*: `profile_cli.py` dead `_render_full_profile_details_text()` — removed.
+
+*Resolved*: `profile_store.py` safety — `_load_profiles()` error-tolerant with try/except; all writes use `_atomic_write()` (tempfile + os.replace); consistent trailing newline; `delete_draft_for_canonical()` narrowed to `except OSError`.

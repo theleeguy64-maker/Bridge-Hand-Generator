@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -76,6 +78,27 @@ def _strip_test_suffix(name: str) -> str:
         return base[: -len(TEST_NAME_SUFFIX)].rstrip()
     return base
 
+def _atomic_write(path: Path, content: str) -> None:
+    """
+    Write content to path atomically: write to a temp file in the same
+    directory, then rename.  If the process dies mid-write, the original
+    file stays intact (rename is atomic on the same filesystem).
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(
+        dir=str(path.parent), suffix=".tmp", prefix=path.stem + "_"
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+        # os.replace is atomic on POSIX and Windows.
+        os.replace(tmp, str(path))
+    except BaseException:
+        # os.fdopen took ownership of fd, so it's already closed.
+        Path(tmp).unlink(missing_ok=True)
+        raise
+
+
 def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
     """
     Backwards-compat helper (tests call this).
@@ -93,8 +116,7 @@ def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
     if name.endswith(" TEST"):
         data["profile_name"] = name[:-5].rstrip()
 
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _atomic_write(path, json.dumps(data, indent=2, sort_keys=True) + "\n")
 
 def _profile_path_for(profile: HandProfile, base_dir: Path | None = None) -> Path:
     """
@@ -117,8 +139,13 @@ def _load_profiles(base_dir: Path | None = None) -> List[Tuple[Path, HandProfile
     """
     Load all canonical profiles (exclude *_TEST.json drafts) from disk.
 
+    Skips files that fail to parse or construct, printing a warning to
+    stderr so one corrupted file doesn't crash the entire profile list.
+
     Returns: list of (path, HandProfile)
     """
+    import sys
+
     profiles: List[Tuple[Path, HandProfile]] = []
     dir_path = _profiles_dir(base_dir)
 
@@ -126,9 +153,15 @@ def _load_profiles(base_dir: Path | None = None) -> List[Tuple[Path, HandProfile
         if is_draft_path(json_path):
             continue
 
-        raw = json.loads(json_path.read_text(encoding="utf-8"))
-        profile = HandProfile(**raw)
-        profiles.append((json_path, profile))
+        try:
+            raw = json.loads(json_path.read_text(encoding="utf-8"))
+            profile = HandProfile.from_dict(raw)
+            profiles.append((json_path, profile))
+        except (json.JSONDecodeError, TypeError, KeyError, ValueError) as exc:
+            print(
+                f"WARNING: Failed to load profile from {json_path}: {exc}",
+                file=sys.stderr,
+            )
 
     return profiles
 
@@ -148,7 +181,7 @@ def save_profile(profile: HandProfile, base_dir: Path | None = None) -> Path:
     # Canonical metadata should NOT carry the " TEST" suffix.
     data["profile_name"] = _strip_test_suffix(str(data.get("profile_name", "") or ""))
 
-    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    _atomic_write(path, json.dumps(data, indent=2) + "\n")
     return path
 
 
@@ -181,8 +214,7 @@ def autosave_profile_draft(profile: HandProfile, canonical_path: Path) -> Path:
     payload: Dict[str, Any] = profile.to_dict() if hasattr(profile, "to_dict") else dict(profile.__dict__)
     payload["profile_name"] = _with_test_suffix(str(payload.get("profile_name", "") or ""))
 
-    draft_path.parent.mkdir(parents=True, exist_ok=True)
-    draft_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    _atomic_write(draft_path, json.dumps(payload, indent=2) + "\n")
     return draft_path
 
 
@@ -212,6 +244,6 @@ def delete_draft_for_canonical(canonical_path: Path) -> None:
         draft_path = canonical_path.with_name(canonical_path.stem + "_TEST.json")
         if draft_path.exists():
             draft_path.unlink()
-    except Exception:
-        # best-effort cleanup only
+    except OSError:
+        # best-effort cleanup only — narrow to filesystem errors
         return

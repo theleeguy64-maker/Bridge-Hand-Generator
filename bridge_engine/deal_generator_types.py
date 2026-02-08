@@ -203,7 +203,7 @@ RESEED_TIME_THRESHOLD_SECONDS: float = 1.75
 CONSTRUCTIVE_MAX_SUM_MIN_CARDS: int = 11
 
 # ---------------------------------------------------------------------------
-# HCP feasibility check constants (TODO #5)
+# HCP feasibility check constants
 # ---------------------------------------------------------------------------
 
 # Gate flag for HCP feasibility rejection during pre-allocation.
