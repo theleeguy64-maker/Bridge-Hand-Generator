@@ -11,7 +11,8 @@ bridge_engine/
 ├── hand_profile_model.py    (921 lines) - Data models
 ├── seat_viability.py        (615 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (512 lines) - Validation
-├── orchestrator.py          (528 lines) - CLI/session management + timing
+├── profile_diagnostic.py     (209 lines) - Generic profile diagnostic runner (Admin menu)
+├── orchestrator.py          (574 lines) - CLI/session management + timing
 ├── profile_cli.py           (968 lines) - Profile commands
 ├── profile_wizard.py        (164 lines) - Profile creation UI
 ├── profile_viability.py     (355 lines) - Profile-level viability + cross-seat feasibility

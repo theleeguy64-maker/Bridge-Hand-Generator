@@ -140,6 +140,12 @@
 - `profile_cli.py` (968 lines) — split command handlers
 - `orchestrator.py` (528 lines) — split session management from CLI routing
 
+### 17. [x] Profile Diagnostic Tool (Admin Menu)
+- ✅ `profile_diagnostic.py` (209 lines) — generic diagnostic runner for any profile
+- ✅ Admin menu item 3 "Profile Diagnostic": choose profile, set board count, run v2 builder with failure attribution
+- ✅ Per-board output (shape, HCP, attempts) + aggregate failure attribution table (5 categories x 4 seats)
+- ✅ Help text updated in `menu_help.py`
+
 ### 13. [ ] HCP-aware constrained fill for RS range suits
 - When RS constraint allows a range (e.g. 6-7 cards), pre-allocation covers min_cards (6) with HCP targeting, but constrained fill can blindly add a 7th card that busts the RS suit HCP window
 - **Current impact**: None for "Defense to Weak 2s" (W has min=max=6). Theoretical concern for N/E subprofiles with 5-6 or 6-7 card RS ranges
@@ -149,16 +155,19 @@
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 2 (0 done) | **Total: 2 pending**
+Architecture: 15 (15 done) | Enhancements: 3 (1 done) | **Total: 2 pending**
 
 **Tests**: 453 passed, 4 skipped | **Branch**: refactor/deal-generator
 
+**Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
+
 ---
 
-## Completed (34 items + #5, #6, #8, #9, #10, #11, #12, #14, #15, #16)
+## Completed (34 items + #5, #6, #8, #9, #10, #11, #12, #14, #15, #16, #17)
 <details>
 <summary>Click to expand</summary>
 
+- Profile Diagnostic tool (#17): generic diagnostic runner in Admin menu — pick any profile, run v2 builder with failure attribution, see per-board results + aggregate summary
 - Cross-seat feasibility checks (#16): `_cross_seat_feasible()` rejects impossible subprofile combos at both validation time (dead sub detection) and runtime (selection retry). Eliminates 43.8% wasted attempts on Weak 2s profile. 39 tests.
 - Hot-path micro-optimizations (#15): _CARD_HCP pre-built dict + pre-initialized suit dicts — eliminates 4.5M function calls + 7.4M setdefault calls. Weak 2s 250-board benchmark 20.52s→17.46s (15% faster)
 - Full RS pre-allocation (#14): RS_PRE_ALLOCATE_FRACTION=1.0 — pre-allocate all RS min_cards with HCP targeting. "Defense to Weak 2s" default seed 7.5s→1.5s (5x), bad seed 22s→1.1s (20x)

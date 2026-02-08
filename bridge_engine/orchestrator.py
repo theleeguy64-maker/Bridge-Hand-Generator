@@ -47,6 +47,7 @@ from .profile_cli import _input_int
 from . import profile_cli
 from . import lin_tools
 from . import deal_generator  # you should already have this somewhere near the top
+from . import profile_diagnostic
 
 
 # Directory where JSON profiles live (relative to project root / CWD)
@@ -466,22 +467,54 @@ def main_menu() -> None:
             print(get_menu_help("main_menu"))
             
 
+def _run_profile_diagnostic_interactive() -> None:
+    """
+    Interactive wrapper: let the user pick a profile and run the v2
+    diagnostic (failure attribution, per-board results, aggregate summary).
+    """
+    print("\n=== Profile Diagnostic ===")
+
+    profile = _choose_profile_for_session()
+    if profile is None:
+        return
+
+    # Validate the profile before running the diagnostic.
+    print(f"\nValidating profile '{profile.profile_name}' ...")
+    try:
+        profile = validate_profile(profile)
+    except ProfileError as exc:
+        print(f"\nERROR: This profile is not valid:\n  {exc}")
+        print("Please edit this profile in Profile Management and try again.")
+        return
+    print("Profile OK.\n")
+
+    num_boards = _input_int_with_default(
+        "Number of boards to diagnose", 20, minimum=1
+    )
+
+    profile_diagnostic.run_profile_diagnostic(
+        profile=profile,
+        num_boards=num_boards,
+    )
+
+
 def admin_menu() -> None:
     """
-    Admin / tools submenu (LIN combiner, draft tools, etc.).
+    Admin / tools submenu (LIN combiner, draft tools, diagnostics, etc.).
     """
     while True:
         print("\n=== Bridge Hand Generator – Admin ===")
         print("0) Exit")
         print("1) LIN Combiner")
         print("2) Recover/Delete *_TEST.json drafts")
-        print("3) Help")
+        print("3) Profile Diagnostic")
+        print("4) Help")
 
         choice = _input_int(
-            "Choose [0-3] [0]: ",
+            "Choose [0-4] [0]: ",
             default=0,
             minimum=0,
-            maximum=3,
+            maximum=4,
             show_range_suffix=False,
         )
 
@@ -495,6 +528,9 @@ def admin_menu() -> None:
             profile_cli.run_draft_tools()
 
         elif choice == 3:
+            _run_profile_diagnostic_interactive()
+
+        elif choice == 4:
             print()
             print(get_menu_help("admin_menu"))            
 
