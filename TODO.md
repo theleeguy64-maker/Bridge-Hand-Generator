@@ -146,6 +146,13 @@
 - ✅ Per-board output (shape, HCP, attempts) + aggregate failure attribution table (5 categories x 4 seats)
 - ✅ Help text updated in `menu_help.py`
 
+### 18. [ ] Wizard refactor (separate IO from logic)
+- `wizard_flow.py` (~1,900 lines) mixes user prompts with constraint-building logic
+- Separate "ask the user" functions from "build constraints from answers" functions
+- Isolate reusable building blocks (suit range builder, constraint builders, rotation defaults)
+- Introduce step objects or small state machine instead of one huge function
+- **Priority**: Low — large effort, would help testability
+
 ### 13. [ ] HCP-aware constrained fill for RS range suits
 - When RS constraint allows a range (e.g. 6-7 cards), pre-allocation covers min_cards (6) with HCP targeting, but constrained fill can blindly add a 7th card that busts the RS suit HCP window
 - **Current impact**: None for "Defense to Weak 2s" (W has min=max=6). Theoretical concern for N/E subprofiles with 5-6 or 6-7 card RS ranges
@@ -155,7 +162,7 @@
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 3 (1 done) | **Total: 2 pending**
+Architecture: 15 (15 done) | Enhancements: 4 (1 done) | **Total: 3 pending**
 
 **Tests**: 453 passed, 4 skipped | **Branch**: refactor/deal-generator
 

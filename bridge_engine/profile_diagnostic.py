@@ -44,14 +44,14 @@ def _hand_shape(hand: list) -> str:
 
 
 def _fmt_row(label: str, counts: Dict[Seat, int]) -> str:
-    """Format one row of the failure attribution table."""
+    """Format one row of the failure attribution table with counts and %."""
     total = sum(counts.values())
-    return (
-        f"  {label:<26} "
-        f"{counts.get('W', 0):6d} {counts.get('N', 0):6d} "
-        f"{counts.get('S', 0):6d} {counts.get('E', 0):6d} "
-        f"{total:8d}"
-    )
+    parts = []
+    for seat in ("W", "N", "S", "E"):
+        cnt = counts.get(seat, 0)
+        pct = (cnt / total * 100) if total > 0 else 0.0
+        parts.append(f"{cnt:6d} ({pct:4.1f}%)")
+    return f"  {label:<26} " + " ".join(parts) + f" {total:8d}"
 
 
 # ---------------------------------------------------------------------------
@@ -196,14 +196,31 @@ def run_profile_diagnostic(
     )
     print(f"Wall time: {wall_elapsed:.1f}s")
 
+    # Column widths: label=26, each seat=13 "NNNNNN (NN.N%)", total=8
+    col = 13  # width per seat column
     print(
         f"\n  {'Failure Attribution':<26} "
-        f"{'W':>6} {'N':>6} {'S':>6} {'E':>6} {'TOTAL':>8}"
+        f"{'W':>{col}} {'N':>{col}} {'S':>{col}} {'E':>{col}} {'TOTAL':>8}"
     )
-    print(f"  {'─'*26} {'─'*6} {'─'*6} {'─'*6} {'─'*6} {'─'*8}")
+    print(
+        f"  {'─'*26} {'─'*col} {'─'*col} {'─'*col} {'─'*col} {'─'*8}"
+    )
     print(_fmt_row("seat_fail_as_seat", total_as_seat))
     print(_fmt_row("seat_fail_global_other", total_global_other))
     print(_fmt_row("seat_fail_global_unchecked", total_global_unchecked))
     print(_fmt_row("seat_fail_hcp", total_hcp))
     print(_fmt_row("seat_fail_shape", total_shape))
-    print(f"{'='*75}\n")
+
+    # ---- Seat ranking by primary failures (as_seat) ----
+    # Rank seats from most to least failures, showing count and % of total.
+    as_seat_total = sum(total_as_seat.values())
+    if as_seat_total > 0:
+        ranked = sorted(
+            total_as_seat.items(), key=lambda x: x[1], reverse=True
+        )
+        print(f"\n  Seat ranking (by primary failures):")
+        for rank, (seat, cnt) in enumerate(ranked, 1):
+            pct = cnt / as_seat_total * 100
+            print(f"    {rank}. {seat}  {cnt:6d}  ({pct:.1f}%)")
+
+    print(f"\n{'='*75}\n")

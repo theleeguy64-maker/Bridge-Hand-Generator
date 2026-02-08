@@ -702,16 +702,21 @@ def edit_profile_action() -> None:
     print(f"\nEditing profile: {profile.profile_name}")
 
     print("\nEdit mode:")
+    print("  0) Cancel")
     print("  1) Edit metadata only")
     print("  2) Edit constraints only")
     mode = _input_int(
-        "Choose [1-2]",
-        default=1,
-        minimum=1,
+        "Choose [0-2] [0]: ",
+        default=0,
+        minimum=0,
         maximum=2,
         show_range_suffix=False,
     )
-    
+
+    if mode == 0:
+        print("Cancelled.")
+        return
+
     print()
 
     if mode == 1:
