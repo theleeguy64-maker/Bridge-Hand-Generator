@@ -417,28 +417,6 @@ def _input_int(prompt: str, default: int, minimum: int, maximum: int, show_range
         prompt, default=default, minimum=minimum, maximum=maximum, show_range_suffix=show_range_suffix
     )
 
-def _autosave_draft_profile(path: Path, profile: HandProfile) -> None:
-    """
-    Best-effort autosave draft writer.
-
-    IMPORTANT:
-      - `path` is the CANONICAL path
-      - Must write to *_TEST.json next to canonical
-      - Draft JSON must have profile_name ending in " TEST"
-      - Must NOT mutate the in-memory profile object
-    """
-    try:
-        # In tests you sometimes pass Dummy objects / strings; skip.
-        if not hasattr(profile, "to_dict"):
-            return
-
-        # Delegate draft writing to profile_store (adds " TEST" in JSON metadata,
-        # writes sibling *_TEST.json, and does NOT mutate `profile`).
-        profile_store.autosave_profile_draft(profile, canonical_path=path)
-
-    except Exception as exc:  # pragma: no cover – best-effort only
-        print(f"⚠️ Autosave failed for {path}: {exc}")
-        
 def _input_choice(
     prompt: str,
     options: Sequence[str],
@@ -611,15 +589,6 @@ def _build_exclusion_rule(
     
 # Near other small helpers in wizard_flow.py
 
-def _default_dealing_order_for_dealer(dealer: Seat) -> list[Seat]:
-    """Return a sensible default dealing order given a dealer."""
-    base: list[Seat] = ["N", "E", "S", "W"]
-    if dealer not in base:
-        return base
-    idx = base.index(dealer)
-    return base[idx:] + base[:idx]
-
-
 def _build_exclusion_shapes(
     seat: Any,
     subprofile_index: Optional[int] = None,
@@ -701,81 +670,6 @@ def _build_exclusion_shapes(
 
     return shapes
 
-
-def _edit_subprofile_exclusions(
-    existing: Optional[HandProfile],
-    hand_dealing_order: list[str],
-    seat_profiles: Dict[str, SeatProfile],
-) -> list[SubprofileExclusionData]:
-    current: list[SubprofileExclusionData] = []
-    # Tests may monkeypatch _build_seat_profile to return placeholders (e.g. strings).
-    # If seat_profiles do not contain real SeatProfile objects, skip exclusions.
-    for v in seat_profiles.values():
-        if v is not None and not hasattr(v, "subprofiles"):
-            return list(current)
-    if existing is not None and getattr(existing, "subprofile_exclusions", None):
-        # Default: keep existing unless user explicitly edits
-        if not _yes_no("Edit sub-profile exclusions? ", default=False):
-            return list(existing.subprofile_exclusions)
-
-        if _yes_no("Start from existing exclusions? ", default=True):
-            current = list(existing.subprofile_exclusions)
-
-        # Optional delete pass
-        if current and _yes_no("Remove any existing exclusion entries?  ", default=False):
-            while current:
-                print("\nCurrent exclusions:")
-                for i, e in enumerate(current, start=1):
-                    seat = getattr(e, "seat", "?")
-                    idx = getattr(e, "subprofile_index", "?")
-                    if getattr(e, "excluded_shapes", None):
-                        desc = "shapes"
-                    elif getattr(e, "clauses", None):
-                        desc = "rule"
-                    else:
-                        desc = "?"
-                    print(f"  {i}. {seat} / Sub-profile {idx} ({desc})")
-                raw = _input_with_default("Enter number to remove (or blank to stop): ", "").strip()
-                if not raw:
-                    break
-                if not raw.isdigit():
-                    print("Please enter a number.")
-                    continue
-                n = int(raw)
-                if not (1 <= n <= len(current)):
-                    print("Out of range.")
-                    continue
-                current.pop(n - 1)
-
-    else:
-        # No existing exclusions; ask if user wants to add any.
-        if not _yes_no("Add any sub-profile exclusions? ", default=False):
-            return []
-
-    # Add loop
-    while True:
-        seat = _input_choice("Seat the exclusion applies to", options=hand_dealing_order, default=hand_dealing_order[0])
-        sp = seat_profiles.get(seat)
-        if sp is None or not getattr(sp, "subprofiles", None):
-            print(f"Seat {seat} has no sub-profiles; cannot attach exclusions.")
-            if not _yes_no("Add another exclusion? ", default=False):
-                break
-            continue
-
-        sub_idx = _input_int(
-            f"Sub-profile index for seat {seat} (1–{len(sp.subprofiles)})",
-            default=1,       
-            minimum=1,
-            maximum=len(sp.subprofiles),
-        )
-
-        exc = _build_exclusion_rule(seat=seat, subprofile_index=sub_idx)
-        current.append(exc)
-
-        if not _yes_no("Add another exclusion? ", default=False):
-            break
-
-    return current
 
 def _edit_subprofile_exclusions_for_seat(
     *,
@@ -965,39 +859,6 @@ def _build_suit_range_for_prompt(
         max_hcp=max_hcp_val,
     )
 
-def _autosave_profile_draft(
-    profile: "HandProfile",
-    original_path: Optional[Path],
-) -> None:
-    """
-    Best-effort autosave of an in-progress profile edit.
-
-    Behaviour:
-      - Only runs when we know the original JSON path (editing an existing profile).
-      - Writes to a sibling `<stem>_TEST.json` file next to the original.
-      - Draft JSON must have profile_name ending in " TEST"
-      - Must NOT mutate the in-memory profile object.
-      - Any exception is printed as a warning; the wizard continues.
-    """
-    if original_path is None:
-        return
-
-    try:
-        # In some tests this may be a dummy; if it can't serialize, just skip.
-        if not hasattr(profile, "to_dict"):
-            return
-
-        # Delegate to centralized draft behavior:
-        # - writes sibling <stem>_TEST.json
-        # - writes JSON metadata profile_name with trailing " TEST"
-        # - does NOT mutate `profile`
-        from . import profile_store
-
-        profile_store.autosave_profile_draft(profile, canonical_path=original_path)
-
-    except Exception as exc:  # pragma: no cover – best-effort only
-        print(f"⚠️ Autosave failed for {original_path}: {exc}")
-
 def _parse_suit_list(
     prompt: str,
     default: Optional[Sequence[str]] = None,
@@ -1147,53 +1008,6 @@ def _prompt_standard_constraints(
     Wrapper used by the interactive sub-profile builder.
     """
     return _build_standard_constraints(existing)
-
-def _prompt_random_suit_constraint(
-    existing_allowed_suits: Optional[str] = None,
-    existing_required_count: Optional[int] = None,
-    existing_suit_ranges: Optional[List[SuitRange]] = None,
-) -> Tuple[str, int, List[SuitRange]]:
-    """
-    Prompt for Random Suit constraint details.
-
-    We return a tuple:
-      (allowed_suits_str, required_suits_count, list_of_suit_ranges)
-    """
-    print("\nRandom Suit constraint:")
-
-    if existing_allowed_suits is None:
-        default_allowed = "SH"
-    else:
-        default_allowed = existing_allowed_suits
-
-    allowed_suits = prompt_text(
-        "  Allowed suits (any order) "
-        "(e.g. SHC for Spades, Hearts, Clubs) (default SH):  ",
-        default=default_allowed,
-    ).upper()
-
-    default_required_count = existing_required_count or 1
-    required_count = prompt_int(
-        "  Number of suits that must meet the random-suit criteria [1] "
-        "(>=1 and <=2): ",
-        1,
-        2,
-        default=default_required_count,
-    )
-
-    suit_ranges: List[SuitRange] = []
-    existing_ranges = existing_suit_ranges or []
-
-    for i in range(required_count):
-        if i < len(existing_ranges):
-            existing_range = existing_ranges[i]
-        else:
-            existing_range = None
-        print(f"Define SuitRange for Random Suit #{i+1}:")
-        sr = _prompt_suit_range(f"Random Suit #{i+1}", existing_range)
-        suit_ranges.append(sr)
-
-    return allowed_suits, required_count, suit_ranges
 
 def _build_partner_contingent_constraint(
     existing: Optional[PartnerContingentConstraint] = None,

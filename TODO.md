@@ -172,12 +172,12 @@
 - ✅ `_atomic_write()` helper: `tempfile.mkstemp()` + `os.fdopen()` + `os.replace()` — crash-safe writes
 - ✅ All 3 write sites use `_atomic_write()`: `_save_profile_to_path()`, `save_profile()`, `autosave_profile_draft()`
 
-### 21. [ ] Wizard cleanup (`wizard_flow.py`)
-- Consolidate 3 autosave definitions (lines 420, 968, 1624) into 1
-- Remove dead functions: `_prompt_random_suit_constraint()`, `_default_dealing_order_for_dealer()`
-- Unify duplicated SuitRange builders (`_build_suit_range_for_prompt()` vs `_prompt_suit_range()`)
-- Consolidate exclusion editors (`_edit_subprofile_exclusions()` vs `_edit_subprofile_exclusions_for_seat()`)
-- **Priority**: Medium — reduces ~150 lines of duplication
+### 21. [x] Wizard cleanup (`wizard_flow.py`)
+- ✅ Removed 2 dead autosave functions (kept single active `_autosave_profile_draft` at line 1624)
+- ✅ Removed dead `_prompt_random_suit_constraint()`, `_default_dealing_order_for_dealer()`
+- ✅ Removed dead `_edit_subprofile_exclusions()` (superseded by `_edit_subprofile_exclusions_for_seat()`)
+- SuitRange builders (`_build_suit_range_for_prompt` vs `_prompt_suit_range`) both actively used — left as-is
+- wizard_flow.py: 1,965 → 1,779 lines (−186)
 
 ### 22. [x] Standardize `ns_role_mode` defaults
 - ✅ All 8 locations now consistently use `"no_driver_no_index"` as default
@@ -211,7 +211,7 @@
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 13 (13 done) | **Total: 1 pending**
+Architecture: 15 (15 done) | Enhancements: 14 (14 done) | **Total: 1 pending** (#18 wizard refactor — low priority)
 
 **Tests**: 465 passed, 4 skipped | **Branch**: refactor/deal-generator
 
@@ -225,6 +225,7 @@ Architecture: 15 (15 done) | Enhancements: 13 (13 done) | **Total: 1 pending**
 
 - Profile store safety (#20): `_load_profiles()` error handling + `_atomic_write()` for crash-safe writes on all 3 write sites
 - Profile store cleanup (#27): consistent trailing newline + narrowed `except OSError`
+- Wizard cleanup (#21): removed 5 dead functions from wizard_flow.py (−186 lines)
 - Profile management bug fixes (#19): SubprofileExclusionData serialization, validate() fix, duplicate class removal, dead function removal. 7 tests.
 - HCP-aware constrained fill (#13): per-suit HCP max enforcement in _constrained_fill() for RS range suits. 5 tests.
 - Profile Diagnostic tool (#17): generic diagnostic runner in Admin menu — pick any profile, run v2 builder with failure attribution, see per-board results + aggregate summary
