@@ -287,11 +287,13 @@ def _constrained_fill(
     pre_cards: List[Card],
     suit_maxima: Dict[str, int],
     total_max_hcp: int = 40,
+    rs_suit_hcp_max: Optional[Dict[str, int]] = None,
 ) -> List[Card]:
     """
     Fill n cards from a shuffled deck, skipping cards that would bust
-    a suit maximum or push total HCP over the maximum.  Skipped cards
-    remain in the deck for other seats.
+    a suit maximum, push total HCP over the maximum, or exceed a
+    per-suit HCP cap for RS suits.  Skipped cards remain in the deck
+    for other seats.
 
     Since the deck is already shuffled, walking front-to-back and
     accepting/skipping is equivalent to random selection with rejection.
@@ -303,6 +305,10 @@ def _constrained_fill(
             current suit holdings and HCP.
         suit_maxima: Max cards per suit {S: max, H: max, D: max, C: max}.
         total_max_hcp: Maximum total HCP for the hand (default 40 = no limit).
+        rs_suit_hcp_max: Optional per-suit HCP cap for RS suits, e.g.
+            {"H": 7} means hearts can't exceed 7 HCP.  Only honor cards
+            are checked — spot cards (0 HCP) are always accepted.
+            Default None = no per-suit HCP enforcement.
 
     Returns:
         List of accepted cards (may be fewer than n if deck exhausted).
@@ -316,6 +322,15 @@ def _constrained_fill(
     for c in pre_cards:
         suit_count[c[1]] += 1
         current_hcp += _CARD_HCP[c]
+
+    # Track per-suit HCP for RS suits that have a cap.
+    # Only initialized when rs_suit_hcp_max is provided (zero overhead otherwise).
+    suit_hcp: Dict[str, int] = {}
+    if rs_suit_hcp_max:
+        for c in pre_cards:
+            s = c[1]
+            if s in rs_suit_hcp_max:
+                suit_hcp[s] = suit_hcp.get(s, 0) + _CARD_HCP[c]
 
     accepted: List[Card] = []
     remaining: List[Card] = []
@@ -341,9 +356,19 @@ def _constrained_fill(
             remaining.append(card)
             continue
 
+        # Skip if this honor card would bust the per-suit HCP cap (#13).
+        # Only applies to RS suits with an explicit max_hcp.
+        if rs_suit_hcp_max and suit in rs_suit_hcp_max:
+            if card_hcp > 0 and suit_hcp.get(suit, 0) + card_hcp > rs_suit_hcp_max[suit]:
+                remaining.append(card)
+                continue
+
         accepted.append(card)
         suit_count[suit] += 1
         current_hcp += card_hcp
+        # Update per-suit HCP tracking for RS suits.
+        if rs_suit_hcp_max and suit in rs_suit_hcp_max:
+            suit_hcp[suit] = suit_hcp.get(suit, 0) + card_hcp
 
     deck[:] = remaining
     return accepted
@@ -656,8 +681,9 @@ def _deal_with_help(
             remaining_needed = 13 - len(pre)
             sub = chosen_subprofiles.get(seat)
             if sub is not None:
-                # Constrained fill: skip cards that would bust suit max
-                # or push total HCP over the maximum.
+                # Constrained fill: skip cards that would bust suit max,
+                # push total HCP over the maximum, or exceed per-suit
+                # HCP cap for RS suits (#13).
                 rs_for_seat = (
                     rs_pre_selections.get(seat)
                     if rs_pre_selections else None
@@ -668,8 +694,25 @@ def _deal_with_help(
                     getattr(std, "total_max_hcp", 40)
                     if std is not None else 40
                 )
+
+                # Extract per-suit HCP max from RS constraints (#13).
+                # Only needed when RS suits have an explicit max_hcp cap.
+                rs_hcp_max = None
+                if rs_for_seat:
+                    rs = getattr(sub, "random_suit_constraint", None)
+                    if rs is not None:
+                        resolved = _resolve_rs_ranges(rs, rs_for_seat)
+                        rs_hcp_max = {}
+                        for s_letter, sr in resolved.items():
+                            mhcp = getattr(sr, "max_hcp", None)
+                            if mhcp is not None and mhcp < 37:
+                                rs_hcp_max[s_letter] = mhcp
+                        if not rs_hcp_max:
+                            rs_hcp_max = None
+
                 fill = _constrained_fill(
-                    deck, remaining_needed, pre, maxima, max_hcp
+                    deck, remaining_needed, pre, maxima, max_hcp,
+                    rs_hcp_max,
                 )
             else:
                 fill = _random_deal(rng, deck, remaining_needed)
