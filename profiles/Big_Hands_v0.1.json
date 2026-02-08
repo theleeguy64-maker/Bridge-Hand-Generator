@@ -11,6 +11,8 @@
   "tag": "Opener",
   "author": "Lee",
   "version": "0.1",
+  "rotate_deals_by_default": true,
+  "ns_role_mode": "no_driver",
   "seat_profiles": {
     "N": {
       "seat": "N",
@@ -47,7 +49,8 @@
           "random_suit_constraint": null,
           "partner_contingent_constraint": null,
           "opponents_contingent_suit_constraint": null,
-          "weight_percent": 100.0
+          "weight_percent": 100.0,
+          "ns_role_usage": "any"
         }
       ]
     },
@@ -86,7 +89,8 @@
           "random_suit_constraint": null,
           "partner_contingent_constraint": null,
           "opponents_contingent_suit_constraint": null,
-          "weight_percent": 100.0
+          "weight_percent": 100.0,
+          "ns_role_usage": "any"
         }
       ]
     },
@@ -125,7 +129,8 @@
           "random_suit_constraint": null,
           "partner_contingent_constraint": null,
           "opponents_contingent_suit_constraint": null,
-          "weight_percent": 100.0
+          "weight_percent": 100.0,
+          "ns_role_usage": "any"
         }
       ]
     },
@@ -164,11 +169,11 @@
           "random_suit_constraint": null,
           "partner_contingent_constraint": null,
           "opponents_contingent_suit_constraint": null,
-          "weight_percent": 100.0
+          "weight_percent": 100.0,
+          "ns_role_usage": "any"
         }
       ]
     }
   },
-  "rotate_deals_by_default": true,
   "subprofile_exclusions": []
 }

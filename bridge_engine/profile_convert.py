@@ -4,12 +4,26 @@ from pathlib import Path
 from bridge_engine.hand_profile import validate_profile
 
 def convert_profiles(dir_path: Path, write: bool = False):
+    """
+    Convert all JSON profile files in a directory from schema v0 to v1.
+
+    The conversion validates each profile and writes it back with
+    schema_version=1. This ensures any legacy defaults are applied
+    and the profile is in the canonical format.
+
+    Args:
+        dir_path: Directory containing .json profile files
+        write: If True, write changes to disk. If False, dry-run mode.
+    """
     for path in dir_path.glob("*.json"):
         data = json.loads(path.read_text())
         profile = validate_profile(data)
-        profile.schema_version = 1
         if write:
-            path.write_text(json.dumps(profile.to_dict(), indent=2))
+            # Get the dict representation and add schema_version
+            # (to_dict() doesn't include schema_version, so we add it manually)
+            output = profile.to_dict()
+            output["schema_version"] = 1
+            path.write_text(json.dumps(output, indent=2))
         else:
             print(f"Would convert: {path}")
 

@@ -32,15 +32,23 @@ from __future__ import annotations
 
 import json
 import sys
+import time
+
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+from .menu_help import get_menu_help
 from .setup_env import run_setup, SetupResult
 from .hand_profile import HandProfile, ProfileError, validate_profile
 from .deal_generator import DealSet, DealGenerationError, generate_deals
 from .deal_output import DealOutputSummary, OutputError, render_deals
+from .profile_cli import _input_int
+
 from . import profile_cli
 from . import lin_tools
+from . import deal_generator  # you should already have this somewhere near the top
+from . import profile_diagnostic
+
 
 # Directory where JSON profiles live (relative to project root / CWD)
 PROFILE_DIR_NAME = "profiles"
@@ -268,6 +276,7 @@ def _run_deal_generation_session() -> None:
 
     # --- Section C: deal generation ---
     print("\nSection C: generating deals ...")
+    gen_start = time.monotonic()
     try:
         deal_set: DealSet = generate_deals(
             setup=setup,
@@ -278,6 +287,7 @@ def _run_deal_generation_session() -> None:
     except DealGenerationError as exc:
         print(f"\nERROR during deal generation: {exc}")
         return
+    gen_elapsed = time.monotonic() - gen_start
 
     # --- Section D: output ---
     print("\nSection D: writing outputs ...")
@@ -298,6 +308,17 @@ def _run_deal_generation_session() -> None:
     print(f"Profile       : {profile.profile_name}")
     print(f"Owner         : {owner}")
     print(f"Deals created : {summary.num_deals}")
+    print(f"Time taken    : {gen_elapsed:.1f}s")
+    # Per-board timing breakdown (populated by adaptive re-seeding feature).
+    # Use getattr for compatibility with test stubs / DummyDealSet objects.
+    _board_times = getattr(deal_set, "board_times", [])
+    _reseed_count = getattr(deal_set, "reseed_count", 0)
+    if _board_times:
+        avg_time = sum(_board_times) / len(_board_times)
+        max_time = max(_board_times)
+        print(f"Avg per board : {avg_time:.1f}s (max {max_time:.1f}s)")
+    if _reseed_count > 0:
+        print(f"Re-seeds      : {_reseed_count}")
     print(f"TXT output    : {summary.txt_path}")
     print(f"LIN output    : {summary.lin_path}")
     if summary.warnings:
@@ -306,16 +327,6 @@ def _run_deal_generation_session() -> None:
             print(f"  - {w}")
     print("")
 
-    try:
-        deal_set: DealSet = generate_deals(
-            setup=setup,
-            profile=profile,
-            num_deals=num_deals,
-            enable_rotation=rotate_deals,
-        )
-    except KeyboardInterrupt:
-        print("\nGeneration aborted by user.")
-        return  # back to main menu instead of full traceback
 
 # ---------------------------------------------------------------------------
 # Profile Management wrapper
@@ -357,6 +368,7 @@ def _run_profile_management() -> None:
 def run_deal_generation() -> None:
     _run_deal_generation_session()
 
+
 def _print_main_menu(include_lin: bool) -> None:
     """
     Helper to print the main menu.
@@ -373,6 +385,7 @@ def _print_main_menu(include_lin: bool) -> None:
         print("4) Exit")
     else:
         print("3) Exit")
+
 
 def run_profile_menu() -> None:
     _run_profile_management()
@@ -409,33 +422,123 @@ def _main_menu() -> None:
             break
         else:
             print("Invalid choice, please try again.")
+  
             
 def main_menu() -> None:
     """
-    Primary interactive menu used when running this module as a script.
+    Top-level interactive menu for the Bridge Hand Generator.
     """
     while True:
-        print()
-        print("=== Bridge Hand Generator ===")
-        print()
-        print("1) Profile Management")
-        print("2) Deal Management")
+        print("\n=== Bridge Hand Generator ===")
+        print("0) Exit")
+        print("1) Profile management")
+        print("2) Deal generation")
         print("3) Admin")
-        print("4) Exit")
+        print("4) Help")
 
-        choice = input("Choose [1-4] [4]: ").strip() or "4"
+        choice = _input_int(
+            "Choose [0-4] [0]: ",
+            default=0,
+            minimum=0,
+            maximum=4,
+            show_range_suffix=False,
+        )
 
-        if choice == "1":
-            _run_profile_management()
-        elif choice == "2":
-            _deal_management_menu()
-        elif choice == "3":
-            _admin_menu()
-        elif choice == "4":
-            print("Goodbye.")
+        if choice == 0:
+            print("Exiting Bridge Hand Generator.")
             break
-        else:
-            print("Invalid choice, please try again.")
+
+        elif choice == 1:
+            # Profile Manager
+            from . import profile_cli
+            profile_cli.run_profile_manager()
+
+        elif choice == 2:
+            # Deal generation main flow (legacy name kept for now)
+            run_deal_generation()
+
+        elif choice == 3:
+            # Admin submenu
+            admin_menu()
+
+        elif choice == 4:
+            # Main menu help
+            print()
+            print(get_menu_help("main_menu"))
+            
+
+def _run_profile_diagnostic_interactive() -> None:
+    """
+    Interactive wrapper: let the user pick a profile and run the v2
+    diagnostic (failure attribution, per-board results, aggregate summary).
+    """
+    print("\n=== Profile Diagnostic ===")
+
+    profile = _choose_profile_for_session()
+    if profile is None:
+        return
+
+    # Validate the profile before running the diagnostic.
+    print(f"\nValidating profile '{profile.profile_name}' ...")
+    try:
+        profile = validate_profile(profile)
+    except ProfileError as exc:
+        print(f"\nERROR: This profile is not valid:\n  {exc}")
+        print("Please edit this profile in Profile Management and try again.")
+        return
+    print("Profile OK.\n")
+
+    num_boards = _input_int_with_default(
+        "Number of boards to diagnose", 20, minimum=1
+    )
+
+    profile_diagnostic.run_profile_diagnostic(
+        profile=profile,
+        num_boards=num_boards,
+    )
+
+
+def admin_menu() -> None:
+    """
+    Admin / tools submenu (LIN combiner, draft tools, diagnostics, etc.).
+    """
+    while True:
+        print("\n=== Bridge Hand Generator – Admin ===")
+        print("0) Exit")
+        print("1) LIN Combiner")
+        print("2) Recover/Delete *_TEST.json drafts")
+        print("3) Profile Diagnostic")
+        print("4) Help")
+
+        choice = _input_int(
+            "Choose [0-4] [0]: ",
+            default=0,
+            minimum=0,
+            maximum=4,
+            show_range_suffix=False,
+        )
+
+        if choice == 0:
+            break
+
+        elif choice == 1:
+            lin_tools.combine_lin_files_interactive()
+
+        elif choice == 2:
+            profile_cli.run_draft_tools()
+
+        elif choice == 3:
+            _run_profile_diagnostic_interactive()
+
+        elif choice == 4:
+            print()
+            print(get_menu_help("admin_menu"))            
+
+
+# Backwards-compatible alias for any legacy callers/tests
+def _admin_menu() -> None:
+    admin_menu()     
+    
 
 def _deal_management_menu() -> None:
     while True:
@@ -457,22 +560,6 @@ def _deal_management_menu() -> None:
         else:
             print("Invalid choice, please try again.")
 
-def _admin_menu() -> None:
-    while True:
-        print()
-        print("=== Admin ===")
-        print()
-        print("1) Draft tools (recover/delete *_TEST.json drafts)")
-        print("2) Exit")
-
-        choice = input("Choose [1-2] [2]: ").strip() or "2"
-
-        if choice == "1":
-            profile_cli.run_draft_tools()
-        elif choice == "2":
-            return
-        else:
-            print("Invalid choice, please try again.")
 
 def main() -> None:
     """
@@ -481,6 +568,7 @@ def main() -> None:
     Always launches the full main menu (with LIN tools).
     """
     main_menu()
+
 
 if __name__ == "__main__":
     main()

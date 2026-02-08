@@ -16,3 +16,6 @@ pytest_run/
 # IDEs
 .vscode/
 .idea/
+
+# Local scratch / patch artifacts
+/Zips/

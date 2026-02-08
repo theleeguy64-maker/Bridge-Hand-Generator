@@ -56,6 +56,15 @@ def is_draft_path(path: Path) -> bool:
     return path.name.endswith("_TEST.json")
 
 
+def list_drafts(profiles_dir: Path) -> List[Path]:
+    """
+    Return all draft *_TEST.json files in the given profiles directory.
+    """
+    if not profiles_dir.is_dir():
+        return []
+    return sorted(p for p in profiles_dir.glob("*_TEST.json") if p.is_file())
+
+
 def _with_test_suffix(name: str) -> str:
     base = (name or "").rstrip()
     return base if base.endswith(TEST_NAME_SUFFIX) else (base + TEST_NAME_SUFFIX).strip()

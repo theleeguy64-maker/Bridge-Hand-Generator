@@ -39,12 +39,18 @@ from __future__ import annotations
 
 import inspect
 import json
+import sys
+
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Iterable
 
 from . import cli_io
 from . import profile_store
+from .wizard_io import _input_choice
+from .wizard_constants import SUITS
+from . import wizard_io as wiz_io
+from .hand_profile_validate import validate_profile as _validate_profile_fallback
 
 from .cli_prompts import (
     prompt_choice,
@@ -52,11 +58,6 @@ from .cli_prompts import (
     prompt_text,
     prompt_yes_no as _prompt_yes_no,
 )
-
-from .wizard_constants import SUITS
-from . import wizard_io as wiz_io
-
-from .hand_profile_validate import validate_profile as _validate_profile_fallback
 
 from .hand_profile_model import (
     HandProfile,
@@ -66,9 +67,256 @@ from .hand_profile_model import (
     StandardSuitConstraints,
     SuitRange,
     OpponentContingentSuitData,
+    _default_dealing_order,
 )
 
-import sys
+
+# ---------------------------------------------------------------------------
+# Base Smart Hand Order helpers (ARCHITECTURE.md)
+# ---------------------------------------------------------------------------
+
+def _clockwise_from(seat: str) -> List[str]:
+    """
+    Return all 4 seats in clockwise order starting from the given seat.
+
+    Example: _clockwise_from("E") → ["E", "S", "W", "N"]
+    """
+    seats = ["N", "E", "S", "W"]
+    idx = seats.index(seat.upper())
+    return seats[idx:] + seats[:idx]
+
+
+# ---------------------------------------------------------------------------
+# Subprofile weight and risk helpers (reusable)
+# ---------------------------------------------------------------------------
+
+def _normalize_subprofile_weights(sub_profiles: list) -> List[float]:
+    """
+    Return normalized weights (0-1) for each subprofile, summing to 1.0.
+
+    Weight logic:
+    - If 0 subprofiles → return []
+    - If 1 subprofile → return [1.0]
+    - If N subprofiles with no weights specified → each gets 1/N
+    - If weights specified → normalize to sum to 1.0
+    """
+    n = len(sub_profiles)
+    if n == 0:
+        return []
+    if n == 1:
+        return [1.0]
+
+    # Extract raw weights (None if not specified)
+    raw_weights = []
+    for sub in sub_profiles:
+        if isinstance(sub, dict):
+            w = sub.get("weight_percent")
+        else:
+            # SubProfile object
+            w = getattr(sub, "weight_percent", None)
+        raw_weights.append(w if w is not None else None)
+
+    # If all None, equal distribution
+    if all(w is None for w in raw_weights):
+        return [1.0 / n] * n
+
+    # Replace None with 0, then normalize
+    weights = [w if w is not None else 0.0 for w in raw_weights]
+    total = sum(weights)
+    if total == 0:
+        return [1.0 / n] * n
+    return [w / total for w in weights]
+
+
+def _get_subprofile_type(sub) -> str:
+    """
+    Return subprofile type: 'rs', 'pc', 'oc', or 'standard'.
+
+    Mutually exclusive - RS/PC/OC can't coexist in same subprofile.
+    Works with both dict (raw JSON) and SubProfile objects.
+    """
+    if isinstance(sub, dict):
+        if sub.get("random_suit_constraint"):
+            return "rs"
+        elif sub.get("partner_contingent_constraint"):
+            return "pc"
+        elif sub.get("opponents_contingent_suit_constraint"):
+            return "oc"
+    else:
+        # SubProfile object
+        if getattr(sub, "random_suit_constraint", None) is not None:
+            return "rs"
+        elif getattr(sub, "partner_contingent_constraint", None) is not None:
+            return "pc"
+        elif getattr(sub, "opponents_contingent_suit_constraint", None) is not None:
+            return "oc"
+    return "standard"
+
+
+# Risk factors for dealing order priority
+SUBPROFILE_RISK_FACTORS = {
+    "standard": 0.0,  # No constraint impact
+    "rs": 1.0,        # Must go first, others depend on it
+    "pc": 0.5,        # Depends on partner (cooperative)
+    "oc": 0.5,        # Depends on opponent (adversarial)
+}
+
+
+def _compute_seat_risk(seat_profile) -> float:
+    """
+    Compute risk score for a seat based on weighted subprofiles.
+
+    Risk = Σ (normalized_weight × risk_factor)
+
+    Higher risk = higher priority in dealing order.
+    """
+    # Handle both dict and SeatProfile
+    if isinstance(seat_profile, dict):
+        sub_profiles = seat_profile.get("sub_profiles", [])
+    else:
+        sub_profiles = getattr(seat_profile, "sub_profiles", [])
+
+    if not sub_profiles:
+        return 0.0
+
+    weights = _normalize_subprofile_weights(sub_profiles)
+
+    total_risk = 0.0
+    for sub, weight in zip(sub_profiles, weights):
+        subtype = _get_subprofile_type(sub)
+        risk = SUBPROFILE_RISK_FACTORS.get(subtype, 0.0)
+        total_risk += weight * risk
+
+    return total_risk
+
+
+def _detect_seat_roles(seat_profiles: dict) -> dict:
+    """
+    Scan seat_profiles dict to detect RS/PC/OC roles for each seat.
+
+    Returns a dict keyed by seat ("N", "E", "S", "W") with:
+      - "rs": bool - True if any subprofile has random_suit_constraint
+      - "pc": str or None - partner_seat if any subprofile has partner_contingent_constraint
+      - "oc": str or None - opponent_seat if any subprofile has opponents_contingent_suit_constraint
+      - "risk": float - weighted risk score (0.0 to 1.0)
+
+    Note: Works with raw dict data (before HandProfile construction) so the
+    wizard can suggest order during profile creation.
+    """
+    roles = {s: {"rs": False, "pc": None, "oc": None, "risk": 0.0} for s in "NESW"}
+
+    for seat, sp in seat_profiles.items():
+        # Compute risk score for this seat
+        roles[seat]["risk"] = _compute_seat_risk(sp)
+
+        # sp can be a dict (raw JSON) or SeatProfile object
+        sub_profiles = sp.get("sub_profiles", []) if isinstance(sp, dict) else sp.sub_profiles
+
+        for sub in sub_profiles:
+            # Handle both dict (raw) and SubProfile object
+            if isinstance(sub, dict):
+                if sub.get("random_suit_constraint"):
+                    roles[seat]["rs"] = True
+                if pc := sub.get("partner_contingent_constraint"):
+                    roles[seat]["pc"] = pc.get("partner_seat")
+                if oc := sub.get("opponents_contingent_suit_constraint"):
+                    roles[seat]["oc"] = oc.get("opponent_seat")
+            else:
+                # SubProfile object
+                if sub.random_suit_constraint is not None:
+                    roles[seat]["rs"] = True
+                if sub.partner_contingent_constraint is not None:
+                    roles[seat]["pc"] = sub.partner_contingent_constraint.partner_seat
+                if sub.opponents_contingent_suit_constraint is not None:
+                    roles[seat]["oc"] = sub.opponents_contingent_suit_constraint.opponent_seat
+
+    return roles
+
+
+def _base_smart_hand_order(
+    seat_profiles: dict,
+    dealer: str,
+    ns_role_mode: str = "no_driver_no_index",
+) -> List[str]:
+    """
+    Compute optimal dealing order based on seat roles (RS/PC/OC) and NS driver.
+
+    Priority algorithm (from ARCHITECTURE.md):
+      P1: RS seats - scan clockwise from dealer, add each RS seat found
+      P2: NS seat - if driver defined, add that; else next NS clockwise
+      P3: PC seats - add if partner already in order
+      P4: OC seats - add if opponent already in order
+      P5: Remaining - fill clockwise from last seat
+
+    Returns a list of 4 seats in dealing order.
+    """
+    dealer = dealer.upper() if dealer else "N"
+    roles = _detect_seat_roles(seat_profiles)
+
+    order = []
+    remaining = set("NESW")
+
+    # --- P1: RS seats (sorted by risk, clockwise tiebreaker) ---
+    # Find all RS seats and sort by (-risk, clockwise_index)
+    # Higher risk = higher priority; equal risk = clockwise from dealer
+    clockwise = _clockwise_from(dealer)
+    rs_seats = [s for s in clockwise if roles[s]["rs"]]
+    rs_seats_sorted = sorted(
+        rs_seats,
+        key=lambda s: (-roles[s]["risk"], clockwise.index(s))
+    )
+    for seat in rs_seats_sorted:
+        if seat in remaining:
+            order.append(seat)
+            remaining.remove(seat)
+
+    # --- P2: NS seat (driver or next clockwise) ---
+    # Determine NS driver from ns_role_mode
+    ns_driver = None
+    mode = (ns_role_mode or "").strip().lower()
+    if mode == "north_drives":
+        ns_driver = "N"
+    elif mode == "south_drives":
+        ns_driver = "S"
+    # "random_driver" and "no_driver_no_index" → no specific driver
+
+    if ns_driver and ns_driver in remaining:
+        # Defined driver: add that seat
+        order.append(ns_driver)
+        remaining.remove(ns_driver)
+    elif remaining & {"N", "S"}:
+        # No driver defined: add next NS seat clockwise from last in order
+        last = order[-1] if order else dealer
+        for seat in _clockwise_from(last):
+            if seat in ("N", "S") and seat in remaining:
+                order.append(seat)
+                remaining.remove(seat)
+                break
+
+    # --- P3: PC seats (add if partner already in order) ---
+    for seat in _clockwise_from(dealer):
+        if seat in remaining and roles[seat]["pc"]:
+            if roles[seat]["pc"] in order:
+                order.append(seat)
+                remaining.remove(seat)
+
+    # --- P4: OC seats (add if opponent already in order) ---
+    for seat in _clockwise_from(dealer):
+        if seat in remaining and roles[seat]["oc"]:
+            if roles[seat]["oc"] in order:
+                order.append(seat)
+                remaining.remove(seat)
+
+    # --- P5: Remaining (clockwise from last) ---
+    if remaining:
+        last = order[-1] if order else dealer
+        for seat in _clockwise_from(last):
+            if seat in remaining:
+                order.append(seat)
+                remaining.remove(seat)
+
+    return order
+
 
 def _suggest_dealing_order(
     tag: str,
@@ -89,14 +337,12 @@ def _suggest_dealing_order(
     dealer_norm = (dealer or "").strip().upper()
     mode = (ns_role_mode or "north_drives").strip().lower()
 
-    base_order = ["N", "E", "S", "W"]
-
+    # Use the shared helper for base "dealer + clockwise" order.
     def rotate_from_dealer() -> List[str]:
-        if dealer_norm in base_order:
-            idx = base_order.index(dealer_norm)
-            return base_order[idx:] + base_order[:idx]
-        # Defensive fallback
-        return base_order
+        if dealer_norm in ("N", "E", "S", "W"):
+            return _default_dealing_order(dealer_norm)
+        # Defensive fallback for invalid dealer
+        return ["N", "E", "S", "W"]
 
     # ---- Special cases: North-centric training drills ----
     #
@@ -302,6 +548,7 @@ def _parse_shapes_csv(raw: str) -> list[str]:
         shapes.append(s)
     return shapes
 
+
 def _build_exclusion_rule(
     seat: str,
     subprofile_index: int,
@@ -314,7 +561,8 @@ def _build_exclusion_rule(
 
     if kind == "shapes":
         raw = _input_with_default(
-            "Enter excluded shapes as comma-separated 4-digit S/H/D/C patterns that sum to 13 (e.g. 4333,4432): "
+            "Enter excluded shapes as comma-separated 4-digit S/H/D/C patterns "
+            "that sum to 13 (e.g. 4333,4432): ",
             "",
         ).strip()
         shapes = _parse_shapes_csv(raw)
@@ -360,7 +608,7 @@ def _build_exclusion_rule(
         excluded_shapes=None,
         clauses=clauses,
     )
-
+    
 # Near other small helpers in wizard_flow.py
 
 def _default_dealing_order_for_dealer(dealer: Seat) -> list[Seat]:
@@ -370,6 +618,89 @@ def _default_dealing_order_for_dealer(dealer: Seat) -> list[Seat]:
         return base
     idx = base.index(dealer)
     return base[idx:] + base[:idx]
+
+
+def _build_exclusion_shapes(
+    seat: Any,
+    subprofile_index: Optional[int] = None,
+) -> List[str]:
+    """
+    Build a list of shape strings for use in the exclusions wizard.
+
+    This is deliberately duck-typed so tests (and future callers) can
+    use simple dummy objects instead of the real SeatProfile/SubProfile
+    classes.
+
+    Rules (best-effort, no hard schema assumptions):
+
+    - `seat` is expected to expose `.subprofiles` (iterable).
+    - If `subprofile_index` is not None and in range, we only inspect
+      that subprofile; otherwise we inspect all subprofiles on the seat.
+    - For each selected subprofile we look, in order, for:
+
+        * a string attribute `shape_string` or `shape`, e.g. "5-3-3-2"
+        * or a 4-tuple / 4-list attribute named one of
+          ("shape", "shape_tuple", "suit_lengths", "suit_counts")
+
+      and normalise 4-int sequences into "x-y-z-w" strings.
+
+    - We deduplicate while preserving first-seen order.
+    - If nothing shape-like can be found, we return an empty list.
+    """
+
+    # --- internal helper -------------------------------------------------
+    def _shape_from_sub(sub: Any) -> Optional[str]:
+        if sub is None:
+            return None
+
+        # 1) Direct string attributes.
+        for attr in ("shape_string", "shape"):
+            val = getattr(sub, attr, None)
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+
+        # 2) 4-card-count sequence attributes.
+        for attr in ("shape", "shape_tuple", "suit_lengths", "suit_counts"):
+            val = getattr(sub, attr, None)
+            if isinstance(val, (list, tuple)) and len(val) == 4 and all(
+                isinstance(n, int) for n in val
+            ):
+                return "-".join(str(int(n)) for n in val)
+
+        # If we can't recognise anything, skip this subprofile.
+        return None
+
+    # --- select which subprofiles we care about --------------------------
+    subs = getattr(seat, "subprofiles", None)
+    if not isinstance(subs, Iterable):
+        return []
+
+    # Normalise to a list so we can index safely.
+    subs_list = list(subs)
+
+    if subprofile_index is not None:
+        try:
+            selected_subs: Iterable[Any] = [subs_list[subprofile_index]]
+        except IndexError:
+            selected_subs = []
+    else:
+        selected_subs = subs_list
+
+    # --- build unique shape list -----------------------------------------
+    seen: set[str] = set()
+    shapes: List[str] = []
+
+    for sub in selected_subs:
+        shape_str = _shape_from_sub(sub)
+        if not shape_str:
+            continue
+        if shape_str in seen:
+            continue
+        seen.add(shape_str)
+        shapes.append(shape_str)
+
+    return shapes
+
 
 def _edit_subprofile_exclusions(
     existing: Optional[HandProfile],
@@ -864,11 +1195,11 @@ def _prompt_random_suit_constraint(
 
     return allowed_suits, required_count, suit_ranges
 
-def _prompt_partner_contingent_constraint(
+def _build_partner_contingent_constraint(
     existing: Optional[PartnerContingentConstraint] = None,
 ) -> PartnerContingentConstraint:
     """
-    Prompt the user for a Partner Contingent constraint.
+    Build / edit a Partner Contingent constraint.
     """
     print("\nPartner Contingent constraint:")
 
@@ -1289,74 +1620,6 @@ def _assign_ns_role_usage_interactive(
             print("Please enter one of: any, driver_only, follower_only")
         object.__setattr__(subprofiles[idx - 1], "ns_role_usage", value)
 
-def _suggest_dealing_order(
-    tag: str,
-    dealer: str,
-    ns_role_mode: str = "north_drives",
-) -> List[str]:
-    """
-    Suggest a default hand_dealing_order for the profile creation wizard.
-
-    Today this is only special-cased for North-centric training drills.
-    For everything else we fall back to the simple "rotate N,E,S,W
-    starting from the dealer" rule.
-
-    This is *metadata-only* – it just chooses a default; users can still
-    override via custom input.
-    """
-    tag_norm = (tag or "").strip().lower()
-    dealer_norm = (dealer or "").strip().upper()
-    mode = (ns_role_mode or "north_drives").strip().lower()
-
-    base_order = ["N", "E", "S", "W"]
-
-    def rotate_from_dealer() -> List[str]:
-        if dealer_norm in base_order:
-            idx = base_order.index(dealer_norm)
-            return base_order[idx:] + base_order[:idx]
-        # Defensive fallback
-        return base_order
-
-    # ---- Special cases: North-centric training drills ----
-    #
-    # 1) Tag = "Opener": our side opens.
-    #    We only special-case when dealer is North.
-    #
-    #    - ns_role_mode = "north_drives":
-    #        N (driver), S (partner), then E, W
-    #        => N S E W
-    #    - ns_role_mode = "south_drives":
-    #        S (driver), N (partner), then W, E
-    #        => S N W E
-    if tag_norm == "opener":
-        if dealer_norm == "N":
-            if mode == "north_drives":
-                return ["N", "S", "E", "W"]
-            if mode == "south_drives":
-                return ["S", "N", "W", "E"]
-        # Other dealers with tag="Opener": simple dealer rotation
-        return rotate_from_dealer()
-
-    # 2) Tag = "Overcaller": opponents open, we overcall.
-    #    Classic case: West opens, North overcalls.
-    #
-    #    - ns_role_mode = "north_drives":
-    #        W (opener), N (our driver), S, E
-    #        => W N S E
-    #    - ns_role_mode = "south_drives":
-    #        W (opener), S (our driver), N, E
-    #        => W S N E
-    if tag_norm == "overcaller":
-        if dealer_norm == "W":
-            if mode == "north_drives":
-                return ["W", "N", "S", "E"]
-            if mode == "south_drives":
-                return ["W", "S", "N", "E"]
-        # Other dealers with tag="Overcaller": simple dealer rotation
-        return rotate_from_dealer()
-
-    # Fallback for any other future tags / modes:
-    return rotate_from_dealer()
 
 def _autosave_profile_draft(profile: HandProfile, original_path: Path) -> None:
     """

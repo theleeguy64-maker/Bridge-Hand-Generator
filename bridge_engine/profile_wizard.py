@@ -18,9 +18,7 @@ from typing import Optional
 #   monkeypatch.setattr(profile_wizard, "HandProfile", DummyHandProfile)
 # and so the wizard uses the patched symbol.
 
-from .hand_profile_model import HandProfile
-from .hand_profile import HandProfile, validate_profile  # type: ignore
-from .hand_profile_validate import validate_profile
+from .hand_profile import HandProfile, validate_profile
 
 # ---- I/O seams (tests monkeypatch these) ------------------------------------
 
@@ -54,8 +52,6 @@ from .wizard_flow import (  # type: ignore
     _build_seat_profile,
     _build_profile,
 )
-
-from . import wizard_flow
 
 # Some repos/tests import additional helpers; re-exporting is harmless.
 try:
