@@ -4,8 +4,9 @@
 
 ```
 bridge_engine/
-├── deal_generator.py      (1,158 lines) - Facade: v1 builder + subprofile selection + generate_deals() + re-exports
-├── deal_generator_v2.py   (1,087 lines) - v2 shape-help helpers + v2 builder (active path)
+├── deal_generator.py        (428 lines) - Facade: subprofile selection + generate_deals() + re-exports
+├── deal_generator_v1.py     (795 lines) - v1 builder + hardest-seat + constructive help (legacy)
+├── deal_generator_v2.py   (1,070 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py  (262 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (447 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (921 lines) - Data models
@@ -411,7 +412,7 @@ _deal_single_board_simple(rng, board_number, dealer, dealing_order) -> Deal
 _apply_vulnerability_and_rotation(rng, deals, rotate) -> List[Deal]
 ```
 
-### deal_generator.py (facade — 1,158 lines)
+### deal_generator.py (facade — 428 lines)
 ```python
 # Public API
 generate_deals(setup, profile, num_deals, enable_rotation) -> DealSet
@@ -420,11 +421,10 @@ generate_deals(setup, profile, num_deals, enable_rotation) -> DealSet
 # Includes cross-seat feasibility retry loop (#16)
 _select_subprofiles_for_board(rng, profile, dealing_order) -> (subs, indices)
 
-# v1 builder (legacy, still in facade — Batch 4B will extract)
-_build_single_constrained_deal(rng, profile, board_number, debug) -> Deal
-_choose_hardest_seat_for_board(...) -> Optional[Seat]
-_extract_standard_suit_minima(profile, seat, subprofile) -> Dict[str, int]
-_construct_hand_for_seat(rng, deck, min_suit_counts) -> List[Card]
+# Re-exports from deal_generator_v1 (v1 legacy path)
+_build_single_constrained_deal, _choose_hardest_seat_for_board,
+_extract_standard_suit_minima, _construct_hand_for_seat,
+_build_single_board_random_suit_w_only
 
 # Re-exports from deal_generator_v2 (v2 active path)
 _build_single_constrained_deal_v2, _dispersion_check, _pre_select_rs_suits,
@@ -432,7 +432,29 @@ _random_deal, _get_suit_maxima, _constrained_fill, _pre_allocate,
 _pre_allocate_rs, _deal_with_help
 ```
 
-### deal_generator_v2.py (v2 shape-help — 1,087 lines)
+### deal_generator_v1.py (v1 legacy — 795 lines)
+```python
+# v1 constrained deal builder
+_build_single_constrained_deal(rng, profile, board_number, debug) -> Deal
+
+# Hardest-seat selection
+_seat_has_nonstandard_constraints(profile, seat) -> bool
+_is_shape_dominant_failure(seat, hcp, shape, ratio) -> bool
+_choose_hardest_seat_for_board(...) -> Optional[Seat]
+
+# Constructive sampling helpers
+_extract_standard_suit_minima(profile, seat, subprofile) -> Dict[str, int]
+_construct_hand_for_seat(rng, deck, min_suit_counts) -> List[Card]
+
+# RS W-only fast path (test-only)
+_build_single_board_random_suit_w_only(rng, profile, board_number) -> Deal
+
+# Late import pattern: reads _dg.SeatProfile, _dg._match_seat,
+# _dg.MAX_BOARD_ATTEMPTS, _dg._DEBUG_ON_* through facade module
+# at call time for monkeypatch compatibility.
+```
+
+### deal_generator_v2.py (v2 shape-help — 1,070 lines)
 ```python
 # v2 shape help helpers
 _dispersion_check(chosen_subs, threshold, rs_pre_selections) -> set[Seat]

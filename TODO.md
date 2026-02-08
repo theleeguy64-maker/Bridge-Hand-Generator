@@ -131,11 +131,11 @@
   - ✅ **Batch 2**: `deal_generator_helpers.py` (447 lines) — viability, HCP, deck, subprofile weights, vulnerability/rotation
   - ✅ **Batch 3**: `deal_generator_v2.py` — 8 v2 shape-help helpers extracted (LOW RISK)
   - ✅ **Batch 4A**: v2 builder moved to `deal_generator_v2.py` (MEDIUM RISK)
-  - [ ] **Batch 4B**: `deal_generator_v1.py` — v1 builder + hardest-seat + constructive help (HIGH RISK, late-import pattern)
+  - ✅ **Batch 4B**: `deal_generator_v1.py` (795 lines) — v1 builder + hardest-seat + constructive help extracted with late-import pattern
   - [ ] **Batch 5**: Cleanup facade, verify, update docs
-  - `deal_generator.py`: 2,183 → 1,158 lines (−1,025); `deal_generator_v2.py`: 1,087 lines
+  - `deal_generator.py`: 2,183 → 428 lines (−1,755); `deal_generator_v1.py`: 795 lines; `deal_generator_v2.py`: 1,070 lines
   - NOTE: `_select_subprofiles_for_board` kept in facade (isinstance monkeypatch sensitivity)
-  - NOTE: v2 uses late import `from . import deal_generator as _dg` for monkeypatchable values
+  - NOTE: v1 and v2 both use late import `from . import deal_generator as _dg` for monkeypatchable values
 - `hand_profile_model.py` (921 lines) — split data models from logic
 - `profile_cli.py` (968 lines) — split command handlers
 - `orchestrator.py` (528 lines) — split session management from CLI routing
