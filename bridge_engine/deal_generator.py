@@ -52,6 +52,7 @@ from .deal_generator_helpers import (   # explicit re-imports for linters / IDE
     _build_deck, _get_constructive_mode,
     _HCP_BY_RANK, _card_hcp, _deck_hcp_stats, _check_hcp_feasibility,
     _deal_single_board_simple, _apply_vulnerability_and_rotation,
+    _vulnerability_for_board,
 )
 
 
@@ -263,12 +264,10 @@ def _build_single_board_random_suit_w_only(
         if matched:
             # We know West satisfies its RS constraints; we don't enforce
             # anything on the other seats in this special test path.
-            idx = (board_number - 1) % len(VULNERABILITY_SEQUENCE)
-            vulnerability = VULNERABILITY_SEQUENCE[idx]
             return Deal(
                 board_number=board_number,
                 dealer=profile.dealer,
-                vulnerability=vulnerability,
+                vulnerability=_vulnerability_for_board(board_number),
                 hands=hands,
             )
 
@@ -618,11 +617,6 @@ def _build_single_constrained_deal(
     """
 
     dealing_order: List[Seat] = list(profile.hand_dealing_order)
-
-    def _vulnerability_for_board(n: int) -> str:
-        """Simple cyclic vulnerability pattern."""
-        idx = (n - 1) % len(VULNERABILITY_SEQUENCE)
-        return VULNERABILITY_SEQUENCE[idx]
 
     # -------------------------------------------------------------------
     # FAST PATH: invariants-safety profiles

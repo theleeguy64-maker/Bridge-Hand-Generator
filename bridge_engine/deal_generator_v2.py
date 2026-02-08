@@ -22,7 +22,6 @@ from .deal_generator_types import (
     PRE_ALLOCATE_FRACTION,
     RS_PRE_ALLOCATE_FRACTION, RS_PRE_ALLOCATE_HCP_RETRIES,
     MAX_BOARD_ATTEMPTS, SUBPROFILE_REROLL_INTERVAL, RS_REROLL_INTERVAL,
-    VULNERABILITY_SEQUENCE,
     _CARD_HCP,
 )
 # _DEBUG_ON_MAX_ATTEMPTS and _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION are
@@ -32,7 +31,9 @@ from .deal_generator_types import (
 # time from the deal_generator facade module (late import) so that tests
 # which monkeypatch `dg.ENABLE_HCP_FEASIBILITY_CHECK` still work.  The
 # facade re-exports these from deal_generator_types via `from ... import *`.
-from .deal_generator_helpers import _check_hcp_feasibility, _build_deck
+from .deal_generator_helpers import (
+    _check_hcp_feasibility, _build_deck, _vulnerability_for_board,
+)
 from .hand_profile import HandProfile, SeatProfile, SubProfile
 from .seat_viability import _match_seat
 
@@ -40,6 +41,53 @@ from .seat_viability import _match_seat
 # ---------------------------------------------------------------------------
 # v2 shape-help helpers
 # ---------------------------------------------------------------------------
+
+
+def _resolve_rs_ranges(
+    rs: object,
+    pre_selected_suits: List[str],
+) -> Dict[str, object]:
+    """
+    Resolve the effective RS suit ranges for pre-selected suits.
+
+    Handles pair_overrides: when required_suits_count == 2 and a matching
+    pair override exists, uses the override's first_range/second_range
+    instead of the default suit_ranges.
+
+    Args:
+        rs: The random_suit_constraint object (must have required_suits_count,
+            pair_overrides, suit_ranges attributes).
+        pre_selected_suits: List of suit letters chosen for this seat.
+
+    Returns:
+        Dict mapping suit letter → SuitRange object.
+    """
+    ranges: Dict[str, object] = {}
+
+    if (
+        rs.required_suits_count == 2
+        and rs.pair_overrides
+        and len(pre_selected_suits) == 2
+    ):
+        sorted_pair = tuple(sorted(pre_selected_suits))
+        matched = None
+        for po in rs.pair_overrides:
+            if tuple(sorted(po.suits)) == sorted_pair:
+                matched = po
+                break
+        if matched is not None:
+            ranges[matched.suits[0]] = matched.first_range
+            ranges[matched.suits[1]] = matched.second_range
+        else:
+            for idx, suit in enumerate(pre_selected_suits):
+                if idx < len(rs.suit_ranges):
+                    ranges[suit] = rs.suit_ranges[idx]
+    else:
+        for idx, suit in enumerate(pre_selected_suits):
+            if idx < len(rs.suit_ranges):
+                ranges[suit] = rs.suit_ranges[idx]
+
+    return ranges
 
 
 def _dispersion_check(
@@ -104,35 +152,7 @@ def _dispersion_check(
             if rs is None:
                 continue
 
-            # Build the effective ranges for the pre-selected suits,
-            # respecting pair_overrides for 2-suit RS.
-            ranges_by_suit: Dict[str, object] = {}
-            if (
-                rs.required_suits_count == 2
-                and rs.pair_overrides
-                and len(pre_suits) == 2
-            ):
-                sorted_pair = tuple(sorted(pre_suits))
-                matched_override = None
-                for po in rs.pair_overrides:
-                    if tuple(sorted(po.suits)) == sorted_pair:
-                        matched_override = po
-                        break
-                if matched_override is not None:
-                    ranges_by_suit[matched_override.suits[0]] = (
-                        matched_override.first_range
-                    )
-                    ranges_by_suit[matched_override.suits[1]] = (
-                        matched_override.second_range
-                    )
-                else:
-                    for idx, suit in enumerate(pre_suits):
-                        if idx < len(rs.suit_ranges):
-                            ranges_by_suit[suit] = rs.suit_ranges[idx]
-            else:
-                for idx, suit in enumerate(pre_suits):
-                    if idx < len(rs.suit_ranges):
-                        ranges_by_suit[suit] = rs.suit_ranges[idx]
+            ranges_by_suit = _resolve_rs_ranges(rs, pre_suits)
 
             # Check each RS suit's min_cards against the probability table.
             for suit_letter, sr in ranges_by_suit.items():
@@ -251,30 +271,7 @@ def _get_suit_maxima(
     # RS constraints: enforce max_cards for pre-selected suits.
     rs = getattr(subprofile, "random_suit_constraint", None)
     if rs is not None and rs_pre_selected:
-        # Resolve effective ranges (respecting pair_overrides).
-        ranges_by_suit: Dict[str, object] = {}
-        if (
-            rs.required_suits_count == 2
-            and rs.pair_overrides
-            and len(rs_pre_selected) == 2
-        ):
-            sorted_pair = tuple(sorted(rs_pre_selected))
-            matched = None
-            for po in rs.pair_overrides:
-                if tuple(sorted(po.suits)) == sorted_pair:
-                    matched = po
-                    break
-            if matched is not None:
-                ranges_by_suit[matched.suits[0]] = matched.first_range
-                ranges_by_suit[matched.suits[1]] = matched.second_range
-            else:
-                for idx, suit in enumerate(rs_pre_selected):
-                    if idx < len(rs.suit_ranges):
-                        ranges_by_suit[suit] = rs.suit_ranges[idx]
-        else:
-            for idx, suit in enumerate(rs_pre_selected):
-                if idx < len(rs.suit_ranges):
-                    ranges_by_suit[suit] = rs.suit_ranges[idx]
+        ranges_by_suit = _resolve_rs_ranges(rs, rs_pre_selected)
 
         for suit_letter, sr in ranges_by_suit.items():
             mc = getattr(sr, "max_cards", 13)
@@ -380,7 +377,7 @@ def _pre_allocate(
         rng: Random number generator.
         deck: Mutable list of cards. Modified in place (cards removed).
         subprofile: The chosen subprofile for this seat.
-        fraction: Fraction of minima to pre-allocate (default 0.50).
+        fraction: Fraction of minima to pre-allocate (default 0.75).
 
     Returns:
         List of pre-allocated cards (may be empty).
@@ -455,7 +452,7 @@ def _pre_allocate_rs(
         deck: Mutable list of cards. Modified in place (cards removed).
         subprofile: The chosen subprofile (must have random_suit_constraint).
         pre_selected_suits: List of suit letters pre-selected for RS.
-        fraction: Fraction of minima to pre-allocate (default 0.50).
+        fraction: Fraction of RS minima to pre-allocate (default 1.0).
 
     Returns:
         List of pre-allocated cards (may be empty).
@@ -464,35 +461,7 @@ def _pre_allocate_rs(
     if rs is None:
         return []
 
-    # Build the effective ranges for each pre-selected suit,
-    # respecting pair_overrides for 2-suit RS.
-    ranges_by_suit: Dict[str, object] = {}
-    if (
-        rs.required_suits_count == 2
-        and rs.pair_overrides
-        and len(pre_selected_suits) == 2
-    ):
-        sorted_pair = tuple(sorted(pre_selected_suits))
-        matched_override = None
-        for po in rs.pair_overrides:
-            if tuple(sorted(po.suits)) == sorted_pair:
-                matched_override = po
-                break
-        if matched_override is not None:
-            ranges_by_suit[matched_override.suits[0]] = (
-                matched_override.first_range
-            )
-            ranges_by_suit[matched_override.suits[1]] = (
-                matched_override.second_range
-            )
-        else:
-            for idx, suit in enumerate(pre_selected_suits):
-                if idx < len(rs.suit_ranges):
-                    ranges_by_suit[suit] = rs.suit_ranges[idx]
-    else:
-        for idx, suit in enumerate(pre_selected_suits):
-            if idx < len(rs.suit_ranges):
-                ranges_by_suit[suit] = rs.suit_ranges[idx]
+    ranges_by_suit = _resolve_rs_ranges(rs, pre_selected_suits)
 
     # Build suit index once — suits are disjoint so processing order
     # doesn't affect available pools across different suits.
@@ -709,6 +678,40 @@ def _deal_with_help(
     return hands, None
 
 
+def _build_processing_order(
+    profile: "HandProfile",
+    dealing_order: List[Seat],
+    chosen_subprofiles: Dict[Seat, "SubProfile"],
+) -> List[Seat]:
+    """
+    Build seat processing order: RS seats first, then everything else.
+
+    RS seats must be processed before PC/OC seats so that partner/opponent
+    RS choices are visible during matching.
+
+    Args:
+        profile: The HandProfile with seat constraints.
+        dealing_order: Base dealing order.
+        chosen_subprofiles: Selected subprofile per seat.
+
+    Returns:
+        List of constrained seats, RS first, preserving dealing_order within
+        each group.
+    """
+    rs_seats: List[Seat] = []
+    other_seats: List[Seat] = []
+    for seat in dealing_order:
+        sp = profile.seat_profiles.get(seat)
+        if not isinstance(sp, SeatProfile) or not sp.subprofiles:
+            continue
+        sub = chosen_subprofiles.get(seat)
+        if sub and getattr(sub, "random_suit_constraint", None) is not None:
+            rs_seats.append(seat)
+        else:
+            other_seats.append(seat)
+    return rs_seats + other_seats
+
+
 # ---------------------------------------------------------------------------
 # v2 constrained deal builder (Batch 4A, #7)
 # ---------------------------------------------------------------------------
@@ -765,11 +768,10 @@ def _build_single_constrained_deal_v2(
         for seat in dealing_order:
             hands[seat] = deck[idx : idx + 13]
             idx += 13
-        vul_idx = (board_number - 1) % len(VULNERABILITY_SEQUENCE)
         return Deal(
             board_number=board_number,
             dealer=profile.dealer,
-            vulnerability=VULNERABILITY_SEQUENCE[vul_idx],
+            vulnerability=_vulnerability_for_board(board_number),
             hands=hands,
         )
 
@@ -795,18 +797,9 @@ def _build_single_constrained_deal_v2(
 
     # Build processing order: RS seats first so PC/OC can see partner's
     # RS choices, then everything else.
-    rs_seats: List[Seat] = []
-    other_seats: List[Seat] = []
-    for seat in dealing_order:
-        sp = profile.seat_profiles.get(seat)
-        if not isinstance(sp, SeatProfile) or not sp.subprofiles:
-            continue
-        sub = chosen_subprofiles.get(seat)
-        if sub and getattr(sub, "random_suit_constraint", None) is not None:
-            rs_seats.append(seat)
-        else:
-            other_seats.append(seat)
-    processing_order: List[Seat] = rs_seats + other_seats
+    processing_order = _build_processing_order(
+        profile, dealing_order, chosen_subprofiles
+    )
 
     # ------------------------------------------------------------------
     # Per-board failure attribution counters (D7)
@@ -849,18 +842,9 @@ def _build_single_constrained_deal_v2(
                 chosen_subprofiles, rs_pre_selections=rs_pre_selections
             )
             # Rebuild processing order since RS seats may have changed.
-            rs_seats = []
-            other_seats = []
-            for seat in dealing_order:
-                sp = profile.seat_profiles.get(seat)
-                if not isinstance(sp, SeatProfile) or not sp.subprofiles:
-                    continue
-                sub = chosen_subprofiles.get(seat)
-                if sub and getattr(sub, "random_suit_constraint", None) is not None:
-                    rs_seats.append(seat)
-                else:
-                    other_seats.append(seat)
-            processing_order = rs_seats + other_seats
+            processing_order = _build_processing_order(
+                profile, dealing_order, chosen_subprofiles
+            )
 
         # Periodic RS re-roll (more frequent): try different RS suit
         # combinations within the same subprofile selection.
@@ -1056,11 +1040,10 @@ def _build_single_constrained_deal_v2(
             # Fire debug_board_stats callback on success.
             if debug_board_stats is not None:
                 debug_board_stats(dict(seat_fail_counts), dict(seat_seen_counts))
-            vul_idx = (board_number - 1) % len(VULNERABILITY_SEQUENCE)
             return Deal(
                 board_number=board_number,
                 dealer=profile.dealer,
-                vulnerability=VULNERABILITY_SEQUENCE[vul_idx],
+                vulnerability=_vulnerability_for_board(board_number),
                 hands=hands,
             )
 

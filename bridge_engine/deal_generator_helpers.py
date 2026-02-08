@@ -388,6 +388,11 @@ def _deal_single_board_simple(
     )
 
 
+def _vulnerability_for_board(board_number: int) -> str:
+    """Return the cyclic vulnerability string for a 1-based board number."""
+    return VULNERABILITY_SEQUENCE[(board_number - 1) % len(VULNERABILITY_SEQUENCE)]
+
+
 # ---------------------------------------------------------------------------
 # C2: vulnerability & rotation
 # ---------------------------------------------------------------------------
