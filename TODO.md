@@ -2,6 +2,7 @@
 
 ## Start Tasks
 - [ ] Run profile management in program
+- [ ] Review all profiles (check constraints, metadata, dealing order)
 
 ---
 
@@ -146,12 +147,8 @@
 - ✅ Per-board output (shape, HCP, attempts) + aggregate failure attribution table (5 categories x 4 seats)
 - ✅ Help text updated in `menu_help.py`
 
-### 18. [ ] Wizard refactor (separate IO from logic)
-- `wizard_flow.py` (~1,900 lines) mixes user prompts with constraint-building logic
-- Separate "ask the user" functions from "build constraints from answers" functions
-- Isolate reusable building blocks (suit range builder, constraint builders, rotation defaults)
-- Introduce step objects or small state machine instead of one huge function
-- **Priority**: Low — large effort, would help testability
+### 18. [x] Wizard refactor (separate IO from logic) — REMOVED
+- Removed from backlog — low priority, large effort, not blocking anything
 
 ### 13. [x] HCP-aware constrained fill for RS range suits
 - ✅ `_constrained_fill()` now accepts optional `rs_suit_hcp_max` parameter — per-suit HCP cap for RS suits
@@ -235,7 +232,7 @@
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 17 (17 done) | **Total: 1 pending** (#18 wizard refactor — low priority)
+Architecture: 15 (15 done) | Enhancements: 17 (17 done) | **All complete**
 
 **Tests**: 483 passed, 4 skipped | **Branch**: refactor/deal-generator
 
