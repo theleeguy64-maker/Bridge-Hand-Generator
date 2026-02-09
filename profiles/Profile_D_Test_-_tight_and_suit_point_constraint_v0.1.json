@@ -1,5 +1,6 @@
 {
   "profile_name": "Profile D Test - tight point and suit constraints",
+  "sort_order": 23,
   "description": "Profile D Test - tight point and suit constraints",
   "dealer": "W",
   "hand_dealing_order": [

@@ -222,30 +222,34 @@ def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
 def _choose_profile(
     profiles: List[Tuple[Path, HandProfile]]
 ) -> Optional[Tuple[Path, HandProfile]]:
-    """Let user pick a profile by number. Returns (path, profile) or None."""
+    """Let user pick a profile by display number. Returns (path, profile) or None."""
     if not profiles:
         print("No profiles found.")
         return None
 
+    display_map = profile_store.build_profile_display_map(profiles)
+
     print("\nView or Edit Profiles on disk:")
-    for idx, (path, profile) in enumerate(profiles, start=1):
+    for num in sorted(display_map):
+        _, profile = display_map[num]
         print(
-            f"  {idx}) {profile.profile_name} "
+            f"  {num}) {profile.profile_name} "
             f"(v{getattr(profile, 'version', '')}, "
             f"tag={profile.tag}, dealer={profile.dealer})"
         )
 
+    valid_nums = sorted(display_map)
     choice = _input_int(
         "Choose profile number (0 to cancel)",
         default=0,
         minimum=0,
-        maximum=len(profiles),
+        maximum=max(valid_nums),
         show_range_suffix=False,
     )
     if choice == 0:
         return None
-    if 1 <= choice <= len(profiles):
-        return profiles[choice - 1]
+    if choice in display_map:
+        return display_map[choice]
     print("Invalid choice.")
     return None
 
@@ -276,10 +280,13 @@ def list_profiles_action() -> None:
         print("\nNo profiles created yet.")
         return
 
+    display_map = profile_store.build_profile_display_map(profiles)
+
     print("\nProfiles on disk:")
-    for idx, (path, profile) in enumerate(profiles, start=1):
+    for num in sorted(display_map):
+        _, profile = display_map[num]
         print(
-            f"  {idx}) {profile.profile_name} "
+            f"  {num}) {profile.profile_name} "
             f"(v{getattr(profile, 'version', '')}, "
             f"tag={profile.tag}, dealer={profile.dealer})"
         )
@@ -792,6 +799,7 @@ def edit_profile_action() -> None:
             subprofile_exclusions=list(getattr(profile, "subprofile_exclusions", [])),
             is_invariants_safety_profile=getattr(profile, "is_invariants_safety_profile", False),
             use_rs_w_only_path=getattr(profile, "use_rs_w_only_path", False),
+            sort_order=getattr(profile, "sort_order", None),
         )
 
         _save_profile_to_path(updated, path)
@@ -856,6 +864,7 @@ def save_as_new_version_action() -> None:
         subprofile_exclusions=list(getattr(profile, "subprofile_exclusions", [])),
         is_invariants_safety_profile=getattr(profile, "is_invariants_safety_profile", False),
         use_rs_w_only_path=getattr(profile, "use_rs_w_only_path", False),
+        sort_order=getattr(profile, "sort_order", None),
     )
 
     validate_profile(new_profile)

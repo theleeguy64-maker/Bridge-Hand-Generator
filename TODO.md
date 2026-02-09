@@ -225,10 +225,17 @@
 - ✅ `test_profile_mgmt_menus.py` (4 tests): run_profile_manager dispatch + error recovery, admin_menu dispatch + exit
 - ✅ `test_wizard_edit_flow.py` (5 tests): skip-all preserves profile, edit-one-seat, autosave trigger, constraints roundtrip, exclusion editing
 
+### 31. [x] Custom Profile Display Order (`sort_order`)
+- ✅ Added `sort_order: Optional[int] = None` to HandProfile (model + serialization)
+- ✅ `build_profile_display_map()` in profile_store.py — shared helper for non-sequential numbering
+- ✅ Updated profile_cli.py (`_choose_profile`, `list_profiles_action`) + orchestrator.py (`_choose_profile_for_session`)
+- ✅ Preserved `sort_order` in metadata edit + save-as-new-version
+- ✅ Profile A-E Test files set to sort_order 20-24
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 16 (16 done) | **Total: 1 pending** (#18 wizard refactor — low priority)
+Architecture: 15 (15 done) | Enhancements: 17 (17 done) | **Total: 1 pending** (#18 wizard refactor — low priority)
 
 **Tests**: 483 passed, 4 skipped | **Branch**: refactor/deal-generator
 

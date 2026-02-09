@@ -632,6 +632,11 @@ class HandProfile:
     is_invariants_safety_profile: bool = False
     use_rs_w_only_path: bool = False
 
+    # Optional display ordering — profiles with sort_order are listed at
+    # that number (e.g. 20) instead of sequential position.  Profiles
+    # without sort_order are numbered sequentially starting at 1.
+    sort_order: Optional[int] = None
+
     def __post_init__(self) -> None:
         # Basic structural validation only. Cross-seat semantics are
         # handled in validate_profile() so tests can construct even
@@ -709,6 +714,8 @@ class HandProfile:
             use_rs_w_only_path=bool(
                 data.get("use_rs_w_only_path", False)
             ),
+            # Optional display ordering (None = sequential position)
+            sort_order=data.get("sort_order", None),
         )
 
     def ns_driver_seat(
@@ -831,4 +838,5 @@ class HandProfile:
             "subprofile_exclusions": [e.to_dict() for e in self.subprofile_exclusions],
             "is_invariants_safety_profile": self.is_invariants_safety_profile,
             "use_rs_w_only_path": self.use_rs_w_only_path,
+            **({"sort_order": self.sort_order} if self.sort_order is not None else {}),
         }

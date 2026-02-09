@@ -1,5 +1,6 @@
 {
   "profile_name": "Profile A Test - Loose constraints",
+  "sort_order": 20,
   "description": "Profile A Test - Loose constraints",
   "dealer": "W",
   "hand_dealing_order": [

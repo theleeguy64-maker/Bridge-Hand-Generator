@@ -45,6 +45,7 @@ from .deal_output import DealOutputSummary, OutputError, render_deals
 from .profile_cli import _input_int
 
 from . import profile_cli
+from . import profile_store
 from . import lin_tools
 from . import profile_diagnostic
 
@@ -173,17 +174,21 @@ def _choose_profile_for_session() -> HandProfile | None:
         print("No profiles found. Please create one in Profile Management first.")
         return None
 
+    display_map = profile_store.build_profile_display_map(profiles)
+
     print("\nAvailable profiles on disk:")
-    for idx, (path, profile) in enumerate(profiles, start=1):
+    for num in sorted(display_map):
+        _, profile = display_map[num]
         tag = getattr(profile, "tag", "Unknown")
         dealer = getattr(profile, "dealer", "?")
         version = getattr(profile, "version", "")
         version_str = f"v{version}" if version else "(no version)"
-        print(f"  {idx}) {profile.profile_name} ({version_str}, tag={tag}, dealer={dealer})")
+        print(f"  {num}) {profile.profile_name} ({version_str}, tag={tag}, dealer={dealer})")
 
+    valid_nums = sorted(display_map)
     while True:
         raw = input(
-            f"\nChoose a profile by number [1-{len(profiles)}] "
+            f"\nChoose a profile by number "
             "or press Enter to cancel: "
         ).strip()
         if not raw:
@@ -195,11 +200,11 @@ def _choose_profile_for_session() -> HandProfile | None:
             print("Please enter a number.")
             continue
 
-        if 1 <= choice <= len(profiles):
-            _, profile = profiles[choice - 1]
+        if choice in display_map:
+            _, profile = display_map[choice]
             return profile
 
-        print(f"Please choose a number between 1 and {len(profiles)}.")
+        print(f"Invalid choice. Valid numbers: {valid_nums}")
 
 
 # ---------------------------------------------------------------------------
