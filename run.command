@@ -12,10 +12,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# -- Activate virtual environment --
-if [[ -f ".venv/bin/activate" ]]; then
-    source .venv/bin/activate
-else
+# -- Use the venv's Python directly (no PATH dependency) --
+PYTHON="$SCRIPT_DIR/.venv/bin/python"
+
+if [[ ! -x "$PYTHON" ]]; then
     echo ""
     echo "ERROR: Virtual environment not found."
     echo "Please run setup.command first."
@@ -29,7 +29,7 @@ fi
 echo ""
 echo "=== Bridge Hand Generator ==="
 echo ""
-python -m bridge_engine
+"$PYTHON" -m bridge_engine
 
 echo ""
 echo "=== Session ended ==="
