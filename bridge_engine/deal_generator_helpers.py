@@ -17,6 +17,7 @@ from .deal_generator_types import (
     Deal,
     VULNERABILITY_SEQUENCE, ROTATE_MAP, ROTATE_PROBABILITY,
     PRE_ALLOCATE_FRACTION, HCP_FEASIBILITY_NUM_SD,
+    UNVIABLE_MIN_FAILS, UNVIABLE_MIN_RATE,
     _MASTER_DECK, _CARD_HCP,
 )
 from .hand_profile import (
@@ -91,7 +92,7 @@ def _summarize_profile_viability(
 
             # Heuristic thresholds; these are intentionally conservative so that
             # we only mark a seat as "unviable" when it's clearly struggling.
-            if fails >= 5 and rate >= 0.9:
+            if fails >= UNVIABLE_MIN_FAILS and rate >= UNVIABLE_MIN_RATE:
                 bucket = "unviable"
             elif rate >= 0.5:
                 bucket = "borderline"
@@ -250,9 +251,6 @@ def _get_constructive_mode(profile: HandProfile) -> dict[str, bool]:
 # ---------------------------------------------------------------------------
 # HCP utilities
 # ---------------------------------------------------------------------------
-
-# HCP values for card ranks — same mapping as HCP_MAP in seat_viability.py.
-_HCP_BY_RANK: Dict[str, int] = {"A": 4, "K": 3, "Q": 2, "J": 1}
 
 
 def _card_hcp(card: Card) -> int:

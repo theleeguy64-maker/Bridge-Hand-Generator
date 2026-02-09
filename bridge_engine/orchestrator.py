@@ -335,7 +335,6 @@ def _run_deal_generation_session() -> None:
 
 def _run_profile_management() -> None:
     """Launch the Profile Manager UI."""
-    from bridge_engine import profile_cli  # type: ignore[import]
     profile_cli.run_profile_manager()
 
 

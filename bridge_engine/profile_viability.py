@@ -314,8 +314,13 @@ def _validate_ns_coupling(profile: Any) -> None:
     if north is None or south is None:
         return
 
-    # Respect the same flag semantics as the deal generator.
-    ns_coupling_enabled = bool(getattr(profile, "ns_index_coupling_enabled", True))
+    # NS coupling is enabled for all ns_role_mode values EXCEPT
+    # "no_driver_no_index", which explicitly opts out of index coupling.
+    _ns_mode = (
+        getattr(profile, "ns_role_mode", "no_driver_no_index")
+        or "no_driver_no_index"
+    )
+    ns_coupling_enabled = _ns_mode != "no_driver_no_index"
     if not ns_coupling_enabled:
         return
 

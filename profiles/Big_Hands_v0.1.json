@@ -43,7 +43,7 @@
               "min_hcp": 0,
               "max_hcp": 37
             },
-            "total_min_hcp": 0,
+            "total_min_hcp": 1,
             "total_max_hcp": 37
           },
           "random_suit_constraint": null,

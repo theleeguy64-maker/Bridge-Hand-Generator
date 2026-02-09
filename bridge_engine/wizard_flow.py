@@ -462,6 +462,7 @@ def _input_float_with_default(
     *,
     min_value: float = 0.0,
     max_value: float = 100.0,
+    decimal_places: int = 2,
 ) -> float:
     """
     Prompt for a float with a default and optional min/max bounds.
@@ -470,14 +471,16 @@ def _input_float_with_default(
     sites like _input_float_with_default(..., min_value=0.0, max_value=100.0)
     continue to work.
 
-    Returns a validated float.
+    decimal_places controls rounding of the returned value (default 2).
+
+    Returns a validated, rounded float.
     """
     while True:
         raw = _input_with_default(prompt, str(default))
 
         # Allow empty → default, in case callers bypass _input_with_default
         if raw.strip() == "":
-            return default
+            return round(default, decimal_places)
 
         try:
             value = float(raw)
@@ -489,7 +492,7 @@ def _input_float_with_default(
             print(f"Please enter a value between {min_value} and {max_value}.")
             continue
 
-        return value
+        return round(value, decimal_places)
 
 def clear_screen() -> None:
     return _pw_attr("clear_screen", wiz_io.clear_screen)()
@@ -512,10 +515,6 @@ from .hand_profile import (
 # ---------------------------------------------------------------------------
 # Sub-profile exclusions (F2) — wizard helpers
 # ---------------------------------------------------------------------------
-
-def _pw():
-    from . import profile_wizard as pw
-    return pw
 
 def _parse_shapes_csv(raw: str) -> list[str]:
     shapes: list[str] = []
@@ -1026,10 +1025,9 @@ def _build_partner_contingent_constraint(
     if partner_seat not in ("N", "E", "S", "W"):
         print("Invalid seat; defaulting to N.")
         partner_seat = "N"
-        if existing is None:
-            existing_suit_range = None
-    else:
-        existing_suit_range = existing.suit_range
+
+    # Extract existing suit range if editing an existing constraint.
+    existing_suit_range = existing.suit_range if existing is not None else None
 
     suit_range = _prompt_suit_range("Partner suit", existing_suit_range)
 
@@ -1411,7 +1409,7 @@ def _assign_ns_role_usage_interactive(
         default=False,
     ):
         # Just write defaults back into the new objects.
-        for sub, usage in zip(subprofiles, defaults, strict=False):
+        for sub, usage in zip(subprofiles, defaults):
             object.__setattr__(sub, "ns_role_usage", usage)
         return
 
@@ -1746,7 +1744,7 @@ def create_profile_interactive() -> HandProfile:
         seat_profiles=seat_profiles,
         author=author,
         version=version,
-        rotate_deals_by_default=rotate_flag,
+        rotate_deals_by_default=True,
         ns_role_mode=ns_role_mode,
         subprofile_exclusions=subprofile_exclusions,
     )

@@ -203,6 +203,30 @@ RESEED_TIME_THRESHOLD_SECONDS: float = 1.75
 CONSTRUCTIVE_MAX_SUM_MIN_CARDS: int = 11
 
 # ---------------------------------------------------------------------------
+# Full-deck HCP constants (52-card deck)
+# ---------------------------------------------------------------------------
+
+# Sum of HCP across all 52 cards: 4 suits × (A=4 + K=3 + Q=2 + J=1) = 40.
+FULL_DECK_HCP_SUM: int = 40
+
+# Sum of squared HCP values: 4 suits × (16 + 9 + 4 + 1) = 120.
+FULL_DECK_HCP_SUM_SQ: int = 120
+
+# Maximum HCP achievable in a single 13-card hand (AKQJ × 4 suits minus 3
+# spot cards = 37). Used as a "no real cap" sentinel in suit-level constraints.
+MAX_HAND_HCP: int = 37
+
+# ---------------------------------------------------------------------------
+# Viability classification thresholds
+# ---------------------------------------------------------------------------
+
+# Minimum failure count before a seat can be classified as "unviable".
+UNVIABLE_MIN_FAILS: int = 5
+
+# Minimum failure rate (fails/seen) to classify as "unviable".
+UNVIABLE_MIN_RATE: float = 0.9
+
+# ---------------------------------------------------------------------------
 # HCP feasibility check constants
 # ---------------------------------------------------------------------------
 
@@ -216,9 +240,6 @@ ENABLE_HCP_FEASIBILITY_CHECK: bool = True
 # At 1.0 SD, ~68% of outcomes fall within [ExpDown, ExpUp].  Rejecting outside
 # this band means "even a 1-sigma-favourable outcome can't reach the target".
 HCP_FEASIBILITY_NUM_SD: float = 1.0
-
-# Toggleable debug flag for Section C
-DEBUG_SECTION_C: bool = False
 
 
 # ---------------------------------------------------------------------------
