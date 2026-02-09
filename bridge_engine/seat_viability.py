@@ -14,6 +14,7 @@ from .hand_profile import (
     ProfileError,
     SuitRange,
 )
+from .deal_generator_types import SuitAnalysis, _MASTER_DECK
 
 
 # Simple type aliases used throughout generation/viability.
@@ -24,21 +25,13 @@ Card = str
 HCP_MAP = {"A": 4, "K": 3, "Q": 2, "J": 1}
 
 
-@dataclass(frozen=True)
-class SuitAnalysis:
-    cards_by_suit: Dict[str, List[Card]]
-    hcp_by_suit: Dict[str, int]
-    total_hcp: int
-
-
 # ---------------------------------------------------------------------------
 # Basic deck helpers
 # ---------------------------------------------------------------------------
 
 def _build_deck() -> List[Card]:
-    ranks = "AKQJT98765432"
-    suits = "SHDC"
-    return [r + s for s in suits for r in ranks]
+    """Return a fresh copy of the 52-card master deck."""
+    return list(_MASTER_DECK)
 
 
 def _compute_suit_analysis(hand: List[Card]) -> SuitAnalysis:

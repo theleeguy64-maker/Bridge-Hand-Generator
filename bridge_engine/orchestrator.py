@@ -342,13 +342,9 @@ def _run_profile_management() -> None:
     profile_cli.run_profile_manager()
 
 
-# Public wrappers (kept for any external callers)
+# Public wrapper (kept for main_menu call site)
 def run_deal_generation() -> None:
     _run_deal_generation_session()
-
-
-def run_profile_menu() -> None:
-    _run_profile_management()
 
 # ---------------------------------------------------------------------------
 # Main menu

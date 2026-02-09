@@ -37,8 +37,6 @@ profiles so that both the CLI and tests can rely on a single behaviour.
 
 from __future__ import annotations
 
-import inspect
-import json
 import sys
 
 from dataclasses import asdict, dataclass, field, replace
@@ -1009,8 +1007,8 @@ def _prompt_standard_constraints(
     return _build_standard_constraints(existing)
 
 def _build_partner_contingent_constraint(
-    existing: Optional[PartnerContingentConstraint] = None,
-) -> PartnerContingentConstraint:
+    existing: Optional[PartnerContingentData] = None,
+) -> PartnerContingentData:
     """
     Build / edit a Partner Contingent constraint.
     """
@@ -1625,6 +1623,7 @@ def _build_profile(
                     rotate_deals_by_default=rotate_flag,
                     ns_role_mode=ns_role_mode,
                     subprofile_exclusions=list(subprofile_exclusions),
+                    sort_order=getattr(existing, "sort_order", None),
                 )
                 _autosave_profile_draft(snapshot, original_path)
             except Exception as exc:  # pragma: no cover – autosave is best-effort
@@ -1645,7 +1644,8 @@ def _build_profile(
         "rotate_deals_by_default": rotate_flag,
         "ns_role_mode": ns_role_mode,
         "subprofile_exclusions": list(subprofile_exclusions),
-    }   
+        "sort_order": getattr(existing, "sort_order", None),
+    }
          
 def create_profile_interactive() -> HandProfile:
     """
