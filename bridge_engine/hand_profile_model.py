@@ -469,7 +469,7 @@ class SubProfile:
             ),
             "weight_percent": self.weight_percent,
             # JSON field name for Phase 3 metadata.
-            "ns_role_usage": getattr(self, "ns_role_usage", "any"),
+            "ns_role_usage": self.ns_role_usage,
         }
 
     @classmethod
@@ -632,6 +632,11 @@ class HandProfile:
     is_invariants_safety_profile: bool = False
     use_rs_w_only_path: bool = False
 
+    # Optional display ordering — profiles with sort_order are listed at
+    # that number (e.g. 20) instead of sequential position.  Profiles
+    # without sort_order are numbered sequentially starting at 1.
+    sort_order: Optional[int] = None
+
     def __post_init__(self) -> None:
         # Basic structural validation only. Cross-seat semantics are
         # handled in validate_profile() so tests can construct even
@@ -709,6 +714,8 @@ class HandProfile:
             use_rs_w_only_path=bool(
                 data.get("use_rs_w_only_path", False)
             ),
+            # Optional display ordering (None = sequential position)
+            sort_order=data.get("sort_order", None),
         )
 
     def ns_driver_seat(
@@ -732,10 +739,7 @@ class HandProfile:
         - "no_driver"          -> None (explicit no-driver mode)
         - anything else        -> None (defensive fallback for unknown values)
         """
-        mode = (
-            getattr(self, "ns_role_mode", "no_driver_no_index")
-            or "no_driver_no_index"
-        ).lower()
+        mode = (self.ns_role_mode or "no_driver_no_index").lower()
 
         if mode == "north_drives":
             return "N"
@@ -822,11 +826,13 @@ class HandProfile:
             "tag": self.tag,
             "author": self.author,
             "version": self.version,
-            "rotate_deals_by_default": getattr(self, "rotate_deals_by_default", True),
-            # Persist NS role mode (consistent default across all paths)
-            "ns_role_mode": getattr(self, "ns_role_mode", "no_driver_no_index"),
+            "rotate_deals_by_default": self.rotate_deals_by_default,
+            "ns_role_mode": self.ns_role_mode,
             "seat_profiles": {
                 seat: sp.to_dict() for seat, sp in self.seat_profiles.items()
             },
             "subprofile_exclusions": [e.to_dict() for e in self.subprofile_exclusions],
+            "is_invariants_safety_profile": self.is_invariants_safety_profile,
+            "use_rs_w_only_path": self.use_rs_w_only_path,
+            **({"sort_order": self.sort_order} if self.sort_order is not None else {}),
         }

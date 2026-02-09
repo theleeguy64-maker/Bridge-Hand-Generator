@@ -9,16 +9,16 @@ bridge_engine/
 ├── deal_generator_v2.py   (1,117 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py  (283 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (450 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
-├── hand_profile_model.py    (832 lines) - Data models
+├── hand_profile_model.py    (838 lines) - Data models
 ├── seat_viability.py        (615 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (519 lines) - Validation
 ├── profile_diagnostic.py     (209 lines) - Generic profile diagnostic runner (Admin menu)
-├── orchestrator.py          (500 lines) - CLI/session management + timing
-├── profile_cli.py           (938 lines) - Profile commands
+├── orchestrator.py          (464 lines) - CLI/session management + timing
+├── profile_cli.py           (943 lines) - Profile commands
 ├── profile_wizard.py        (161 lines) - Profile creation UI
 ├── wizard_flow.py         (1,777 lines) - Wizard steps, seat editing, dealing order, RS/PC/OC prompts
 ├── profile_viability.py     (360 lines) - Profile-level viability + cross-seat feasibility
-├── profile_store.py         (249 lines) - JSON persistence (atomic writes, error-tolerant loading)
+├── profile_store.py         (303 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
 ├── lin_tools.py             (459 lines) - LIN file operations
 ├── deal_output.py           (330 lines) - Deal rendering
 ├── lin_encoder.py           (188 lines) - LIN format encoding
@@ -54,7 +54,8 @@ HandProfile (frozen dataclass)
 ├── dealer: Seat
 ├── ns_role_mode: str ("no_driver_no_index", "north_drives", etc.)
 ├── ns_driver_seat: Optional[Callable]
-└── is_invariants_safety_profile: bool
+├── is_invariants_safety_profile: bool
+└── sort_order: Optional[int]  (custom display numbering)
 ```
 
 ## Pipeline Flow
@@ -500,7 +501,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**465 passed, 4 skipped** organized by:
+**483 passed, 4 skipped** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`
@@ -514,6 +515,10 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 - **Defense to Weak 2s**: `test_defense_weak2s_diagnostic.py` (2 tests — diagnostic + pipeline)
 - **Cross-seat feasibility**: `test_cross_seat_feasibility.py` (39 tests — accessors, core, dead sub detection, runtime retry, integration)
 - **v2 comparison**: `test_v2_comparison.py` (6 gated — `RUN_V2_BENCHMARKS=1`)
+
+- **Profile mgmt actions**: `test_profile_mgmt_actions.py` (9 tests — edit/delete/save-as/draft-tools)
+- **Menu dispatch**: `test_profile_mgmt_menus.py` (4 tests — profile manager + admin menu loops)
+- **Wizard editing**: `test_wizard_edit_flow.py` (5 tests — skip/edit seats, autosave, constraints roundtrip, exclusions)
 
 **Untested modules** (low risk):
 - `profile_convert.py` - file I/O logic (should add tests)

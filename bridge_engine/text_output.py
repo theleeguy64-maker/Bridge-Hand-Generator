@@ -15,7 +15,7 @@ class FormattedDeal:
     vulnerability: str
 
 def format_deal_text(deal: FormattedDeal) -> str:
-    header = f"Board {deal.board_number} — Dealer: { _name(deal.dealer)} — Vul: {deal.vulnerability}"
+    header = f"Board {deal.board_number} — Dealer: {_name(deal.dealer)} — Vul: {deal.vulnerability}"
     north = _format_hand(deal.hands["N"])
     south = _format_hand(deal.hands["S"])
     west = _format_hand(deal.hands["W"])

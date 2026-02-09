@@ -45,8 +45,8 @@ from .deal_output import DealOutputSummary, OutputError, render_deals
 from .profile_cli import _input_int
 
 from . import profile_cli
+from . import profile_store
 from . import lin_tools
-from . import deal_generator  # you should already have this somewhere near the top
 from . import profile_diagnostic
 
 
@@ -174,17 +174,15 @@ def _choose_profile_for_session() -> HandProfile | None:
         print("No profiles found. Please create one in Profile Management first.")
         return None
 
-    print("\nAvailable profiles on disk:")
-    for idx, (path, profile) in enumerate(profiles, start=1):
-        tag = getattr(profile, "tag", "Unknown")
-        dealer = getattr(profile, "dealer", "?")
-        version = getattr(profile, "version", "")
-        version_str = f"v{version}" if version else "(no version)"
-        print(f"  {idx}) {profile.profile_name} ({version_str}, tag={tag}, dealer={dealer})")
+    display_map = profile_store.build_profile_display_map(profiles)
 
+    print("\nAvailable profiles on disk:")
+    profile_store.print_profile_display_map(display_map)
+
+    valid_nums = sorted(display_map)
     while True:
         raw = input(
-            f"\nChoose a profile by number [1-{len(profiles)}] "
+            f"\nChoose a profile by number "
             "or press Enter to cancel: "
         ).strip()
         if not raw:
@@ -196,11 +194,11 @@ def _choose_profile_for_session() -> HandProfile | None:
             print("Please enter a number.")
             continue
 
-        if 1 <= choice <= len(profiles):
-            _, profile = profiles[choice - 1]
+        if choice in display_map:
+            _, profile = display_map[choice]
             return profile
 
-        print(f"Please choose a number between 1 and {len(profiles)}.")
+        print(f"Invalid choice. Valid numbers: {valid_nums}")
 
 
 # ---------------------------------------------------------------------------
@@ -333,18 +331,9 @@ def _run_deal_generation_session() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _run_profile_management() -> None:
-    """Launch the Profile Manager UI."""
-    profile_cli.run_profile_manager()
-
-
-# Public wrappers (kept for any external callers)
+# Public wrapper (kept for main_menu call site)
 def run_deal_generation() -> None:
     _run_deal_generation_session()
-
-
-def run_profile_menu() -> None:
-    _run_profile_management()
 
 # ---------------------------------------------------------------------------
 # Main menu
@@ -460,31 +449,6 @@ def admin_menu() -> None:
             print()
             print(get_menu_help("admin_menu"))            
 
-
-# Backwards-compatible alias for any legacy callers/tests
-def _admin_menu() -> None:
-    admin_menu()     
-    
-
-def _deal_management_menu() -> None:
-    while True:
-        print()
-        print("=== Deal Management ===")
-        print()
-        print("1) Deal generation")
-        print("2) LIN Combiner")
-        print("3) Exit")
-
-        choice = input("Choose [1-3] [3]: ").strip() or "3"
-
-        if choice == "1":
-            _run_deal_generation_session()
-        elif choice == "2":
-            lin_tools.run_lin_combiner()
-        elif choice == "3":
-            return
-        else:
-            print("Invalid choice, please try again.")
 
 
 def main() -> None:

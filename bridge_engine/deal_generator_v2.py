@@ -774,7 +774,7 @@ def _build_single_constrained_deal_v2(
 
     Key differences from v1 (_build_single_constrained_deal):
       - Uses _dispersion_check() to identify tight seats BEFORE dealing
-      - Pre-allocates 50% of suit minima for tight seats via _deal_with_help()
+      - Pre-allocates 75% of suit minima for tight seats via _deal_with_help()
       - No hardest-seat selection or v1 constructive gates
       - Full failure attribution (seat_fail_as_seat, global_other,
         global_unchecked, hcp, shape) + debug hooks

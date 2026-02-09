@@ -174,7 +174,7 @@ def _profile_path_for(profile: HandProfile, base_dir: Optional[Path] = None) -> 
     dir_path = _profiles_dir(base_dir)
     dir_path.mkdir(parents=True, exist_ok=True)
     stem = _safe_file_stem(profile.profile_name)
-    version = getattr(profile, "version", "")
+    version = profile.version
     if version:
         fname = f"{stem}_v{version}.json"
     else:
@@ -222,30 +222,28 @@ def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
 def _choose_profile(
     profiles: List[Tuple[Path, HandProfile]]
 ) -> Optional[Tuple[Path, HandProfile]]:
-    """Let user pick a profile by number. Returns (path, profile) or None."""
+    """Let user pick a profile by display number. Returns (path, profile) or None."""
     if not profiles:
         print("No profiles found.")
         return None
 
-    print("\nView or Edit Profiles on disk:")
-    for idx, (path, profile) in enumerate(profiles, start=1):
-        print(
-            f"  {idx}) {profile.profile_name} "
-            f"(v{getattr(profile, 'version', '')}, "
-            f"tag={profile.tag}, dealer={profile.dealer})"
-        )
+    display_map = profile_store.build_profile_display_map(profiles)
 
+    print("\nView or Edit Profiles on disk:")
+    profile_store.print_profile_display_map(display_map)
+
+    valid_nums = sorted(display_map)
     choice = _input_int(
         "Choose profile number (0 to cancel)",
         default=0,
         minimum=0,
-        maximum=len(profiles),
+        maximum=max(valid_nums),
         show_range_suffix=False,
     )
     if choice == 0:
         return None
-    if 1 <= choice <= len(profiles):
-        return profiles[choice - 1]
+    if choice in display_map:
+        return display_map[choice]
     print("Invalid choice.")
     return None
 
@@ -276,13 +274,10 @@ def list_profiles_action() -> None:
         print("\nNo profiles created yet.")
         return
 
+    display_map = profile_store.build_profile_display_map(profiles)
+
     print("\nProfiles on disk:")
-    for idx, (path, profile) in enumerate(profiles, start=1):
-        print(
-            f"  {idx}) {profile.profile_name} "
-            f"(v{getattr(profile, 'version', '')}, "
-            f"tag={profile.tag}, dealer={profile.dealer})"
-        )
+    profile_store.print_profile_display_map(display_map)
 
 
 def draft_tools_action() -> None:
@@ -453,11 +448,11 @@ def _print_profile_metadata(profile: HandProfile, path: Path) -> None:
     print(f"Description : {profile.description}")
     print(f"Tag         : {profile.tag}")
     print(f"Dealer      : {profile.dealer}")
-    print(f"Author      : {getattr(profile, 'author', '')}")
-    print(f"Version     : {getattr(profile, 'version', '')}")
+    print(f"Author      : {profile.author}")
+    print(f"Version     : {profile.version}")
     print(f"File        : {path}")
     print(f"Dealing ord.: {profile.hand_dealing_order}")
-    print(f"Rotate deals: {getattr(profile, 'rotate_deals_by_default', True)}")
+    print(f"Rotate deals: {profile.rotate_deals_by_default}")
 
     ns_mode = getattr(profile, "ns_role_mode", "no_driver_no_index")
     ns_mode_pretty = {
@@ -560,7 +555,7 @@ def _print_subprofile_exclusions(
     seat: str,
     indent: str = "",
 ) -> None:
-    exclusions = getattr(profile, "subprofile_exclusions", [])
+    exclusions = profile.subprofile_exclusions
     relevant = [
         e for e in exclusions
         if getattr(e, "seat", None) == seat
@@ -622,8 +617,8 @@ def view_and_optional_print_profile_action() -> None:
         default=False,
     )
     if export_txt:
-        name = (getattr(profile, "profile_name", "profile") or "profile").strip()
-        tag = (getattr(profile, "tag", "Tag") or "Tag").strip()
+        name = (profile.profile_name or "profile").strip()
+        tag = (profile.tag or "Tag").strip()
 
         safe_name = "".join(
             c if (c.isalnum() or c in ("-", "_")) else "_" for c in name
@@ -730,16 +725,16 @@ def edit_profile_action() -> None:
                 new_order = _default_clockwise_order_starting_with(dealer)
                 print(f"Replaced dealing order with default starting with dealer {dealer}: {new_order}")
 
-        new_author = _input_with_default("Author", getattr(profile, "author", ""))
-        new_version = _input_with_default("Version", getattr(profile, "version", ""))
+        new_author = _input_with_default("Author", profile.author)
+        new_version = _input_with_default("Version", profile.version)
 
         rotate_default = _yes_no(
             "Rotate deals by default?",
-            getattr(profile, "rotate_deals_by_default", True),
+            profile.rotate_deals_by_default,
         )
 
         # NS role mode (5 options)
-        existing_ns_mode = getattr(profile, "ns_role_mode", None) or "no_driver_no_index"
+        existing_ns_mode = profile.ns_role_mode or "no_driver_no_index"
         ns_mode_options = [
             ("north_drives", "North almost always drives"),
             ("south_drives", "South almost always drives"),
@@ -789,6 +784,10 @@ def edit_profile_action() -> None:
             version=new_version,
             rotate_deals_by_default=rotate_default,
             ns_role_mode=new_ns_role_mode,
+            subprofile_exclusions=list(profile.subprofile_exclusions),
+            is_invariants_safety_profile=profile.is_invariants_safety_profile,
+            use_rs_w_only_path=profile.use_rs_w_only_path,
+            sort_order=profile.sort_order,
         )
 
         _save_profile_to_path(updated, path)
@@ -835,7 +834,7 @@ def save_as_new_version_action() -> None:
         return
     _, profile = chosen
 
-    current_version = getattr(profile, "version", "") or "0.1"
+    current_version = profile.version or "0.1"
     print(f"Current version: {current_version}")
     new_version = _input_with_default("New version", current_version)
 
@@ -846,13 +845,14 @@ def save_as_new_version_action() -> None:
         hand_dealing_order=profile.hand_dealing_order,
         tag=profile.tag,
         seat_profiles=profile.seat_profiles,
-        author=getattr(profile, "author", ""),
+        author=profile.author,
         version=new_version,
-        rotate_deals_by_default=getattr(profile, "rotate_deals_by_default", True),
+        rotate_deals_by_default=profile.rotate_deals_by_default,
         ns_role_mode=getattr(profile, "ns_role_mode", "no_driver_no_index"),
-        subprofile_exclusions=list(getattr(profile, "subprofile_exclusions", [])),
-        is_invariants_safety_profile=getattr(profile, "is_invariants_safety_profile", False),
-        use_rs_w_only_path=getattr(profile, "use_rs_w_only_path", False),
+        subprofile_exclusions=list(profile.subprofile_exclusions),
+        is_invariants_safety_profile=profile.is_invariants_safety_profile,
+        use_rs_w_only_path=profile.use_rs_w_only_path,
+        sort_order=profile.sort_order,
     )
 
     validate_profile(new_profile)

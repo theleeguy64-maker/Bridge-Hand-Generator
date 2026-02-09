@@ -37,8 +37,6 @@ profiles so that both the CLI and tests can rely on a single behaviour.
 
 from __future__ import annotations
 
-import inspect
-import json
 import sys
 
 from dataclasses import asdict, dataclass, field, replace
@@ -172,9 +170,9 @@ def _compute_seat_risk(seat_profile) -> float:
     """
     # Handle both dict and SeatProfile
     if isinstance(seat_profile, dict):
-        sub_profiles = seat_profile.get("sub_profiles", [])
+        sub_profiles = seat_profile.get("subprofiles", [])
     else:
-        sub_profiles = getattr(seat_profile, "sub_profiles", [])
+        sub_profiles = getattr(seat_profile, "subprofiles", [])
 
     if not sub_profiles:
         return 0.0
@@ -210,7 +208,7 @@ def _detect_seat_roles(seat_profiles: dict) -> dict:
         roles[seat]["risk"] = _compute_seat_risk(sp)
 
         # sp can be a dict (raw JSON) or SeatProfile object
-        sub_profiles = sp.get("sub_profiles", []) if isinstance(sp, dict) else sp.sub_profiles
+        sub_profiles = sp.get("subprofiles", []) if isinstance(sp, dict) else sp.subprofiles
 
         for sub in sub_profiles:
             # Handle both dict (raw) and SubProfile object
@@ -1009,8 +1007,8 @@ def _prompt_standard_constraints(
     return _build_standard_constraints(existing)
 
 def _build_partner_contingent_constraint(
-    existing: Optional[PartnerContingentConstraint] = None,
-) -> PartnerContingentConstraint:
+    existing: Optional[PartnerContingentData] = None,
+) -> PartnerContingentData:
     """
     Build / edit a Partner Contingent constraint.
     """
@@ -1625,6 +1623,7 @@ def _build_profile(
                     rotate_deals_by_default=rotate_flag,
                     ns_role_mode=ns_role_mode,
                     subprofile_exclusions=list(subprofile_exclusions),
+                    sort_order=getattr(existing, "sort_order", None),
                 )
                 _autosave_profile_draft(snapshot, original_path)
             except Exception as exc:  # pragma: no cover – autosave is best-effort
@@ -1645,7 +1644,8 @@ def _build_profile(
         "rotate_deals_by_default": rotate_flag,
         "ns_role_mode": ns_role_mode,
         "subprofile_exclusions": list(subprofile_exclusions),
-    }   
+        "sort_order": getattr(existing, "sort_order", None),
+    }
          
 def create_profile_interactive() -> HandProfile:
     """

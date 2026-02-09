@@ -2,6 +2,7 @@
 
 ## Start Tasks
 - [ ] Run profile management in program
+- [ ] Review all profiles (check constraints, metadata, dealing order)
 
 ---
 
@@ -146,12 +147,8 @@
 - ✅ Per-board output (shape, HCP, attempts) + aggregate failure attribution table (5 categories x 4 seats)
 - ✅ Help text updated in `menu_help.py`
 
-### 18. [ ] Wizard refactor (separate IO from logic)
-- `wizard_flow.py` (~1,900 lines) mixes user prompts with constraint-building logic
-- Separate "ask the user" functions from "build constraints from answers" functions
-- Isolate reusable building blocks (suit range builder, constraint builders, rotation defaults)
-- Introduce step objects or small state machine instead of one huge function
-- **Priority**: Low — large effort, would help testability
+### 18. [x] Wizard refactor (separate IO from logic) — REMOVED
+- Removed from backlog — low priority, large effort, not blocking anything
 
 ### 13. [x] HCP-aware constrained fill for RS range suits
 - ✅ `_constrained_fill()` now accepts optional `rs_suit_hcp_max` parameter — per-suit HCP cap for RS suits
@@ -217,13 +214,34 @@
 - ✅ **Additional bugs**: Fixed `rotate_flag` NameError in `create_profile_interactive()`; fixed `constraints_mode` TypeError in `profile_wizard.py`; added `decimal_places` param to `_input_float_with_default()`
 - ✅ **Final cleanup**: Removed dead `_HCP_BY_RANK`, dead `allow_std_constructive` assignments in v1, malformed comment, redundant `zip(strict=False)`, redundant lazy import
 - ✅ **Second pass**: Fixed `save_as_new_version_action()` missing 5 metadata fields; fixed `PartnerContingentConstraint` → `PartnerContingentData` NameError; removed dead `safe_input_int_with_default`; fixed `lin_encoder.py` fallback vulnerability code `'x'` → `'0'`
+- ✅ **Third pass (deep dive)**: Fixed `sub_profiles` → `subprofiles` attribute name (wizard_flow.py + tests); added `is_invariants_safety_profile`/`use_rs_w_only_path` to `to_dict()`; fixed extra space in text_output.py f-string; removed dead `_admin_menu()`/`_deal_management_menu()` + unused import from orchestrator.py
+
+### 30. [x] Profile Management Test Coverage
+- ✅ Fixed `edit_profile_action()` metadata-only path missing 3 fields (`subprofile_exclusions`, `is_invariants_safety_profile`, `use_rs_w_only_path`)
+- ✅ `test_profile_mgmt_actions.py` (9 tests): edit metadata/constraints/cancel, delete confirm/cancel, save-as-new-version, draft tools (no drafts, delete one, delete all)
+- ✅ `test_profile_mgmt_menus.py` (4 tests): run_profile_manager dispatch + error recovery, admin_menu dispatch + exit
+- ✅ `test_wizard_edit_flow.py` (5 tests): skip-all preserves profile, edit-one-seat, autosave trigger, constraints roundtrip, exclusion editing
+
+### 31. [x] Custom Profile Display Order (`sort_order`)
+- ✅ Added `sort_order: Optional[int] = None` to HandProfile (model + serialization)
+- ✅ `build_profile_display_map()` in profile_store.py — shared helper for non-sequential numbering
+- ✅ Updated profile_cli.py (`_choose_profile`, `list_profiles_action`) + orchestrator.py (`_choose_profile_for_session`)
+- ✅ Preserved `sort_order` in metadata edit + save-as-new-version
+- ✅ Profile A-E Test files set to sort_order 20-24
+
+### 32. [x] Code Simplification
+- ✅ Removed ~20 redundant `getattr()` calls on dataclass fields across hand_profile_model.py, profile_cli.py, orchestrator.py
+- ✅ Extracted `print_profile_display_map()` in profile_store.py — replaces 3 duplicate display loops
+- ✅ Deduplicated filename construction in profile_store.py — `autosave_profile_draft_for_new()` reuses `_profile_path_for()`
+- ✅ Removed dead `_run_profile_management()` wrapper from orchestrator.py
+- Skipped `_safe_file_stem` → `_slugify` consolidation — `&` in profile names produces different output, would break existing file paths
 
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 15 (15 done) | **Total: 1 pending** (#18 wizard refactor — low priority)
+Architecture: 15 (15 done) | Enhancements: 18 (18 done) | **All complete**
 
-**Tests**: 465 passed, 4 skipped | **Branch**: refactor/deal-generator
+**Tests**: 483 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 

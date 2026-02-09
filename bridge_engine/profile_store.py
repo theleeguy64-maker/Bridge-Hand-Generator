@@ -226,14 +226,68 @@ def autosave_profile_draft_for_new(profile: HandProfile, base_dir: Path | None =
       - Draft JSON must have profile_name ending with " TEST"
       - Canonical filename is derived from the stripped name (no " TEST")
     """
-    profiles_dir = _profiles_dir(base_dir)
-
-    base_name = _strip_test_suffix(getattr(profile, "profile_name", "") or "UNNAMED")
-    safe_name = _slugify(base_name)
-    version = getattr(profile, "version", "") or "0.1"
-    canonical = profiles_dir / f"{safe_name}_v{version}.json"
-
+    canonical = _profile_path_for(profile, base_dir)
     return autosave_profile_draft(profile, canonical)
+
+
+# ---------------------------------------------------------------------------
+# Display ordering
+# ---------------------------------------------------------------------------
+
+def build_profile_display_map(
+    profiles: List[Tuple[Path, HandProfile]],
+) -> Dict[int, Tuple[Path, HandProfile]]:
+    """
+    Build a mapping from display number → (path, profile).
+
+    Profiles with a sort_order field use that exact number.
+    Profiles without sort_order get sequential numbers starting at 1,
+    skipping any numbers already claimed by sort_order profiles.
+
+    The returned dict is ordered: unnumbered profiles first (ascending),
+    then sort_order profiles (ascending by sort_order).
+    """
+    # Separate profiles with and without sort_order
+    ordered: List[Tuple[int, Path, HandProfile]] = []
+    unordered: List[Tuple[Path, HandProfile]] = []
+
+    for path, profile in profiles:
+        so = getattr(profile, "sort_order", None)
+        if so is not None:
+            ordered.append((so, path, profile))
+        else:
+            unordered.append((path, profile))
+
+    # Collect claimed numbers
+    claimed = {so for so, _, _ in ordered}
+
+    # Assign sequential numbers to unordered profiles, skipping claimed
+    result: Dict[int, Tuple[Path, HandProfile]] = {}
+    seq = 1
+    for path, profile in unordered:
+        while seq in claimed:
+            seq += 1
+        result[seq] = (path, profile)
+        seq += 1
+
+    # Add ordered profiles at their declared positions
+    for so, path, profile in sorted(ordered):
+        result[so] = (path, profile)
+
+    return result
+
+
+def print_profile_display_map(
+    display_map: Dict[int, Tuple[Path, HandProfile]],
+) -> None:
+    """Print the numbered profile list from a display map."""
+    for num in sorted(display_map):
+        _, profile = display_map[num]
+        version_str = f"v{profile.version}" if profile.version else "(no version)"
+        print(
+            f"  {num}) {profile.profile_name} "
+            f"({version_str}, tag={profile.tag}, dealer={profile.dealer})"
+        )
 
 
 def delete_draft_for_canonical(canonical_path: Path) -> None:

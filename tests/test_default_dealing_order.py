@@ -53,7 +53,7 @@ def test_detect_seat_roles_rs_at_north():
     """Detect RS constraint at North."""
     seat_profiles = {
         "N": {
-            "sub_profiles": [
+            "subprofiles": [
                 {"random_suit_constraint": {"n_suits": 1}}
             ]
         }
@@ -70,7 +70,7 @@ def test_detect_seat_roles_pc_at_south():
     """Detect PC constraint at South pointing to North."""
     seat_profiles = {
         "S": {
-            "sub_profiles": [
+            "subprofiles": [
                 {"partner_contingent_constraint": {"partner_seat": "N"}}
             ]
         }
@@ -84,7 +84,7 @@ def test_detect_seat_roles_oc_at_east():
     """Detect OC constraint at East pointing to West."""
     seat_profiles = {
         "E": {
-            "sub_profiles": [
+            "subprofiles": [
                 {"opponents_contingent_suit_constraint": {"opponent_seat": "W"}}
             ]
         }
@@ -97,10 +97,10 @@ def test_detect_seat_roles_oc_at_east():
 def test_detect_seat_roles_combined():
     """Detect multiple roles across seats."""
     seat_profiles = {
-        "N": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
-        "S": {"sub_profiles": [{"partner_contingent_constraint": {"partner_seat": "N"}}]},
-        "W": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 2}}]},
-        "E": {"sub_profiles": [{"opponents_contingent_suit_constraint": {"opponent_seat": "W"}}]},
+        "N": {"subprofiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+        "S": {"subprofiles": [{"partner_contingent_constraint": {"partner_seat": "N"}}]},
+        "W": {"subprofiles": [{"random_suit_constraint": {"n_suits": 2}}]},
+        "E": {"subprofiles": [{"opponents_contingent_suit_constraint": {"opponent_seat": "W"}}]},
     }
     roles = _detect_seat_roles(seat_profiles)
     assert roles["N"]["rs"] is True
@@ -190,24 +190,24 @@ def test_get_subprofile_type_oc():
 def test_compute_seat_risk_empty():
     """No subprofiles → risk 0."""
     assert _compute_seat_risk({}) == 0.0
-    assert _compute_seat_risk({"sub_profiles": []}) == 0.0
+    assert _compute_seat_risk({"subprofiles": []}) == 0.0
 
 
 def test_compute_seat_risk_single_rs():
     """Single RS subprofile → risk 1.0."""
-    seat = {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]}
+    seat = {"subprofiles": [{"random_suit_constraint": {"n_suits": 1}}]}
     assert _compute_seat_risk(seat) == 1.0
 
 
 def test_compute_seat_risk_single_standard():
     """Single standard subprofile → risk 0.0."""
-    seat = {"sub_profiles": [{}]}
+    seat = {"subprofiles": [{}]}
     assert _compute_seat_risk(seat) == 0.0
 
 
 def test_compute_seat_risk_two_equal_rs_standard():
     """2 equal subprofiles: 1 RS + 1 Standard → risk 0.5."""
-    seat = {"sub_profiles": [
+    seat = {"subprofiles": [
         {"random_suit_constraint": {"n_suits": 1}},
         {},
     ]}
@@ -216,7 +216,7 @@ def test_compute_seat_risk_two_equal_rs_standard():
 
 def test_compute_seat_risk_weighted_70_30():
     """70% Standard + 30% RS → risk 0.30."""
-    seat = {"sub_profiles": [
+    seat = {"subprofiles": [
         {"weight_percent": 70},  # standard
         {"weight_percent": 30, "random_suit_constraint": {"n_suits": 1}},
     ]}
@@ -225,7 +225,7 @@ def test_compute_seat_risk_weighted_70_30():
 
 def test_compute_seat_risk_pc():
     """50% PC + 50% Standard → risk 0.25."""
-    seat = {"sub_profiles": [
+    seat = {"subprofiles": [
         {"weight_percent": 50, "partner_contingent_constraint": {"partner_seat": "N"}},
         {"weight_percent": 50},
     ]}
@@ -329,7 +329,7 @@ def test_from_dict_generates_default_when_missing_west():
 def test_smart_order_p1_single_rs():
     """P1: Single RS at N, dealer=E → N goes first."""
     seat_profiles = {
-        "N": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+        "N": {"subprofiles": [{"random_suit_constraint": {"n_suits": 1}}]},
     }
     order = _base_smart_hand_order(seat_profiles, dealer="E")
     assert order[0] == "N"
@@ -340,8 +340,8 @@ def test_smart_order_p1_single_rs():
 def test_smart_order_p1_two_rs_clockwise():
     """P1: Two RS at N and W, dealer=E → W first (clockwise from E), then N."""
     seat_profiles = {
-        "N": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
-        "W": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 2}}]},
+        "N": {"subprofiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+        "W": {"subprofiles": [{"random_suit_constraint": {"n_suits": 2}}]},
     }
     # Clockwise from E: E, S, W, N
     order = _base_smart_hand_order(seat_profiles, dealer="E")
@@ -367,7 +367,7 @@ def test_smart_order_p2_no_driver_uses_clockwise():
 def test_smart_order_p2_driver_after_rs():
     """P2: RS at W, driver=N → W first, then N."""
     seat_profiles = {
-        "W": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+        "W": {"subprofiles": [{"random_suit_constraint": {"n_suits": 1}}]},
     }
     order = _base_smart_hand_order(seat_profiles, dealer="E", ns_role_mode="north_drives")
     assert order[0] == "W"  # P1: RS first
@@ -379,8 +379,8 @@ def test_smart_order_p2_driver_after_rs():
 def test_smart_order_p3_pc_after_rs_partner():
     """P3: RS at N, PC at S (partner=N) → N first, then S."""
     seat_profiles = {
-        "N": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
-        "S": {"sub_profiles": [{"partner_contingent_constraint": {"partner_seat": "N"}}]},
+        "N": {"subprofiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+        "S": {"subprofiles": [{"partner_contingent_constraint": {"partner_seat": "N"}}]},
     }
     order = _base_smart_hand_order(seat_profiles, dealer="E")
     assert order[0] == "N"  # P1: RS
@@ -395,8 +395,8 @@ def test_smart_order_p3_pc_after_rs_partner():
 def test_smart_order_p4_oc_after_rs_opponent():
     """P4: RS at W, OC at E (opponent=W) → W first, then E after opponent."""
     seat_profiles = {
-        "W": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
-        "E": {"sub_profiles": [{"opponents_contingent_suit_constraint": {"opponent_seat": "W"}}]},
+        "W": {"subprofiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+        "E": {"subprofiles": [{"opponents_contingent_suit_constraint": {"opponent_seat": "W"}}]},
     }
     order = _base_smart_hand_order(seat_profiles, dealer="N")
     # P1: W (RS)
@@ -425,9 +425,9 @@ def test_smart_order_p5_fallback_no_roles():
 def test_smart_order_integration_complex():
     """Integration: RS at N, PC at S, OC at E (opponent=W), driver=N."""
     seat_profiles = {
-        "N": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
-        "S": {"sub_profiles": [{"partner_contingent_constraint": {"partner_seat": "N"}}]},
-        "E": {"sub_profiles": [{"opponents_contingent_suit_constraint": {"opponent_seat": "W"}}]},
+        "N": {"subprofiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+        "S": {"subprofiles": [{"partner_contingent_constraint": {"partner_seat": "N"}}]},
+        "E": {"subprofiles": [{"opponents_contingent_suit_constraint": {"opponent_seat": "W"}}]},
     }
     order = _base_smart_hand_order(seat_profiles, dealer="W", ns_role_mode="north_drives")
     # P1: N (RS) - only RS, W clockwise: W, N, E, S → N is RS
@@ -450,7 +450,7 @@ def test_smart_order_integration_complex():
 def test_smart_order_p1_rs_at_south():
     """P1: RS at S, dealer=N → S goes first."""
     seat_profiles = {
-        "S": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+        "S": {"subprofiles": [{"random_suit_constraint": {"n_suits": 1}}]},
     }
     order = _base_smart_hand_order(seat_profiles, dealer="N")
     assert order[0] == "S"
@@ -459,8 +459,8 @@ def test_smart_order_p1_rs_at_south():
 def test_smart_order_p1_two_rs_dealer_west():
     """P1: Two RS (N, E), dealer=W → E first (clockwise from W), then N."""
     seat_profiles = {
-        "N": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
-        "E": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 2}}]},
+        "N": {"subprofiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+        "E": {"subprofiles": [{"random_suit_constraint": {"n_suits": 2}}]},
     }
     # Clockwise from W: W, N, E, S → N first, then E
     order = _base_smart_hand_order(seat_profiles, dealer="W")
@@ -479,7 +479,7 @@ def test_smart_order_p2_south_drives():
 def test_smart_order_p2_south_drives_with_rs():
     """P2: RS at W, driver=S → W first, then S."""
     seat_profiles = {
-        "W": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+        "W": {"subprofiles": [{"random_suit_constraint": {"n_suits": 1}}]},
     }
     order = _base_smart_hand_order(seat_profiles, dealer="N", ns_role_mode="south_drives")
     assert order[0] == "W"  # P1: RS
@@ -491,7 +491,7 @@ def test_smart_order_p2_south_drives_with_rs():
 def test_smart_order_p3_pc_partner_not_in_order():
     """P3: PC at S (partner=N), but N has no RS → PC falls to P5."""
     seat_profiles = {
-        "S": {"sub_profiles": [{"partner_contingent_constraint": {"partner_seat": "N"}}]},
+        "S": {"subprofiles": [{"partner_contingent_constraint": {"partner_seat": "N"}}]},
     }
     # No RS, so P1 adds nothing
     # P2: no driver, dealer=E → next NS clockwise from E is S
@@ -507,8 +507,8 @@ def test_smart_order_p3_pc_partner_not_in_order():
 def test_smart_order_p3_pc_waits_for_partner():
     """P3: RS at E, PC at W (partner=E) → E first, then W via P3."""
     seat_profiles = {
-        "E": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
-        "W": {"sub_profiles": [{"partner_contingent_constraint": {"partner_seat": "E"}}]},
+        "E": {"subprofiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+        "W": {"subprofiles": [{"partner_contingent_constraint": {"partner_seat": "E"}}]},
     }
     order = _base_smart_hand_order(seat_profiles, dealer="N", ns_role_mode="no_driver_no_index")
     # P1: E (RS)
@@ -524,7 +524,7 @@ def test_smart_order_p3_pc_waits_for_partner():
 def test_smart_order_p4_oc_opponent_not_in_order():
     """P4: OC at E (opponent=W), but W has no RS → OC falls to P5."""
     seat_profiles = {
-        "E": {"sub_profiles": [{"opponents_contingent_suit_constraint": {"opponent_seat": "W"}}]},
+        "E": {"subprofiles": [{"opponents_contingent_suit_constraint": {"opponent_seat": "W"}}]},
     }
     order = _base_smart_hand_order(seat_profiles, dealer="N", ns_role_mode="no_driver_no_index")
     # P1: no RS
@@ -547,8 +547,8 @@ def test_smart_order_p4_oc_opponent_not_in_order():
 def test_smart_order_p4_oc_waits_for_opponent():
     """P4: RS at W, OC at N (opponent=W) → W first, then N via P4."""
     seat_profiles = {
-        "W": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
-        "N": {"sub_profiles": [{"opponents_contingent_suit_constraint": {"opponent_seat": "W"}}]},
+        "W": {"subprofiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+        "N": {"subprofiles": [{"opponents_contingent_suit_constraint": {"opponent_seat": "W"}}]},
     }
     order = _base_smart_hand_order(seat_profiles, dealer="E", ns_role_mode="no_driver_no_index")
     # P1: W (RS) → order=[W]
@@ -563,7 +563,7 @@ def test_smart_order_p4_oc_waits_for_opponent():
 def test_smart_order_different_dealer_south():
     """Different dealer: RS at N, dealer=S."""
     seat_profiles = {
-        "N": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+        "N": {"subprofiles": [{"random_suit_constraint": {"n_suits": 1}}]},
     }
     # Clockwise from S: S, W, N, E → RS at N found
     order = _base_smart_hand_order(seat_profiles, dealer="S")
@@ -573,7 +573,7 @@ def test_smart_order_different_dealer_south():
 def test_smart_order_different_dealer_north():
     """Different dealer: RS at E, dealer=N."""
     seat_profiles = {
-        "E": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+        "E": {"subprofiles": [{"random_suit_constraint": {"n_suits": 1}}]},
     }
     order = _base_smart_hand_order(seat_profiles, dealer="N")
     assert order[0] == "E"
@@ -588,10 +588,10 @@ def test_smart_order_risk_higher_risk_first():
     # N: 100% RS = risk 1.0
     # W: 50% RS + 50% Standard = risk 0.5
     seat_profiles = {
-        "N": {"sub_profiles": [
+        "N": {"subprofiles": [
             {"random_suit_constraint": {"n_suits": 1}, "weight_percent": 100},
         ]},
-        "W": {"sub_profiles": [
+        "W": {"subprofiles": [
             {"random_suit_constraint": {"n_suits": 1}, "weight_percent": 50},
             {"weight_percent": 50},  # Standard
         ]},
@@ -606,8 +606,8 @@ def test_smart_order_risk_equal_uses_clockwise():
     """Two RS seats with EQUAL risks: clockwise from dealer as tiebreaker."""
     # Both N and W: 100% RS = risk 1.0 (equal)
     seat_profiles = {
-        "N": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
-        "W": {"sub_profiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+        "N": {"subprofiles": [{"random_suit_constraint": {"n_suits": 1}}]},
+        "W": {"subprofiles": [{"random_suit_constraint": {"n_suits": 1}}]},
     }
     # Clockwise from E: E, S, W, N → W comes before N
     order = _base_smart_hand_order(seat_profiles, dealer="E")
@@ -620,11 +620,11 @@ def test_smart_order_risk_partial_rs():
     # N: 30% RS = risk 0.3
     # W: 100% RS = risk 1.0
     seat_profiles = {
-        "N": {"sub_profiles": [
+        "N": {"subprofiles": [
             {"weight_percent": 70},  # Standard
             {"random_suit_constraint": {"n_suits": 1}, "weight_percent": 30},
         ]},
-        "W": {"sub_profiles": [
+        "W": {"subprofiles": [
             {"random_suit_constraint": {"n_suits": 1}},
         ]},
     }
