@@ -789,6 +789,9 @@ def edit_profile_action() -> None:
             version=new_version,
             rotate_deals_by_default=rotate_default,
             ns_role_mode=new_ns_role_mode,
+            subprofile_exclusions=list(getattr(profile, "subprofile_exclusions", [])),
+            is_invariants_safety_profile=getattr(profile, "is_invariants_safety_profile", False),
+            use_rs_w_only_path=getattr(profile, "use_rs_w_only_path", False),
         )
 
         _save_profile_to_path(updated, path)

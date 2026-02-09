@@ -500,7 +500,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**465 passed, 4 skipped** organized by:
+**483 passed, 4 skipped** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`
@@ -514,6 +514,10 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 - **Defense to Weak 2s**: `test_defense_weak2s_diagnostic.py` (2 tests — diagnostic + pipeline)
 - **Cross-seat feasibility**: `test_cross_seat_feasibility.py` (39 tests — accessors, core, dead sub detection, runtime retry, integration)
 - **v2 comparison**: `test_v2_comparison.py` (6 gated — `RUN_V2_BENCHMARKS=1`)
+
+- **Profile mgmt actions**: `test_profile_mgmt_actions.py` (9 tests — edit/delete/save-as/draft-tools)
+- **Menu dispatch**: `test_profile_mgmt_menus.py` (4 tests — profile manager + admin menu loops)
+- **Wizard editing**: `test_wizard_edit_flow.py` (5 tests — skip/edit seats, autosave, constraints roundtrip, exclusions)
 
 **Untested modules** (low risk):
 - `profile_convert.py` - file I/O logic (should add tests)

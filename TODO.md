@@ -219,12 +219,18 @@
 - ✅ **Second pass**: Fixed `save_as_new_version_action()` missing 5 metadata fields; fixed `PartnerContingentConstraint` → `PartnerContingentData` NameError; removed dead `safe_input_int_with_default`; fixed `lin_encoder.py` fallback vulnerability code `'x'` → `'0'`
 - ✅ **Third pass (deep dive)**: Fixed `sub_profiles` → `subprofiles` attribute name (wizard_flow.py + tests); added `is_invariants_safety_profile`/`use_rs_w_only_path` to `to_dict()`; fixed extra space in text_output.py f-string; removed dead `_admin_menu()`/`_deal_management_menu()` + unused import from orchestrator.py
 
+### 30. [x] Profile Management Test Coverage
+- ✅ Fixed `edit_profile_action()` metadata-only path missing 3 fields (`subprofile_exclusions`, `is_invariants_safety_profile`, `use_rs_w_only_path`)
+- ✅ `test_profile_mgmt_actions.py` (9 tests): edit metadata/constraints/cancel, delete confirm/cancel, save-as-new-version, draft tools (no drafts, delete one, delete all)
+- ✅ `test_profile_mgmt_menus.py` (4 tests): run_profile_manager dispatch + error recovery, admin_menu dispatch + exit
+- ✅ `test_wizard_edit_flow.py` (5 tests): skip-all preserves profile, edit-one-seat, autosave trigger, constraints roundtrip, exclusion editing
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 15 (15 done) | **Total: 1 pending** (#18 wizard refactor — low priority)
+Architecture: 15 (15 done) | Enhancements: 16 (16 done) | **Total: 1 pending** (#18 wizard refactor — low priority)
 
-**Tests**: 465 passed, 4 skipped | **Branch**: refactor/deal-generator
+**Tests**: 483 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 
