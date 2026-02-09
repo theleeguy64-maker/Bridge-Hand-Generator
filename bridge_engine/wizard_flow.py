@@ -1031,7 +1031,7 @@ def _build_partner_contingent_constraint(
 
     suit_range = _prompt_suit_range("Partner suit", existing_suit_range)
 
-    return PartnerContingentConstraint(
+    return PartnerContingentData(
         partner_seat=partner_seat,
         suit_range=suit_range,
     )

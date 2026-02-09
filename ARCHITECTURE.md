@@ -23,7 +23,7 @@ bridge_engine/
 ├── deal_output.py           (330 lines) - Deal rendering
 ├── lin_encoder.py           (188 lines) - LIN format encoding
 ├── setup_env.py             (214 lines) - RNG seed management
-├── cli_io.py                (197 lines) - CLI utilities
+├── cli_io.py                (153 lines) - CLI utilities
 ├── cli_prompts.py           (101 lines) - CLI prompts
 ├── text_output.py            (67 lines) - Text formatting
 └── hand_profile.py           (34 lines) - Exports
@@ -52,7 +52,7 @@ HandProfile (frozen dataclass)
 │               └── ns_role_usage: str ("any", "driver_only", "follower_only")
 ├── hand_dealing_order: List[Seat]
 ├── dealer: Seat
-├── ns_index_coupling_enabled: bool
+├── ns_role_mode: str ("no_driver_no_index", "north_drives", etc.)
 ├── ns_driver_seat: Optional[Callable]
 └── is_invariants_safety_profile: bool
 ```
@@ -313,7 +313,7 @@ generates 6 boards in ~1.5s (was ~50s before full RS pre-allocation, was 0/20 be
 
 ### NS Coupling
 ```
-If ns_index_coupling_enabled AND both N/S have >1 subprofile:
+If ns_role_mode != "no_driver_no_index" AND both N/S have >1 subprofile:
   driver = ns_driver_seat() or first NS seat in dealing_order
   follower = the other NS seat
 

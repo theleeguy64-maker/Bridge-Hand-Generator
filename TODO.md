@@ -216,6 +216,7 @@
 - ✅ **Batch 5 — Clarification**: Added HCP attribution imprecision comment in v2 builder
 - ✅ **Additional bugs**: Fixed `rotate_flag` NameError in `create_profile_interactive()`; fixed `constraints_mode` TypeError in `profile_wizard.py`; added `decimal_places` param to `_input_float_with_default()`
 - ✅ **Final cleanup**: Removed dead `_HCP_BY_RANK`, dead `allow_std_constructive` assignments in v1, malformed comment, redundant `zip(strict=False)`, redundant lazy import
+- ✅ **Second pass**: Fixed `save_as_new_version_action()` missing 5 metadata fields; fixed `PartnerContingentConstraint` → `PartnerContingentData` NameError; removed dead `safe_input_int_with_default`; fixed `lin_encoder.py` fallback vulnerability code `'x'` → `'0'`
 
 ---
 
