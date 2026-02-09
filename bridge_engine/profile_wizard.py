@@ -111,11 +111,17 @@ def create_profile_from_existing_constraints(existing: HandProfile) -> HandProfi
     print(f"Starting from template: {existing.profile_name}")
     print()
 
-    # Metadata-only – constraints come entirely from `existing`.
-    kwargs = _build_profile(
-        existing=existing,
-        original_path=None,
-        constraints_mode="metadata_only",
+    # Prompt for new metadata via the create flow (existing=None),
+    # then override constraints with the template's constraints.
+    kwargs = _build_profile(existing=None, original_path=None)
+
+    # Replace auto-generated standard constraints with the template's.
+    kwargs["seat_profiles"] = dict(existing.seat_profiles)
+    kwargs["subprofile_exclusions"] = list(
+        getattr(existing, "subprofile_exclusions", [])
+    )
+    kwargs["ns_role_mode"] = getattr(
+        existing, "ns_role_mode", "no_driver_no_index"
     )
 
     profile = HandProfile(**kwargs)

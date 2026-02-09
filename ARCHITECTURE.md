@@ -4,26 +4,26 @@
 
 ```
 bridge_engine/
-├── deal_generator.py        (398 lines) - Facade: subprofile selection + generate_deals() + re-exports
-├── deal_generator_v1.py     (795 lines) - v1 builder + hardest-seat + constructive help (legacy)
-├── deal_generator_v2.py   (1,113 lines) - v2 shape-help helpers + v2 builder (active path)
-├── deal_generator_types.py  (262 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
-├── deal_generator_helpers.py (447 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
+├── deal_generator.py        (402 lines) - Facade: subprofile selection + generate_deals() + re-exports
+├── deal_generator_v1.py     (790 lines) - v1 builder + hardest-seat + constructive help (legacy)
+├── deal_generator_v2.py   (1,117 lines) - v2 shape-help helpers + v2 builder (active path)
+├── deal_generator_types.py  (283 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
+├── deal_generator_helpers.py (450 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (832 lines) - Data models
 ├── seat_viability.py        (615 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (519 lines) - Validation
 ├── profile_diagnostic.py     (209 lines) - Generic profile diagnostic runner (Admin menu)
-├── orchestrator.py          (549 lines) - CLI/session management + timing
+├── orchestrator.py          (500 lines) - CLI/session management + timing
 ├── profile_cli.py           (938 lines) - Profile commands
-├── profile_wizard.py        (164 lines) - Profile creation UI
-├── wizard_flow.py         (1,779 lines) - Wizard steps, seat editing, dealing order, RS/PC/OC prompts
-├── profile_viability.py     (355 lines) - Profile-level viability + cross-seat feasibility
+├── profile_wizard.py        (161 lines) - Profile creation UI
+├── wizard_flow.py         (1,777 lines) - Wizard steps, seat editing, dealing order, RS/PC/OC prompts
+├── profile_viability.py     (360 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py         (249 lines) - JSON persistence (atomic writes, error-tolerant loading)
 ├── lin_tools.py             (459 lines) - LIN file operations
 ├── deal_output.py           (330 lines) - Deal rendering
 ├── lin_encoder.py           (188 lines) - LIN format encoding
 ├── setup_env.py             (214 lines) - RNG seed management
-├── cli_io.py                (197 lines) - CLI utilities
+├── cli_io.py                (153 lines) - CLI utilities
 ├── cli_prompts.py           (101 lines) - CLI prompts
 ├── text_output.py            (67 lines) - Text formatting
 └── hand_profile.py           (34 lines) - Exports
@@ -52,7 +52,7 @@ HandProfile (frozen dataclass)
 │               └── ns_role_usage: str ("any", "driver_only", "follower_only")
 ├── hand_dealing_order: List[Seat]
 ├── dealer: Seat
-├── ns_index_coupling_enabled: bool
+├── ns_role_mode: str ("no_driver_no_index", "north_drives", etc.)
 ├── ns_driver_seat: Optional[Callable]
 └── is_invariants_safety_profile: bool
 ```
@@ -227,6 +227,11 @@ Adaptive re-seed: replace RNG with fresh SystemRandom seed
 | `MAX_BOARD_RETRIES` | 50 | Retries per board in generate_deals() |
 | `RESEED_TIME_THRESHOLD_SECONDS` | 1.75 | Per-board wall-clock budget before adaptive re-seeding |
 | `MAX_SUBPROFILE_FEASIBILITY_RETRIES` | 100 | Max retries for cross-seat feasible subprofile combo (#16) |
+| `FULL_DECK_HCP_SUM` | 40 | Total HCP across all 52 cards |
+| `FULL_DECK_HCP_SUM_SQ` | 120 | Sum of squared HCP values across all 52 cards |
+| `MAX_HAND_HCP` | 37 | Maximum HCP in a 13-card hand; "no real cap" sentinel |
+| `UNVIABLE_MIN_FAILS` | 5 | Minimum failures before seat classified as unviable |
+| `UNVIABLE_MIN_RATE` | 0.9 | Minimum failure rate for unviable classification |
 
 **Functions** (in `deal_generator_v2.py` + `deal_generator_helpers.py`):
 - `_pre_select_rs_suits(rng, chosen_subs)` → Dict[Seat, List[str]] — pre-select RS suits before dealing
@@ -308,7 +313,7 @@ generates 6 boards in ~1.5s (was ~50s before full RS pre-allocation, was 0/20 be
 
 ### NS Coupling
 ```
-If ns_index_coupling_enabled AND both N/S have >1 subprofile:
+If ns_role_mode != "no_driver_no_index" AND both N/S have >1 subprofile:
   driver = ns_driver_seat() or first NS seat in dealing_order
   follower = the other NS seat
 

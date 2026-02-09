@@ -3,7 +3,7 @@ Tests for bridge_engine/profile_viability.py
 
 Tests the actual profile_viability module (not the toy model in
 test_profile_viability_extended.py). These tests verify the edge cases
-around NS index-coupling and the ns_index_coupling_enabled flag.
+around NS index-coupling and the ns_role_mode field.
 """
 
 from __future__ import annotations
@@ -72,10 +72,11 @@ class MockHandProfile:
 
     The function accesses:
       - seat_profiles (dict of seat -> SeatProfile)
-      - ns_index_coupling_enabled (bool, defaults to True)
+      - ns_role_mode (str) — coupling enabled when not "no_driver_no_index"
     """
     seat_profiles: Dict[str, SeatProfile] = field(default_factory=dict)
-    ns_index_coupling_enabled: bool = True
+    # "north_drives" enables coupling; "no_driver_no_index" disables it.
+    ns_role_mode: str = "north_drives"
 
 
 # ---------------------------------------------------------------------------
@@ -124,7 +125,7 @@ def test_ns_pair_jointly_viable_missing_suit_counts() -> None:
 
 def test_validate_profile_viability_respects_coupling_disabled() -> None:
     """
-    When ns_index_coupling_enabled=False, NS coupling checks should be skipped.
+    When ns_role_mode="no_driver_no_index", NS coupling checks should be skipped.
 
     This means even impossible NS pairs won't cause validation to fail
     (as long as each subprofile is individually viable and the cross-seat
@@ -144,7 +145,7 @@ def test_validate_profile_viability_respects_coupling_disabled() -> None:
             "N": SeatProfile(seat="N", subprofiles=[n_sub_tight, n_sub_loose]),
             "S": SeatProfile(seat="S", subprofiles=[s_sub_tight, s_sub_loose]),
         },
-        ns_index_coupling_enabled=False,  # Disable coupling checks
+        ns_role_mode="no_driver_no_index",  # Disable coupling checks
     )
 
     # Should NOT raise: coupling is disabled, and cross-seat check passes
@@ -154,9 +155,8 @@ def test_validate_profile_viability_respects_coupling_disabled() -> None:
 
 def test_validate_profile_viability_respects_coupling_enabled() -> None:
     """
-    When ns_index_coupling_enabled=True (default), NS coupling checks run.
-
-    An impossible NS pair at any index should raise ValueError.
+    When ns_role_mode enables coupling (e.g. "north_drives"), NS coupling
+    checks run. An impossible NS pair at any index should raise ValueError.
     """
     # Index 0: viable pair (low spade requirements)
     viable_n = _make_subprofile(spade_min=3, heart_min=3, diamond_min=3, club_min=3)
@@ -171,7 +171,7 @@ def test_validate_profile_viability_respects_coupling_enabled() -> None:
             "N": SeatProfile(seat="N", subprofiles=[viable_n, impossible_n]),
             "S": SeatProfile(seat="S", subprofiles=[viable_s, impossible_s]),
         },
-        ns_index_coupling_enabled=True,  # Enable coupling checks
+        ns_role_mode="north_drives",  # Enable coupling checks
     )
 
     # Should raise because index 1 is not jointly viable
@@ -195,7 +195,7 @@ def test_validate_profile_viability_unequal_subprofile_lengths() -> None:
             "N": SeatProfile(seat="N", subprofiles=[n_sub_tight, n_sub_loose]),
             "S": SeatProfile(seat="S", subprofiles=[s_sub_tight, s_sub_loose, s_sub_loose]),  # Different length
         },
-        ns_index_coupling_enabled=True,
+        ns_role_mode="north_drives",
     )
 
     # Should NOT raise: lengths are unequal (coupling skipped),
@@ -218,7 +218,7 @@ def test_validate_profile_viability_single_subprofile() -> None:
             "N": SeatProfile(seat="N", subprofiles=[n_sub]),
             "S": SeatProfile(seat="S", subprofiles=[s_sub]),
         },
-        ns_index_coupling_enabled=True,
+        ns_role_mode="north_drives",
     )
 
     # Should NOT raise: single subprofile per seat skips coupling,
@@ -244,7 +244,7 @@ def test_validate_profile_viability_no_viable_pair_raises() -> None:
             "N": SeatProfile(seat="N", subprofiles=[viable_sub, impossible_sub]),
             "S": SeatProfile(seat="S", subprofiles=[impossible_sub, viable_sub]),
         },
-        ns_index_coupling_enabled=True,
+        ns_role_mode="north_drives",
     )
 
     # Index 0: N viable, S not viable (suit mins > 13)
@@ -265,7 +265,7 @@ def test_validate_profile_viability_no_n_or_s_seat() -> None:
         seat_profiles={
             "N": SeatProfile(seat="N", subprofiles=[n_sub, n_sub]),
         },
-        ns_index_coupling_enabled=True,
+        ns_role_mode="north_drives",
     )
 
     # Should NOT raise because S is missing

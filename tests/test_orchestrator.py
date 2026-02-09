@@ -116,9 +116,9 @@ def test_choose_profile_for_session_allows_cancel(monkeypatch, capsys) -> None:
     assert "Cancelled profile selection." in captured.out
 
 
-def test_main_menu_exit_on_three(monkeypatch, capsys) -> None:
+def test_main_menu_exit_on_zero(monkeypatch, capsys) -> None:
     """
-    _main_menu should exit cleanly when the user chooses option '3'.
+    main_menu should exit cleanly when the user chooses option '0'.
     It must not call profile management or deal generation in that case.
     """
     called = {"profile_management": 0, "deal_generation": 0}
@@ -139,18 +139,18 @@ def test_main_menu_exit_on_three(monkeypatch, capsys) -> None:
         raising=True,
     )
 
-    # First call to input() → "3" (Exit)
-    inputs = iter(["3"])
+    # First call to input() → "0" (Exit)
+    inputs = iter(["0"])
 
     def fake_input(prompt: str = "") -> str:
         return next(inputs)
 
     monkeypatch.setattr("builtins.input", fake_input, raising=True)
 
-    orchestrator._main_menu()  # type: ignore[attr-defined]
+    orchestrator.main_menu()
     captured = capsys.readouterr()
 
-    assert "Goodbye." in captured.out
+    assert "Exiting" in captured.out
     assert called["profile_management"] == 0
     assert called["deal_generation"] == 0
 

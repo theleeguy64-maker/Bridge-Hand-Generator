@@ -68,12 +68,12 @@ def list_drafts(profiles_dir: Path) -> List[Path]:
 
 
 def _with_test_suffix(name: str) -> str:
-    base = (name or "").rstrip()
-    return base if base.endswith(TEST_NAME_SUFFIX) else (base + TEST_NAME_SUFFIX).strip()
+    base = (name or "").strip()
+    return base if base.endswith(TEST_NAME_SUFFIX) else base + TEST_NAME_SUFFIX
 
 
 def _strip_test_suffix(name: str) -> str:
-    base = (name or "").rstrip()
+    base = (name or "").strip()
     if base.endswith(TEST_NAME_SUFFIX):
         return base[: -len(TEST_NAME_SUFFIX)].rstrip()
     return base
@@ -112,7 +112,7 @@ def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
         profile.to_dict() if hasattr(profile, "to_dict") else dict(profile.__dict__)
     )
 
-    name = str(data.get("profile_name") or "")
+    name = str(data.get("profile_name", "") or "")
     if name.endswith(" TEST"):
         data["profile_name"] = name[:-5].rstrip()
 

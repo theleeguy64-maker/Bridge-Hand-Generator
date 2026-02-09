@@ -507,10 +507,10 @@ def _build_single_constrained_deal(
         board_attempts += 1
 
         # Decide which seat, if any, looks "hardest" for this board.
-        allow_std_constructive = constructive_mode["standard"]
+        allow_constructive = constructive_mode["standard"] or constructive_mode.get("nonstandard_v2", False)
 
         help_seat: Optional[Seat] = None
-        if allow_std_constructive:
+        if allow_constructive:
             help_seat = _choose_hardest_seat_for_board(
                 profile=profile,
                 seat_fail_counts=seat_fail_as_seat,  # <-- Step 1: local seat-level fails ONLY
@@ -560,14 +560,9 @@ def _build_single_constrained_deal(
                     f"These seats have >90% failure rate with sufficient attempts."
                 )
 
-        # Standard constructive help (v1 algorithm), allowed either by v1 mode or v2-on-std review mode.
-        allow_std_constructive = constructive_mode["standard"] or constructive_mode.get("nonstandard_v2", False)
-
-        # Constructive help (v1 algorithm), allowed either by v1 mode or v2-on-std review mode.
-        # NOTE: we now allow constructive for *any* helper seat, standard or non-standard,
-        # as long as we can derive sensible suit minima for that seat.
-        allow_constructive = constructive_mode["standard"] or constructive_mode.get("nonstandard_v2", False)
-
+        # Constructive help (v1 algorithm), allowed either by v1 mode or
+        # v2-on-std review mode.  We allow constructive for *any* helper seat,
+        # standard or non-standard, as long as we can derive sensible suit minima.
         if allow_constructive and help_seat is not None:
             # Check if failures are shape-dominant before trying constructive.
             # If HCP-dominant, constructive help won't be effective (can't

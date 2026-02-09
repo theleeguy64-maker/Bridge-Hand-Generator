@@ -22,6 +22,7 @@ from .deal_generator_types import (
     PRE_ALLOCATE_FRACTION,
     RS_PRE_ALLOCATE_FRACTION, RS_PRE_ALLOCATE_HCP_RETRIES,
     MAX_BOARD_ATTEMPTS, SUBPROFILE_REROLL_INTERVAL, RS_REROLL_INTERVAL,
+    FULL_DECK_HCP_SUM, FULL_DECK_HCP_SUM_SQ, MAX_HAND_HCP,
     _CARD_HCP,
 )
 # _DEBUG_ON_MAX_ATTEMPTS and _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION are
@@ -637,8 +638,8 @@ def _deal_with_help(
                 v = _CARD_HCP[c]
                 removed_hcp_sum += v
                 removed_hcp_sum_sq += v * v
-        deck_hcp_sum = 40 - removed_hcp_sum
-        deck_hcp_sum_sq = 120 - removed_hcp_sum_sq
+        deck_hcp_sum = FULL_DECK_HCP_SUM - removed_hcp_sum
+        deck_hcp_sum_sq = FULL_DECK_HCP_SUM_SQ - removed_hcp_sum_sq
         deck_size = len(deck)
 
         for seat in dealing_order:
@@ -705,7 +706,7 @@ def _deal_with_help(
                         rs_hcp_max = {}
                         for s_letter, sr in resolved.items():
                             mhcp = getattr(sr, "max_hcp", None)
-                            if mhcp is not None and mhcp < 37:
+                            if mhcp is not None and mhcp < MAX_HAND_HCP:
                                 rs_hcp_max[s_letter] = mhcp
                         if not rs_hcp_max:
                             rs_hcp_max = None
@@ -983,6 +984,9 @@ def _build_single_constrained_deal_v2(
             # pipeline.  If the hand's total HCP is outside the subprofile's
             # standard range, we can reject immediately — avoids suit analysis,
             # RS matching, and all subprofile iteration overhead.
+            # NOTE: Attribution is always "hcp" here even though the hand might
+            # also fail shape checks.  This is a known diagnostic imprecision —
+            # HCP is the *detected* cause since we check it first for speed.
             std_early = getattr(sub, "standard", None)
             if std_early is not None:
                 hand_hcp_quick = sum(_CARD_HCP[c] for c in hands[seat])

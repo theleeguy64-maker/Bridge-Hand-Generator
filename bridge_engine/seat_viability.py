@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Set, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from .hand_profile import (
     HandProfile,
@@ -162,7 +162,7 @@ def _match_random_suit_with_attempt(
     else:
         chosen_suits = rng.sample(allowed, rs.required_suits_count)
 
-    ranges_by_suit: Dict[str, object] = {}
+    ranges_by_suit: Dict[str, SuitRange] = {}
 
     if rs.required_suits_count == 2 and rs.pair_overrides:
         sorted_pair = tuple(sorted(chosen_suits))
@@ -479,7 +479,7 @@ def _match_seat(
     return False, last_chosen, last_fail_reason
 
 
-# -------------------------------------    dealing_order:--------------------------------------
+# ---------------------------------------------------------------------------
 # Constrained board construction (C1)
 # ---------------------------------------------------------------------------
 

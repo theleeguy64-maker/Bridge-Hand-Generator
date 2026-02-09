@@ -208,10 +208,20 @@
 ### 28. [x] Remove stale TODO comments in code
 - ✅ Removed `(TODO #5)` from headers in `deal_generator_v2.py` and `deal_generator_types.py`
 
+### 29. [x] Code Review Cleanup
+- ✅ **Batch 1 — Bug fixes**: Fixed PC constraint AttributeError in `wizard_flow.py`; replaced stale `ns_index_coupling_enabled` with `ns_role_mode`-derived logic in `deal_generator.py` + `profile_viability.py`
+- ✅ **Batch 2 — Dead code**: Removed unused `Sequence`/`Set` imports, dead `DEBUG_SECTION_C`, dead `_pw()`
+- ✅ **Batch 3 — Inconsistencies**: Standardized `profile_store.py` strip/get patterns; fixed `Dict[str, object]` → `Dict[str, SuitRange]`; fixed profile JSON typos
+- ✅ **Batch 4 — Magic numbers**: Added 5 named constants (`FULL_DECK_HCP_SUM`, `FULL_DECK_HCP_SUM_SQ`, `MAX_HAND_HCP`, `UNVIABLE_MIN_FAILS`, `UNVIABLE_MIN_RATE`)
+- ✅ **Batch 5 — Clarification**: Added HCP attribution imprecision comment in v2 builder
+- ✅ **Additional bugs**: Fixed `rotate_flag` NameError in `create_profile_interactive()`; fixed `constraints_mode` TypeError in `profile_wizard.py`; added `decimal_places` param to `_input_float_with_default()`
+- ✅ **Final cleanup**: Removed dead `_HCP_BY_RANK`, dead `allow_std_constructive` assignments in v1, malformed comment, redundant `zip(strict=False)`, redundant lazy import
+- ✅ **Second pass**: Fixed `save_as_new_version_action()` missing 5 metadata fields; fixed `PartnerContingentConstraint` → `PartnerContingentData` NameError; removed dead `safe_input_int_with_default`; fixed `lin_encoder.py` fallback vulnerability code `'x'` → `'0'`
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 14 (14 done) | **Total: 1 pending** (#18 wizard refactor — low priority)
+Architecture: 15 (15 done) | Enhancements: 15 (15 done) | **Total: 1 pending** (#18 wizard refactor — low priority)
 
 **Tests**: 465 passed, 4 skipped | **Branch**: refactor/deal-generator
 
@@ -219,10 +229,11 @@ Architecture: 15 (15 done) | Enhancements: 14 (14 done) | **Total: 1 pending** (
 
 ---
 
-## Completed (34 items + #5, #6, #8, #9, #10, #11, #12, #13, #14, #15, #16, #17, #19)
+## Completed (35 items + #5, #6, #8, #9, #10, #11, #12, #13, #14, #15, #16, #17, #19)
 <details>
 <summary>Click to expand</summary>
 
+- Code review cleanup (#29): 6 bug fixes (PC constraint AttributeError, stale ns_index_coupling_enabled, rotate_flag NameError, constraints_mode TypeError, decimal_places TypeError, HCP attribution comment), dead code removal (_HCP_BY_RANK, DEBUG_SECTION_C, _pw(), allow_std_constructive), inconsistency fixes (strip patterns, type annotations, profile JSON typos), 5 named constants replacing magic numbers
 - Profile store safety (#20): `_load_profiles()` error handling + `_atomic_write()` for crash-safe writes on all 3 write sites
 - Profile store cleanup (#27): consistent trailing newline + narrowed `except OSError`
 - Wizard cleanup (#21): removed 5 dead functions from wizard_flow.py (−186 lines)

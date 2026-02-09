@@ -848,6 +848,11 @@ def save_as_new_version_action() -> None:
         seat_profiles=profile.seat_profiles,
         author=getattr(profile, "author", ""),
         version=new_version,
+        rotate_deals_by_default=getattr(profile, "rotate_deals_by_default", True),
+        ns_role_mode=getattr(profile, "ns_role_mode", "no_driver_no_index"),
+        subprofile_exclusions=list(getattr(profile, "subprofile_exclusions", [])),
+        is_invariants_safety_profile=getattr(profile, "is_invariants_safety_profile", False),
+        use_rs_w_only_path=getattr(profile, "use_rs_w_only_path", False),
     )
 
     validate_profile(new_profile)

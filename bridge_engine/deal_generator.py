@@ -50,7 +50,7 @@ from .deal_generator_types import (   # explicit re-imports for linters / IDE
     RS_PRE_ALLOCATE_HCP_RETRIES, RS_PRE_ALLOCATE_FRACTION,
     MAX_BOARD_RETRIES, RESEED_TIME_THRESHOLD_SECONDS, MAX_SUBPROFILE_FEASIBILITY_RETRIES,
     CONSTRUCTIVE_MAX_SUM_MIN_CARDS,
-    ENABLE_HCP_FEASIBILITY_CHECK, HCP_FEASIBILITY_NUM_SD, DEBUG_SECTION_C,
+    ENABLE_HCP_FEASIBILITY_CHECK, HCP_FEASIBILITY_NUM_SD,
     _MASTER_DECK, _CARD_HCP,
     _DEBUG_ON_MAX_ATTEMPTS, _DEBUG_STANDARD_CONSTRUCTIVE_USED,
     _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION,
@@ -63,7 +63,7 @@ from .deal_generator_helpers import (   # explicit re-imports for linters / IDE
     _is_unviable_bucket, _weighted_choice_index, classify_viability,
     _weights_for_seat_profile, _choose_index_for_seat,
     _build_deck, _get_constructive_mode,
-    _HCP_BY_RANK, _card_hcp, _deck_hcp_stats, _check_hcp_feasibility,
+    _card_hcp, _deck_hcp_stats, _check_hcp_feasibility,
     _deal_single_board_simple, _apply_vulnerability_and_rotation,
     _vulnerability_for_board,
 )
@@ -112,8 +112,8 @@ def _select_subprofiles_for_board(
     feasibility rejection.
 
     NS:
-      * If ns_index_coupling_enabled is True and both N/S have >1 subprofiles
-        and equal lengths, use index coupling:
+      * If ns_role_mode is not "no_driver_no_index" and both N/S have >1
+        subprofiles and equal lengths, use index coupling:
           - choose an NS "driver" (via ns_driver_seat or opener in dealing order),
           - pick its index by weights,
           - force responder to use same index.
@@ -140,9 +140,13 @@ def _select_subprofiles_for_board(
         north_sp = profile.seat_profiles.get("N")
         south_sp = profile.seat_profiles.get("S")
 
-        ns_coupling_enabled = bool(
-            getattr(profile, "ns_index_coupling_enabled", True)
+        # NS coupling is enabled for all ns_role_mode values EXCEPT
+        # "no_driver_no_index", which explicitly opts out of index coupling.
+        _ns_mode = (
+            getattr(profile, "ns_role_mode", "no_driver_no_index")
+            or "no_driver_no_index"
         )
+        ns_coupling_enabled = _ns_mode != "no_driver_no_index"
 
         ns_coupling_possible = (
             ns_coupling_enabled
