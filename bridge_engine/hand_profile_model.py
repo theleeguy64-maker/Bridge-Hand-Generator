@@ -829,4 +829,6 @@ class HandProfile:
                 seat: sp.to_dict() for seat, sp in self.seat_profiles.items()
             },
             "subprofile_exclusions": [e.to_dict() for e in self.subprofile_exclusions],
+            "is_invariants_safety_profile": self.is_invariants_safety_profile,
+            "use_rs_w_only_path": self.use_rs_w_only_path,
         }

@@ -217,6 +217,7 @@
 - ✅ **Additional bugs**: Fixed `rotate_flag` NameError in `create_profile_interactive()`; fixed `constraints_mode` TypeError in `profile_wizard.py`; added `decimal_places` param to `_input_float_with_default()`
 - ✅ **Final cleanup**: Removed dead `_HCP_BY_RANK`, dead `allow_std_constructive` assignments in v1, malformed comment, redundant `zip(strict=False)`, redundant lazy import
 - ✅ **Second pass**: Fixed `save_as_new_version_action()` missing 5 metadata fields; fixed `PartnerContingentConstraint` → `PartnerContingentData` NameError; removed dead `safe_input_int_with_default`; fixed `lin_encoder.py` fallback vulnerability code `'x'` → `'0'`
+- ✅ **Third pass (deep dive)**: Fixed `sub_profiles` → `subprofiles` attribute name (wizard_flow.py + tests); added `is_invariants_safety_profile`/`use_rs_w_only_path` to `to_dict()`; fixed extra space in text_output.py f-string; removed dead `_admin_menu()`/`_deal_management_menu()` + unused import from orchestrator.py
 
 ---
 

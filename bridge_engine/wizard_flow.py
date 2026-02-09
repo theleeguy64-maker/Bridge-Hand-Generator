@@ -172,9 +172,9 @@ def _compute_seat_risk(seat_profile) -> float:
     """
     # Handle both dict and SeatProfile
     if isinstance(seat_profile, dict):
-        sub_profiles = seat_profile.get("sub_profiles", [])
+        sub_profiles = seat_profile.get("subprofiles", [])
     else:
-        sub_profiles = getattr(seat_profile, "sub_profiles", [])
+        sub_profiles = getattr(seat_profile, "subprofiles", [])
 
     if not sub_profiles:
         return 0.0
@@ -210,7 +210,7 @@ def _detect_seat_roles(seat_profiles: dict) -> dict:
         roles[seat]["risk"] = _compute_seat_risk(sp)
 
         # sp can be a dict (raw JSON) or SeatProfile object
-        sub_profiles = sp.get("sub_profiles", []) if isinstance(sp, dict) else sp.sub_profiles
+        sub_profiles = sp.get("subprofiles", []) if isinstance(sp, dict) else sp.subprofiles
 
         for sub in sub_profiles:
             # Handle both dict (raw) and SubProfile object

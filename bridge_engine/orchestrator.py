@@ -46,7 +46,6 @@ from .profile_cli import _input_int
 
 from . import profile_cli
 from . import lin_tools
-from . import deal_generator  # you should already have this somewhere near the top
 from . import profile_diagnostic
 
 
@@ -460,31 +459,6 @@ def admin_menu() -> None:
             print()
             print(get_menu_help("admin_menu"))            
 
-
-# Backwards-compatible alias for any legacy callers/tests
-def _admin_menu() -> None:
-    admin_menu()     
-    
-
-def _deal_management_menu() -> None:
-    while True:
-        print()
-        print("=== Deal Management ===")
-        print()
-        print("1) Deal generation")
-        print("2) LIN Combiner")
-        print("3) Exit")
-
-        choice = input("Choose [1-3] [3]: ").strip() or "3"
-
-        if choice == "1":
-            _run_deal_generation_session()
-        elif choice == "2":
-            lin_tools.run_lin_combiner()
-        elif choice == "3":
-            return
-        else:
-            print("Invalid choice, please try again.")
 
 
 def main() -> None:
