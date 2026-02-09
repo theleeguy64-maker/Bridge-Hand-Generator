@@ -343,61 +343,13 @@ def run_deal_generation() -> None:
     _run_deal_generation_session()
 
 
-def _print_main_menu(include_lin: bool) -> None:
-    """
-    Helper to print the main menu.
-
-    include_lin=False → legacy 3-option menu (used by tests via _main_menu)
-    include_lin=True  → full 4-option menu with LIN tools.
-    """
-    print()
-    print("=== Bridge Hand Generator ===")
-    print("1) Profile management")
-    print("2) Deal generation")
-    if include_lin:
-        print("3) LIN tools - Combine LIN files")
-        print("4) Exit")
-    else:
-        print("3) Exit")
-
-
 def run_profile_menu() -> None:
     _run_profile_management()
 
 # ---------------------------------------------------------------------------
-# Main menus
+# Main menu
 # ---------------------------------------------------------------------------
 
-def _main_menu() -> None:
-    """
-    DO NOT CHANGE
-    Legacy main menu used by tests.  DO NOT CHANGE
-
-    Historically, this menu had only three options and exited on '3'.
-    The tests still call _main_menu() and expect that behaviour, so we
-    keep this thin wrapper separate from the real main_menu().
-    """
-    while True:
-        print()
-        print("=== Bridge Hand Generator ===")
-        print()
-        print("1) Profile management")
-        print("2) Deal generation")
-        print("3) Exit")
-
-        choice = input("Choose [1-3]: ").strip() or "3"
-
-        if choice == "1":
-            _run_profile_management()
-        elif choice == "2":
-            _run_deal_generation_session()
-        elif choice == "3":
-            print("Goodbye.")
-            break
-        else:
-            print("Invalid choice, please try again.")
-  
-            
 def main_menu() -> None:
     """
     Top-level interactive menu for the Bridge Hand Generator.
