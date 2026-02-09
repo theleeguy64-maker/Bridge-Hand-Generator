@@ -226,13 +226,7 @@ def autosave_profile_draft_for_new(profile: HandProfile, base_dir: Path | None =
       - Draft JSON must have profile_name ending with " TEST"
       - Canonical filename is derived from the stripped name (no " TEST")
     """
-    profiles_dir = _profiles_dir(base_dir)
-
-    base_name = _strip_test_suffix(getattr(profile, "profile_name", "") or "UNNAMED")
-    safe_name = _slugify(base_name)
-    version = getattr(profile, "version", "") or "0.1"
-    canonical = profiles_dir / f"{safe_name}_v{version}.json"
-
+    canonical = _profile_path_for(profile, base_dir)
     return autosave_profile_draft(profile, canonical)
 
 
@@ -281,6 +275,19 @@ def build_profile_display_map(
         result[so] = (path, profile)
 
     return result
+
+
+def print_profile_display_map(
+    display_map: Dict[int, Tuple[Path, HandProfile]],
+) -> None:
+    """Print the numbered profile list from a display map."""
+    for num in sorted(display_map):
+        _, profile = display_map[num]
+        version_str = f"v{profile.version}" if profile.version else "(no version)"
+        print(
+            f"  {num}) {profile.profile_name} "
+            f"({version_str}, tag={profile.tag}, dealer={profile.dealer})"
+        )
 
 
 def delete_draft_for_canonical(canonical_path: Path) -> None:

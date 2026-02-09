@@ -469,7 +469,7 @@ class SubProfile:
             ),
             "weight_percent": self.weight_percent,
             # JSON field name for Phase 3 metadata.
-            "ns_role_usage": getattr(self, "ns_role_usage", "any"),
+            "ns_role_usage": self.ns_role_usage,
         }
 
     @classmethod
@@ -739,10 +739,7 @@ class HandProfile:
         - "no_driver"          -> None (explicit no-driver mode)
         - anything else        -> None (defensive fallback for unknown values)
         """
-        mode = (
-            getattr(self, "ns_role_mode", "no_driver_no_index")
-            or "no_driver_no_index"
-        ).lower()
+        mode = (self.ns_role_mode or "no_driver_no_index").lower()
 
         if mode == "north_drives":
             return "N"
@@ -829,9 +826,8 @@ class HandProfile:
             "tag": self.tag,
             "author": self.author,
             "version": self.version,
-            "rotate_deals_by_default": getattr(self, "rotate_deals_by_default", True),
-            # Persist NS role mode (consistent default across all paths)
-            "ns_role_mode": getattr(self, "ns_role_mode", "no_driver_no_index"),
+            "rotate_deals_by_default": self.rotate_deals_by_default,
+            "ns_role_mode": self.ns_role_mode,
             "seat_profiles": {
                 seat: sp.to_dict() for seat, sp in self.seat_profiles.items()
             },

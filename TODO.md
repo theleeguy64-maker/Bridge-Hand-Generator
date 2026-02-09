@@ -229,10 +229,17 @@
 - ✅ Preserved `sort_order` in metadata edit + save-as-new-version
 - ✅ Profile A-E Test files set to sort_order 20-24
 
+### 32. [x] Code Simplification
+- ✅ Removed ~20 redundant `getattr()` calls on dataclass fields across hand_profile_model.py, profile_cli.py, orchestrator.py
+- ✅ Extracted `print_profile_display_map()` in profile_store.py — replaces 3 duplicate display loops
+- ✅ Deduplicated filename construction in profile_store.py — `autosave_profile_draft_for_new()` reuses `_profile_path_for()`
+- ✅ Removed dead `_run_profile_management()` wrapper from orchestrator.py
+- Skipped `_safe_file_stem` → `_slugify` consolidation — `&` in profile names produces different output, would break existing file paths
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 17 (17 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 18 (18 done) | **All complete**
 
 **Tests**: 483 passed, 4 skipped | **Branch**: refactor/deal-generator
 

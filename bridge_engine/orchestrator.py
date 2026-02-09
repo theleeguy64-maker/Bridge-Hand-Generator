@@ -177,13 +177,7 @@ def _choose_profile_for_session() -> HandProfile | None:
     display_map = profile_store.build_profile_display_map(profiles)
 
     print("\nAvailable profiles on disk:")
-    for num in sorted(display_map):
-        _, profile = display_map[num]
-        tag = getattr(profile, "tag", "Unknown")
-        dealer = getattr(profile, "dealer", "?")
-        version = getattr(profile, "version", "")
-        version_str = f"v{version}" if version else "(no version)"
-        print(f"  {num}) {profile.profile_name} ({version_str}, tag={tag}, dealer={dealer})")
+    profile_store.print_profile_display_map(display_map)
 
     valid_nums = sorted(display_map)
     while True:
@@ -335,11 +329,6 @@ def _run_deal_generation_session() -> None:
 # ---------------------------------------------------------------------------
 # Profile Management wrapper
 # ---------------------------------------------------------------------------
-
-
-def _run_profile_management() -> None:
-    """Launch the Profile Manager UI."""
-    profile_cli.run_profile_manager()
 
 
 # Public wrapper (kept for main_menu call site)
