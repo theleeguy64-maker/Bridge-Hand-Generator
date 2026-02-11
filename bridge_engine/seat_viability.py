@@ -196,6 +196,15 @@ def _match_random_suit(
     return chosen if matched else None
 
 
+def _check_suit_range(analysis: SuitAnalysis, suit: str, sr: SuitRange) -> bool:
+    """Check whether a single suit in the hand satisfies a SuitRange constraint."""
+    if suit not in analysis.cards_by_suit:
+        return False
+    count = len(analysis.cards_by_suit[suit])
+    hcp = analysis.hcp_by_suit[suit]
+    return sr.min_cards <= count <= sr.max_cards and sr.min_hcp <= hcp <= sr.max_hcp
+
+
 def _match_partner_contingent(
     analysis: SuitAnalysis,
     pc: PartnerContingentData,
@@ -211,15 +220,7 @@ def _match_partner_contingent(
     """
     if not partner_suits:
         return False
-
-    sr = pc.suit_range
-    suit = partner_suits[0]
-    if suit not in analysis.cards_by_suit:
-        return False
-
-    count = len(analysis.cards_by_suit[suit])
-    hcp = analysis.hcp_by_suit[suit]
-    return sr.min_cards <= count <= sr.max_cards and sr.min_hcp <= hcp <= sr.max_hcp
+    return _check_suit_range(analysis, partner_suits[0], pc.suit_range)
 
 def _match_subprofile(
     analysis: SuitAnalysis,
@@ -300,15 +301,7 @@ def _match_subprofile(
             return False, None, "other"
 
         # Opponent's Contingent Suit = first chosen suit
-        suit = opp_suits[0]
-        sr = oc.suit_range
-        if suit not in analysis.cards_by_suit:
-            # OC failure is "other" (not standard HCP/shape)
-            return False, None, "other"
-
-        count = len(analysis.cards_by_suit[suit])
-        hcp = analysis.hcp_by_suit[suit]
-        if sr.min_cards <= count <= sr.max_cards and sr.min_hcp <= hcp <= sr.max_hcp:
+        if _check_suit_range(analysis, opp_suits[0], oc.suit_range):
             return True, None, None
         # OC constraint failed - "other" (not standard HCP/shape)
         return False, None, "other"

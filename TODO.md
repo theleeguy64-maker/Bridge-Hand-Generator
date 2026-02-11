@@ -245,10 +245,19 @@
 - ✅ **Docstring**: Fixed `hand_profile_validate.py` — docstring said `"north_drives"` default but code uses `"no_driver_no_index"`
 - ✅ **Typo**: Fixed `wizard_flow.py` comment — `_build_Opponent seat_profile` → `_build_seat_profile`; removed stale `_input_choice` reference
 
+### 34. [x] Complexity Reduction Refactoring (R6-R14)
+- ✅ **R6**: Extracted `_validate_for_session()` + `_print_session_summary()` from orchestrator session flow; reused in diagnostic
+- ✅ **R7**: Generic `_run_menu_loop()` replaces duplicate `main_menu()`/`admin_menu()` while-loops
+- ✅ **R8**: Extracted `_check_suit_range()` helper in `seat_viability.py` — deduplicates PC/OC matching
+- ✅ **R12**: Extracted `WE_COLUMN_WIDTH = 28` constant in `deal_output.py`
+- ✅ **R13**: Consolidated 4 regex patterns at module top in `lin_tools.py`; removed duplicate `_BOARD_LABEL_RE`
+- ✅ **R14**: Deduplicated seed logic in `setup_env.py` (2 identical branches → 1)
+- Skipped R9 (suit dict factory — hot-path overhead), R10 (depends on R1), R11 (`show_range_suffix` is a legitimate feature with 20+ callers)
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 19 (19 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 20 (20 done) | **All complete**
 
 **Tests**: 480 passed, 4 skipped | **Branch**: refactor/deal-generator
 
@@ -256,7 +265,7 @@ Architecture: 15 (15 done) | Enhancements: 19 (19 done) | **All complete**
 
 ---
 
-## Completed (36 items + #5, #6, #8, #9, #10, #11, #12, #13, #14, #15, #16, #17, #19)
+## Completed (37 items + #5, #6, #8, #9, #10, #11, #12, #13, #14, #15, #16, #17, #19)
 <details>
 <summary>Click to expand</summary>
 

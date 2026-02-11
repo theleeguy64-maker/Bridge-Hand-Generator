@@ -164,26 +164,21 @@ def run_setup(
     owner_preserved = owner
     owner_file = _normalise_owner_for_filename(owner)
 
-    # Handle seed choice
+    # Determine whether to use the default deterministic seed or a random one.
     if ask_seed_choice:
-        use_default_seeded = cli_prompts.prompt_yes_no(
+        use_seeded = cli_prompts.prompt_yes_no(
             "Use default seeded run?",
             default=True,
         )
-        if use_default_seeded:
-            seed = DEFAULT_SEED
-            seeded_flag = True
-            
-        else:
-            seed = random.randint(1, 2**31 - 1)
-            seeded_flag = False
     else:
-        if use_seeded_default:
-            seed = DEFAULT_SEED
-            seeded_flag = True
-        else:
-            seed = random.randint(1, 2**31 - 1)
-            seeded_flag = False
+        use_seeded = use_seeded_default
+
+    if use_seeded:
+        seed = DEFAULT_SEED
+        seeded_flag = True
+    else:
+        seed = random.randint(1, 2**31 - 1)
+        seeded_flag = False
             
     # Apply seed
     random.seed(seed)
