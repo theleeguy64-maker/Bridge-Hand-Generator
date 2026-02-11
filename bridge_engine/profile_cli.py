@@ -28,8 +28,10 @@ or via the orchestrator:
 from __future__ import annotations
 
 import json
+import os
 import sys
 import io
+import tempfile
 
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -209,11 +211,28 @@ def _load_profiles() -> List[Tuple[Path, HandProfile]]:
 
 
 def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
-    """Save profile as JSON to the given path."""
+    """Save profile as JSON to the given path (atomic write).
+
+    Writes to a temp file in the same directory, then renames.
+    If the process dies mid-write, the original file stays intact
+    (os.replace is atomic on the same filesystem).
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = profile.to_dict()
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, sort_keys=True)
+    content = json.dumps(profile.to_dict(), indent=2, sort_keys=True) + "\n"
+    fd, tmp = tempfile.mkstemp(
+        dir=str(path.parent), suffix=".tmp", prefix=path.stem + "_"
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+        os.replace(tmp, str(path))
+    except BaseException:
+        # Clean up temp file on any failure.
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 # ---------------------------------------------------------------------------
 # Menu actions
@@ -247,25 +266,6 @@ def _choose_profile(
     print("Invalid choice.")
     return None
 
-
-def _create_profile_from_base_template() -> None:
-    """
-    Create a new profile using a standard base template.
-
-    For now we hard-code Base_v1.0, but this could later be a menu with
-    Base_va / Base_vb, etc.
-    """
-    base_entry = profile_store.find_profile_by_name("Base_v1.0")
-    if base_entry is None:
-        print("ERROR: Base_v1.0 template not found; falling back to full wizard.")
-        profile = profile_wizard.create_profile_interactive()
-    else:
-        base_profile = base_entry.profile
-        profile = profile_wizard.create_profile_from_existing_constraints(base_profile)
-
-    # Whatever save logic you already use after create_profile_interactive()
-    profile_store.save_profile(profile)
-    print(f"Saved new profile: {profile.profile_name}")
 
 
 def list_profiles_action() -> None:

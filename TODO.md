@@ -254,10 +254,18 @@
 - ✅ **R14**: Deduplicated seed logic in `setup_env.py` (2 identical branches → 1)
 - Skipped R9 (suit dict factory — hot-path overhead), R10 (depends on R1), R11 (`show_range_suffix` is a legitimate feature with 20+ callers)
 
+### 35. [x] Code Review (#35) — 6 fixes
+- ✅ **A1**: `failure_report.py` now uses v2 builder (`_build_single_constrained_deal_v2`) — was using v1, attribution results mismatched production
+- ✅ **B1**: `profile_cli.py` `_save_profile_to_path()` now uses atomic writes (tempfile + `os.replace`) — was using bare `json.dump`, crash-unsafe
+- ✅ **A2**: Removed dead `_create_profile_from_base_template()` from `profile_cli.py` — had latent `.profile` bug on tuple
+- ✅ **B2**: Added missing `import random` to `seat_viability.py` — 4 type annotations used `random.Random` without import
+- ✅ **C1**: Fixed stale comment on `PRE_ALLOCATE_FRACTION` — said "50%" but value is 0.75
+- ✅ **C2**: Deduplicated `TOTAL_DECK_HCP` in `profile_viability.py` — now imports `FULL_DECK_HCP_SUM` from `deal_generator_types`
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 20 (20 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 21 (21 done) | **All complete**
 
 **Tests**: 480 passed, 4 skipped | **Branch**: refactor/deal-generator
 
@@ -265,7 +273,7 @@ Architecture: 15 (15 done) | Enhancements: 20 (20 done) | **All complete**
 
 ---
 
-## Completed (37 items + #5, #6, #8, #9, #10, #11, #12, #13, #14, #15, #16, #17, #19)
+## Completed (37 items + #5, #6, #8, #9, #10, #11, #12, #13, #14, #15, #16, #17, #19, #35)
 <details>
 <summary>Click to expand</summary>
 

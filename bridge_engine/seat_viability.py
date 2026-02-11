@@ -1,6 +1,7 @@
 # bridge_engine/seat_viability.py
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 

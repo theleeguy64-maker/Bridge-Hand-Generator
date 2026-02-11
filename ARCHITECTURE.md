@@ -10,14 +10,14 @@ bridge_engine/
 ├── deal_generator_types.py  (283 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (450 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (838 lines) - Data models
-├── seat_viability.py        (597 lines) - Constraint matching + RS pre-selection threading
+├── seat_viability.py        (598 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (519 lines) - Validation
 ├── profile_diagnostic.py     (209 lines) - Generic profile diagnostic runner (Admin menu)
 ├── orchestrator.py          (494 lines) - CLI/session management + generic menu loop
 ├── profile_cli.py           (943 lines) - Profile commands
 ├── profile_wizard.py        (161 lines) - Profile creation UI
 ├── wizard_flow.py         (1,776 lines) - Wizard steps, seat editing, dealing order, RS/PC/OC prompts
-├── profile_viability.py     (360 lines) - Profile-level viability + cross-seat feasibility
+├── profile_viability.py     (361 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py         (303 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
 ├── lin_tools.py             (458 lines) - LIN file operations
 ├── deal_output.py           (330 lines) - Deal rendering
