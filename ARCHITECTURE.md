@@ -10,22 +10,21 @@ bridge_engine/
 ├── deal_generator_types.py  (283 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (450 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (838 lines) - Data models
-├── seat_viability.py        (615 lines) - Constraint matching + RS pre-selection threading
+├── seat_viability.py        (604 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (519 lines) - Validation
 ├── profile_diagnostic.py     (209 lines) - Generic profile diagnostic runner (Admin menu)
 ├── orchestrator.py          (464 lines) - CLI/session management + timing
 ├── profile_cli.py           (943 lines) - Profile commands
 ├── profile_wizard.py        (161 lines) - Profile creation UI
-├── wizard_flow.py         (1,777 lines) - Wizard steps, seat editing, dealing order, RS/PC/OC prompts
+├── wizard_flow.py         (1,776 lines) - Wizard steps, seat editing, dealing order, RS/PC/OC prompts
 ├── profile_viability.py     (360 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py         (303 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
 ├── lin_tools.py             (459 lines) - LIN file operations
 ├── deal_output.py           (330 lines) - Deal rendering
 ├── lin_encoder.py           (188 lines) - LIN format encoding
 ├── setup_env.py             (214 lines) - RNG seed management
-├── cli_io.py                (153 lines) - CLI utilities
+├── cli_io.py                (111 lines) - CLI utilities
 ├── cli_prompts.py           (101 lines) - CLI prompts
-├── text_output.py            (67 lines) - Text formatting
 └── hand_profile.py           (34 lines) - Exports
 ```
 
@@ -501,7 +500,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**483 passed, 4 skipped** organized by:
+**480 passed, 4 skipped** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`

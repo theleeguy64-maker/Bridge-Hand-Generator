@@ -29,10 +29,6 @@ HCP_MAP = {"A": 4, "K": 3, "Q": 2, "J": 1}
 # Basic deck helpers
 # ---------------------------------------------------------------------------
 
-def _build_deck() -> List[Card]:
-    """Return a fresh copy of the 52-card master deck."""
-    return list(_MASTER_DECK)
-
 
 def _compute_suit_analysis(hand: List[Card]) -> SuitAnalysis:
     """

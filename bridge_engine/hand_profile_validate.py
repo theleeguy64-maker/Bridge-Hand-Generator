@@ -261,7 +261,7 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
     # NS sub-profile index matching: tie N/S sub-profile indices together.
 
     Backwards-compatible:
-        - If ns_role_mode is missing → treated as "north_drives".
+        - If ns_role_mode is missing → treated as "no_driver_no_index".
         - If ns_role_mode is "no_driver_no_index" → skip NS role coverage checks.
         - If ns_role_mode is unknown/future → treat as "no_driver_no_index" (skip).
         - If a SubProfile has no ns_role_usage → treated as "any".

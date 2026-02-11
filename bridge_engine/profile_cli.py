@@ -213,7 +213,7 @@ def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     data = profile.to_dict()
     with path.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, sort_keys=False)
+        json.dump(data, f, indent=2, sort_keys=True)
 
 # ---------------------------------------------------------------------------
 # Menu actions

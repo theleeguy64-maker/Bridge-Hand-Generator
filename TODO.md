@@ -236,18 +236,27 @@
 - ✅ Removed dead `_run_profile_management()` wrapper from orchestrator.py
 - Skipped `_safe_file_stem` → `_slugify` consolidation — `&` in profile names produces different output, would break existing file paths
 
+### 33. [x] Deep Code Review Cleanup
+- ✅ **Bug fix**: `deal_output.py:314` — `_convert_to_lin_deals()` result was discarded; LIN files now get proper vulnerability data
+- ✅ **Dead code**: Removed `_build_deck()` from `seat_viability.py` (duplicate of `deal_generator_helpers.py`)
+- ✅ **Dead code**: Removed `_input_choice()` + unused `Sequence`/`TypeVar` imports from `cli_io.py`; updated `test_cli_io.py`
+- ✅ **Dead module**: Deleted `text_output.py` + `test_text_output.py` (superseded by `deal_output.py`)
+- ✅ **Consistency**: Standardized `sort_keys=True` in all 4 JSON save sites (`profile_cli.py`, `profile_store.py` ×3)
+- ✅ **Docstring**: Fixed `hand_profile_validate.py` — docstring said `"north_drives"` default but code uses `"no_driver_no_index"`
+- ✅ **Typo**: Fixed `wizard_flow.py` comment — `_build_Opponent seat_profile` → `_build_seat_profile`; removed stale `_input_choice` reference
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 18 (18 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 19 (19 done) | **All complete**
 
-**Tests**: 483 passed, 4 skipped | **Branch**: refactor/deal-generator
+**Tests**: 480 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 
 ---
 
-## Completed (35 items + #5, #6, #8, #9, #10, #11, #12, #13, #14, #15, #16, #17, #19)
+## Completed (36 items + #5, #6, #8, #9, #10, #11, #12, #13, #14, #15, #16, #17, #19)
 <details>
 <summary>Click to expand</summary>
 
