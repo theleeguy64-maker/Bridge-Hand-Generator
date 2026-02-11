@@ -6,7 +6,7 @@
 bridge_engine/
 ├── deal_generator.py        (402 lines) - Facade: subprofile selection + generate_deals() + re-exports
 ├── deal_generator_v1.py     (790 lines) - v1 builder + hardest-seat + constructive help (legacy)
-├── deal_generator_v2.py   (1,117 lines) - v2 shape-help helpers + v2 builder (active path)
+├── deal_generator_v2.py   (1,122 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py  (283 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (450 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (838 lines) - Data models
@@ -347,7 +347,7 @@ processing_order = rs_seats_sorted + non_rs_constrained_seats
 - `HandProfile.from_dict()` auto-generates if missing
 - User can override in JSON or wizard
 
-**Base Smart Hand Order** (✅ Complete):
+**Base Smart Hand Order** (✅ Algorithm complete, ⚠️ Dead code — not wired into production):
 | Priority | Condition | Action |
 |----------|-----------|--------|
 | 1 | Seat has RS | RS seat first (sorted by risk, clockwise tiebreaker) |
@@ -355,6 +355,14 @@ processing_order = rs_seats_sorted + non_rs_constrained_seats
 | 3 | Seat has PC | PC after partner |
 | 4 | Seat has OC | OC after opponents |
 | 5 | Remaining | Clockwise fill |
+
+**Note:** `_base_smart_hand_order()` has 56 tests but is never called in production.
+The wizard uses `_suggest_dealing_order()` which has hardcoded tag-based special cases
++ simple dealer rotation fallback. v2's `_build_processing_order()` handles **matching
+order** (RS seats first) at runtime, but **dealing order** (who gets cards from deck
+first, affecting pre-allocation and fill) uses the profile's stored `hand_dealing_order`.
+**Future**: Wire `_base_smart_hand_order()` into `_suggest_dealing_order()` fallback,
+or compute at runtime in `generate_deals()` when profile has no stored order.
 
 **Risk weighting** for multiple subprofiles:
 - Risk factors: Standard=0, RS=1.0, PC=0.5, OC=0.5
@@ -371,6 +379,64 @@ Helpers:
 - `_compute_seat_risk(seat_profile)` - weighted risk calculation
 
 Tests: 56 tests in `test_default_dealing_order.py`
+
+## v1 vs v2 Comparison
+
+**v2 is a complete successor** — every v1 feature was replaced with a superior mechanism
+or deliberately removed. v1 is retained only for rollback.
+
+| v1 Feature | v2 Replacement | Rationale |
+|-----------|---------------|-----------|
+| Constructive help (build hand to meet minima) | Shape-based pre-allocation | Pre-allocation is simpler, more general, no "helper seat" selection |
+| Hardest-seat selection (`_choose_hardest_seat_for_board`) | Proactive dispersion checking (`_dispersion_check`) | All tight seats helped, not just one |
+| Per-attempt subprofile re-selection | Periodic re-rolling (`SUBPROFILE_REROLL_INTERVAL`) | Amortizes cost; avoids pathological combos |
+| Early unviable termination (`MIN_ATTEMPTS_FOR_UNVIABLE_CHECK`) | Board-level retry (`MAX_BOARD_RETRIES`) | Avoids false positives on hard-but-viable profiles |
+| RS W-only fast path | Generic RS pre-selection | Handles all RS patterns, not just W-only |
+
+Both v1 and v2 share: debug hooks, failure attribution, matching via `_match_seat()`,
+the same processing order (`_build_processing_order()`), and the subprofile selection
+mechanism in the facade (`_select_subprofiles_for_board()`).
+
+## Profile Inventory
+
+| sort_order | Profile Name | File |
+|-----------|-------------|------|
+| 20 | Profile A Test - Loose constraints | `Profile_A_Test_-_Loose_constraints_v0.1.json` |
+| 21 | Profile B Test - tight Suit constraints | `Profile_B_Test_-_tight_suit_constraints_v0.1.json` |
+| 22 | Profile C Test - tight points constraints | `Profile_C_Test_-_tight_points_constraints_v0.1.json` |
+| 23 | Profile D Test - tight point and suit constraints | `Profile_D_Test_-_tight_and_suit_point_constraint_v0.1.json` |
+| 24 | Profile E Test - tight point and suit constraints_plus | `Profile_E_Test_-_tight_and_suit_point_constraint_plus_v0.1.json` |
+| — | Big Hands | `Big_Hands_v0.1.json` |
+| — | Defense to 3 Weak 2s | `Defense_to_3_Weak_2s_v0.2.json` |
+| — | Opps_Open_&_Our_TO_Dbl | `Opps_Open_&_Our_TO_Dbl_v0.2.json` |
+| — | Ops interference over our 1NT | `Ops_interference_over_our_1NT_v0.1.json` |
+| — | Our 1 Major & Opponents Interference | `Our_1_Major_&_Opponents_Interference_v0.2.json` |
+| — | Responding with a Major to 1NT Opening | `Responding_with_a_Major_to_1NT_Opening_v0.1.json` |
+
+Profiles with `sort_order` appear first in menus in that order; profiles without `sort_order` appear after, sorted alphabetically.
+
+## Benchmark Portfolio
+
+5 profiles spanning trivial → hardest. Script: `benchmark_portfolio.py [num_boards]`.
+
+| # | Profile | Sub Combos | Key Constraint |
+|---|---------|-----------|----------------|
+| 1 | Profile A (Loose) | 1×1×1×1 = 1 | No constraints (baseline overhead) |
+| 2 | Profile D (Suit+Pts) | 1×1×1×1 = 1 | N: 5-6 spades + 10-12 HCP |
+| 3 | Profile E (Suit+Pts+) | 1×1×1×1 = 1 | N: exactly 6 spades + 10-12 HCP |
+| 4 | Our 1 Major & Interference | 1×3×1×1 = 3 | All 4 seats: RS+PC+OC |
+| 5 | Defense to 3 Weak 2s | 1×4×1×4 = 16 | OC+RS mixing, 16 sub combos |
+
+**Baseline (20 boards, seed=778899):**
+
+| Profile | Wall(s) | Avg(ms) | Med(ms) | P95(ms) | Max(ms) |
+|---------|---------|---------|---------|---------|---------|
+| Profile A | 0.001 | 0.0 | 0.0 | 0.1 | 0.1 |
+| Profile D | 0.002 | 0.1 | 0.1 | 0.2 | 0.2 |
+| Profile E | 0.002 | 0.1 | 0.1 | 0.3 | 0.3 |
+| Our 1 Major | 0.066 | 3.3 | 1.4 | 19.7 | 19.7 |
+| Defense Weak 2s | 1.040 | 52.0 | 49.0 | 128.8 | 128.8 |
+| **TOTAL** | **1.112** | | | | |
 
 ## Debug Hooks
 
@@ -461,7 +527,7 @@ _build_single_board_random_suit_w_only(rng, profile, board_number) -> Deal
 # at call time for monkeypatch compatibility.
 ```
 
-### deal_generator_v2.py (v2 shape-help — 1,070 lines)
+### deal_generator_v2.py (v2 shape-help — 1,122 lines)
 ```python
 # v2 shape help helpers
 _dispersion_check(chosen_subs, threshold, rs_pre_selections) -> set[Seat]

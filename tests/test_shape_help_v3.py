@@ -1119,8 +1119,12 @@ class TestV2Attribution:
         assert captured["board_number"] == 1
         assert captured["attempts"] == 15
         assert captured["seat_fail_counts"].get("N", 0) == 15
-        # viability_summary is None in v2 (not computed).
-        assert captured["viability_summary"] is None
+        # viability_summary should contain per-seat diagnostics.
+        vs = captured["viability_summary"]
+        assert vs is not None
+        assert "N" in vs
+        assert vs["N"]["attempts"] == 15
+        assert vs["N"]["failures"] == 15
 
     def test_attribution_hook_receives_copies(self, monkeypatch):
         """

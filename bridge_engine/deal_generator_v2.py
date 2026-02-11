@@ -33,7 +33,8 @@ from .deal_generator_types import (
 # which monkeypatch `dg.ENABLE_HCP_FEASIBILITY_CHECK` still work.  The
 # facade re-exports these from deal_generator_types via `from ... import *`.
 from .deal_generator_helpers import (
-    _check_hcp_feasibility, _build_deck, _vulnerability_for_board,
+    _check_hcp_feasibility, _build_deck, _compute_viability_summary,
+    _vulnerability_for_board,
 )
 from .hand_profile import HandProfile, SeatProfile, SubProfile
 from .seat_viability import _match_seat
@@ -1100,13 +1101,17 @@ def _build_single_constrained_deal_v2(
 
     if _dg._DEBUG_ON_MAX_ATTEMPTS is not None:
         try:
+            viability_summary = _compute_viability_summary(
+                seat_fail_counts=seat_fail_counts,
+                seat_seen_counts=seat_seen_counts,
+            )
             _dg._DEBUG_ON_MAX_ATTEMPTS(
                 profile,
                 board_number,
                 board_attempts,
                 dict(chosen_indices),
                 dict(seat_fail_counts),
-                None,  # viability_summary (not computed in v2)
+                viability_summary,
             )
         except Exception:
             pass  # Debug hooks must never interfere with error reporting.

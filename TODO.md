@@ -8,9 +8,13 @@
 
 ## Architecture
 
-### 1. [x] Base Smart Hand Order
+### 1. [x] Base Smart Hand Order (algorithm complete, NOT wired into production)
 - ✅ `_base_smart_hand_order()` in wizard_flow.py (5-priority algorithm)
 - ✅ Risk-weighted ordering: `_compute_seat_risk()` handles multiple subprofiles
+- ⚠️ **Dead code**: 56 tests pass but function is never called in production
+- The wizard uses `_suggest_dealing_order()` which only has hardcoded tag-based special cases + simple dealer rotation fallback
+- v2's `_build_processing_order()` handles **matching order** (RS first) at runtime, but **dealing order** (who gets cards from deck first) still uses the profile's stored order
+- **Future**: Wire into `_suggest_dealing_order()` fallback, or compute at runtime in `generate_deals()`
 
 ### 2. [x] v2 Shape-Based Help System (D0-D8)
 - ✅ Extracted `_select_subprofiles_for_board()` to module level (D0)
@@ -261,6 +265,43 @@
 - ✅ **B2**: Added missing `import random` to `seat_viability.py` — 4 type annotations used `random.Random` without import
 - ✅ **C1**: Fixed stale comment on `PRE_ALLOCATE_FRACTION` — said "50%" but value is 0.75
 - ✅ **C2**: Deduplicated `TOTAL_DECK_HCP` in `profile_viability.py` — now imports `FULL_DECK_HCP_SUM` from `deal_generator_types`
+
+### 36. [x] v1 vs v2 Review + Debug Hook Fix
+- ✅ Comprehensive review of `deal_generator_v1.py` (790 lines) vs `deal_generator_v2.py` (1,122 lines)
+- **Conclusion**: v2 is a complete successor — every v1 feature was replaced with a superior mechanism or deliberately removed
+- v1 features deliberately absent from v2 (by design):
+  - Constructive help → replaced by shape-based pre-allocation
+  - Hardest-seat selection → replaced by proactive dispersion checking
+  - Per-attempt subprofile re-selection → replaced by periodic re-rolling intervals
+  - Early unviable termination (`MIN_ATTEMPTS_FOR_UNVIABLE_CHECK`) → removed to avoid false positives; board-level retry handles this
+- ✅ **Fix**: v2 `_DEBUG_ON_MAX_ATTEMPTS` hook now passes real `viability_summary` (was passing `None`)
+  - Added `_compute_viability_summary` import to `deal_generator_v2.py`
+  - Updated test assertion in `test_shape_help_v3.py`
+
+---
+
+## Benchmark Portfolio
+
+5 profiles spanning trivial → hardest. Run via `benchmark_portfolio.py [num_boards]`.
+
+| # | Profile | Difficulty | Key Constraint |
+|---|---------|-----------|----------------|
+| 1 | Profile A (Loose) | Trivial | No constraints (baseline) |
+| 2 | Profile D (Suit+Pts) | Moderate | N: 5-6 spades + 10-12 HCP |
+| 3 | Profile E (Suit+Pts+) | Hard | N: exactly 6 spades + 10-12 HCP |
+| 4 | Our 1 Major & Interference | Hard | All 4 seats: RS+PC+OC, 3 E subs |
+| 5 | Defense to 3 Weak 2s | Hardest | 16 sub combos, OC+RS mixing |
+
+**Baseline (20 boards, seed=778899):**
+
+| Profile | Wall(s) | Avg(ms) | Med(ms) | P95(ms) | Max(ms) |
+|---------|---------|---------|---------|---------|---------|
+| Profile A | 0.001 | 0.0 | 0.0 | 0.1 | 0.1 |
+| Profile D | 0.002 | 0.1 | 0.1 | 0.2 | 0.2 |
+| Profile E | 0.002 | 0.1 | 0.1 | 0.3 | 0.3 |
+| Our 1 Major | 0.066 | 3.3 | 1.4 | 19.7 | 19.7 |
+| Defense Weak 2s | 1.040 | 52.0 | 49.0 | 128.8 | 128.8 |
+| **TOTAL** | **1.112** | | | | |
 
 ---
 
