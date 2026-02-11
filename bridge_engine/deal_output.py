@@ -311,7 +311,7 @@ def render_deals(
         # Always overwrite LIN file for a run
         try:
             setup.output_lin_file.parent.mkdir(parents=True, exist_ok=True)
-            write_lin_file(setup.output_lin_file, deal_set.deals)
+            write_lin_file(setup.output_lin_file, lin_deals)
         except OSError as exc:
             raise OutputError(
                 f"Failed to write LIN output to {setup.output_lin_file}: {exc}"

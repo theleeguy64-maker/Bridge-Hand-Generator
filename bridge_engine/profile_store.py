@@ -181,7 +181,7 @@ def save_profile(profile: HandProfile, base_dir: Path | None = None) -> Path:
     # Canonical metadata should NOT carry the " TEST" suffix.
     data["profile_name"] = _strip_test_suffix(str(data.get("profile_name", "") or ""))
 
-    _atomic_write(path, json.dumps(data, indent=2) + "\n")
+    _atomic_write(path, json.dumps(data, indent=2, sort_keys=True) + "\n")
     return path
 
 
@@ -214,7 +214,7 @@ def autosave_profile_draft(profile: HandProfile, canonical_path: Path) -> Path:
     payload: Dict[str, Any] = profile.to_dict() if hasattr(profile, "to_dict") else dict(profile.__dict__)
     payload["profile_name"] = _with_test_suffix(str(payload.get("profile_name", "") or ""))
 
-    _atomic_write(draft_path, json.dumps(payload, indent=2) + "\n")
+    _atomic_write(draft_path, json.dumps(payload, indent=2, sort_keys=True) + "\n")
     return draft_path
 
 

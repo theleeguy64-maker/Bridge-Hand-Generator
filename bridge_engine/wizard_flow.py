@@ -13,12 +13,11 @@ profiles so that both the CLI and tests can rely on a single behaviour.
 # Prompt wrappers (tests control interactive behavior):
 #   - _input_with_default(prompt: str, default: str) -> str
 #   - _input_int(prompt, default, minimum, maximum, show_range_suffix=True) -> int
-#   - _input_choice(prompt, options, default) -> str
 #   - _yes_no(prompt: str, default: bool = True) -> bool
 #   - clear_screen()
 # 
 # Builder / flow helpers patched by tests:
-#   - _build_Opponent seat_profile(seat: str)
+#   - _build_seat_profile(seat: str)
 #   - _build_profile(existing: Optional[HandProfile] = None)
 #   - create_profile_interactive()
 #   - edit_constraints_interactive(existing: HandProfile)

@@ -6,7 +6,6 @@ from typing import List
 
 from bridge_engine.cli_io import (
     _input_with_default,
-    _input_choice,
     _input_int,
     _yes_no,
 )
@@ -28,26 +27,6 @@ def test_input_with_default_returns_value(monkeypatch):
     monkeypatch.setattr(builtins, "input", fake_input)
     result = _input_with_default("Surname", default="X")
     assert result == "Guy"
-
-
-def test_input_choice_with_default(monkeypatch):
-    answers: List[str] = [""]  # first call: empty → uses default "H"
-
-    def fake_input(prompt: str) -> str:
-        return answers.pop(0)
-
-    monkeypatch.setattr(builtins, "input", fake_input)
-    result = _input_choice("Suit", ["S", "H", "D", "C"], default="H")
-    assert result == "H"
-
-
-def test_input_choice_case_insensitive(monkeypatch):
-    def fake_input(prompt: str) -> str:
-        return "d"
-
-    monkeypatch.setattr(builtins, "input", fake_input)
-    result = _input_choice("Suit", ["S", "H", "D", "C"])
-    assert result == "D"
 
 
 def test_input_int_within_bounds(monkeypatch):
