@@ -8,9 +8,10 @@
 
 ## Architecture
 
-### 1. [x] Base Smart Hand Order
-- ✅ `_base_smart_hand_order()` in wizard_flow.py (5-priority algorithm)
-- ✅ Risk-weighted ordering: `_compute_seat_risk()` handles multiple subprofiles
+### 1. [x] Base Smart Hand Order (removed)
+- ✅ `_base_smart_hand_order()` and 6 helpers removed from wizard_flow.py (−257 lines)
+- ✅ `test_default_dealing_order.py` deleted (56 tests for dead code)
+- Was redundant with v2's `_compute_dealing_order()` + `_dispersion_check()`
 
 ### 2. [x] v2 Shape-Based Help System (D0-D8)
 - ✅ Extracted `_select_subprofiles_for_board()` to module level (D0)
@@ -236,18 +237,125 @@
 - ✅ Removed dead `_run_profile_management()` wrapper from orchestrator.py
 - Skipped `_safe_file_stem` → `_slugify` consolidation — `&` in profile names produces different output, would break existing file paths
 
+### 33. [x] Deep Code Review Cleanup
+- ✅ **Bug fix**: `deal_output.py:314` — `_convert_to_lin_deals()` result was discarded; LIN files now get proper vulnerability data
+- ✅ **Dead code**: Removed `_build_deck()` from `seat_viability.py` (duplicate of `deal_generator_helpers.py`)
+- ✅ **Dead code**: Removed `_input_choice()` + unused `Sequence`/`TypeVar` imports from `cli_io.py`; updated `test_cli_io.py`
+- ✅ **Dead module**: Deleted `text_output.py` + `test_text_output.py` (superseded by `deal_output.py`)
+- ✅ **Consistency**: Standardized `sort_keys=True` in all 4 JSON save sites (`profile_cli.py`, `profile_store.py` ×3)
+- ✅ **Docstring**: Fixed `hand_profile_validate.py` — docstring said `"north_drives"` default but code uses `"no_driver_no_index"`
+- ✅ **Typo**: Fixed `wizard_flow.py` comment — `_build_Opponent seat_profile` → `_build_seat_profile`; removed stale `_input_choice` reference
+
+### 34. [x] Complexity Reduction Refactoring (R6-R14)
+- ✅ **R6**: Extracted `_validate_for_session()` + `_print_session_summary()` from orchestrator session flow; reused in diagnostic
+- ✅ **R7**: Generic `_run_menu_loop()` replaces duplicate `main_menu()`/`admin_menu()` while-loops
+- ✅ **R8**: Extracted `_check_suit_range()` helper in `seat_viability.py` — deduplicates PC/OC matching
+- ✅ **R12**: Extracted `WE_COLUMN_WIDTH = 28` constant in `deal_output.py`
+- ✅ **R13**: Consolidated 4 regex patterns at module top in `lin_tools.py`; removed duplicate `_BOARD_LABEL_RE`
+- ✅ **R14**: Deduplicated seed logic in `setup_env.py` (2 identical branches → 1)
+- Skipped R9 (suit dict factory — hot-path overhead), R10 (depends on R1), R11 (`show_range_suffix` is a legitimate feature with 20+ callers)
+
+### 35. [x] Code Review (#35) — 6 fixes
+- ✅ **A1**: `failure_report.py` now uses v2 builder (`_build_single_constrained_deal_v2`) — was using v1, attribution results mismatched production
+- ✅ **B1**: `profile_cli.py` `_save_profile_to_path()` now uses atomic writes (tempfile + `os.replace`) — was using bare `json.dump`, crash-unsafe
+- ✅ **A2**: Removed dead `_create_profile_from_base_template()` from `profile_cli.py` — had latent `.profile` bug on tuple
+- ✅ **B2**: Added missing `import random` to `seat_viability.py` — 4 type annotations used `random.Random` without import
+- ✅ **C1**: Fixed stale comment on `PRE_ALLOCATE_FRACTION` — said "50%" but value is 0.75
+- ✅ **C2**: Deduplicated `TOTAL_DECK_HCP` in `profile_viability.py` — now imports `FULL_DECK_HCP_SUM` from `deal_generator_types`
+
+### 37. [x] Auto-Compute Dealing Order (least constrained last)
+- ✅ `_compute_dealing_order()` in `deal_generator_v2.py` — computes optimal dealing order from chosen subprofiles
+- ✅ Risk scoring: RS=1.0, PC/OC=0.5, standard=0.0; HCP range + clockwise tiebreakers
+- ✅ Least constrained seat always last (gets v2 remainder advantage)
+- ✅ Recomputed on each subprofile re-roll (adapts per board)
+- ✅ Removed dealing order prompts from wizard (`_build_profile`, `create_profile_interactive`)
+- ✅ Removed dealing order editing from `edit_profile_action()` metadata mode
+- ✅ Relaxed dealer-first validation in `hand_profile_model.py`
+- ✅ 9 tests for `_compute_dealing_order()` + `_subprofile_constraint_type()`
+- **Result**: Defense Weak 2s **2.7x faster** (52ms → 19.5ms avg), Our 1 Major **1.5x faster**
+
+### 38. [x] Code Review (#38) — 8 fixes
+- ✅ **A1**: Fixed stale "dealer must be first" docstring in `hand_profile_model.py`
+- ✅ **A2**: Fixed debug hook signature comment — added `seat_fail_hcp`, `seat_fail_shape` params
+- ✅ **A3**: Consistent unconstrained HCP default — `40` → `MAX_HAND_HCP` in constrained fill
+- ✅ **B1**: Removed dead `_suggest_dealing_order()` from `wizard_flow.py` (66 lines)
+- ✅ **B2**: Removed dead `_parse_hand_dealing_order()` from `profile_cli.py` (23 lines)
+- ✅ **B3**: Removed unused `hand_dealing_order` param from `_edit_subprofile_exclusions_for_seat()`
+- ✅ **B4**: Consolidated `PROFILE_DIR_NAME` — profile_cli + orchestrator import from profile_store
+- ✅ **C2**: `_default_clockwise_order_starting_with()` now delegates to `_default_dealing_order()`
+
+### 39. [x] Simplify deal_generator.py facade
+- ✅ **Trimmed re-imports**: Explicit re-import lists now only contain `_`-prefixed names (wildcard handles the rest)
+- ✅ **Extracted `_try_pair_coupling()`**: Deduplicated NS/EW coupling logic into shared helper (−30 lines)
+- ✅ **Cleaned up `generate_deals()`**: Removed stale "C1/C2" docstring, removed "P1.1" comment, removed redundant `continue`
+- `deal_generator.py`: 403 → 374 lines (−29)
+
+### 40. [x] Code Review (#40) — 17 fixes
+- ✅ **A1**: Fixed misleading "NS role mode set to Any" → `no_driver_no_index` in `profile_cli.py`
+- ✅ **A2**: Removed unreachable dead guard (`if seen <= 0`) in `deal_generator_v1.py`
+- ✅ **A3**: Fixed `Dict[str, object]` → `Dict[str, SuitRange]` return type in `deal_generator_v2.py`
+- ✅ **B1**: Removed SHDO dead code (~250 lines from `wizard_flow.py`) + `test_default_dealing_order.py` (56 tests)
+- ✅ **B2-B5**: Removed 4 unused imports (`dataclass`, `_MASTER_DECK`, `asdict`, `profile_wizard`)
+- ✅ **B6**: Replaced stale "old line 1201" comment in `deal_generator_v1.py`
+- ✅ **C1**: Standardized `tuple`/`dict` → `Tuple`/`Dict` type hints across 4 files
+- ✅ **C4**: Replaced duplicate `HCP_MAP` with `_CARD_HCP` in `seat_viability.py`
+- ✅ **C5**: Removed trivial `_print_full_profile_details` wrapper in `profile_cli.py`
+- ✅ **C7**: Replaced emoji with "WARNING:" text in `wizard_flow.py`
+- ✅ **D1**: Simplified hook restoration in `failure_report.py`
+- ✅ **D2**: Narrowed `except Exception` to `(ProfileError, ValueError, TypeError)` in `seat_viability.py`
+- ✅ **D4**: Simplified `_default_clockwise_order_starting_with()` wrapper in `profile_cli.py`
+- Skipped C2/C3 (diverged semantics, `&` in filenames) and D3 (v1 dependency)
+- wizard_flow.py: 1,667 → 1,410 lines (−257); seat_viability.py: 598 → 596; profile_cli.py: 889 → 881
+
+### 36. [x] v1 vs v2 Review + Debug Hook Fix
+- ✅ Comprehensive review of `deal_generator_v1.py` (790 lines) vs `deal_generator_v2.py` (1,122 lines)
+- **Conclusion**: v2 is a complete successor — every v1 feature was replaced with a superior mechanism or deliberately removed
+- v1 features deliberately absent from v2 (by design):
+  - Constructive help → replaced by shape-based pre-allocation
+  - Hardest-seat selection → replaced by proactive dispersion checking
+  - Per-attempt subprofile re-selection → replaced by periodic re-rolling intervals
+  - Early unviable termination (`MIN_ATTEMPTS_FOR_UNVIABLE_CHECK`) → removed to avoid false positives; board-level retry handles this
+- ✅ **Fix**: v2 `_DEBUG_ON_MAX_ATTEMPTS` hook now passes real `viability_summary` (was passing `None`)
+  - Added `_compute_viability_summary` import to `deal_generator_v2.py`
+  - Updated test assertion in `test_shape_help_v3.py`
+
+---
+
+## Benchmark Portfolio
+
+5 profiles spanning trivial → hardest. Run via `benchmark_portfolio.py [num_boards]`.
+
+| # | Profile | Difficulty | Key Constraint |
+|---|---------|-----------|----------------|
+| 1 | Profile A (Loose) | Trivial | No constraints (baseline) |
+| 2 | Profile D (Suit+Pts) | Moderate | N: 5-6 spades + 10-12 HCP |
+| 3 | Profile E (Suit+Pts+) | Hard | N: exactly 6 spades + 10-12 HCP |
+| 4 | Our 1 Major & Interference | Hard | All 4 seats: RS+PC+OC, 3 E subs |
+| 5 | Defense to 3 Weak 2s | Hardest | 16 sub combos, OC+RS mixing |
+
+**Baseline (20 boards, seed=778899) — with auto-compute dealing order (#37):**
+
+| Profile | Wall(s) | Avg(ms) | Med(ms) | P95(ms) | Max(ms) |
+|---------|---------|---------|---------|---------|---------|
+| Profile A | 0.001 | 0.0 | 0.0 | 0.1 | 0.1 |
+| Profile D | 0.002 | 0.1 | 0.1 | 0.3 | 0.3 |
+| Profile E | 0.002 | 0.1 | 0.1 | 0.2 | 0.2 |
+| Our 1 Major | 0.044 | 2.2 | 0.5 | 9.4 | 9.4 |
+| Defense Weak 2s | 0.384 | 19.2 | 11.5 | 78.0 | 78.0 |
+| **TOTAL** | **0.433** | | | | |
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 18 (18 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 22 (22 done) | **All complete**
 
-**Tests**: 483 passed, 4 skipped | **Branch**: refactor/deal-generator
+**Tests**: 433 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 
 ---
 
-## Completed (35 items + #5, #6, #8, #9, #10, #11, #12, #13, #14, #15, #16, #17, #19)
+## Completed (37 items + #5, #6, #8, #9, #10, #11, #12, #13, #14, #15, #16, #17, #19, #35)
 <details>
 <summary>Click to expand</summary>
 

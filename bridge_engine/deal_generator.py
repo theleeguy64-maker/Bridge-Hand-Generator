@@ -12,9 +12,10 @@
 #   deal_generator_v2.py      — v2 shape-based help system (active path)
 #
 # This module retains:
-#   _select_subprofiles_for_board() — must live here because tests
+#   _try_pair_coupling()              — coupling helper (uses monkeypatchable SeatProfile)
+#   _select_subprofiles_for_board()   — must live here because tests
 #       monkeypatch deal_generator.SeatProfile for isinstance checks
-#   generate_deals() — public entry point
+#   generate_deals()                  — public entry point
 #
 from __future__ import annotations
 
@@ -33,44 +34,33 @@ from .seat_viability import _match_seat
 from .profile_viability import _cross_seat_feasible
 
 # ---------------------------------------------------------------------------
-# Re-export types, constants, dataclasses, exception, and debug hooks from
-# deal_generator_types so that existing callers (import dg; dg.Deal, dg.MAX_BOARD_ATTEMPTS, etc.)
-# continue to work unchanged.
+# Re-export ALL names from sub-modules via wildcard so that existing callers
+# (import dg; dg.Deal, dg.SHAPE_PROB_GTE, etc.) continue to work unchanged.
+#
+# IMPORTANT: `import *` skips _-prefixed names (no __all__ in sub-modules).
+# Every _-prefixed name accessed through this facade — by v1/v2 late imports
+# (`_dg._DEBUG_ON_MAX_ATTEMPTS`), by tests, or by this module's own code —
+# MUST appear in the explicit re-import lists below.
+# Non-underscore names (Deal, MAX_BOARD_ATTEMPTS, etc.) come through the
+# wildcard and don't need explicit listing.
 # ---------------------------------------------------------------------------
 from .deal_generator_types import *   # noqa: F401,F403
-from .deal_generator_types import (   # explicit re-imports for linters / IDE
-    Seat, Card, SeatFailCounts, SeatSeenCounts,
-    DealGenerationError,
-    Deal, DealSet, SuitAnalysis,
-    HardestSeatConfig, _HARDEST_SEAT_CONFIG,
-    MAX_BOARD_ATTEMPTS, MAX_ATTEMPTS_HAND_2_3, MIN_ATTEMPTS_FOR_UNVIABLE_CHECK,
-    ROTATE_PROBABILITY, VULNERABILITY_SEQUENCE, ROTATE_MAP,
-    SHAPE_PROB_GTE, SHAPE_PROB_THRESHOLD, PRE_ALLOCATE_FRACTION,
-    RS_REROLL_INTERVAL, SUBPROFILE_REROLL_INTERVAL,
-    RS_PRE_ALLOCATE_HCP_RETRIES, RS_PRE_ALLOCATE_FRACTION,
-    MAX_BOARD_RETRIES, RESEED_TIME_THRESHOLD_SECONDS, MAX_SUBPROFILE_FEASIBILITY_RETRIES,
-    CONSTRUCTIVE_MAX_SUM_MIN_CARDS,
-    ENABLE_HCP_FEASIBILITY_CHECK, HCP_FEASIBILITY_NUM_SD,
-    _MASTER_DECK, _CARD_HCP,
-    _DEBUG_ON_MAX_ATTEMPTS, _DEBUG_STANDARD_CONSTRUCTIVE_USED,
+from .deal_generator_types import (   # _-prefixed names for v1/v2 late imports
+    _DEBUG_ON_MAX_ATTEMPTS,
+    _DEBUG_STANDARD_CONSTRUCTIVE_USED,
     _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION,
 )
 
-# Re-export shared helpers so existing callers (dg._card_hcp, etc.) still work.
 from .deal_generator_helpers import *   # noqa: F401,F403
-from .deal_generator_helpers import (   # explicit re-imports for linters / IDE
-    _compute_viability_summary, _summarize_profile_viability,
-    _is_unviable_bucket, _weighted_choice_index, classify_viability,
-    _weights_for_seat_profile, _choose_index_for_seat,
-    _build_deck, _get_constructive_mode,
+from .deal_generator_helpers import (   # _-prefixed names for this module + tests
+    _choose_index_for_seat,
     _card_hcp, _deck_hcp_stats, _check_hcp_feasibility,
+    _build_deck, _weighted_choice_index,
+    _compute_viability_summary, _summarize_profile_viability,
     _deal_single_board_simple, _apply_vulnerability_and_rotation,
-    _vulnerability_for_board,
 )
 
-# ---------------------------------------------------------------------------
 # v1 builder + helpers — extracted to deal_generator_v1.py (#7 Batch 4B)
-# ---------------------------------------------------------------------------
 from .deal_generator_v1 import (
     _seat_has_nonstandard_constraints,
     _is_shape_dominant_failure,
@@ -81,26 +71,67 @@ from .deal_generator_v1 import (
     _build_single_constrained_deal,
 )
 
-# ---------------------------------------------------------------------------
 # v2 shape-based help system — extracted to deal_generator_v2.py (#7)
-# ---------------------------------------------------------------------------
 from .deal_generator_v2 import (
     _dispersion_check, _pre_select_rs_suits, _random_deal,
     _get_suit_maxima, _constrained_fill,
     _pre_allocate, _pre_allocate_rs,
     _deal_with_help,
     _build_single_constrained_deal_v2,
+    _compute_dealing_order, _subprofile_constraint_type,
 )
 
 # ---------------------------------------------------------------------------
-# Subprofile selection (extracted from _build_single_constrained_deal closure
-# so v2 can reuse it without duplication).
+# Subprofile selection helpers.
 #
-# NOTE: This function lives here (not in deal_generator_helpers) because it
-# uses isinstance(x, SeatProfile) checks, and several tests monkeypatch
-# deal_generator.SeatProfile with dummy classes. Keeping it in this module
+# NOTE: These functions live here (not in deal_generator_helpers) because they
+# use isinstance(x, SeatProfile) checks, and several tests monkeypatch
+# deal_generator.SeatProfile with dummy classes. Keeping them in this module
 # ensures the isinstance checks resolve through the monkeypatchable name.
 # ---------------------------------------------------------------------------
+
+
+def _try_pair_coupling(
+    rng: random.Random,
+    seat_profiles: Dict[str, object],
+    seat_a: Seat,
+    seat_b: Seat,
+    driver_seat: Seat,
+    chosen_subprofiles: Dict[Seat, SubProfile],
+    chosen_indices: Dict[Seat, int],
+) -> None:
+    """
+    Index-couple two seats if both have >1 subprofile with equal lengths.
+
+    Picks a single subprofile index for *driver_seat* (by weight) and forces
+    the other seat to use the same index.  Mutates *chosen_subprofiles* and
+    *chosen_indices* in place; does nothing if coupling preconditions fail.
+    """
+    sp_a = seat_profiles.get(seat_a)
+    sp_b = seat_profiles.get(seat_b)
+
+    if not (
+        isinstance(sp_a, SeatProfile)
+        and isinstance(sp_b, SeatProfile)
+        and len(sp_a.subprofiles) > 1
+        and len(sp_b.subprofiles) > 1
+        and len(sp_a.subprofiles) == len(sp_b.subprofiles)
+    ):
+        return  # Coupling not possible.
+
+    follower_seat: Seat = seat_b if driver_seat == seat_a else seat_a
+    driver_sp = seat_profiles.get(driver_seat)
+    follower_sp = seat_profiles.get(follower_seat)
+
+    if isinstance(driver_sp, SeatProfile) and isinstance(
+        follower_sp, SeatProfile
+    ):
+        idx = _choose_index_for_seat(rng, driver_sp)
+        chosen_indices[driver_seat] = idx
+        chosen_indices[follower_seat] = idx
+        chosen_subprofiles[driver_seat] = driver_sp.subprofiles[idx]
+        chosen_subprofiles[follower_seat] = follower_sp.subprofiles[idx]
+
 
 def _select_subprofiles_for_board(
     rng: random.Random,
@@ -136,87 +167,37 @@ def _select_subprofiles_for_board(
         chosen_subprofiles: Dict[Seat, SubProfile] = {}
         chosen_indices: Dict[Seat, int] = {}
 
-        # --- NS coupling logic ---------------------------------------------
-        north_sp = profile.seat_profiles.get("N")
-        south_sp = profile.seat_profiles.get("S")
-
-        # NS coupling is enabled for all ns_role_mode values EXCEPT
-        # "no_driver_no_index", which explicitly opts out of index coupling.
+        # --- NS coupling ---
+        # Enabled for all ns_role_mode values EXCEPT "no_driver_no_index".
         _ns_mode = (
             getattr(profile, "ns_role_mode", "no_driver_no_index")
             or "no_driver_no_index"
         )
-        ns_coupling_enabled = _ns_mode != "no_driver_no_index"
-
-        ns_coupling_possible = (
-            ns_coupling_enabled
-            and isinstance(north_sp, SeatProfile)
-            and isinstance(south_sp, SeatProfile)
-            and len(north_sp.subprofiles) > 1
-            and len(south_sp.subprofiles) > 1
-            and len(north_sp.subprofiles) == len(south_sp.subprofiles)
-        )
-
-        if ns_coupling_possible:
-            # Determine NS driver seat.
+        if _ns_mode != "no_driver_no_index":
             ns_driver: Optional[Seat] = profile.ns_driver_seat(rng)
             if ns_driver not in ("N", "S"):
-                # Fall back to first NS seat in dealing order.
                 ns_driver = next(
                     (s for s in dealing_order if s in ("N", "S")), "N"
                 )
-
-            ns_follower: Seat = "S" if ns_driver == "N" else "N"
-
-            driver_sp = profile.seat_profiles.get(ns_driver)
-            follower_sp = profile.seat_profiles.get(ns_follower)
-
-            if isinstance(driver_sp, SeatProfile) and isinstance(
-                follower_sp, SeatProfile
-            ):
-                idx = _choose_index_for_seat(rng, driver_sp)
-                chosen_indices[ns_driver] = idx
-                chosen_indices[ns_follower] = idx
-                chosen_subprofiles[ns_driver] = driver_sp.subprofiles[idx]
-                chosen_subprofiles[ns_follower] = follower_sp.subprofiles[idx]
-
-        # --- EW coupling logic ---------------------------------------------
-        east_sp = profile.seat_profiles.get("E")
-        west_sp = profile.seat_profiles.get("W")
-
-        ew_coupling_possible = (
-            isinstance(east_sp, SeatProfile)
-            and isinstance(west_sp, SeatProfile)
-            and len(east_sp.subprofiles) > 1
-            and len(west_sp.subprofiles) > 1
-            and len(east_sp.subprofiles) == len(west_sp.subprofiles)
-        )
-
-        if ew_coupling_possible:
-            # EW "driver" = first of E/W in dealing_order.
-            ew_driver: Seat = next(
-                (s for s in dealing_order if s in ("E", "W")), "E"
+            _try_pair_coupling(
+                rng, profile.seat_profiles, "N", "S", ns_driver,
+                chosen_subprofiles, chosen_indices,
             )
-            ew_follower: Seat = "W" if ew_driver == "E" else "E"
 
-            driver_sp = profile.seat_profiles.get(ew_driver)
-            follower_sp = profile.seat_profiles.get(ew_follower)
-
-            if isinstance(driver_sp, SeatProfile) and isinstance(
-                follower_sp, SeatProfile
-            ):
-                idx = _choose_index_for_seat(rng, driver_sp)
-                chosen_indices[ew_driver] = idx
-                chosen_indices[ew_follower] = idx
-                chosen_subprofiles[ew_driver] = driver_sp.subprofiles[idx]
-                chosen_subprofiles[ew_follower] = follower_sp.subprofiles[idx]
+        # --- EW coupling (always attempted) ---
+        ew_driver: Seat = next(
+            (s for s in dealing_order if s in ("E", "W")), "E"
+        )
+        _try_pair_coupling(
+            rng, profile.seat_profiles, "E", "W", ew_driver,
+            chosen_subprofiles, chosen_indices,
+        )
 
         # --- Remaining seats (incl. unconstrained or single-subprofile) ----
         for seat_name, seat_profile in profile.seat_profiles.items():
             if not isinstance(seat_profile, SeatProfile):
                 continue
             if not seat_profile.subprofiles:
-                # Unconstrained seat – nothing to select.
                 continue
             if seat_name in chosen_indices:
                 continue
@@ -260,11 +241,10 @@ def generate_deals(
     Generate a set of deals.
 
     If `profile` is a real HandProfile:
-      • Use the full constrained C1 logic and C2 enrichment.
+      - Use the full constrained v2 pipeline (shape help, HCP rejection, etc.).
 
     If `profile` is not a HandProfile (e.g. tests using DummyProfile):
-      • Fallback to simple random dealing as in the original implementation,
-        seeded by SetupResult.seed.
+      - Fallback to simple random dealing, seeded by SetupResult.seed.
 
     Raises
     ------
@@ -299,14 +279,10 @@ def generate_deals(
         return DealSet(deals=deals)
 
     # ---------------------------------------------------------------
-    # Special-case: Profiles opting into the lightweight RS-W-only path
-    #
-    # Profiles with use_rs_w_only_path=True bypass the full constrained
-    # pipeline and use a lighter helper that only enforces West's Random
-    # Suit constraint. This is useful for test profiles that don't need
+    # Special-case: Profiles opting into the lightweight RS-W-only path.
+    # Bypasses the full constrained pipeline and only enforces West's
+    # Random Suit constraint.  Used by test profiles that don't need
     # the full matching pipeline.
-    #
-    # P1.1 refactor: Flag-based routing replaces magic profile name check.
     # ---------------------------------------------------------------
     if getattr(profile, "use_rs_w_only_path", False):
         deals: List[Deal] = []
@@ -371,8 +347,6 @@ def generate_deals(
                             reseed_count += 1
                             board_start = time.monotonic()
 
-                    continue  # Retry with advanced (or fresh) RNG state.
-
             board_elapsed = time.monotonic() - board_start
             board_times.append(board_elapsed)
 
@@ -397,6 +371,4 @@ def generate_deals(
     except DealGenerationError:
         raise  # Pass through domain errors without wrapping.
     except Exception as exc:
-        # Narrow scope catch-all, wrapped into domain error
         raise DealGenerationError(f"Failed to generate deals: {exc}") from exc
-        

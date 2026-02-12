@@ -57,6 +57,9 @@ SUIT_ORDER = "SHDC"
 SUIT_SYMBOLS = {"S": "♠", "H": "♥", "D": "♦", "C": "♣"}
 RANK_ORDER = "AKQJT98765432"
 
+# Column width for the West hand in horizontal West/East pair formatting.
+WE_COLUMN_WIDTH = 28
+
 
 def _group_cards_by_suit(cards: Sequence[str]) -> Dict[str, List[str]]:
     """
@@ -126,12 +129,12 @@ def _format_horizontal_pair(
 
     lines: List[str] = []
     # Header line
-    lines.append("West".ljust(28) + "East")
+    lines.append("West".ljust(WE_COLUMN_WIDTH) + "East")
 
     for suit in SUIT_ORDER:
         ws = SUIT_SYMBOLS[suit] + " " + _format_rank_list(west_suits[suit])
         es = SUIT_SYMBOLS[suit] + " " + _format_rank_list(east_suits[suit])
-        lines.append(ws.ljust(28) + es)
+        lines.append(ws.ljust(WE_COLUMN_WIDTH) + es)
 
     return lines
 
@@ -311,7 +314,7 @@ def render_deals(
         # Always overwrite LIN file for a run
         try:
             setup.output_lin_file.parent.mkdir(parents=True, exist_ok=True)
-            write_lin_file(setup.output_lin_file, deal_set.deals)
+            write_lin_file(setup.output_lin_file, lin_deals)
         except OSError as exc:
             raise OutputError(
                 f"Failed to write LIN output to {setup.output_lin_file}: {exc}"

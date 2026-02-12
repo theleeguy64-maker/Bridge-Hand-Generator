@@ -35,7 +35,7 @@ import sys
 import time
 
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from .menu_help import get_menu_help
 from .setup_env import run_setup, SetupResult
@@ -48,10 +48,7 @@ from . import profile_cli
 from . import profile_store
 from . import lin_tools
 from . import profile_diagnostic
-
-
-# Directory where JSON profiles live (relative to project root / CWD)
-PROFILE_DIR_NAME = "profiles"
+from .profile_store import PROFILE_DIR_NAME
 
 
 # ---------------------------------------------------------------------------
@@ -202,6 +199,62 @@ def _choose_profile_for_session() -> HandProfile | None:
 
 
 # ---------------------------------------------------------------------------
+# Shared helpers for session flows
+# ---------------------------------------------------------------------------
+
+
+def _validate_for_session(profile: HandProfile) -> HandProfile | None:
+    """
+    Validate a profile before use in a session (deal generation or diagnostic).
+
+    Returns the validated (possibly re-normalised) profile, or None on failure.
+    """
+    print(f"\nValidating profile '{profile.profile_name}' ...")
+    try:
+        profile = validate_profile(profile)
+    except ProfileError as exc:
+        print("\nERROR: This profile is not valid:")
+        print(f"  {exc}")
+        print("Please edit this profile in Profile Management and try again.")
+        return None
+
+    print("Profile OK.\n")
+    return profile
+
+
+def _print_session_summary(
+    profile: HandProfile,
+    owner: str,
+    summary: DealOutputSummary,
+    deal_set: DealSet,
+    gen_elapsed: float,
+) -> None:
+    """Print the post-generation session summary."""
+    print("\n=== Session complete ===")
+    print(f"Profile       : {profile.profile_name}")
+    print(f"Owner         : {owner}")
+    print(f"Deals created : {summary.num_deals}")
+    print(f"Time taken    : {gen_elapsed:.1f}s")
+    # Per-board timing breakdown (populated by adaptive re-seeding feature).
+    # Use getattr for compatibility with test stubs / DummyDealSet objects.
+    board_times = getattr(deal_set, "board_times", [])
+    reseed_count = getattr(deal_set, "reseed_count", 0)
+    if board_times:
+        avg_time = sum(board_times) / len(board_times)
+        max_time = max(board_times)
+        print(f"Avg per board : {avg_time:.1f}s (max {max_time:.1f}s)")
+    if reseed_count > 0:
+        print(f"Re-seeds      : {reseed_count}")
+    print(f"TXT output    : {summary.txt_path}")
+    print(f"LIN output    : {summary.lin_path}")
+    if summary.warnings:
+        print("\nWarnings:")
+        for w in summary.warnings:
+            print(f"  - {w}")
+    print("")
+
+
+# ---------------------------------------------------------------------------
 # Deal generation session (ties together A, B, C, D)
 # ---------------------------------------------------------------------------
 
@@ -224,19 +277,9 @@ def _run_deal_generation_session() -> None:
     if profile is None:
         return
 
-    # --- Validate the profile before doing any work (Section B integration) ---
-    print(f"\nValidating profile '{profile.profile_name}' ...")
-    try:
-        # validate_profile may return a new (round-tripped) instance;
-        # use that, so any normalisation is applied.
-        profile = validate_profile(profile)
-    except ProfileError as exc:
-        print("\nERROR: This profile is not valid:")
-        print(f"  {exc}")
-        print("Please edit this profile in Profile Management and try again.")
+    profile = _validate_for_session(profile)
+    if profile is None:
         return
-
-    print("Profile OK.\n")
 
     # --- Get session parameters from the user ---
     owner = _input_with_default("Owner / player name", "Lee")
@@ -301,29 +344,7 @@ def _run_deal_generation_session() -> None:
         print(f"\nERROR while rendering deals: {exc}")
         return
 
-    # --- Session summary ---
-    print("\n=== Session complete ===")
-    print(f"Profile       : {profile.profile_name}")
-    print(f"Owner         : {owner}")
-    print(f"Deals created : {summary.num_deals}")
-    print(f"Time taken    : {gen_elapsed:.1f}s")
-    # Per-board timing breakdown (populated by adaptive re-seeding feature).
-    # Use getattr for compatibility with test stubs / DummyDealSet objects.
-    _board_times = getattr(deal_set, "board_times", [])
-    _reseed_count = getattr(deal_set, "reseed_count", 0)
-    if _board_times:
-        avg_time = sum(_board_times) / len(_board_times)
-        max_time = max(_board_times)
-        print(f"Avg per board : {avg_time:.1f}s (max {max_time:.1f}s)")
-    if _reseed_count > 0:
-        print(f"Re-seeds      : {_reseed_count}")
-    print(f"TXT output    : {summary.txt_path}")
-    print(f"LIN output    : {summary.lin_path}")
-    if summary.warnings:
-        print("\nWarnings:")
-        for w in summary.warnings:
-            print(f"  - {w}")
-    print("")
+    _print_session_summary(profile, owner, summary, deal_set, gen_elapsed)
 
 
 # ---------------------------------------------------------------------------
@@ -336,51 +357,80 @@ def run_deal_generation() -> None:
     _run_deal_generation_session()
 
 # ---------------------------------------------------------------------------
-# Main menu
+# Generic menu loop
 # ---------------------------------------------------------------------------
 
-def main_menu() -> None:
+# Each menu item is (label, handler_or_None).
+# handler=None means the item is the exit/back option (always index 0).
+MenuItem = Tuple[str, Optional[Callable[[], None]]]
+
+
+def _run_menu_loop(
+    title: str,
+    items: Sequence[MenuItem],
+    help_key: str,
+    exit_message: str = "",
+) -> None:
     """
-    Top-level interactive menu for the Bridge Hand Generator.
+    Generic interactive menu loop.
+
+    items[0] is always the exit/back option (handler ignored).
+    The last item is always "Help" (prints get_menu_help(help_key)).
+    All other items dispatch to their handler.
     """
+    max_choice = len(items) - 1
+
     while True:
-        print("\n=== Bridge Hand Generator ===")
-        print("0) Exit")
-        print("1) Profile management")
-        print("2) Deal generation")
-        print("3) Admin")
-        print("4) Help")
+        print(f"\n=== {title} ===")
+        for idx, (label, _handler) in enumerate(items):
+            print(f"{idx}) {label}")
 
         choice = _input_int(
-            "Choose [0-4] [0]: ",
+            f"Choose [0-{max_choice}] [0]: ",
             default=0,
             minimum=0,
-            maximum=4,
+            maximum=max_choice,
             show_range_suffix=False,
         )
 
         if choice == 0:
-            print("Exiting Bridge Hand Generator.")
+            if exit_message:
+                print(exit_message)
             break
 
-        elif choice == 1:
-            # Profile Manager
-            from . import profile_cli
-            profile_cli.run_profile_manager()
-
-        elif choice == 2:
-            # Deal generation main flow (legacy name kept for now)
-            run_deal_generation()
-
-        elif choice == 3:
-            # Admin submenu
-            admin_menu()
-
-        elif choice == 4:
-            # Main menu help
+        label, handler = items[choice]
+        if handler is not None:
+            handler()
+        else:
+            # Fallback: help item with no explicit handler
             print()
-            print(get_menu_help("main_menu"))
-            
+            print(get_menu_help(help_key))
+
+
+# ---------------------------------------------------------------------------
+# Main menu
+# ---------------------------------------------------------------------------
+
+def _help_main() -> None:
+    print()
+    print(get_menu_help("main_menu"))
+
+
+def main_menu() -> None:
+    """Top-level interactive menu for the Bridge Hand Generator."""
+    _run_menu_loop(
+        title="Bridge Hand Generator",
+        items=[
+            ("Exit", None),
+            ("Profile management", lambda: profile_cli.run_profile_manager()),
+            ("Deal generation", run_deal_generation),
+            ("Admin", admin_menu),
+            ("Help", _help_main),
+        ],
+        help_key="main_menu",
+        exit_message="Exiting Bridge Hand Generator.",
+    )
+
 
 def _run_profile_diagnostic_interactive() -> None:
     """
@@ -393,15 +443,9 @@ def _run_profile_diagnostic_interactive() -> None:
     if profile is None:
         return
 
-    # Validate the profile before running the diagnostic.
-    print(f"\nValidating profile '{profile.profile_name}' ...")
-    try:
-        profile = validate_profile(profile)
-    except ProfileError as exc:
-        print(f"\nERROR: This profile is not valid:\n  {exc}")
-        print("Please edit this profile in Profile Management and try again.")
+    profile = _validate_for_session(profile)
+    if profile is None:
         return
-    print("Profile OK.\n")
 
     num_boards = _input_int_with_default(
         "Number of boards to diagnose", 20, minimum=1
@@ -413,41 +457,24 @@ def _run_profile_diagnostic_interactive() -> None:
     )
 
 
+def _help_admin() -> None:
+    print()
+    print(get_menu_help("admin_menu"))
+
+
 def admin_menu() -> None:
-    """
-    Admin / tools submenu (LIN combiner, draft tools, diagnostics, etc.).
-    """
-    while True:
-        print("\n=== Bridge Hand Generator – Admin ===")
-        print("0) Exit")
-        print("1) LIN Combiner")
-        print("2) Recover/Delete *_TEST.json drafts")
-        print("3) Profile Diagnostic")
-        print("4) Help")
-
-        choice = _input_int(
-            "Choose [0-4] [0]: ",
-            default=0,
-            minimum=0,
-            maximum=4,
-            show_range_suffix=False,
-        )
-
-        if choice == 0:
-            break
-
-        elif choice == 1:
-            lin_tools.combine_lin_files_interactive()
-
-        elif choice == 2:
-            profile_cli.run_draft_tools()
-
-        elif choice == 3:
-            _run_profile_diagnostic_interactive()
-
-        elif choice == 4:
-            print()
-            print(get_menu_help("admin_menu"))            
+    """Admin / tools submenu (LIN combiner, draft tools, diagnostics, etc.)."""
+    _run_menu_loop(
+        title="Bridge Hand Generator – Admin",
+        items=[
+            ("Exit", None),
+            ("LIN Combiner", lin_tools.combine_lin_files_interactive),
+            ("Recover/Delete *_TEST.json drafts", profile_cli.run_draft_tools),
+            ("Profile Diagnostic", _run_profile_diagnostic_interactive),
+            ("Help", _help_admin),
+        ],
+        help_key="admin_menu",
+    )
 
 
 

@@ -2,9 +2,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Optional, Sequence, TypeVar
-
-T = TypeVar("T")
+from typing import Optional
 
 
 def _input_with_default(prompt: str, default: Optional[str] = None) -> str:
@@ -26,44 +24,6 @@ def _input_with_default(prompt: str, default: Optional[str] = None) -> str:
     if not value and default is not None:
         return default
     return value
-
-
-def _input_choice(
-    prompt: str,
-    choices: Sequence[str],
-    default: Optional[str] = None,
-) -> str:
-    """
-    Prompt the user to choose one of `choices`.
-
-    Comparison is case-insensitive; the returned value is the original
-    entry from `choices`.
-    """
-    if not choices:
-        raise ValueError("_input_choice requires a non-empty choices sequence.")
-
-    canonical = {str(c).upper(): c for c in choices}
-    choice_str = "/".join(str(c) for c in choices)
-
-    while True:
-        if default is not None:
-            full_prompt = f"{prompt} ({choice_str}) [default {default}]: "
-        else:
-            full_prompt = f"{prompt} ({choice_str}): "
-
-        try:
-            raw = input(full_prompt).strip()
-        except EOFError:
-            raise RuntimeError("Input aborted (EOF) while prompting user.")
-
-        if not raw and default is not None:
-            raw = default
-
-        key = raw.upper()
-        if key in canonical:
-            return canonical[key]
-
-        print(f"Please type one of: {choice_str}", file=sys.stderr)
 
 
 def clear_screen() -> None:

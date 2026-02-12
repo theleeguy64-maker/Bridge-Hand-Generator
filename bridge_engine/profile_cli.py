@@ -28,8 +28,10 @@ or via the orchestrator:
 from __future__ import annotations
 
 import json
+import os
 import sys
 import io
+import tempfile
 
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -57,11 +59,9 @@ from .profile_wizard import (
 )
 
 from . import profile_store
-from . import profile_wizard
 
 from .wizard_flow import edit_constraints_interactive as edit_constraints_interactive_flow
-
-PROFILE_DIR_NAME = "profiles"
+from .profile_store import PROFILE_DIR_NAME
 SUITS: List[str] = ["S", "H", "D", "C"]
 
 
@@ -209,11 +209,28 @@ def _load_profiles() -> List[Tuple[Path, HandProfile]]:
 
 
 def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
-    """Save profile as JSON to the given path."""
+    """Save profile as JSON to the given path (atomic write).
+
+    Writes to a temp file in the same directory, then renames.
+    If the process dies mid-write, the original file stays intact
+    (os.replace is atomic on the same filesystem).
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = profile.to_dict()
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, sort_keys=False)
+    content = json.dumps(profile.to_dict(), indent=2, sort_keys=True) + "\n"
+    fd, tmp = tempfile.mkstemp(
+        dir=str(path.parent), suffix=".tmp", prefix=path.stem + "_"
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+        os.replace(tmp, str(path))
+    except BaseException:
+        # Clean up temp file on any failure.
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 # ---------------------------------------------------------------------------
 # Menu actions
@@ -247,25 +264,6 @@ def _choose_profile(
     print("Invalid choice.")
     return None
 
-
-def _create_profile_from_base_template() -> None:
-    """
-    Create a new profile using a standard base template.
-
-    For now we hard-code Base_v1.0, but this could later be a menu with
-    Base_va / Base_vb, etc.
-    """
-    base_entry = profile_store.find_profile_by_name("Base_v1.0")
-    if base_entry is None:
-        print("ERROR: Base_v1.0 template not found; falling back to full wizard.")
-        profile = profile_wizard.create_profile_interactive()
-    else:
-        base_profile = base_entry.profile
-        profile = profile_wizard.create_profile_from_existing_constraints(base_profile)
-
-    # Whatever save logic you already use after create_profile_interactive()
-    profile_store.save_profile(profile)
-    print(f"Saved new profile: {profile.profile_name}")
 
 
 def list_profiles_action() -> None:
@@ -333,7 +331,7 @@ def create_profile_action() -> None:
     profile = create_profile_interactive()
 
     print()
-    print("Rotate set to Yes and NS role mode set to Any")
+    print("Rotate set to Yes and NS role mode set to no_driver_no_index")
     print()
     print("Metadata can be changed in 'Edit Profile'")
 
@@ -451,7 +449,6 @@ def _print_profile_metadata(profile: HandProfile, path: Path) -> None:
     print(f"Author      : {profile.author}")
     print(f"Version     : {profile.version}")
     print(f"File        : {path}")
-    print(f"Dealing ord.: {profile.hand_dealing_order}")
     print(f"Rotate deals: {profile.rotate_deals_by_default}")
 
     ns_mode = getattr(profile, "ns_role_mode", "no_driver_no_index")
@@ -511,45 +508,13 @@ def _print_full_profile_details_impl(profile: HandProfile, path: Path) -> None:
     _print_profile_constraints(profile)
 
 
-def _parse_hand_dealing_order(s: str) -> list[str] | None:
-    """
-    Parse a hand dealing order from user input.
-    Accepts formats like: "N E S W", "nesw", "w,n,e,s", "W N E S".
-    Returns a list like ["N","E","S","W"] or None if invalid.
-    """
-    if s is None:
-        return None
-    raw = s.strip().upper()
-    if not raw:
-        return None
-
-    # Split on whitespace/commas if present; otherwise treat as a 4-letter string.
-    if any(ch in raw for ch in (" ", ",", "\t")):
-        parts = [p for p in raw.replace(",", " ").split() if p]
-    else:
-        parts = list(raw)
-
-    if len(parts) != 4:
-        return None
-    if set(parts) != {"N", "E", "S", "W"}:
-        return None
-    return parts
+def _default_clockwise_order_starting_with(dealer: str) -> List[str]:
+    """Clockwise from dealer — delegates to hand_profile_model."""
+    from .hand_profile_model import _default_dealing_order
+    d = (dealer or "").strip().upper()
+    return _default_dealing_order(d if d in ("N", "E", "S", "W") else "N")
 
 
-def _default_clockwise_order_starting_with(dealer: str) -> list[str]:
-    base = ["N", "E", "S", "W"]
-    dealer = (dealer or "").strip().upper()
-    if dealer not in base:
-        return base
-    i = base.index(dealer)
-    return base[i:] + base[:i]
-
-
-def _print_full_profile_details(profile: HandProfile, path: Path) -> None:
-    """Print full details of a profile, including constraints."""
-    _print_full_profile_details_impl(profile, path)
-    
-    
 def _print_subprofile_exclusions(
     profile: HandProfile,
     seat: str,
@@ -693,37 +658,10 @@ def edit_profile_action() -> None:
         )
         new_dealer = prompt_choice("Dealer seat", ["N", "E", "S", "W"], profile.dealer).upper()
 
-        # Dealing order (robust parsing + invariant enforcement)
-        print(f"Current hand dealing order: {profile.hand_dealing_order}")
-        order_in = input(
-            "Hand dealing order (4 seats, e.g. 'N E S W' or 'NESW') "
-            f"[{' '.join(profile.hand_dealing_order)}]: "
-        ).strip()
-
-        new_order = None
-        if order_in:
-            parsed = _parse_hand_dealing_order(order_in)
-            if parsed is None:
-                print(
-                    "Invalid dealing order input; will keep current "
-                    "(but will be adjusted if dealer changed)."
-                )
-            else:
-                new_order = parsed
-
-        if new_order is None:
-            new_order = list(profile.hand_dealing_order)
-
+        # Dealing order is auto-computed at runtime by v2 builder.
+        # Store clockwise from dealer as default; not user-editable.
         dealer = (new_dealer or profile.dealer or "N").strip().upper()
-
-        if new_order[0] != dealer:
-            if dealer in new_order:
-                i = new_order.index(dealer)
-                new_order = new_order[i:] + new_order[:i]
-                print(f"Adjusted dealing order to start with dealer {dealer}: {new_order}")
-            else:
-                new_order = _default_clockwise_order_starting_with(dealer)
-                print(f"Replaced dealing order with default starting with dealer {dealer}: {new_order}")
+        new_order = _default_clockwise_order_starting_with(dealer)
 
         new_author = _input_with_default("Author", profile.author)
         new_version = _input_with_default("Version", profile.version)

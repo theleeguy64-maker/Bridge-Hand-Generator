@@ -140,7 +140,7 @@ SHAPE_PROB_GTE: Dict[int, float] = {
 SHAPE_PROB_THRESHOLD: float = 0.19
 
 # Fraction of suit minima to pre-allocate for tight seats.
-# 50% balances helping enough vs not depleting the deck for other seats.
+# 75% balances helping enough vs not depleting the deck for other seats.
 PRE_ALLOCATE_FRACTION: float = 0.75
 
 # How often (in attempts) to re-roll the RS suit pre-selections within a board.
@@ -279,5 +279,6 @@ _DEBUG_STANDARD_CONSTRUCTIVE_USED = None
 # Debug hook: per-attempt failure attribution
 # Signature:
 #   (profile, board_number, attempt_number,
-#    seat_fail_as_seat, seat_fail_global_other, seat_fail_global_unchecked)
+#    seat_fail_as_seat, seat_fail_global_other, seat_fail_global_unchecked,
+#    seat_fail_hcp, seat_fail_shape)
 _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION = None
