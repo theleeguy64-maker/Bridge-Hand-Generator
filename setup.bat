@@ -90,74 +90,77 @@ if not defined PYTHON_CMD (
     )
 )
 
-if not defined PYTHON_CMD (
-    echo Python 3.11+ not found on this PC.
-    echo Python 3.11+ not found >> "%LOG_FILE%"
-    echo.
-    echo ============================================
-    echo   Please install Python from python.org
-    echo ============================================
-    echo.
-    echo A download page will open in your browser.
-    echo Install Python using the Windows installer.
-    echo.
-    echo IMPORTANT: Tick the box "Add Python to PATH"
-    echo            on the first installer screen!
-    echo.
+REM -- If Python found, skip the install prompt --
+if defined PYTHON_CMD goto :python_found
 
-    REM Open the python.org downloads page in the default browser
-    start https://www.python.org/downloads/
+REM -- Python not found: guide user to install --
+echo Python 3.11+ not found on this PC.
+echo Python 3.11+ not found >> "%LOG_FILE%"
+echo.
+echo ============================================
+echo   Please install Python from python.org
+echo ============================================
+echo.
+echo A download page will open in your browser.
+echo Install Python using the Windows installer.
+echo.
+echo IMPORTANT: Tick the box "Add Python to PATH"
+echo            on the first installer screen!
+echo.
 
-    echo After the install finishes, come back here and press any key.
-    echo.
+REM Open the python.org downloads page in the default browser
+start https://www.python.org/downloads/
+
+echo After the install finishes, come back here and press any key.
+echo.
 
 :retry_python
-    pause
-    echo.
-    echo Checking for Python again...
+pause
+echo.
+echo Checking for Python again...
 
-    set "PYTHON_CMD="
-    where py >nul 2>&1
-    if %errorlevel% equ 0 (
-        for /f "tokens=*" %%v in ('py -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2^>nul') do set "PY_VER=%%v"
-        if defined PY_VER (
-            for /f "tokens=1,2 delims=." %%a in ("!PY_VER!") do (
-                if %%a geq 3 if %%b geq 11 (
-                    set "PYTHON_CMD=py"
-                    echo Found Python !PY_VER! via py launcher
-                    echo Found Python !PY_VER! via py launcher >> "%LOG_FILE%"
-                )
+set "PYTHON_CMD="
+where py >nul 2>&1
+if %errorlevel% equ 0 (
+    for /f "tokens=*" %%v in ('py -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2^>nul') do set "PY_VER=%%v"
+    if defined PY_VER (
+        for /f "tokens=1,2 delims=." %%a in ("!PY_VER!") do (
+            if %%a geq 3 if %%b geq 11 (
+                set "PYTHON_CMD=py"
+                echo Found Python !PY_VER! via py launcher
+                echo Found Python !PY_VER! via py launcher >> "%LOG_FILE%"
             )
         )
-    )
-
-    if not defined PYTHON_CMD (
-        where python >nul 2>&1
-        if %errorlevel% equ 0 (
-            for /f "tokens=*" %%v in ('python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2^>nul') do set "PY_VER=%%v"
-            if defined PY_VER (
-                for /f "tokens=1,2 delims=." %%a in ("!PY_VER!") do (
-                    if %%a geq 3 if %%b geq 11 (
-                        set "PYTHON_CMD=python"
-                        echo Found Python !PY_VER! via python command
-                        echo Found Python !PY_VER! via python command >> "%LOG_FILE%"
-                    )
-                )
-            )
-        )
-    )
-
-    if not defined PYTHON_CMD (
-        echo.
-        echo Still not found. Make sure the Python installer completed
-        echo and that you ticked "Add Python to PATH".
-        echo.
-        echo You may need to close this window and double-click setup.bat again.
-        echo.
-        goto retry_python
     )
 )
 
+if not defined PYTHON_CMD (
+    where python >nul 2>&1
+    if %errorlevel% equ 0 (
+        for /f "tokens=*" %%v in ('python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2^>nul') do set "PY_VER=%%v"
+        if defined PY_VER (
+            for /f "tokens=1,2 delims=." %%a in ("!PY_VER!") do (
+                if %%a geq 3 if %%b geq 11 (
+                    set "PYTHON_CMD=python"
+                    echo Found Python !PY_VER! via python command
+                    echo Found Python !PY_VER! via python command >> "%LOG_FILE%"
+                )
+            )
+        )
+    )
+)
+
+if not defined PYTHON_CMD (
+    echo.
+    echo Still not found. Make sure the Python installer completed
+    echo and that you ticked "Add Python to PATH".
+    echo.
+    echo You may need to close this window and double-click setup.bat again.
+    echo.
+    goto retry_python
+)
+
+:python_found
 echo.
 
 REM -- Step 2: Create virtual environment --
