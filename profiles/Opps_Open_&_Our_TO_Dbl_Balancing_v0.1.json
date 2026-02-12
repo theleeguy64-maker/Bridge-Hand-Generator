@@ -22,8 +22,8 @@
           "partner_contingent_constraint": {
             "partner_seat": "W",
             "suit_range": {
-              "max_cards": 0,
-              "max_hcp": 0,
+              "max_cards": 3,
+              "max_hcp": 7,
               "min_cards": 0,
               "min_hcp": 0
             }
@@ -109,8 +109,8 @@
           "opponents_contingent_suit_constraint": {
             "opponent_seat": "W",
             "suit_range": {
-              "max_cards": 0,
-              "max_hcp": 0,
+              "max_cards": 2,
+              "max_hcp": 3,
               "min_cards": 0,
               "min_hcp": 0
             }
