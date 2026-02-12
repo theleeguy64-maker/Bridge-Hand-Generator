@@ -5,18 +5,18 @@
 ```
 bridge_engine/
 ├── deal_generator.py        (374 lines) - Facade: subprofile selection + generate_deals() + re-exports
-├── deal_generator_v1.py     (790 lines) - v1 builder + hardest-seat + constructive help (legacy)
+├── deal_generator_v1.py     (787 lines) - v1 builder + hardest-seat + constructive help (legacy)
 ├── deal_generator_v2.py   (1,218 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py  (283 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (450 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (838 lines) - Data models
-├── seat_viability.py        (598 lines) - Constraint matching + RS pre-selection threading
+├── seat_viability.py        (596 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (519 lines) - Validation
 ├── profile_diagnostic.py     (209 lines) - Generic profile diagnostic runner (Admin menu)
 ├── orchestrator.py          (491 lines) - CLI/session management + generic menu loop
-├── profile_cli.py           (889 lines) - Profile commands
+├── profile_cli.py           (881 lines) - Profile commands
 ├── profile_wizard.py        (161 lines) - Profile creation UI
-├── wizard_flow.py         (1,667 lines) - Wizard steps, seat editing, RS/PC/OC prompts
+├── wizard_flow.py         (1,410 lines) - Wizard steps, seat editing, RS/PC/OC prompts
 ├── profile_viability.py     (361 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py         (303 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
 ├── lin_tools.py             (458 lines) - LIN file operations
@@ -358,10 +358,6 @@ Recomputed on each subprofile re-roll (different subs → different last seat).
 The stored `hand_dealing_order` field is retained for NS/EW coupling driver selection
 but is no longer editable by users. Wizard/CLI no longer prompt for dealing order.
 
-**Base Smart Hand Order** (⚠️ Dead code — remove with v1):
-`_base_smart_hand_order()` in `wizard_flow.py` has 56 tests but is never called
-in production. Scheduled for removal alongside v1 builder.
-
 Tests: 9 tests for `_compute_dealing_order()` in `test_shape_help_v3.py`
 
 ## v1 vs v2 Comparison
@@ -555,7 +551,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**489 passed, 4 skipped** organized by:
+**433 passed, 4 skipped** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`

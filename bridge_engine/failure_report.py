@@ -246,11 +246,8 @@ def collect_failure_attribution(
                 total_shape[seat] += latest_shape.get(seat, 0)
 
     finally:
-        # Restore original hook and max attempts
-        if old_hook is not None:
-            dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION = old_hook
-        else:
-            dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION = None
+        # Restore original hook and max attempts.
+        dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION = old_hook
         dg.MAX_BOARD_ATTEMPTS = old_max
 
     return FailureAttributionReport(

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, is_dataclass, fields
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from .hand_profile_model import HandProfile, SeatProfile, SubProfile, ProfileError
 
@@ -314,7 +314,7 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
         # either N or S may be driver or follower.
         return {"driver", "follower"}
 
-    def has_compatible_usage(sub: SubProfile, allowed: tuple[str, str]) -> bool:
+    def has_compatible_usage(sub: SubProfile, allowed: Tuple[str, str]) -> bool:
         usage = getattr(sub, "ns_role_usage", "any") or "any"
         return usage in allowed
 

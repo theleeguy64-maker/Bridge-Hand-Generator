@@ -36,7 +36,7 @@ from .deal_generator_helpers import (
     _check_hcp_feasibility, _build_deck, _compute_viability_summary,
     _vulnerability_for_board,
 )
-from .hand_profile import HandProfile, SeatProfile, SubProfile
+from .hand_profile import HandProfile, SeatProfile, SubProfile, SuitRange
 from .seat_viability import _match_seat
 
 
@@ -64,7 +64,7 @@ def _resolve_rs_ranges(
     Returns:
         Dict mapping suit letter → SuitRange object.
     """
-    ranges: Dict[str, object] = {}
+    ranges: Dict[str, SuitRange] = {}
 
     if (
         rs.required_suits_count == 2

@@ -17,6 +17,7 @@ This version (v3) reflects the updated project architecture (Nov 2025).
 from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Tuple
 from datetime import datetime
 import random
 from . import cli_prompts
@@ -84,7 +85,7 @@ def _timestamp_now() -> str:
     return datetime.now().strftime("%m%d_%H%M")
 
 
-def _ensure_directories(base_dir: Path) -> tuple[Path, Path, Path]:
+def _ensure_directories(base_dir: Path) -> Tuple[Path, Path, Path]:
     """
     Create base_dir and the three subdirectories:
         txt/

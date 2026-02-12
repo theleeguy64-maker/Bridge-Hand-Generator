@@ -233,7 +233,7 @@ def _build_deck() -> List[Card]:
     return list(_MASTER_DECK)
 
 
-def _get_constructive_mode(profile: HandProfile) -> dict[str, bool]:
+def _get_constructive_mode(profile: HandProfile) -> Dict[str, bool]:
     """
     Decide which constructive-help modes are eligible for this profile.
 

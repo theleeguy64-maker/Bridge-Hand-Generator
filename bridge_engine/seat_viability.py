@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 from .hand_profile import (
@@ -15,15 +14,15 @@ from .hand_profile import (
     ProfileError,
     SuitRange,
 )
-from .deal_generator_types import SuitAnalysis, _MASTER_DECK
+from .deal_generator_types import SuitAnalysis, _CARD_HCP
 
 
 # Simple type aliases used throughout generation/viability.
 Seat = str
 Card = str
 
-# High-card-point map (A=4, K=3, Q=2, J=1).
-HCP_MAP = {"A": 4, "K": 3, "Q": 2, "J": 1}
+# HCP lookup: use pre-built _CARD_HCP dict from deal_generator_types
+# (maps full card string e.g. "AS" → 4, "2H" → 0).
 
 
 # ---------------------------------------------------------------------------
@@ -42,7 +41,7 @@ def _compute_suit_analysis(hand: List[Card]) -> SuitAnalysis:
     cards_by_suit: Dict[str, List[Card]] = {"S": [], "H": [], "D": [], "C": []}
     hcp_by_suit: Dict[str, int] = {"S": 0, "H": 0, "D": 0, "C": 0}
 
-    hcp_map = HCP_MAP  # local alias for speed
+    card_hcp = _CARD_HCP  # local alias for speed
     total_hcp = 0
 
     for card in hand:
@@ -50,7 +49,6 @@ def _compute_suit_analysis(hand: List[Card]) -> SuitAnalysis:
         if len(card) != 2:
             continue
 
-        rank = card[0]
         suit = card[1]
 
         suit_cards = cards_by_suit.get(suit)
@@ -59,7 +57,7 @@ def _compute_suit_analysis(hand: List[Card]) -> SuitAnalysis:
             continue
 
         suit_cards.append(card)
-        value = hcp_map.get(rank, 0)
+        value = card_hcp.get(card, 0)
         hcp_by_suit[suit] += value
         total_hcp += value
 
@@ -129,7 +127,7 @@ def _match_random_suit_with_attempt(
     rs: RandomSuitConstraintData,
     rng: random.Random,
     pre_selected_suits: Optional[List[str]] = None,
-) -> tuple[bool, Optional[List[str]]]:
+) -> Tuple[bool, Optional[List[str]]]:
     """
     Like _match_random_suit, but returns the attempted chosen suits even on failure.
 
@@ -548,8 +546,8 @@ def _subprofile_is_viable(
         # of the whole profile (NS coupling, etc.).
         validate_profile_viability_light(profile)
         return True
-    except Exception:
-        # Any failure during validation means this subprofile is not viable.
+    except (ProfileError, ValueError, TypeError):
+        # Validation failure means this subprofile is not viable.
         return False
     finally:
         # Restore the original configuration.

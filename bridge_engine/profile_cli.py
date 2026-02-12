@@ -59,7 +59,6 @@ from .profile_wizard import (
 )
 
 from . import profile_store
-from . import profile_wizard
 
 from .wizard_flow import edit_constraints_interactive as edit_constraints_interactive_flow
 from .profile_store import PROFILE_DIR_NAME
@@ -332,7 +331,7 @@ def create_profile_action() -> None:
     profile = create_profile_interactive()
 
     print()
-    print("Rotate set to Yes and NS role mode set to Any")
+    print("Rotate set to Yes and NS role mode set to no_driver_no_index")
     print()
     print("Metadata can be changed in 'Edit Profile'")
 
@@ -509,20 +508,13 @@ def _print_full_profile_details_impl(profile: HandProfile, path: Path) -> None:
     _print_profile_constraints(profile)
 
 
-def _default_clockwise_order_starting_with(dealer: str) -> list[str]:
-    """Clockwise from dealer.  Thin wrapper around hand_profile_model helper."""
+def _default_clockwise_order_starting_with(dealer: str) -> List[str]:
+    """Clockwise from dealer — delegates to hand_profile_model."""
     from .hand_profile_model import _default_dealing_order
     d = (dealer or "").strip().upper()
-    if d not in ("N", "E", "S", "W"):
-        return ["N", "E", "S", "W"]
-    return _default_dealing_order(d)
+    return _default_dealing_order(d if d in ("N", "E", "S", "W") else "N")
 
 
-def _print_full_profile_details(profile: HandProfile, path: Path) -> None:
-    """Print full details of a profile, including constraints."""
-    _print_full_profile_details_impl(profile, path)
-    
-    
 def _print_subprofile_exclusions(
     profile: HandProfile,
     seat: str,

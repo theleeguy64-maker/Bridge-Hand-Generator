@@ -136,9 +136,7 @@ def _choose_hardest_seat_for_board(
     for seat in candidates:
         fails = seat_fail_counts[seat]
         seen = seat_seen_counts.get(seat, 0)
-        if seen <= 0:
-            continue
-
+        # seen > 0 guaranteed by candidate filtering above.
         rate = fails / float(seen)
         if rate < cfg.min_fail_rate_for_help:
             continue
@@ -482,8 +480,7 @@ def _build_single_constrained_deal(
     # -------------------------------------------------------------------
 
     # Decide which constructive modes are active for this profile.
-    # (Note: the first assignment at the old line 1201 was dead code —
-    #  always overwritten here before use.  Kept just one.)
+    # All modes are currently disabled; v2 uses shape-based pre-allocation.
     constructive_mode = _get_constructive_mode(profile)
 
     # -----------------------------------------------------------------------

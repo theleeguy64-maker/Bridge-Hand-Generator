@@ -8,13 +8,10 @@
 
 ## Architecture
 
-### 1. [x] Base Smart Hand Order (dead code — remove with v1)
-- ✅ `_base_smart_hand_order()` in wizard_flow.py (5-priority algorithm, 56 tests)
-- ⚠️ **Dead code, redundant with v2**: Analysis showed v2 handles ordering independently:
-  - `_build_processing_order()` handles RS-before-PC/OC matching order
-  - `_dispersion_check()` + `_deal_with_help()` handle pre-allocation regardless of dealing order
-  - Dealing order's only real v2 effect is "last seat gets remainder" — minimal performance impact
-- **Scheduled for removal alongside v1 builder**
+### 1. [x] Base Smart Hand Order (removed)
+- ✅ `_base_smart_hand_order()` and 6 helpers removed from wizard_flow.py (−257 lines)
+- ✅ `test_default_dealing_order.py` deleted (56 tests for dead code)
+- Was redundant with v2's `_compute_dealing_order()` + `_dispersion_check()`
 
 ### 2. [x] v2 Shape-Based Help System (D0-D8)
 - ✅ Extracted `_select_subprofiles_for_board()` to module level (D0)
@@ -293,6 +290,23 @@
 - ✅ **Cleaned up `generate_deals()`**: Removed stale "C1/C2" docstring, removed "P1.1" comment, removed redundant `continue`
 - `deal_generator.py`: 403 → 374 lines (−29)
 
+### 40. [x] Code Review (#40) — 17 fixes
+- ✅ **A1**: Fixed misleading "NS role mode set to Any" → `no_driver_no_index` in `profile_cli.py`
+- ✅ **A2**: Removed unreachable dead guard (`if seen <= 0`) in `deal_generator_v1.py`
+- ✅ **A3**: Fixed `Dict[str, object]` → `Dict[str, SuitRange]` return type in `deal_generator_v2.py`
+- ✅ **B1**: Removed SHDO dead code (~250 lines from `wizard_flow.py`) + `test_default_dealing_order.py` (56 tests)
+- ✅ **B2-B5**: Removed 4 unused imports (`dataclass`, `_MASTER_DECK`, `asdict`, `profile_wizard`)
+- ✅ **B6**: Replaced stale "old line 1201" comment in `deal_generator_v1.py`
+- ✅ **C1**: Standardized `tuple`/`dict` → `Tuple`/`Dict` type hints across 4 files
+- ✅ **C4**: Replaced duplicate `HCP_MAP` with `_CARD_HCP` in `seat_viability.py`
+- ✅ **C5**: Removed trivial `_print_full_profile_details` wrapper in `profile_cli.py`
+- ✅ **C7**: Replaced emoji with "WARNING:" text in `wizard_flow.py`
+- ✅ **D1**: Simplified hook restoration in `failure_report.py`
+- ✅ **D2**: Narrowed `except Exception` to `(ProfileError, ValueError, TypeError)` in `seat_viability.py`
+- ✅ **D4**: Simplified `_default_clockwise_order_starting_with()` wrapper in `profile_cli.py`
+- Skipped C2/C3 (diverged semantics, `&` in filenames) and D3 (v1 dependency)
+- wizard_flow.py: 1,667 → 1,410 lines (−257); seat_viability.py: 598 → 596; profile_cli.py: 889 → 881
+
 ### 36. [x] v1 vs v2 Review + Debug Hook Fix
 - ✅ Comprehensive review of `deal_generator_v1.py` (790 lines) vs `deal_generator_v2.py` (1,122 lines)
 - **Conclusion**: v2 is a complete successor — every v1 feature was replaced with a superior mechanism or deliberately removed
@@ -335,7 +349,7 @@
 ## Summary
 Architecture: 15 (15 done) | Enhancements: 22 (22 done) | **All complete**
 
-**Tests**: 489 passed, 4 skipped | **Branch**: refactor/deal-generator
+**Tests**: 433 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 

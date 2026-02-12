@@ -84,17 +84,15 @@ Per-attempt tracking for diagnostics:
 - HCP feasibility rejection (#5): early rejection of hands with infeasible HCP after pre-allocation
 - Profile E (6 spades + 10-12 HCP) generates successfully end-to-end
 - 3-phase `_deal_with_help`: all tight seats (including last) get pre-allocation
-- Base Smart Hand Order algorithm for optimal dealing order (⚠️ dead code — not wired into production yet)
 - Local failure attribution with rotation benchmarks
 - Dead code cleanup complete (#4, #4b): removed stubs, flags, hooks, cascading dead code
 - Performance optimizations (#10): master deck constant, index-based dealing, suit pre-indexing, incremental HCP, unrolled matching (~19% faster)
 - Constrained fill (#11): suit max + HCP max enforcement during dealing, PRE_ALLOCATE_FRACTION 0.75 — W shape failures eliminated, HCP failures -81%
 - Full RS pre-allocation (#14): RS_PRE_ALLOCATE_FRACTION=1.0 — RS suits fully populated at pre-allocation time with HCP targeting. "Defense to Weak 2s" 5-20x faster
 - Adaptive re-seeding (#12): per-board timing + auto re-seed on slow boards (1.75s threshold) — eliminates seed-dependent variance
-- 480 tests passing, 2 skipped
+- 433 tests passing, 4 skipped
 
 ### Remaining Work
-- **Wire `_base_smart_hand_order()` into production** — algorithm is complete with 56 tests but currently dead code. The wizard uses `_suggest_dealing_order()` with hardcoded tag-based fallback instead
 - **Benchmark suite** — establish baseline performance metrics across test profiles (A-E + production profiles) to track v2 optimization impact
 - **Profile review** — audit all 11 profiles for correct constraints, metadata, and dealing order
 
@@ -115,11 +113,11 @@ Per-attempt tracking for diagnostics:
 | `deal_generator_types.py` | 283 | Types, constants, dataclasses, exception, debug hooks (leaf module) |
 | `deal_generator_helpers.py` | 450 | Shared utilities: viability, HCP, deck helpers, vulnerability/rotation |
 | `hand_profile_model.py` | 838 | Data models: SubProfile, SeatProfile, HandProfile |
-| `seat_viability.py` | 598 | Constraint matching: `_match_seat`, `_match_subprofile`, RS pre-selection |
+| `seat_viability.py` | 596 | Constraint matching: `_match_seat`, `_match_subprofile`, RS pre-selection |
 | `hand_profile_validate.py` | 519 | Profile validation |
 | `profile_viability.py` | 361 | Profile-level viability + cross-seat feasibility checks |
-| `wizard_flow.py` | 1,776 | Wizard steps, seat editing, dealing order, `_base_smart_hand_order()` |
-| `profile_cli.py` | 943 | Profile commands (atomic saves) |
+| `wizard_flow.py` | 1,410 | Wizard steps, seat editing |
+| `profile_cli.py` | 881 | Profile commands (atomic saves) |
 | `orchestrator.py` | 494 | CLI/session management + generic menu loop |
 | `profile_store.py` | 303 | JSON persistence (atomic writes, error-tolerant loading, display ordering) |
 | `failure_report.py` | — | Failure attribution diagnostic (uses v2 builder) |
