@@ -4,7 +4,7 @@
 
 ```
 bridge_engine/
-├── deal_generator.py        (403 lines) - Facade: subprofile selection + generate_deals() + re-exports
+├── deal_generator.py        (374 lines) - Facade: subprofile selection + generate_deals() + re-exports
 ├── deal_generator_v1.py     (790 lines) - v1 builder + hardest-seat + constructive help (legacy)
 ├── deal_generator_v2.py   (1,218 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py  (283 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
@@ -469,13 +469,13 @@ _deal_single_board_simple(rng, board_number, dealer, dealing_order) -> Deal
 _apply_vulnerability_and_rotation(rng, deals, rotate) -> List[Deal]
 ```
 
-### deal_generator.py (facade — 403 lines)
+### deal_generator.py (facade — 374 lines)
 ```python
 # Public API
 generate_deals(setup, profile, num_deals, enable_rotation) -> DealSet
 
-# Subprofile selection (kept here for monkeypatch compatibility)
-# Includes cross-seat feasibility retry loop (#16)
+# Coupling + subprofile selection (kept here for monkeypatch compatibility)
+_try_pair_coupling(rng, seat_profiles, seat_a, seat_b, driver_seat, chosen_subs, chosen_indices)
 _select_subprofiles_for_board(rng, profile, dealing_order) -> (subs, indices)
 
 # Re-exports from deal_generator_v1 (v1 legacy path)

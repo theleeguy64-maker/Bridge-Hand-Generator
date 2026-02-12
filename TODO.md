@@ -287,6 +287,12 @@
 - ✅ **B4**: Consolidated `PROFILE_DIR_NAME` — profile_cli + orchestrator import from profile_store
 - ✅ **C2**: `_default_clockwise_order_starting_with()` now delegates to `_default_dealing_order()`
 
+### 39. [x] Simplify deal_generator.py facade
+- ✅ **Trimmed re-imports**: Explicit re-import lists now only contain `_`-prefixed names (wildcard handles the rest)
+- ✅ **Extracted `_try_pair_coupling()`**: Deduplicated NS/EW coupling logic into shared helper (−30 lines)
+- ✅ **Cleaned up `generate_deals()`**: Removed stale "C1/C2" docstring, removed "P1.1" comment, removed redundant `continue`
+- `deal_generator.py`: 403 → 374 lines (−29)
+
 ### 36. [x] v1 vs v2 Review + Debug Hook Fix
 - ✅ Comprehensive review of `deal_generator_v1.py` (790 lines) vs `deal_generator_v2.py` (1,122 lines)
 - **Conclusion**: v2 is a complete successor — every v1 feature was replaced with a superior mechanism or deliberately removed
