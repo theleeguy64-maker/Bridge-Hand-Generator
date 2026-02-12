@@ -448,7 +448,6 @@ def _print_profile_metadata(profile: HandProfile, path: Path) -> None:
     print(f"Dealer      : {profile.dealer}")
     print(f"Author      : {profile.author}")
     print(f"Version     : {profile.version}")
-    print(f"File        : {path}")
     print(f"Rotate deals: {profile.rotate_deals_by_default}")
 
     ns_mode = getattr(profile, "ns_role_mode", "no_driver_no_index")
@@ -458,6 +457,7 @@ def _print_profile_metadata(profile: HandProfile, path: Path) -> None:
         "random_driver": "Random between N/S",
     }.get(ns_mode, ns_mode)
     print(f"NS mode     : {ns_mode_pretty}")
+    print(f"File name   : {path.name}")
 
 
 def _print_profile_constraints(profile: HandProfile) -> None:
@@ -728,9 +728,15 @@ def edit_profile_action() -> None:
             sort_order=profile.sort_order,
         )
 
-        _save_profile_to_path(updated, path)
-        profile_store.delete_draft_for_canonical(path)
-        print(f"\nUpdated profile saved to {path}")
+        # If version changed, save to a new file (keep old version intact)
+        new_path = _profile_path_for(updated)
+        _save_profile_to_path(updated, new_path)
+        profile_store.delete_draft_for_canonical(new_path)
+        if new_path != path:
+            print(f"\nNew version saved to {new_path.name}")
+            print(f"Previous version kept: {path.name}")
+        else:
+            print(f"\nUpdated profile saved to {new_path.name}")
         return
 
     else:        # ------------------------
@@ -744,6 +750,7 @@ def edit_profile_action() -> None:
 
         if prompt_yes_no("Save updated constraints to this profile?", True):
             _save_profile_to_path(updated, path)
+            profile_store.delete_draft_for_canonical(path)
             print(f"\nUpdated profile saved to {path}")
         return
 
@@ -796,6 +803,7 @@ def save_as_new_version_action() -> None:
     validate_profile(new_profile)
     path = _profile_path_for(new_profile)
     _save_profile_to_path(new_profile, path)
+    profile_store.delete_draft_for_canonical(path)
 
 
 # ---------------------------------------------------------------------------

@@ -95,13 +95,18 @@ def test_edit_metadata_saves_updated_fields(monkeypatch, tmp_path, capsys):
     # Stub input for dealing order (press Enter to keep current)
     monkeypatch.setattr("builtins.input", lambda prompt="": "")
 
+    # Stub _profile_path_for so it returns a new versioned path
+    new_path = tmp_path / "Renamed_v0.2.json"
+    monkeypatch.setattr(pc, "_profile_path_for", lambda p, base_dir=None: new_path)
+
     # Run
     pc.edit_profile_action()
 
     # Assertions
     assert len(saved) == 1
     updated, saved_path = saved[0]
-    assert saved_path == path
+    # Version changed, so save goes to new path (old file kept)
+    assert saved_path == new_path
     assert updated.profile_name == "Renamed"
     assert updated.description == "New desc"
     assert updated.tag == "Overcaller"

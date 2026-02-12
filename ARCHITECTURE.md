@@ -606,3 +606,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 *Resolved*: `profile_cli.py` dead `_render_full_profile_details_text()` — removed.
 
 *Resolved*: `profile_store.py` safety — `_load_profiles()` error-tolerant with try/except; all writes use `_atomic_write()` (tempfile + os.replace); consistent trailing newline; `delete_draft_for_canonical()` narrowed to `except OSError`.
+
+*Resolved*: `wizard_flow.py` `_prompt_suit_range()` — `prompt_int()` called with swapped arguments (default/minimum/maximum in wrong order), causing OC/PC suit range prompts to show inverted bounds like `>=13 and <=1`.
+
+*Resolved*: `profile_cli.py` metadata edit — version change now saves to a new versioned file (keeps old version intact). Draft cleanup (`delete_draft_for_canonical`) added to constraints-only edit and save-as-new-version paths.

@@ -1,7 +1,7 @@
 {
   "author": "Lee",
   "dealer": "W",
-  "description": "Managing our action after T/O Dbl particularly with strong hands",
+  "description": "Managing our action after balancing T/O Dbl particularly with strong hands",
   "hand_dealing_order": [
     "W",
     "N",
@@ -10,7 +10,7 @@
   ],
   "is_invariants_safety_profile": false,
   "ns_role_mode": "no_driver_no_index",
-  "profile_name": "Opps_Open_&_Our_TO_Dbl",
+  "profile_name": "Opps_Open_&_Our_TO_Dbl_Balancing",
   "rotate_deals_by_default": true,
   "seat_profiles": {
     "E": {
@@ -22,8 +22,8 @@
           "partner_contingent_constraint": {
             "partner_seat": "W",
             "suit_range": {
-              "max_cards": 3,
-              "max_hcp": 7,
+              "max_cards": 0,
+              "max_hcp": 0,
               "min_cards": 0,
               "min_hcp": 0
             }
@@ -66,11 +66,51 @@
       "subprofiles": [
         {
           "ns_role_usage": "any",
+          "opponents_contingent_suit_constraint": null,
+          "partner_contingent_constraint": null,
+          "random_suit_constraint": null,
+          "standard": {
+            "clubs": {
+              "max_cards": 5,
+              "max_hcp": 8,
+              "min_cards": 0,
+              "min_hcp": 0
+            },
+            "diamonds": {
+              "max_cards": 5,
+              "max_hcp": 8,
+              "min_cards": 0,
+              "min_hcp": 0
+            },
+            "hearts": {
+              "max_cards": 5,
+              "max_hcp": 8,
+              "min_cards": 0,
+              "min_hcp": 0
+            },
+            "spades": {
+              "max_cards": 5,
+              "max_hcp": 8,
+              "min_cards": 0,
+              "min_hcp": 0
+            },
+            "total_max_hcp": 9,
+            "total_min_hcp": 5
+          },
+          "weight_percent": 100.0
+        }
+      ]
+    },
+    "S": {
+      "seat": "S",
+      "subprofiles": [
+        {
+          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": {
             "opponent_seat": "W",
             "suit_range": {
-              "max_cards": 1,
-              "max_hcp": 2,
+              "max_cards": 0,
+              "max_hcp": 0,
               "min_cards": 0,
               "min_hcp": 0
             }
@@ -104,46 +144,6 @@
             },
             "total_max_hcp": 20,
             "total_min_hcp": 12
-          },
-          "weight_percent": 100.0
-        }
-      ]
-    },
-    "S": {
-      "seat": "S",
-      "subprofiles": [
-        {
-          "ns_role_usage": "any",
-          "opponents_contingent_suit_constraint": null,
-          "partner_contingent_constraint": null,
-          "random_suit_constraint": null,
-          "standard": {
-            "clubs": {
-              "max_cards": 5,
-              "max_hcp": 8,
-              "min_cards": 0,
-              "min_hcp": 0
-            },
-            "diamonds": {
-              "max_cards": 5,
-              "max_hcp": 8,
-              "min_cards": 0,
-              "min_hcp": 0
-            },
-            "hearts": {
-              "max_cards": 5,
-              "max_hcp": 8,
-              "min_cards": 0,
-              "min_hcp": 0
-            },
-            "spades": {
-              "max_cards": 5,
-              "max_hcp": 8,
-              "min_cards": 0,
-              "min_hcp": 0
-            },
-            "total_max_hcp": 16,
-            "total_min_hcp": 5
           },
           "weight_percent": 100.0
         }
@@ -258,5 +258,5 @@
   "subprofile_exclusions": [],
   "tag": "Overcaller",
   "use_rs_w_only_path": false,
-  "version": "0.9"
+  "version": "0.1"
 }

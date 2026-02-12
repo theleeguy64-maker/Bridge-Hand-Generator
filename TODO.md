@@ -1,8 +1,15 @@
 # TODOs
 
 ## Start Tasks
-- [ ] Run profile management in program
+- [x] Run profile management in program
 - [ ] Review all profiles (check constraints, metadata, dealing order)
+
+## Recent Fixes (#42)
+- [x] Fix prompt_int argument order bug in _prompt_suit_range (OC/PC suit range prompts showed inverted bounds)
+- [x] Profile Summary: move File to last, rename to "File name", show filename only
+- [x] Version change in metadata edit now saves to new file (keeps old version)
+- [x] Add delete_draft_for_canonical to constraints-only edit and save-as-new-version paths
+- [x] New profile: Opps_Open_&_Our_TO_Dbl_Balancing_v0.1
 
 ---
 

@@ -653,27 +653,27 @@ def _prompt_suit_range(
 
     min_cards = prompt_int(
         "  Min cards",
+        default_min_cards,
         0,
         13,
-        default_min_cards,
     )
     max_cards = prompt_int(
         "  Max cards",
+        default_max_cards,
         0,
         13,
-        default_max_cards,
     )
     min_hcp = prompt_int(
         "  Min HCP",
+        default_min_hcp,
         0,
         10,
-        default_min_hcp,
     )
     max_hcp = prompt_int(
         "  Max HCP",
+        default_max_hcp,
         0,
         10,
-        default_max_hcp,
     )
     return SuitRange(
         min_cards=min_cards,
