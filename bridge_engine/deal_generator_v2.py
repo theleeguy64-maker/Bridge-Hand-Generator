@@ -693,8 +693,8 @@ def _deal_with_help(
                 maxima = _get_suit_maxima(sub, rs_for_seat)
                 std = getattr(sub, "standard", None)
                 max_hcp = (
-                    getattr(std, "total_max_hcp", 40)
-                    if std is not None else 40
+                    getattr(std, "total_max_hcp", MAX_HAND_HCP)
+                    if std is not None else MAX_HAND_HCP
                 )
 
                 # Extract per-suit HCP max from RS constraints (#13).

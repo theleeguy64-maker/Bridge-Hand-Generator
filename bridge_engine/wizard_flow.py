@@ -325,73 +325,6 @@ def _base_smart_hand_order(
     return order
 
 
-def _suggest_dealing_order(
-    tag: str,
-    dealer: str,
-    ns_role_mode: str = "north_drives",
-) -> List[str]:
-    """
-    Suggest a default hand_dealing_order for the profile creation wizard.
-
-    Today this is only special-cased for North-centric training drills.
-    For everything else we fall back to the simple "rotate N,E,S,W
-    starting from the dealer" rule.
-
-    This is *metadata-only* – it just chooses a default; users can still
-    override via custom input.
-    """
-    tag_norm = (tag or "").strip().lower()
-    dealer_norm = (dealer or "").strip().upper()
-    mode = (ns_role_mode or "north_drives").strip().lower()
-
-    # Use the shared helper for base "dealer + clockwise" order.
-    def rotate_from_dealer() -> List[str]:
-        if dealer_norm in ("N", "E", "S", "W"):
-            return _default_dealing_order(dealer_norm)
-        # Defensive fallback for invalid dealer
-        return ["N", "E", "S", "W"]
-
-    # ---- Special cases: North-centric training drills ----
-    #
-    # 1) Tag = "Opener": our side opens
-    #    We only special-case when dealer is North.
-    #
-    #    - ns_role_mode = "north_drives":
-    #        N (driver), S (partner), then E, W
-    #        => N S E W
-    #    - ns_role_mode = "south_drives":
-    #        S (driver), N (partner), then W, E
-    #        => S N W E
-    if tag_norm == "opener":
-        if dealer_norm == "N":
-            if mode == "north_drives":
-                return ["N", "S", "E", "W"]
-            if mode == "south_drives":
-                return ["S", "N", "W", "E"]
-        # Other dealers with tag="Opener": simple dealer rotation
-        return rotate_from_dealer()
-
-    # 2) Tag = "Overcaller": opponents open, we overcall.
-    #    We special-case the classic "West opens, North overcalls" drills:
-    #
-    #    - ns_role_mode = "north_drives":
-    #        W (opener), N (our driver), S, E
-    #        => W N S E
-    #    - ns_role_mode = "south_drives":
-    #        W (opener), S (our driver), N, E
-    #        => W S N E
-    if tag_norm == "overcaller":
-        if dealer_norm == "W":
-            if mode == "north_drives":
-                return ["W", "N", "S", "E"]
-            if mode == "south_drives":
-                return ["W", "S", "N", "E"]
-        # Other dealers with tag="Overcaller": simple dealer rotation
-        return rotate_from_dealer()
-
-    # Fallback for any other future tags / modes:
-    return rotate_from_dealer()
-
 def _validate_profile(profile) -> None:
     return _pw_attr("validate_profile", _validate_profile_fallback)(profile)
 
@@ -682,7 +615,6 @@ def _edit_subprofile_exclusions_for_seat(
     existing: Optional[HandProfile],
     seat: str,
     seat_profiles: Dict[str, SeatProfile],
-    hand_dealing_order: List[str],
     current_all: List[SubprofileExclusionData],
 ) -> List[SubprofileExclusionData]:
     """
@@ -1583,7 +1515,6 @@ def _build_profile(
             existing=existing,
             seat=seat,
             seat_profiles=seat_profiles,
-            hand_dealing_order=list(hand_dealing_order),
             current_all=subprofile_exclusions,
         )
 

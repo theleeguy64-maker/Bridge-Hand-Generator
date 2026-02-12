@@ -596,7 +596,9 @@ class HandProfile:
     dealer
         'N', 'E', 'S', or 'W'.
     hand_dealing_order
-        A permutation of ["N", "E", "S", "W"], dealer must be first.
+        A permutation of ["N", "E", "S", "W"]. Stored as a display hint;
+        actual dealing order is auto-computed at runtime by the v2 builder
+        (`_compute_dealing_order`).
     tag
         "Opener" or "Overcaller".
     seat_profiles

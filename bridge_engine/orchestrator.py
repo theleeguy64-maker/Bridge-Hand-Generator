@@ -48,10 +48,7 @@ from . import profile_cli
 from . import profile_store
 from . import lin_tools
 from . import profile_diagnostic
-
-
-# Directory where JSON profiles live (relative to project root / CWD)
-PROFILE_DIR_NAME = "profiles"
+from .profile_store import PROFILE_DIR_NAME
 
 
 # ---------------------------------------------------------------------------

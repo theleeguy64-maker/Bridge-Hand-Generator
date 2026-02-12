@@ -277,6 +277,16 @@
 - ✅ 9 tests for `_compute_dealing_order()` + `_subprofile_constraint_type()`
 - **Result**: Defense Weak 2s **2.7x faster** (52ms → 19.5ms avg), Our 1 Major **1.5x faster**
 
+### 38. [x] Code Review (#38) — 8 fixes
+- ✅ **A1**: Fixed stale "dealer must be first" docstring in `hand_profile_model.py`
+- ✅ **A2**: Fixed debug hook signature comment — added `seat_fail_hcp`, `seat_fail_shape` params
+- ✅ **A3**: Consistent unconstrained HCP default — `40` → `MAX_HAND_HCP` in constrained fill
+- ✅ **B1**: Removed dead `_suggest_dealing_order()` from `wizard_flow.py` (66 lines)
+- ✅ **B2**: Removed dead `_parse_hand_dealing_order()` from `profile_cli.py` (23 lines)
+- ✅ **B3**: Removed unused `hand_dealing_order` param from `_edit_subprofile_exclusions_for_seat()`
+- ✅ **B4**: Consolidated `PROFILE_DIR_NAME` — profile_cli + orchestrator import from profile_store
+- ✅ **C2**: `_default_clockwise_order_starting_with()` now delegates to `_default_dealing_order()`
+
 ### 36. [x] v1 vs v2 Review + Debug Hook Fix
 - ✅ Comprehensive review of `deal_generator_v1.py` (790 lines) vs `deal_generator_v2.py` (1,122 lines)
 - **Conclusion**: v2 is a complete successor — every v1 feature was replaced with a superior mechanism or deliberately removed
@@ -317,7 +327,7 @@
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 21 (21 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 22 (22 done) | **All complete**
 
 **Tests**: 489 passed, 4 skipped | **Branch**: refactor/deal-generator
 

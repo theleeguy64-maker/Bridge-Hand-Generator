@@ -259,7 +259,7 @@ def test_exclusion_editing_adds_exclusion(monkeypatch, capsys):
     # Stub _edit_subprofile_exclusions_for_seat to return our dummy exclusion
     monkeypatch.setattr(
         wizard_flow, "_edit_subprofile_exclusions_for_seat",
-        lambda existing, seat, seat_profiles, hand_dealing_order, current_all: [dummy_exclusion],
+        lambda existing, seat, seat_profiles, current_all: [dummy_exclusion],
     )
 
     result = wizard_flow._build_profile(existing=profile)

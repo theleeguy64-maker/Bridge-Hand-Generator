@@ -62,8 +62,7 @@ from . import profile_store
 from . import profile_wizard
 
 from .wizard_flow import edit_constraints_interactive as edit_constraints_interactive_flow
-
-PROFILE_DIR_NAME = "profiles"
+from .profile_store import PROFILE_DIR_NAME
 SUITS: List[str] = ["S", "H", "D", "C"]
 
 
@@ -510,38 +509,13 @@ def _print_full_profile_details_impl(profile: HandProfile, path: Path) -> None:
     _print_profile_constraints(profile)
 
 
-def _parse_hand_dealing_order(s: str) -> list[str] | None:
-    """
-    Parse a hand dealing order from user input.
-    Accepts formats like: "N E S W", "nesw", "w,n,e,s", "W N E S".
-    Returns a list like ["N","E","S","W"] or None if invalid.
-    """
-    if s is None:
-        return None
-    raw = s.strip().upper()
-    if not raw:
-        return None
-
-    # Split on whitespace/commas if present; otherwise treat as a 4-letter string.
-    if any(ch in raw for ch in (" ", ",", "\t")):
-        parts = [p for p in raw.replace(",", " ").split() if p]
-    else:
-        parts = list(raw)
-
-    if len(parts) != 4:
-        return None
-    if set(parts) != {"N", "E", "S", "W"}:
-        return None
-    return parts
-
-
 def _default_clockwise_order_starting_with(dealer: str) -> list[str]:
-    base = ["N", "E", "S", "W"]
-    dealer = (dealer or "").strip().upper()
-    if dealer not in base:
-        return base
-    i = base.index(dealer)
-    return base[i:] + base[:i]
+    """Clockwise from dealer.  Thin wrapper around hand_profile_model helper."""
+    from .hand_profile_model import _default_dealing_order
+    d = (dealer or "").strip().upper()
+    if d not in ("N", "E", "S", "W"):
+        return ["N", "E", "S", "W"]
+    return _default_dealing_order(d)
 
 
 def _print_full_profile_details(profile: HandProfile, path: Path) -> None:
