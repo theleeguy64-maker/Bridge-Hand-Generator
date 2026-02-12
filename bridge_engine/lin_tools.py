@@ -6,13 +6,21 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Sequence
 
-# Match names like:
-#   Lee_Opps_Open_&_Our_TO_Dbl_BBO_1128_2008
-#   Lee_Opps_Open_&_Our_TO_Dbl_BBO_1209_0922
-#   Lee_Our 1 Major & Opponents Interrference_BBO_1130_0844_FIXED
+# ---------------------------------------------------------------------------
+# Compiled regex patterns (all in one place for easy auditing)
+# ---------------------------------------------------------------------------
+
+# Match full BBO filenames: Lee_Profile_BBO_1128_2008 (optional _FIXED suffix)
 _BBO_PATTERN = re.compile(
     r"^(?P<prefix>.+?)_BBO_\d{4}_\d{4}(?:_FIXED)?$"
 )
+
+# Fallback patterns for stripping trailing timestamps from LIN stems
+_BBO_TIMESTAMP_SUFFIX_RE = re.compile(r"_\d{4}_\d{4}(?:_FIXED)?$")
+_TRAILING_NUMBERS_RE = re.compile(r"_\d{4,}$")
+
+# Match "Board 1", "Board 12", etc. in LIN content (case-insensitive)
+_BOARD_LABEL_RE = re.compile(r"Board\s+\d+", re.IGNORECASE)
 
 
 def _pretty_lin_profile_label(path: Path) -> str:
@@ -67,8 +75,8 @@ def logical_lin_key(path: Path) -> str:
 
     # Fallback: strip trailing numeric block(s), just in case
     # e.g. Foo_1209_0922 -> Foo
-    stem = re.sub(r"_\d{4}_\d{4}(?:_FIXED)?$", "", stem)
-    stem = re.sub(r"_\d{4,}$", "", stem)
+    stem = _BBO_TIMESTAMP_SUFFIX_RE.sub("", stem)
+    stem = _TRAILING_NUMBERS_RE.sub("", stem)
     return stem
 
 def select_latest_per_group(paths: Iterable[Path]) -> list[Path]:
@@ -141,9 +149,6 @@ def _split_lin_into_boards(text: str) -> List[str]:
         # Re-add the 'qx|' prefix we split on
         boards.append("qx|" + part)
     return boards
-
-# Match any "Board <number>" label inside a board chunk.
-_BOARD_LABEL_RE = re.compile(r"Board\s+\d+", re.IGNORECASE)
 
 
 def _renumber_boards(boards: List[str], start_at: int = 1) -> List[str]:

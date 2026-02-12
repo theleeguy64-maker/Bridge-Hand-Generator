@@ -1119,8 +1119,12 @@ class TestV2Attribution:
         assert captured["board_number"] == 1
         assert captured["attempts"] == 15
         assert captured["seat_fail_counts"].get("N", 0) == 15
-        # viability_summary is None in v2 (not computed).
-        assert captured["viability_summary"] is None
+        # viability_summary should contain per-seat diagnostics.
+        vs = captured["viability_summary"]
+        assert vs is not None
+        assert "N" in vs
+        assert vs["N"]["attempts"] == 15
+        assert vs["N"]["failures"] == 15
 
     def test_attribution_hook_receives_copies(self, monkeypatch):
         """
@@ -1278,3 +1282,128 @@ def test_constrained_fill_rs_hcp_max_under_limit_accepted():
     # JH should be accepted (0 + 1 = 1 <= 3).
     assert "JH" in result
     assert len(result) == 3
+
+
+# ===================================================================
+# _compute_dealing_order — auto-compute with least constrained last
+# ===================================================================
+
+class TestComputeDealingOrder:
+    """Tests for _compute_dealing_order (least constrained seat last)."""
+
+    def _make_sub(self, *, rs=False, pc=False, oc=False,
+                  hcp_min=0, hcp_max=37):
+        """Build a minimal SubProfile-like object for testing."""
+        from types import SimpleNamespace
+        std = SimpleNamespace(total_min_hcp=hcp_min, total_max_hcp=hcp_max)
+        return SimpleNamespace(
+            standard=std,
+            random_suit_constraint=SimpleNamespace() if rs else None,
+            partner_contingent_constraint=SimpleNamespace() if pc else None,
+            opponents_contingent_suit_constraint=SimpleNamespace() if oc else None,
+        )
+
+    def test_all_standard_clockwise_from_dealer(self):
+        """All standard seats: clockwise from dealer, all equal risk."""
+        subs = {
+            "N": self._make_sub(), "E": self._make_sub(),
+            "S": self._make_sub(), "W": self._make_sub(),
+        }
+        assert dg._compute_dealing_order(subs, "N") == ["N", "E", "S", "W"]
+        assert dg._compute_dealing_order(subs, "W") == ["W", "N", "E", "S"]
+
+    def test_rs_seat_first(self):
+        """RS seat should be dealt first (highest risk)."""
+        subs = {
+            "N": self._make_sub(),
+            "E": self._make_sub(rs=True),
+            "S": self._make_sub(),
+            "W": self._make_sub(),
+        }
+        result = dg._compute_dealing_order(subs, "N")
+        assert result[0] == "E"  # RS first
+        assert result[-1] in ("N", "S", "W")  # standard last
+
+    def test_standard_seat_last(self):
+        """When 3 seats are constrained, standard seat should be last."""
+        subs = {
+            "N": self._make_sub(rs=True),
+            "E": self._make_sub(oc=True),
+            "S": self._make_sub(),  # standard = least constrained
+            "W": self._make_sub(pc=True),
+        }
+        result = dg._compute_dealing_order(subs, "N")
+        assert result[-1] == "S"
+
+    def test_multiple_rs_sorted_by_risk(self):
+        """Multiple RS seats: both before non-RS seats."""
+        subs = {
+            "N": self._make_sub(rs=True),
+            "E": self._make_sub(),
+            "S": self._make_sub(rs=True),
+            "W": self._make_sub(),
+        }
+        result = dg._compute_dealing_order(subs, "N")
+        # Both RS seats should be in first two positions
+        assert set(result[:2]) == {"N", "S"}
+
+    def test_hcp_tiebreaker_narrower_first(self):
+        """Among equal-risk seats, narrower HCP range goes first."""
+        subs = {
+            "N": self._make_sub(hcp_min=10, hcp_max=12),  # range 2
+            "E": self._make_sub(hcp_min=0, hcp_max=37),   # range 37
+            "S": self._make_sub(hcp_min=0, hcp_max=37),   # range 37
+            "W": self._make_sub(hcp_min=0, hcp_max=37),   # range 37
+        }
+        result = dg._compute_dealing_order(subs, "N")
+        assert result[0] == "N"   # narrowest HCP = dealt first
+        assert result[-1] != "N"  # NOT last
+
+    def test_pc_oc_between_rs_and_standard(self):
+        """PC/OC seats (risk 0.5) should be between RS (1.0) and standard (0.0)."""
+        subs = {
+            "N": self._make_sub(rs=True),   # risk 1.0
+            "E": self._make_sub(pc=True),   # risk 0.5
+            "S": self._make_sub(),          # risk 0.0
+            "W": self._make_sub(oc=True),   # risk 0.5
+        }
+        result = dg._compute_dealing_order(subs, "N")
+        assert result[0] == "N"   # RS first
+        assert result[-1] == "S"  # standard last
+        assert set(result[1:3]) == {"E", "W"}  # PC/OC in middle
+
+    def test_clockwise_tiebreaker(self):
+        """Equal risk + equal HCP range: clockwise from dealer breaks tie."""
+        subs = {
+            "N": self._make_sub(pc=True),   # risk 0.5
+            "E": self._make_sub(oc=True),   # risk 0.5
+            "S": self._make_sub(),          # risk 0.0
+            "W": self._make_sub(),          # risk 0.0
+        }
+        # Dealer E → clockwise: E, S, W, N
+        result = dg._compute_dealing_order(subs, "E")
+        # E (0.5) and N (0.5) should be first two, E before N (clockwise from E)
+        assert result[0] == "E"
+        assert result[1] == "N"
+        # S (0.0) and W (0.0): S before W clockwise from E
+        assert result[2] == "S"
+        assert result[3] == "W"
+
+    def test_always_returns_four_seats(self):
+        """Output always contains exactly 4 seats, one of each."""
+        subs = {
+            "N": self._make_sub(rs=True),
+            "E": self._make_sub(pc=True),
+            "S": self._make_sub(oc=True),
+            "W": self._make_sub(),
+        }
+        result = dg._compute_dealing_order(subs, "W")
+        assert len(result) == 4
+        assert set(result) == {"N", "E", "S", "W"}
+
+    def test_subprofile_constraint_type(self):
+        """_subprofile_constraint_type classifies correctly."""
+        assert dg._subprofile_constraint_type(self._make_sub()) == "standard"
+        assert dg._subprofile_constraint_type(self._make_sub(rs=True)) == "rs"
+        assert dg._subprofile_constraint_type(self._make_sub(pc=True)) == "pc"
+        assert dg._subprofile_constraint_type(self._make_sub(oc=True)) == "oc"

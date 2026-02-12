@@ -17,6 +17,7 @@ import warnings
 from types import SimpleNamespace
 
 from .hand_profile_model import ProfileError
+from .deal_generator_types import FULL_DECK_HCP_SUM
 from .seat_viability import (
     _subprofile_is_viable,
     _subprofile_is_viable_light,
@@ -105,7 +106,7 @@ def _get_total_max_hcp(sub: Any) -> int:
 # subprofiles across all 4 seats have combined minimums that exceed
 # these deck-level limits, the combination can never succeed.
 
-TOTAL_DECK_HCP = 40       # 4 Aces × 4 + 4 Kings × 3 + 4 Queens × 2 + 4 Jacks × 1
+# FULL_DECK_HCP_SUM (40) imported from deal_generator_types — single source of truth.
 CARDS_PER_SUIT = 13       # standard bridge deck
 
 
@@ -134,17 +135,17 @@ def _cross_seat_feasible(
 
     # Check 1: total HCP minimums must not exceed deck total.
     total_min_hcp = sum(_get_total_min_hcp(chosen_subs[s]) for s in seats)
-    if total_min_hcp > TOTAL_DECK_HCP:
+    if total_min_hcp > FULL_DECK_HCP_SUM:
         return False, (
-            f"sum(min_hcp)={total_min_hcp} > {TOTAL_DECK_HCP}: "
+            f"sum(min_hcp)={total_min_hcp} > {FULL_DECK_HCP_SUM}: "
             f"combined HCP minimums exceed deck total"
         )
 
     # Check 2: total HCP maximums must be able to absorb all deck HCP.
     total_max_hcp = sum(_get_total_max_hcp(chosen_subs[s]) for s in seats)
-    if total_max_hcp < TOTAL_DECK_HCP:
+    if total_max_hcp < FULL_DECK_HCP_SUM:
         return False, (
-            f"sum(max_hcp)={total_max_hcp} < {TOTAL_DECK_HCP}: "
+            f"sum(max_hcp)={total_max_hcp} < {FULL_DECK_HCP_SUM}: "
             f"combined HCP maximums can't absorb all deck HCP"
         )
 

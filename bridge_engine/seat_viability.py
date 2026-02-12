@@ -1,7 +1,7 @@
 # bridge_engine/seat_viability.py
 from __future__ import annotations
 
-from dataclasses import dataclass
+import random
 from typing import Dict, List, Optional, Tuple
 
 from .hand_profile import (
@@ -14,15 +14,15 @@ from .hand_profile import (
     ProfileError,
     SuitRange,
 )
-from .deal_generator_types import SuitAnalysis, _MASTER_DECK
+from .deal_generator_types import SuitAnalysis, _CARD_HCP
 
 
 # Simple type aliases used throughout generation/viability.
 Seat = str
 Card = str
 
-# High-card-point map (A=4, K=3, Q=2, J=1).
-HCP_MAP = {"A": 4, "K": 3, "Q": 2, "J": 1}
+# HCP lookup: use pre-built _CARD_HCP dict from deal_generator_types
+# (maps full card string e.g. "AS" → 4, "2H" → 0).
 
 
 # ---------------------------------------------------------------------------
@@ -41,7 +41,7 @@ def _compute_suit_analysis(hand: List[Card]) -> SuitAnalysis:
     cards_by_suit: Dict[str, List[Card]] = {"S": [], "H": [], "D": [], "C": []}
     hcp_by_suit: Dict[str, int] = {"S": 0, "H": 0, "D": 0, "C": 0}
 
-    hcp_map = HCP_MAP  # local alias for speed
+    card_hcp = _CARD_HCP  # local alias for speed
     total_hcp = 0
 
     for card in hand:
@@ -49,7 +49,6 @@ def _compute_suit_analysis(hand: List[Card]) -> SuitAnalysis:
         if len(card) != 2:
             continue
 
-        rank = card[0]
         suit = card[1]
 
         suit_cards = cards_by_suit.get(suit)
@@ -58,7 +57,7 @@ def _compute_suit_analysis(hand: List[Card]) -> SuitAnalysis:
             continue
 
         suit_cards.append(card)
-        value = hcp_map.get(rank, 0)
+        value = card_hcp.get(card, 0)
         hcp_by_suit[suit] += value
         total_hcp += value
 
@@ -128,7 +127,7 @@ def _match_random_suit_with_attempt(
     rs: RandomSuitConstraintData,
     rng: random.Random,
     pre_selected_suits: Optional[List[str]] = None,
-) -> tuple[bool, Optional[List[str]]]:
+) -> Tuple[bool, Optional[List[str]]]:
     """
     Like _match_random_suit, but returns the attempted chosen suits even on failure.
 
@@ -196,6 +195,15 @@ def _match_random_suit(
     return chosen if matched else None
 
 
+def _check_suit_range(analysis: SuitAnalysis, suit: str, sr: SuitRange) -> bool:
+    """Check whether a single suit in the hand satisfies a SuitRange constraint."""
+    if suit not in analysis.cards_by_suit:
+        return False
+    count = len(analysis.cards_by_suit[suit])
+    hcp = analysis.hcp_by_suit[suit]
+    return sr.min_cards <= count <= sr.max_cards and sr.min_hcp <= hcp <= sr.max_hcp
+
+
 def _match_partner_contingent(
     analysis: SuitAnalysis,
     pc: PartnerContingentData,
@@ -211,15 +219,7 @@ def _match_partner_contingent(
     """
     if not partner_suits:
         return False
-
-    sr = pc.suit_range
-    suit = partner_suits[0]
-    if suit not in analysis.cards_by_suit:
-        return False
-
-    count = len(analysis.cards_by_suit[suit])
-    hcp = analysis.hcp_by_suit[suit]
-    return sr.min_cards <= count <= sr.max_cards and sr.min_hcp <= hcp <= sr.max_hcp
+    return _check_suit_range(analysis, partner_suits[0], pc.suit_range)
 
 def _match_subprofile(
     analysis: SuitAnalysis,
@@ -300,15 +300,7 @@ def _match_subprofile(
             return False, None, "other"
 
         # Opponent's Contingent Suit = first chosen suit
-        suit = opp_suits[0]
-        sr = oc.suit_range
-        if suit not in analysis.cards_by_suit:
-            # OC failure is "other" (not standard HCP/shape)
-            return False, None, "other"
-
-        count = len(analysis.cards_by_suit[suit])
-        hcp = analysis.hcp_by_suit[suit]
-        if sr.min_cards <= count <= sr.max_cards and sr.min_hcp <= hcp <= sr.max_hcp:
+        if _check_suit_range(analysis, opp_suits[0], oc.suit_range):
             return True, None, None
         # OC constraint failed - "other" (not standard HCP/shape)
         return False, None, "other"
@@ -554,8 +546,8 @@ def _subprofile_is_viable(
         # of the whole profile (NS coupling, etc.).
         validate_profile_viability_light(profile)
         return True
-    except Exception:
-        # Any failure during validation means this subprofile is not viable.
+    except (ProfileError, ValueError, TypeError):
+        # Validation failure means this subprofile is not viable.
         return False
     finally:
         # Restore the original configuration.

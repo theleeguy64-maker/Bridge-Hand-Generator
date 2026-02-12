@@ -225,11 +225,11 @@ def collect_failure_attribution(
             latest_hcp = {}
             latest_shape = {}
 
-            # Attempt to build the deal
-            result = dg._build_single_constrained_deal(
+            # Attempt to build the deal (v2 is the active production builder).
+            result = dg._build_single_constrained_deal_v2(
+                rng=rng,
                 profile=profile,
                 board_number=board_num,
-                rng=rng,
             )
 
             if result is not None:
@@ -246,11 +246,8 @@ def collect_failure_attribution(
                 total_shape[seat] += latest_shape.get(seat, 0)
 
     finally:
-        # Restore original hook and max attempts
-        if old_hook is not None:
-            dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION = old_hook
-        else:
-            dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION = None
+        # Restore original hook and max attempts.
+        dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION = old_hook
         dg.MAX_BOARD_ATTEMPTS = old_max
 
     return FailureAttributionReport(
