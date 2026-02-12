@@ -69,7 +69,17 @@ from .hand_profile_model import (
 
 
 # ---------------------------------------------------------------------------
-# Base Smart Hand Order helpers (ARCHITECTURE.md)
+# ---------------------------------------------------------------------------
+# DEAD CODE — Base Smart Hand Order (SHDO)
+#
+# _base_smart_hand_order() and its helpers below are NOT called in production.
+# Analysis showed SHDO is redundant with v2:
+#   - _build_processing_order() handles RS-before-PC/OC matching order
+#   - _dispersion_check() + _deal_with_help() handle pre-allocation
+#     independently of dealing order
+#   - Dealing order's only real v2 effect is "last seat gets remainder"
+#
+# Scheduled for removal alongside v1 builder.
 # ---------------------------------------------------------------------------
 
 def _clockwise_from(seat: str) -> List[str]:
@@ -1509,34 +1519,9 @@ def _build_profile(
             "N",
         )
 
-        # Use ns_role_mode='no_driver_no_index' as the creation-time default
-        default_order = _suggest_dealing_order(
-            tag=tag,
-            dealer=dealer,
-            ns_role_mode="no_driver_no_index",
-        )
-        pretty_default = "".join(default_order)
-        print(
-            f"Default dealing order (starting from dealer {dealer}) "
-            f"is {pretty_default}."
-        )
-
-        if yes_no("Use default dealing order? ", default=True):
-            hand_dealing_order = default_order
-        else:
-            order_str = input_with_default(
-                "Enter custom dealing order as 4 letters (e.g. NESW): ",
-                pretty_default,
-            )
-            order = [c.upper() for c in order_str.strip()]
-            if len(order) != 4 or set(order) != {"N", "E", "S", "W"}:
-                print(
-                    f"Invalid dealing order; falling back to default "
-                    f"{pretty_default}."
-                )
-                hand_dealing_order = default_order
-            else:
-                hand_dealing_order = order
+        # Dealing order is auto-computed at runtime by v2 builder
+        # (_compute_dealing_order).  Store clockwise from dealer as default.
+        hand_dealing_order = _default_dealing_order(dealer)
 
         author = input_with_default("Author: ", "")
         version = input_with_default("Version: ", "0.1")
@@ -1681,34 +1666,9 @@ def create_profile_interactive() -> HandProfile:
     # New default NS role mode for fresh profiles.
     ns_role_mode = "no_driver_no_index"
 
-    # Suggest dealing order based on tag/dealer/ns_role_mode
-    default_order = _suggest_dealing_order(
-        tag=tag,
-        dealer=dealer,
-        ns_role_mode=ns_role_mode,
-    )
-    pretty_default = "".join(default_order)
-    print(
-        f"Default dealing order (starting from dealer {dealer}) "
-        f"is {pretty_default}."
-    )
-
-    if _yes_no("Use default dealing order? ", default=True):
-        hand_dealing_order = default_order
-    else:
-        order_str = _input_with_default(
-            "Enter custom dealing order as 4 letters (e.g. NESW): ",
-            pretty_default,
-        )
-        order = [c.upper() for c in order_str.strip()]
-        if len(order) != 4 or set(order) != {"N", "E", "S", "W"}:
-            print(
-                f"Invalid dealing order; falling back to default "
-                f"{pretty_default}."
-            )
-            hand_dealing_order = default_order
-        else:
-            hand_dealing_order = order
+    # Dealing order is auto-computed at runtime by v2 builder
+    # (_compute_dealing_order).  Store clockwise from dealer as default.
+    hand_dealing_order = _default_dealing_order(dealer)
 
     author = _input_with_default("Author: ", "")
     version = _input_with_default("Version: ", "0.1")

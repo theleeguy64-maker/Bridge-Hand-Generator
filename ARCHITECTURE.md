@@ -4,9 +4,9 @@
 
 ```
 bridge_engine/
-├── deal_generator.py        (402 lines) - Facade: subprofile selection + generate_deals() + re-exports
+├── deal_generator.py        (403 lines) - Facade: subprofile selection + generate_deals() + re-exports
 ├── deal_generator_v1.py     (790 lines) - v1 builder + hardest-seat + constructive help (legacy)
-├── deal_generator_v2.py   (1,122 lines) - v2 shape-help helpers + v2 builder (active path)
+├── deal_generator_v2.py   (1,218 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py  (283 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (450 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (838 lines) - Data models
@@ -14,9 +14,9 @@ bridge_engine/
 ├── hand_profile_validate.py (519 lines) - Validation
 ├── profile_diagnostic.py     (209 lines) - Generic profile diagnostic runner (Admin menu)
 ├── orchestrator.py          (494 lines) - CLI/session management + generic menu loop
-├── profile_cli.py           (943 lines) - Profile commands
+├── profile_cli.py           (915 lines) - Profile commands
 ├── profile_wizard.py        (161 lines) - Profile creation UI
-├── wizard_flow.py         (1,776 lines) - Wizard steps, seat editing, dealing order, RS/PC/OC prompts
+├── wizard_flow.py         (1,736 lines) - Wizard steps, seat editing, dealing order, RS/PC/OC prompts
 ├── profile_viability.py     (361 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py         (303 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
 ├── lin_tools.py             (458 lines) - LIN file operations
@@ -342,43 +342,27 @@ processing_order = rs_seats_sorted + non_rs_constrained_seats
 
 ## Dealing Order Design
 
-**Default generation** (Steps 1,3,4,5 complete):
-- `_default_dealing_order(dealer)` returns dealer + clockwise
-- `HandProfile.from_dict()` auto-generates if missing
-- User can override in JSON or wizard
+**Auto-computed at runtime (#37):**
 
-**Base Smart Hand Order** (✅ Algorithm complete, ⚠️ Dead code — not wired into production):
-| Priority | Condition | Action |
-|----------|-----------|--------|
-| 1 | Seat has RS | RS seat first (sorted by risk, clockwise tiebreaker) |
-| 2 | NS driver set | NS driver next; else next NS clockwise |
-| 3 | Seat has PC | PC after partner |
-| 4 | Seat has OC | OC after opponents |
-| 5 | Remaining | Clockwise fill |
+`_compute_dealing_order(chosen_subprofiles, dealer)` in `deal_generator_v2.py` computes
+dealing order after subprofile selection, placing the **least constrained seat last**
+(gets v2 remainder advantage — all remaining cards without constrained fill).
 
-**Note:** `_base_smart_hand_order()` has 56 tests but is never called in production.
-The wizard uses `_suggest_dealing_order()` which has hardcoded tag-based special cases
-+ simple dealer rotation fallback. v2's `_build_processing_order()` handles **matching
-order** (RS seats first) at runtime, but **dealing order** (who gets cards from deck
-first, affecting pre-allocation and fill) uses the profile's stored `hand_dealing_order`.
-**Future**: Wire `_base_smart_hand_order()` into `_suggest_dealing_order()` fallback,
-or compute at runtime in `generate_deals()` when profile has no stored order.
+**Risk scoring** (per chosen subprofile):
+- RS = 1.0, PC/OC = 0.5, standard = 0.0
+- Tiebreakers: narrower HCP range first, then clockwise from dealer
+- Sorted descending: highest risk first, lowest risk (least constrained) **last**
 
-**Risk weighting** for multiple subprofiles:
-- Risk factors: Standard=0, RS=1.0, PC=0.5, OC=0.5
-- Seat risk = Σ (normalized_weight × risk_factor)
-- Higher risk = higher priority; equal risk = clockwise tiebreaker
+Recomputed on each subprofile re-roll (different subs → different last seat).
 
-Location: `_base_smart_hand_order()` in `wizard_flow.py`
+The stored `hand_dealing_order` field is retained for NS/EW coupling driver selection
+but is no longer editable by users. Wizard/CLI no longer prompt for dealing order.
 
-Helpers:
-- `_clockwise_from(seat)` - seats clockwise from given seat
-- `_detect_seat_roles(seat_profiles)` - RS/PC/OC roles + risk per seat
-- `_normalize_subprofile_weights(sub_profiles)` - N subprofiles → 1/N weights
-- `_get_subprofile_type(sub)` - classifies as standard/rs/pc/oc
-- `_compute_seat_risk(seat_profile)` - weighted risk calculation
+**Base Smart Hand Order** (⚠️ Dead code — remove with v1):
+`_base_smart_hand_order()` in `wizard_flow.py` has 56 tests but is never called
+in production. Scheduled for removal alongside v1 builder.
 
-Tests: 56 tests in `test_default_dealing_order.py`
+Tests: 9 tests for `_compute_dealing_order()` in `test_shape_help_v3.py`
 
 ## v1 vs v2 Comparison
 
@@ -427,16 +411,16 @@ Profiles with `sort_order` appear first in menus in that order; profiles without
 | 4 | Our 1 Major & Interference | 1×3×1×1 = 3 | All 4 seats: RS+PC+OC |
 | 5 | Defense to 3 Weak 2s | 1×4×1×4 = 16 | OC+RS mixing, 16 sub combos |
 
-**Baseline (20 boards, seed=778899):**
+**Baseline (20 boards, seed=778899) — with auto-compute dealing order (#37):**
 
 | Profile | Wall(s) | Avg(ms) | Med(ms) | P95(ms) | Max(ms) |
 |---------|---------|---------|---------|---------|---------|
 | Profile A | 0.001 | 0.0 | 0.0 | 0.1 | 0.1 |
-| Profile D | 0.002 | 0.1 | 0.1 | 0.2 | 0.2 |
-| Profile E | 0.002 | 0.1 | 0.1 | 0.3 | 0.3 |
-| Our 1 Major | 0.066 | 3.3 | 1.4 | 19.7 | 19.7 |
-| Defense Weak 2s | 1.040 | 52.0 | 49.0 | 128.8 | 128.8 |
-| **TOTAL** | **1.112** | | | | |
+| Profile D | 0.002 | 0.1 | 0.1 | 0.3 | 0.3 |
+| Profile E | 0.002 | 0.1 | 0.1 | 0.2 | 0.2 |
+| Our 1 Major | 0.044 | 2.2 | 0.5 | 9.4 | 9.4 |
+| Defense Weak 2s | 0.384 | 19.2 | 11.5 | 78.0 | 78.0 |
+| **TOTAL** | **0.433** | | | | |
 
 ## Debug Hooks
 
@@ -485,7 +469,7 @@ _deal_single_board_simple(rng, board_number, dealer, dealing_order) -> Deal
 _apply_vulnerability_and_rotation(rng, deals, rotate) -> List[Deal]
 ```
 
-### deal_generator.py (facade — 398 lines)
+### deal_generator.py (facade — 403 lines)
 ```python
 # Public API
 generate_deals(setup, profile, num_deals, enable_rotation) -> DealSet
@@ -502,7 +486,8 @@ _build_single_board_random_suit_w_only
 # Re-exports from deal_generator_v2 (v2 active path)
 _build_single_constrained_deal_v2, _dispersion_check, _pre_select_rs_suits,
 _random_deal, _get_suit_maxima, _constrained_fill, _pre_allocate,
-_pre_allocate_rs, _deal_with_help
+_pre_allocate_rs, _deal_with_help,
+_compute_dealing_order, _subprofile_constraint_type
 ```
 
 ### deal_generator_v1.py (v1 legacy — 795 lines)
@@ -527,7 +512,7 @@ _build_single_board_random_suit_w_only(rng, profile, board_number) -> Deal
 # at call time for monkeypatch compatibility.
 ```
 
-### deal_generator_v2.py (v2 shape-help — 1,122 lines)
+### deal_generator_v2.py (v2 shape-help — 1,218 lines)
 ```python
 # v2 shape help helpers
 _dispersion_check(chosen_subs, threshold, rs_pre_selections) -> set[Seat]
@@ -538,6 +523,10 @@ _constrained_fill(deck, n, pre_cards, suit_maxima, total_max_hcp, rs_suit_hcp_ma
 _pre_allocate(rng, deck, subprofile, fraction) -> List[Card]
 _pre_allocate_rs(rng, deck, subprofile, pre_selected_suits, fraction) -> List[Card]
 _deal_with_help(rng, deck, subs, tight_seats, order, rs_pre_selections) -> (hands, None) | (None, Seat)
+
+# Dealing order auto-compute (#37)
+_subprofile_constraint_type(sub) -> str  # "rs", "pc", "oc", or "standard"
+_compute_dealing_order(chosen_subprofiles, dealer) -> List[Seat]  # least constrained last
 
 # v2 builder (active production path)
 _build_single_constrained_deal_v2(rng, profile, board_number) -> Deal
@@ -566,14 +555,14 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**480 passed, 4 skipped** organized by:
+**489 passed, 4 skipped** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`
 - Index coupling: `test_f3_opener_responder_coupling.py`, `test_ew_index_coupling.py`
 - Profile viability: `test_profile_viability_*.py`
 - Benchmarks: `test_profile_e_*.py`
-- **v3 shape help**: `test_shape_help_v3.py` (80 tests — D1-D7 + #13 RS suit HCP)
+- **v3 shape help**: `test_shape_help_v3.py` (89 tests — D1-D7 + #13 RS suit HCP + #37 auto-compute dealing order)
 - **HCP feasibility**: `test_hcp_feasibility.py` (36 tests — unit + integration)
 - **Profile E e2e**: `test_profile_e_v2_hcp_gate.py` (7 tests — v2 builder + pipeline)
 - **RS pre-selection**: `test_rs_pre_selection.py` (32 tests — B1-B4 unit tests)

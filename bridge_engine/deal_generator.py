@@ -90,6 +90,7 @@ from .deal_generator_v2 import (
     _pre_allocate, _pre_allocate_rs,
     _deal_with_help,
     _build_single_constrained_deal_v2,
+    _compute_dealing_order, _subprofile_constraint_type,
 )
 
 # ---------------------------------------------------------------------------

@@ -451,7 +451,6 @@ def _print_profile_metadata(profile: HandProfile, path: Path) -> None:
     print(f"Author      : {profile.author}")
     print(f"Version     : {profile.version}")
     print(f"File        : {path}")
-    print(f"Dealing ord.: {profile.hand_dealing_order}")
     print(f"Rotate deals: {profile.rotate_deals_by_default}")
 
     ns_mode = getattr(profile, "ns_role_mode", "no_driver_no_index")
@@ -693,37 +692,10 @@ def edit_profile_action() -> None:
         )
         new_dealer = prompt_choice("Dealer seat", ["N", "E", "S", "W"], profile.dealer).upper()
 
-        # Dealing order (robust parsing + invariant enforcement)
-        print(f"Current hand dealing order: {profile.hand_dealing_order}")
-        order_in = input(
-            "Hand dealing order (4 seats, e.g. 'N E S W' or 'NESW') "
-            f"[{' '.join(profile.hand_dealing_order)}]: "
-        ).strip()
-
-        new_order = None
-        if order_in:
-            parsed = _parse_hand_dealing_order(order_in)
-            if parsed is None:
-                print(
-                    "Invalid dealing order input; will keep current "
-                    "(but will be adjusted if dealer changed)."
-                )
-            else:
-                new_order = parsed
-
-        if new_order is None:
-            new_order = list(profile.hand_dealing_order)
-
+        # Dealing order is auto-computed at runtime by v2 builder.
+        # Store clockwise from dealer as default; not user-editable.
         dealer = (new_dealer or profile.dealer or "N").strip().upper()
-
-        if new_order[0] != dealer:
-            if dealer in new_order:
-                i = new_order.index(dealer)
-                new_order = new_order[i:] + new_order[:i]
-                print(f"Adjusted dealing order to start with dealer {dealer}: {new_order}")
-            else:
-                new_order = _default_clockwise_order_starting_with(dealer)
-                print(f"Replaced dealing order with default starting with dealer {dealer}: {new_order}")
+        new_order = _default_clockwise_order_starting_with(dealer)
 
         new_author = _input_with_default("Author", profile.author)
         new_version = _input_with_default("Version", profile.version)

@@ -723,6 +723,91 @@ def _deal_with_help(
     return hands, None
 
 
+# ---------------------------------------------------------------------------
+# Auto-compute dealing order: least constrained seat last.
+#
+# v2's only meaningful use of dealing order is "last seat gets remainder
+# without constrained fill."  We compute the optimal order from the chosen
+# subprofiles so that the least constrained seat is always last.
+# ---------------------------------------------------------------------------
+
+# Risk scores for subprofile constraint types (higher = more constrained).
+_CONSTRAINT_RISK: Dict[str, float] = {
+    "rs": 1.0,         # Random Suit — must go first; others depend on it
+    "pc": 0.5,         # Partner Contingent
+    "oc": 0.5,         # Opponent Contingent
+    "standard": 0.0,   # No cross-seat dependency
+}
+
+_CLOCKWISE = ["N", "E", "S", "W"]
+
+
+def _subprofile_constraint_type(sub: "SubProfile") -> str:
+    """Classify a subprofile as 'rs', 'pc', 'oc', or 'standard'."""
+    if getattr(sub, "random_suit_constraint", None) is not None:
+        return "rs"
+    if getattr(sub, "partner_contingent_constraint", None) is not None:
+        return "pc"
+    if getattr(sub, "opponents_contingent_suit_constraint", None) is not None:
+        return "oc"
+    return "standard"
+
+
+def _compute_dealing_order(
+    chosen_subprofiles: Dict[Seat, "SubProfile"],
+    dealer: Seat,
+) -> List[Seat]:
+    """
+    Compute optimal dealing order with the least constrained seat last.
+
+    Seats are sorted by constraint risk (descending).  The highest-risk
+    seats go first (best card selection from fuller deck), and the
+    lowest-risk seat goes last (gets remainder without constrained fill).
+
+    Tiebreakers:
+      1. Narrower total HCP range = higher effective risk (dealt earlier).
+      2. Clockwise position from dealer (earlier = dealt earlier).
+
+    Args:
+        chosen_subprofiles: The subprofile selected for each seat this board.
+        dealer: The dealer seat (used for clockwise tiebreaker).
+
+    Returns:
+        List of 4 seats in dealing order.
+    """
+    # Build clockwise order starting from dealer for tiebreaking.
+    d_idx = _CLOCKWISE.index(dealer)
+    clockwise_from_dealer = _CLOCKWISE[d_idx:] + _CLOCKWISE[:d_idx]
+
+    def _sort_key(seat: Seat):
+        sub = chosen_subprofiles.get(seat)
+        if sub is None:
+            # No subprofile → unconstrained → lowest risk, ideal for last.
+            return (0.0, 0, 0)
+
+        ctype = _subprofile_constraint_type(sub)
+        risk = _CONSTRAINT_RISK[ctype]
+
+        # HCP tiebreaker: narrower range = harder = higher effective risk.
+        std = getattr(sub, "standard", None)
+        if std is not None:
+            hcp_min = getattr(std, "total_min_hcp", 0)
+            hcp_max = getattr(std, "total_max_hcp", 37)
+            hcp_range = max(hcp_max - hcp_min, 0)
+        else:
+            hcp_range = 37  # unconstrained
+
+        # Clockwise tiebreaker: earlier clockwise = dealt earlier.
+        cw_pos = clockwise_from_dealer.index(seat)
+
+        # Sort descending by risk, ascending by hcp_range (narrow=first),
+        # ascending by clockwise position.
+        # Negate risk so default ascending sort puts high risk first.
+        return (-risk, hcp_range, cw_pos)
+
+    return sorted(clockwise_from_dealer, key=_sort_key)
+
+
 def _build_processing_order(
     profile: "HandProfile",
     dealing_order: List[Seat],
@@ -800,7 +885,10 @@ def _build_single_constrained_deal_v2(
     # that tests monkeypatch through the facade namespace.
     from . import deal_generator as _dg
 
-    dealing_order: List[Seat] = list(profile.hand_dealing_order)
+    # Profile's stored dealing order — used only for coupling driver
+    # selection in _select_subprofiles_for_board().  The actual dealing
+    # order is auto-computed below from the chosen subprofiles.
+    profile_dealing_order: List[Seat] = list(profile.hand_dealing_order)
 
     # ------------------------------------------------------------------
     # FAST PATH: invariants-safety profiles (same as v1)
@@ -810,7 +898,7 @@ def _build_single_constrained_deal_v2(
         rng.shuffle(deck)
         hands: Dict[Seat, List[Card]] = {}
         idx = 0
-        for seat in dealing_order:
+        for seat in profile_dealing_order:
             hands[seat] = deck[idx : idx + 13]
             idx += 13
         return Deal(
@@ -826,8 +914,12 @@ def _build_single_constrained_deal_v2(
 
     # Select subprofiles once per board (index-coupled where applicable).
     chosen_subprofiles, chosen_indices = _dg._select_subprofiles_for_board(
-        rng, profile, dealing_order
+        rng, profile, profile_dealing_order
     )
+
+    # Auto-compute dealing order from chosen subprofiles:
+    # least constrained seat last (gets remainder without constrained fill).
+    dealing_order = _compute_dealing_order(chosen_subprofiles, profile.dealer)
 
     # Pre-select RS suits BEFORE dealing so we can:
     #   (a) flag RS seats as tight in the dispersion check,
@@ -880,7 +972,11 @@ def _build_single_constrained_deal_v2(
             and (board_attempts - 1) % SUBPROFILE_REROLL_INTERVAL == 0
         ):
             chosen_subprofiles, chosen_indices = _dg._select_subprofiles_for_board(
-                rng, profile, dealing_order
+                rng, profile, profile_dealing_order
+            )
+            # Recompute dealing order for new subprofile combination.
+            dealing_order = _compute_dealing_order(
+                chosen_subprofiles, profile.dealer
             )
             rs_pre_selections = _pre_select_rs_suits(rng, chosen_subprofiles)
             tight_seats = _dispersion_check(

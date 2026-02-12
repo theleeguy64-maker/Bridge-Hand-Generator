@@ -8,13 +8,13 @@
 
 ## Architecture
 
-### 1. [x] Base Smart Hand Order (algorithm complete, NOT wired into production)
-- ✅ `_base_smart_hand_order()` in wizard_flow.py (5-priority algorithm)
-- ✅ Risk-weighted ordering: `_compute_seat_risk()` handles multiple subprofiles
-- ⚠️ **Dead code**: 56 tests pass but function is never called in production
-- The wizard uses `_suggest_dealing_order()` which only has hardcoded tag-based special cases + simple dealer rotation fallback
-- v2's `_build_processing_order()` handles **matching order** (RS first) at runtime, but **dealing order** (who gets cards from deck first) still uses the profile's stored order
-- **Future**: Wire into `_suggest_dealing_order()` fallback, or compute at runtime in `generate_deals()`
+### 1. [x] Base Smart Hand Order (dead code — remove with v1)
+- ✅ `_base_smart_hand_order()` in wizard_flow.py (5-priority algorithm, 56 tests)
+- ⚠️ **Dead code, redundant with v2**: Analysis showed v2 handles ordering independently:
+  - `_build_processing_order()` handles RS-before-PC/OC matching order
+  - `_dispersion_check()` + `_deal_with_help()` handle pre-allocation regardless of dealing order
+  - Dealing order's only real v2 effect is "last seat gets remainder" — minimal performance impact
+- **Scheduled for removal alongside v1 builder**
 
 ### 2. [x] v2 Shape-Based Help System (D0-D8)
 - ✅ Extracted `_select_subprofiles_for_board()` to module level (D0)
@@ -266,6 +266,17 @@
 - ✅ **C1**: Fixed stale comment on `PRE_ALLOCATE_FRACTION` — said "50%" but value is 0.75
 - ✅ **C2**: Deduplicated `TOTAL_DECK_HCP` in `profile_viability.py` — now imports `FULL_DECK_HCP_SUM` from `deal_generator_types`
 
+### 37. [x] Auto-Compute Dealing Order (least constrained last)
+- ✅ `_compute_dealing_order()` in `deal_generator_v2.py` — computes optimal dealing order from chosen subprofiles
+- ✅ Risk scoring: RS=1.0, PC/OC=0.5, standard=0.0; HCP range + clockwise tiebreakers
+- ✅ Least constrained seat always last (gets v2 remainder advantage)
+- ✅ Recomputed on each subprofile re-roll (adapts per board)
+- ✅ Removed dealing order prompts from wizard (`_build_profile`, `create_profile_interactive`)
+- ✅ Removed dealing order editing from `edit_profile_action()` metadata mode
+- ✅ Relaxed dealer-first validation in `hand_profile_model.py`
+- ✅ 9 tests for `_compute_dealing_order()` + `_subprofile_constraint_type()`
+- **Result**: Defense Weak 2s **2.7x faster** (52ms → 19.5ms avg), Our 1 Major **1.5x faster**
+
 ### 36. [x] v1 vs v2 Review + Debug Hook Fix
 - ✅ Comprehensive review of `deal_generator_v1.py` (790 lines) vs `deal_generator_v2.py` (1,122 lines)
 - **Conclusion**: v2 is a complete successor — every v1 feature was replaced with a superior mechanism or deliberately removed
@@ -292,23 +303,23 @@
 | 4 | Our 1 Major & Interference | Hard | All 4 seats: RS+PC+OC, 3 E subs |
 | 5 | Defense to 3 Weak 2s | Hardest | 16 sub combos, OC+RS mixing |
 
-**Baseline (20 boards, seed=778899):**
+**Baseline (20 boards, seed=778899) — with auto-compute dealing order (#37):**
 
 | Profile | Wall(s) | Avg(ms) | Med(ms) | P95(ms) | Max(ms) |
 |---------|---------|---------|---------|---------|---------|
 | Profile A | 0.001 | 0.0 | 0.0 | 0.1 | 0.1 |
-| Profile D | 0.002 | 0.1 | 0.1 | 0.2 | 0.2 |
-| Profile E | 0.002 | 0.1 | 0.1 | 0.3 | 0.3 |
-| Our 1 Major | 0.066 | 3.3 | 1.4 | 19.7 | 19.7 |
-| Defense Weak 2s | 1.040 | 52.0 | 49.0 | 128.8 | 128.8 |
-| **TOTAL** | **1.112** | | | | |
+| Profile D | 0.002 | 0.1 | 0.1 | 0.3 | 0.3 |
+| Profile E | 0.002 | 0.1 | 0.1 | 0.2 | 0.2 |
+| Our 1 Major | 0.044 | 2.2 | 0.5 | 9.4 | 9.4 |
+| Defense Weak 2s | 0.384 | 19.2 | 11.5 | 78.0 | 78.0 |
+| **TOTAL** | **0.433** | | | | |
 
 ---
 
 ## Summary
 Architecture: 15 (15 done) | Enhancements: 21 (21 done) | **All complete**
 
-**Tests**: 480 passed, 4 skipped | **Branch**: refactor/deal-generator
+**Tests**: 489 passed, 4 skipped | **Branch**: refactor/deal-generator
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 

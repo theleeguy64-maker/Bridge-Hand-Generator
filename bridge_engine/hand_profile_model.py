@@ -651,10 +651,10 @@ class HandProfile:
             raise ProfileError(
                 "hand_dealing_order must be a permutation of N,E,S,W."
             )
-        if self.hand_dealing_order[0] != self.dealer:
-            raise ProfileError(
-                "First element of hand_dealing_order must be the dealer."
-            )
+        # NOTE: dealer-first in hand_dealing_order is no longer enforced.
+        # Dealing order is auto-computed at runtime by the v2 builder
+        # (_compute_dealing_order in deal_generator_v2.py).  The stored
+        # hand_dealing_order is a display hint only.
         if self.tag not in ("Opener", "Overcaller"):
             raise ProfileError("tag must be 'Opener' or 'Overcaller'.")
 

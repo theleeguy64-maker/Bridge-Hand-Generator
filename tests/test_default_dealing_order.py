@@ -1,6 +1,10 @@
 # tests/test_default_dealing_order.py
 """
 Tests for default dealing order generation (dealer + clockwise).
+
+NOTE: _base_smart_hand_order() and its helpers are DEAD CODE — not called
+in production. v2 handles ordering independently. These tests cover the
+algorithm for completeness but are scheduled for removal alongside v1.
 """
 
 from bridge_engine.hand_profile_model import _default_dealing_order, HandProfile
