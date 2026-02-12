@@ -44,6 +44,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Iterable
 
 from . import cli_io
 from . import profile_store
+from .menu_help import get_menu_help
 from .wizard_io import _input_choice
 from .wizard_constants import SUITS
 from . import wizard_io as wiz_io
@@ -212,12 +213,15 @@ def _parse_shapes_csv(raw: str) -> list[str]:
 def _build_exclusion_rule(
     seat: str,
     subprofile_index: int,
+    kind: str = "",
 ) -> SubprofileExclusionData:
-    kind = _input_choice(
-        "Exclusion type (shapes=exact 4-digit patterns, rule=ANY/MAJOR/MINOR clauses)",
-        options=["shapes", "rule"],
-        default="shapes",
-    )
+    # If kind not provided, prompt for it (backward compat)
+    if not kind:
+        kind = _input_choice(
+            "Exclusion type (shapes=exact 4-digit patterns, rule=ANY/MAJOR/MINOR clauses)",
+            options=["shapes", "rule"],
+            default="shapes",
+        )
 
     if kind == "shapes":
         raw = _input_with_default(
@@ -401,30 +405,34 @@ def _edit_subprofile_exclusions_for_seat(
             )
             this_seat.pop(n - 1)
 
-    # Add loop
+    # Ask sub-profile index once before the menu loop
+    sub_idx = _input_int(
+        f"Sub-profile index for seat {seat} (1–{len(sp.subprofiles)})",
+        default=1,
+        minimum=1,
+        maximum=len(sp.subprofiles),
+    )
+
+    # Numbered menu loop for adding exclusions
     while True:
-        sub_idx = _input_int(
-            f"Sub-profile index for seat {seat} (1–{len(sp.subprofiles)})",
-            default=1,
-            minimum=1,
-            maximum=len(sp.subprofiles),
-        )
+        print(f"\nExclusion menu for seat {seat}, sub-profile {sub_idx}:")
+        print("  0) Exit")
+        print("  1) Add shapes exclusion")
+        print("  2) Add rule exclusion")
+        print("  3) Help")
 
-        excl_type = _input_choice(
-            "Exclusion type (shapes=exact 4-digit patterns, rule=ANY/MAJOR/MINOR clauses)",
-            options=["shapes", "rule"],
-            default="shapes",
-        )
+        choice = _input_int("Choice", default=0, minimum=0, maximum=3)
 
-        if excl_type == "shapes":
-            exc = _build_exclusion_shapes(seat=seat, subprofile_index=sub_idx)
-        else:
-            exc = _build_exclusion_rule(seat=seat, subprofile_index=sub_idx)
-
-        this_seat.append(exc)
-
-        if not _yes_no("Add another exclusion for this seat? ", default=False):
+        if choice == 0:
             break
+        elif choice == 1:
+            exc = _build_exclusion_rule(seat=seat, subprofile_index=sub_idx, kind="shapes")
+            this_seat.append(exc)
+        elif choice == 2:
+            exc = _build_exclusion_rule(seat=seat, subprofile_index=sub_idx, kind="rule")
+            this_seat.append(exc)
+        elif choice == 3:
+            print(get_menu_help("exclusions"))
 
     return other + this_seat
 

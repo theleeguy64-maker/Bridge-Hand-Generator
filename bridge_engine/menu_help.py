@@ -162,6 +162,55 @@ Typical steps:
 If generation is interrupted (Ctrl-C), partial diagnostics may still be printed
 to help you diagnose constraint tightness or RS behaviour.
 """,
+
+    "exclusions": """\
+=== Sub-profile Exclusions -- Help ===
+
+Exclusions let you reject specific hand shapes AFTER a hand has passed
+the standard constraints for a seat's sub-profile. If a dealt hand
+matches an exclusion, the generator discards it and retries.
+
+There are two types of exclusion:
+
+1) SHAPES -- Exclude exact 4-digit suit-length patterns
+   Each shape is 4 digits representing Spades-Hearts-Diamonds-Clubs
+   and must sum to 13.
+
+   Examples:
+     4333  = exactly 4 spades, 3 hearts, 3 diamonds, 3 clubs
+     4432  = exactly 4 spades, 4 hearts, 3 diamonds, 2 clubs
+     5332  = exactly 5 spades, 3 hearts, 3 diamonds, 2 clubs
+
+   Enter shapes as comma-separated values (e.g. 4333,4432).
+   A hand matching ANY of the listed shapes is excluded.
+
+2) RULES -- Exclude by suit-group clause (up to 2 clauses, AND logic)
+   Each clause has three parts:
+     group     = which suits to check:
+                   ANY   = all 4 suits (S, H, D, C)
+                   MAJOR = majors only (S, H)
+                   MINOR = minors only (D, C)
+     length_eq = the exact suit length to look for (0-13)
+     count     = how many suits in the group must have that length
+
+   Examples:
+     MAJOR length_eq=4 count=2
+       -> exclude if BOTH majors have exactly 4 cards (4-4 in majors)
+
+     ANY length_eq=3 count=4
+       -> exclude if ALL four suits have exactly 3 cards (4333 family)
+
+   With two clauses (AND):
+     Clause 1: MAJOR length_eq=4 count=2
+     Clause 2: MINOR length_eq=3 count=1
+       -> exclude hands with 4-4 majors AND exactly one 3-card minor
+
+Tips:
+  - Shapes are simpler but only match exact patterns.
+  - Rules are more flexible for families of shapes.
+  - Each exclusion targets one sub-profile index on one seat.
+  - You can add multiple exclusions per seat.
+""",
 }
 
 
