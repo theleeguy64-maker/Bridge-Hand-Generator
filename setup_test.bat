@@ -1,6 +1,8 @@
 @echo off
 REM ============================================================
-REM Bridge Hand Generator — One-Time Setup (Windows)
+REM Bridge Hand Generator — Setup Test (Windows)
+REM
+REM Test-only version: checks Python + creates venv, no smoke test.
 REM
 REM What this does:
 REM   0. Asks where to install (default: your home folder)
@@ -8,12 +10,9 @@ REM   1. Creates folder structure at the chosen location
 REM   2. Copies app files from this folder to the install location
 REM   3. Checks for Python 3.11+ (guides you to install if needed)
 REM   4. Creates a virtual environment (.venv)
-REM   5. Runs a smoke test to confirm everything works
 REM
 REM All output is logged to setup_log.txt in the install folder.
 REM If something goes wrong, send that file to the developer.
-REM
-REM Run this once after unzipping. After that, use run.bat.
 REM ============================================================
 
 setlocal enabledelayedexpansion
@@ -23,7 +22,7 @@ set "SOURCE_DIR=%~dp0"
 cd /d "%SOURCE_DIR%"
 
 echo.
-echo === Bridge Hand Generator — Setup ===
+echo === Bridge Hand Generator — Setup Test ===
 echo.
 
 REM ================================================================
@@ -70,7 +69,7 @@ if not exist "!INSTALL_DIR!" (
 
 set "LOG_FILE=!INSTALL_DIR!\setup_log.txt"
 echo. > "!LOG_FILE!"
-echo === Bridge Hand Generator — Setup === >> "!LOG_FILE!"
+echo === Bridge Hand Generator — Setup Test === >> "!LOG_FILE!"
 echo. >> "!LOG_FILE!"
 echo Date    : %date% %time% >> "!LOG_FILE!"
 for /f "tokens=*" %%i in ('ver') do echo OS      : %%i >> "!LOG_FILE!"
@@ -323,41 +322,18 @@ if exist ".venv\Scripts\python.exe" (
 )
 
 echo.
-
-REM ================================================================
-REM Step 5: Smoke test
-REM ================================================================
-echo [Step 5] Running smoke test...
-echo [Step 5] Running smoke test... >> "!LOG_FILE!"
-set "VENV_PYTHON=!INSTALL_DIR!\.venv\Scripts\python.exe"
-
-"!VENV_PYTHON!" -c "from bridge_engine.orchestrator import main; print('Import OK')"
-if %errorlevel% equ 0 (
-    echo [Step 5] Smoke test passed.
-    echo [Step 5] Smoke test passed >> "!LOG_FILE!"
-    echo.
-    echo === Setup complete! ===
-    echo.
-    echo BridgeHandGenerator is installed at:
-    echo   !INSTALL_DIR!
-    echo.
-    echo To run the app, double-click run.bat in that folder.
-    echo.
-    if not "!SKIP_COPY!"=="1" (
-        echo You can delete the setup folder you unzipped.
-        echo.
-    )
-    echo Setup complete >> "!LOG_FILE!"
-) else (
-    echo [Step 5] FAILED -- smoke test did not pass.
-    echo [Step 5] FAILED -- smoke test error >> "!LOG_FILE!"
-    echo.
-    echo === Setup FAILED ===
-    echo.
-    echo Please send this file to the developer:
-    echo   !LOG_FILE!
+echo === Setup complete! ===
+echo.
+echo BridgeHandGenerator is installed at:
+echo   !INSTALL_DIR!
+echo.
+echo To run the app, double-click run.bat in that folder.
+echo.
+if not "!SKIP_COPY!"=="1" (
+    echo You can delete the setup folder you unzipped.
     echo.
 )
-
+echo Setup complete >> "!LOG_FILE!"
 echo [Done] >> "!LOG_FILE!"
+
 pause
