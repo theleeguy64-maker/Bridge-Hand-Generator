@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import asdict, is_dataclass, fields
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from .hand_profile_model import HandProfile, SeatProfile, SubProfile, ProfileError
+
+from .seat_viability import validate_profile_viability_light
+from .profile_viability import validate_profile_viability
+
+# Type alias for seat names (N, E, S, W)
+Seat = str
 
 
 def _to_raw_dict(data: Any) -> Dict[str, Any]:
@@ -255,7 +261,7 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
     # NS sub-profile index matching: tie N/S sub-profile indices together.
 
     Backwards-compatible:
-        - If ns_role_mode is missing → treated as "north_drives".
+        - If ns_role_mode is missing → treated as "no_driver_no_index".
         - If ns_role_mode is "no_driver_no_index" → skip NS role coverage checks.
         - If ns_role_mode is unknown/future → treat as "no_driver_no_index" (skip).
         - If a SubProfile has no ns_role_usage → treated as "any".
@@ -279,9 +285,9 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
     #   - no_driver_no_index                           → no driver semantics, skip checks
     #
     # Back-compat:
-    #   - missing/blank ns_role_mode → treated as "north_drives" (legacy behavior)
+    #   - missing/blank ns_role_mode → treated as "no_driver_no_index" (skip checks)
     #   - unknown/future values      → treated as "no_driver_no_index" (lenient)
-    mode = getattr(profile, "ns_role_mode", "north_drives") or "north_drives"
+    mode = getattr(profile, "ns_role_mode", "no_driver_no_index") or "no_driver_no_index"
     mode = (mode or "").strip()
 
     if mode in ("no_driver", "no_driver_no_index"):
@@ -308,7 +314,7 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
         # either N or S may be driver or follower.
         return {"driver", "follower"}
 
-    def has_compatible_usage(sub: SubProfile, allowed: tuple[str, str]) -> bool:
+    def has_compatible_usage(sub: SubProfile, allowed: Tuple[str, str]) -> bool:
         usage = getattr(sub, "ns_role_usage", "any") or "any"
         return usage in allowed
 
@@ -438,7 +444,7 @@ def validate_profile(data: Any) -> HandProfile:
     - Applies an F5 legacy normalisation shim for old schema_version=0 data:
         * rotate_deals_by_default defaults to True
         * subprofile_exclusions defaults to []
-        * ns_role_mode defaults to "north_drives"
+        * ns_role_mode defaults to "no_driver_no_index"
     - Normalises subprofile weights as per tests in test_weighted_subprofiles:
         * If all weights are 0 → equalise to 100 / N each
         * If any weight is negative → ProfileError
@@ -500,11 +506,15 @@ def validate_profile(data: Any) -> HandProfile:
     # Random Suit vs standard suit constraints consistency
     _validate_random_suit_vs_standard(profile)
 
-    # IMPORTANT: callers expect the validated HandProfile back
-    return profile
+    # 7. Seat-level viability check (light + cross-seat dead subprofile detection)
+    # validate_profile_viability() calls the light check first, then NS coupling,
+    # then cross-seat HCP/card feasibility to detect dead subprofiles.
+    validate_profile_viability(profile)
 
-    # Validate subprofile exclusions (if present)
+    # 8. Validate subprofile exclusions (if present)
     for exc in getattr(profile, "subprofile_exclusions", []):
         exc.validate(profile)
 
+    # IMPORTANT: callers expect the validated HandProfile back
     return profile
+    

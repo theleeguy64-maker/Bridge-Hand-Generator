@@ -12,11 +12,23 @@ class ProfileError(Exception):
 # Low-level constraint building blocks
 # ---------------------------------------------------------------------------
 
-@dataclass
+@dataclass(frozen=True)
 class SubprofileExclusionClause:
-    group: str          # "ANY", "MAJOR", "MINOR"
+    """A single clause in a subprofile exclusion rule."""
+    group: str      # "ANY", "MAJOR", "MINOR"
     length_eq: int
     count: int
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"group": self.group, "length_eq": self.length_eq, "count": self.count}
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SubprofileExclusionClause":
+        return cls(
+            group=str(data["group"]),
+            length_eq=int(data["length_eq"]),
+            count=int(data["count"]),
+        )
 
 @dataclass
 class SubprofileExclusionData:
@@ -25,15 +37,40 @@ class SubprofileExclusionData:
     excluded_shapes: Optional[list[str]] = None
     clauses: Optional[list[SubprofileExclusionClause]] = None
 
+    def to_dict(self) -> Dict[str, Any]:
+        d: Dict[str, Any] = {
+            "seat": self.seat,
+            "subprofile_index": self.subprofile_index,
+        }
+        if self.excluded_shapes is not None:
+            d["excluded_shapes"] = list(self.excluded_shapes)
+        if self.clauses is not None:
+            d["clauses"] = [c.to_dict() for c in self.clauses]
+        return d
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SubprofileExclusionData":
+        clauses_raw = data.get("clauses")
+        clauses = (
+            [SubprofileExclusionClause.from_dict(c) for c in clauses_raw]
+            if clauses_raw is not None else None
+        )
+        return cls(
+            seat=str(data["seat"]),
+            subprofile_index=int(data["subprofile_index"]),
+            excluded_shapes=data.get("excluded_shapes"),
+            clauses=clauses,
+        )
+
     def validate(self, profile: "HandProfile") -> None:
         if self.seat not in ("N", "E", "S", "W"):
             raise ProfileError(f"Invalid seat in exclusion: {self.seat}")
 
-        seat_profiles = profile.seat_profiles.get(self.seat)
-        if seat_profiles is None:
+        seat_profile = profile.seat_profiles.get(self.seat)
+        if seat_profile is None:
             raise ProfileError(f"Seat {self.seat} not present in profile")
 
-        if not (1 <= self.subprofile_index <= len(seat_profiles)):
+        if not (1 <= self.subprofile_index <= len(seat_profile.subprofiles)):
             raise ProfileError(
                 f"Invalid subprofile index {self.subprofile_index} "
                 f"for seat {self.seat}"
@@ -390,125 +427,6 @@ class SubProfile:
       - partner_contingent_constraint
       - opponents_contingent_suit_constraint
     may be present, or none (Standard-only).
-    """
-
-    standard: StandardSuitConstraints
-    random_suit_constraint: Optional[RandomSuitConstraintData] = None
-    partner_contingent_constraint: Optional[PartnerContingentData] = None
-    opponents_contingent_suit_constraint: Optional[OpponentContingentSuitData] = None
-    weight_percent: float = 0.0
-    ns_role_usage: str = "any"
-       
-    # Phase 3: NS role classification for this subprofile relative to its seat.
-    # Values:
-    #   "driver"   – this subprofile is a candidate opener pattern for N-S
-    #   "follower" – this subprofile is a candidate responder pattern for N-S
-    #   "neutral"  – not tied to driver/follower logic (default, E/W, misc)
-    #
-    # Invariants (for the full design, *not yet enforced* here):
-    #   * For the N seat, each SubProfile is either "driver" or "follower"
-    #     (no other values once fully migrated).
-    #   * N_driver and N_follower sets are mutually exclusive.
-    #   * For E/W seats this stays "neutral".
-    ns_role_for_seat: str = "neutral"
-
-    def __post_init__(self) -> None:
-        active = [
-            self.random_suit_constraint is not None,
-            self.partner_contingent_constraint is not None,
-            self.opponents_contingent_suit_constraint is not None,
-        ]
-        if sum(active) > 1:
-            raise ProfileError(
-                "SubProfile cannot have more than one of: "
-                "random_suit_constraint, partner_contingent_constraint, "
-                "opponents_contingent_suit_constraint."
-            )
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "standard": self.standard.to_dict(),
-            "random_suit_constraint": (
-                self.random_suit_constraint.to_dict()
-                if self.random_suit_constraint is not None
-                else None
-            ),
-            "partner_contingent_constraint": (
-                self.partner_contingent_constraint.to_dict()
-                if self.partner_contingent_constraint is not None
-                else None
-            ),
-            "opponents_contingent_suit_constraint": (
-                self.opponents_contingent_suit_constraint.to_dict()
-                if self.opponents_contingent_suit_constraint is not None
-                else None
-            ),
-            "weight_percent": self.weight_percent,
-            # default defensively to "neutral" in case of older objects
-            "ns_role_for_seat": getattr(self, "ns_role_for_seat", "neutral"),
-       
-        }
-
-@classmethod
-def from_dict(cls, data: Dict[str, Any]) -> "SubProfile":
-    rsc_data = data.get("random_suit_constraint")
-    pc_data = data.get("partner_contingent_constraint")
-    oc_data = data.get("opponents_contingent_suit_constraint")
-    weight_percent = float(data.get("weight_percent", 0.0))
-
-    return cls(
-        standard=StandardSuitConstraints.from_dict(data["standard"]),
-        random_suit_constraint=(
-            RandomSuitConstraintData.from_dict(rsc_data)
-            if rsc_data is not None
-            else None
-        ),
-        partner_contingent_constraint=(
-            PartnerContingentData.from_dict(pc_data)
-            if pc_data is not None
-            else None
-        ),
-        opponents_contingent_suit_constraint=(
-            OpponentContingentSuitData.from_dict(oc_data)
-            if oc_data is not None
-            else None
-        ),
-        weight_percent=weight_percent,
-        # NEW: subprofile-level NS role metadata.
-        # Backwards-compatible: legacy JSON that doesn't have this key
-        # will default to "any".
-        # Allowed values: "any", "driver_only", "follower_only".
-        ns_role_usage=str(data.get("ns_role_usage", "any")),
-    )
-    
-@dataclass(frozen=True)
-class SubprofileExclusionClause:
-    group: str      # "ANY", "MAJOR", "MINOR"
-    length_eq: int
-    count: int
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {"group": self.group, "length_eq": self.length_eq, "count": self.count}
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SubprofileExclusionClause":
-        return cls(
-            group=str(data["group"]),
-            length_eq=int(data["length_eq"]),
-            count=int(data["count"]),
-        )
-
-
-@dataclass(frozen=True)
-class SubProfile:
-    """
-    A single sub-profile for one seat.
-
-    At most one of
-      - random_suit_constraint
-      - partner_contingent_constraint
-      - opponents_contingent_suit_constraint
-    may be present, or none (Standard-only).
 
     Phase 3: ns_role_usage controls how this subprofile is used when NS
     driver/follower semantics are enabled on the HandProfile. For E/W seats
@@ -551,7 +469,7 @@ class SubProfile:
             ),
             "weight_percent": self.weight_percent,
             # JSON field name for Phase 3 metadata.
-            "ns_role_usage": getattr(self, "ns_role_usage", "any"),
+            "ns_role_usage": self.ns_role_usage,
         }
 
     @classmethod
@@ -646,7 +564,23 @@ class SeatProfile:
 # -----------------------------------------------------------------------
 # HandProfile (whole profile)
 # -----------------------------------------------------------------------
-    
+
+
+def _default_dealing_order(dealer: str) -> List[str]:
+    """
+    Return default dealing order: dealer + clockwise rotation.
+
+    Examples:
+        dealer="N" → ["N", "E", "S", "W"]
+        dealer="E" → ["E", "S", "W", "N"]
+        dealer="S" → ["S", "W", "N", "E"]
+        dealer="W" → ["W", "N", "E", "S"]
+    """
+    seats = ["N", "E", "S", "W"]
+    idx = seats.index(dealer)
+    return seats[idx:] + seats[:idx]
+
+
 @dataclass
 class HandProfile:
 
@@ -662,7 +596,9 @@ class HandProfile:
     dealer
         'N', 'E', 'S', or 'W'.
     hand_dealing_order
-        A permutation of ["N", "E", "S", "W"], dealer must be first.
+        A permutation of ["N", "E", "S", "W"]. Stored as a display hint;
+        actual dealing order is auto-computed at runtime by the v2 builder
+        (`_compute_dealing_order`).
     tag
         "Opener" or "Overcaller".
     seat_profiles
@@ -688,9 +624,20 @@ class HandProfile:
     author: str = ""
     version: str = ""
     rotate_deals_by_default: bool = True
-    # "north_drives" (default), "south_drives", or "random_driver".
-    ns_role_mode: str = "north_drives"
+    # "no_driver_no_index" (default), "north_drives", "south_drives", or "random_driver".
+    ns_role_mode: str = "no_driver_no_index"
     subprofile_exclusions: List["SubprofileExclusionData"] = field(default_factory=list)
+
+    # Explicit flags replacing magic profile name checks (P1.1 refactor)
+    # - is_invariants_safety_profile: bypass constraints for invariant tests
+    # - use_rs_w_only_path: route to lightweight RS-W-only generator path
+    is_invariants_safety_profile: bool = False
+    use_rs_w_only_path: bool = False
+
+    # Optional display ordering — profiles with sort_order are listed at
+    # that number (e.g. 20) instead of sequential position.  Profiles
+    # without sort_order are numbered sequentially starting at 1.
+    sort_order: Optional[int] = None
 
     def __post_init__(self) -> None:
         # Basic structural validation only. Cross-seat semantics are
@@ -706,10 +653,10 @@ class HandProfile:
             raise ProfileError(
                 "hand_dealing_order must be a permutation of N,E,S,W."
             )
-        if self.hand_dealing_order[0] != self.dealer:
-            raise ProfileError(
-                "First element of hand_dealing_order must be the dealer."
-            )
+        # NOTE: dealer-first in hand_dealing_order is no longer enforced.
+        # Dealing order is auto-computed at runtime by the v2 builder
+        # (_compute_dealing_order in deal_generator_v2.py).  The stored
+        # hand_dealing_order is a display hint only.
         if self.tag not in ("Opener", "Overcaller"):
             raise ProfileError("tag must be 'Opener' or 'Overcaller'.")
 
@@ -734,11 +681,18 @@ class HandProfile:
             SubprofileExclusionData.from_dict(e) for e in exclusions_raw
         ]
 
+        # Use provided dealing order, or generate default (dealer + clockwise).
+        dealer = str(data["dealer"])
+        if "hand_dealing_order" in data:
+            dealing_order = list(data["hand_dealing_order"])
+        else:
+            dealing_order = _default_dealing_order(dealer)
+
         return cls(
             profile_name=str(data["profile_name"]),
             description=str(data.get("description", "")),
-            dealer=str(data["dealer"]),
-            hand_dealing_order=list(data["hand_dealing_order"]),
+            dealer=dealer,
+            hand_dealing_order=dealing_order,
             tag=str(data["tag"]),
             seat_profiles=seat_profiles,
             author=str(data.get("author", "")),
@@ -755,6 +709,15 @@ class HandProfile:
                 or "no_driver_no_index"
             ),
             subprofile_exclusions=exclusions,
+            # P1.1 refactor: explicit flags (default False for production profiles)
+            is_invariants_safety_profile=bool(
+                data.get("is_invariants_safety_profile", False)
+            ),
+            use_rs_w_only_path=bool(
+                data.get("use_rs_w_only_path", False)
+            ),
+            # Optional display ordering (None = sequential position)
+            sort_order=data.get("sort_order", None),
         )
 
     def ns_driver_seat(
@@ -778,10 +741,7 @@ class HandProfile:
         - "no_driver"          -> None (explicit no-driver mode)
         - anything else        -> None (defensive fallback for unknown values)
         """
-        mode = (
-            getattr(self, "ns_role_mode", "no_driver_no_index")
-            or "no_driver_no_index"
-        ).lower()
+        mode = (self.ns_role_mode or "no_driver_no_index").lower()
 
         if mode == "north_drives":
             return "N"
@@ -795,12 +755,9 @@ class HandProfile:
         if mode in ("no_driver", "no_driver_no_index"):
             return None
 
-        # Unknown / future values: treat as “no driver”
+        # Unknown / future values: treat as "no driver"
         return None
 
-        # Unknown / future values: treat as “no driver”
-        return None
-               
     def ns_role_buckets(self) -> Dict[Seat, Dict[str, List[SubProfile]]]:
         """
         For NS seats only, group subprofiles into three buckets by ns_role_usage:
@@ -871,43 +828,13 @@ class HandProfile:
             "tag": self.tag,
             "author": self.author,
             "version": self.version,
-            "rotate_deals_by_default": getattr(self, "rotate_deals_by_default", True),
-            # NEW: persist NS role mode, defaulting for legacy HandProfile objects
-            "ns_role_mode": getattr(self, "ns_role_mode", "north_drives"),         
+            "rotate_deals_by_default": self.rotate_deals_by_default,
+            "ns_role_mode": self.ns_role_mode,
             "seat_profiles": {
                 seat: sp.to_dict() for seat, sp in self.seat_profiles.items()
             },
             "subprofile_exclusions": [e.to_dict() for e in self.subprofile_exclusions],
+            "is_invariants_safety_profile": self.is_invariants_safety_profile,
+            "use_rs_w_only_path": self.use_rs_w_only_path,
+            **({"sort_order": self.sort_order} if self.sort_order is not None else {}),
         }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "HandProfile":
-        """
-        Reconstruct a HandProfile from a dict.
-
-        Backwards compatible:
-        - seat_profiles are rebuilt via SeatProfile.from_dict
-        - rotate_deals_by_default defaults to True if missing
-        - ns_role_mode defaults to "north_drives" if missing
-        """
-        seat_profiles_dict = {
-            seat: SeatProfile.from_dict(sp_data)
-            for seat, sp_data in data.get("seat_profiles", {}).items()
-        }
-        exclusions = [
-            SubprofileExclusionData.from_dict(d)
-            for d in data.get("subprofile_exclusions", [])
-        ]
-
-        return cls(
-            profile_name=str(data["profile_name"]),
-            description=str(data.get("description", "")),
-            dealer=str(data["dealer"]),
-            hand_dealing_order=list(data["hand_dealing_order"]),
-            tag=str(data["tag"]),
-            seat_profiles=seat_profiles_dict,
-            author=str(data.get("author", "")),
-            version=str(data.get("version", "")),
-            rotate_deals_by_default=data.get("rotate_deals_by_default", True),
-            ns_role_mode=str(data.get("ns_role_mode", "no_driver_no_index")),            subprofile_exclusions=exclusions,
-        )

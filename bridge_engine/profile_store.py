@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -56,16 +58,46 @@ def is_draft_path(path: Path) -> bool:
     return path.name.endswith("_TEST.json")
 
 
+def list_drafts(profiles_dir: Path) -> List[Path]:
+    """
+    Return all draft *_TEST.json files in the given profiles directory.
+    """
+    if not profiles_dir.is_dir():
+        return []
+    return sorted(p for p in profiles_dir.glob("*_TEST.json") if p.is_file())
+
+
 def _with_test_suffix(name: str) -> str:
-    base = (name or "").rstrip()
-    return base if base.endswith(TEST_NAME_SUFFIX) else (base + TEST_NAME_SUFFIX).strip()
+    base = (name or "").strip()
+    return base if base.endswith(TEST_NAME_SUFFIX) else base + TEST_NAME_SUFFIX
 
 
 def _strip_test_suffix(name: str) -> str:
-    base = (name or "").rstrip()
+    base = (name or "").strip()
     if base.endswith(TEST_NAME_SUFFIX):
         return base[: -len(TEST_NAME_SUFFIX)].rstrip()
     return base
+
+def _atomic_write(path: Path, content: str) -> None:
+    """
+    Write content to path atomically: write to a temp file in the same
+    directory, then rename.  If the process dies mid-write, the original
+    file stays intact (rename is atomic on the same filesystem).
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(
+        dir=str(path.parent), suffix=".tmp", prefix=path.stem + "_"
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+        # os.replace is atomic on POSIX and Windows.
+        os.replace(tmp, str(path))
+    except BaseException:
+        # os.fdopen took ownership of fd, so it's already closed.
+        Path(tmp).unlink(missing_ok=True)
+        raise
+
 
 def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
     """
@@ -80,12 +112,11 @@ def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
         profile.to_dict() if hasattr(profile, "to_dict") else dict(profile.__dict__)
     )
 
-    name = str(data.get("profile_name") or "")
+    name = str(data.get("profile_name", "") or "")
     if name.endswith(" TEST"):
         data["profile_name"] = name[:-5].rstrip()
 
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _atomic_write(path, json.dumps(data, indent=2, sort_keys=True) + "\n")
 
 def _profile_path_for(profile: HandProfile, base_dir: Path | None = None) -> Path:
     """
@@ -108,8 +139,13 @@ def _load_profiles(base_dir: Path | None = None) -> List[Tuple[Path, HandProfile
     """
     Load all canonical profiles (exclude *_TEST.json drafts) from disk.
 
+    Skips files that fail to parse or construct, printing a warning to
+    stderr so one corrupted file doesn't crash the entire profile list.
+
     Returns: list of (path, HandProfile)
     """
+    import sys
+
     profiles: List[Tuple[Path, HandProfile]] = []
     dir_path = _profiles_dir(base_dir)
 
@@ -117,9 +153,15 @@ def _load_profiles(base_dir: Path | None = None) -> List[Tuple[Path, HandProfile
         if is_draft_path(json_path):
             continue
 
-        raw = json.loads(json_path.read_text(encoding="utf-8"))
-        profile = HandProfile(**raw)
-        profiles.append((json_path, profile))
+        try:
+            raw = json.loads(json_path.read_text(encoding="utf-8"))
+            profile = HandProfile.from_dict(raw)
+            profiles.append((json_path, profile))
+        except (json.JSONDecodeError, TypeError, KeyError, ValueError) as exc:
+            print(
+                f"WARNING: Failed to load profile from {json_path}: {exc}",
+                file=sys.stderr,
+            )
 
     return profiles
 
@@ -139,7 +181,7 @@ def save_profile(profile: HandProfile, base_dir: Path | None = None) -> Path:
     # Canonical metadata should NOT carry the " TEST" suffix.
     data["profile_name"] = _strip_test_suffix(str(data.get("profile_name", "") or ""))
 
-    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    _atomic_write(path, json.dumps(data, indent=2, sort_keys=True) + "\n")
     return path
 
 
@@ -172,8 +214,7 @@ def autosave_profile_draft(profile: HandProfile, canonical_path: Path) -> Path:
     payload: Dict[str, Any] = profile.to_dict() if hasattr(profile, "to_dict") else dict(profile.__dict__)
     payload["profile_name"] = _with_test_suffix(str(payload.get("profile_name", "") or ""))
 
-    draft_path.parent.mkdir(parents=True, exist_ok=True)
-    draft_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    _atomic_write(draft_path, json.dumps(payload, indent=2, sort_keys=True) + "\n")
     return draft_path
 
 
@@ -185,14 +226,68 @@ def autosave_profile_draft_for_new(profile: HandProfile, base_dir: Path | None =
       - Draft JSON must have profile_name ending with " TEST"
       - Canonical filename is derived from the stripped name (no " TEST")
     """
-    profiles_dir = _profiles_dir(base_dir)
-
-    base_name = _strip_test_suffix(getattr(profile, "profile_name", "") or "UNNAMED")
-    safe_name = _slugify(base_name)
-    version = getattr(profile, "version", "") or "0.1"
-    canonical = profiles_dir / f"{safe_name}_v{version}.json"
-
+    canonical = _profile_path_for(profile, base_dir)
     return autosave_profile_draft(profile, canonical)
+
+
+# ---------------------------------------------------------------------------
+# Display ordering
+# ---------------------------------------------------------------------------
+
+def build_profile_display_map(
+    profiles: List[Tuple[Path, HandProfile]],
+) -> Dict[int, Tuple[Path, HandProfile]]:
+    """
+    Build a mapping from display number → (path, profile).
+
+    Profiles with a sort_order field use that exact number.
+    Profiles without sort_order get sequential numbers starting at 1,
+    skipping any numbers already claimed by sort_order profiles.
+
+    The returned dict is ordered: unnumbered profiles first (ascending),
+    then sort_order profiles (ascending by sort_order).
+    """
+    # Separate profiles with and without sort_order
+    ordered: List[Tuple[int, Path, HandProfile]] = []
+    unordered: List[Tuple[Path, HandProfile]] = []
+
+    for path, profile in profiles:
+        so = getattr(profile, "sort_order", None)
+        if so is not None:
+            ordered.append((so, path, profile))
+        else:
+            unordered.append((path, profile))
+
+    # Collect claimed numbers
+    claimed = {so for so, _, _ in ordered}
+
+    # Assign sequential numbers to unordered profiles, skipping claimed
+    result: Dict[int, Tuple[Path, HandProfile]] = {}
+    seq = 1
+    for path, profile in unordered:
+        while seq in claimed:
+            seq += 1
+        result[seq] = (path, profile)
+        seq += 1
+
+    # Add ordered profiles at their declared positions
+    for so, path, profile in sorted(ordered):
+        result[so] = (path, profile)
+
+    return result
+
+
+def print_profile_display_map(
+    display_map: Dict[int, Tuple[Path, HandProfile]],
+) -> None:
+    """Print the numbered profile list from a display map."""
+    for num in sorted(display_map):
+        _, profile = display_map[num]
+        version_str = f"v{profile.version}" if profile.version else "(no version)"
+        print(
+            f"  {num}) {profile.profile_name} "
+            f"({version_str}, tag={profile.tag}, dealer={profile.dealer})"
+        )
 
 
 def delete_draft_for_canonical(canonical_path: Path) -> None:
@@ -203,6 +298,6 @@ def delete_draft_for_canonical(canonical_path: Path) -> None:
         draft_path = canonical_path.with_name(canonical_path.stem + "_TEST.json")
         if draft_path.exists():
             draft_path.unlink()
-    except Exception:
-        # best-effort cleanup only
+    except OSError:
+        # best-effort cleanup only — narrow to filesystem errors
         return

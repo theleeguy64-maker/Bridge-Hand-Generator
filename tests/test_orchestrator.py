@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from bridge_engine import orchestrator  # type: ignore[import]
+from bridge_engine import profile_cli  # type: ignore[import]
 
 
 def test_profiles_dir_uses_given_base_dir(tmp_path: Path) -> None:
@@ -90,6 +91,9 @@ def test_choose_profile_for_session_allows_cancel(monkeypatch, capsys) -> None:
     class DummyProfile:
         def __init__(self, name: str) -> None:
             self.profile_name = name
+            self.version = "0.1"
+            self.tag = "Opener"
+            self.dealer = "N"
 
     dummy_profile = DummyProfile("ProfileOne")
     dummy_path = Path("dummy.json")
@@ -116,9 +120,9 @@ def test_choose_profile_for_session_allows_cancel(monkeypatch, capsys) -> None:
     assert "Cancelled profile selection." in captured.out
 
 
-def test_main_menu_exit_on_three(monkeypatch, capsys) -> None:
+def test_main_menu_exit_on_zero(monkeypatch, capsys) -> None:
     """
-    _main_menu should exit cleanly when the user chooses option '3'.
+    main_menu should exit cleanly when the user chooses option '0'.
     It must not call profile management or deal generation in that case.
     """
     called = {"profile_management": 0, "deal_generation": 0}
@@ -130,7 +134,7 @@ def test_main_menu_exit_on_three(monkeypatch, capsys) -> None:
         called["deal_generation"] += 1
 
     monkeypatch.setattr(
-        orchestrator, "_run_profile_management", fake_profile_management, raising=True
+        profile_cli, "run_profile_manager", fake_profile_management, raising=True
     )
     monkeypatch.setattr(
         orchestrator,
@@ -139,18 +143,18 @@ def test_main_menu_exit_on_three(monkeypatch, capsys) -> None:
         raising=True,
     )
 
-    # First call to input() → "3" (Exit)
-    inputs = iter(["3"])
+    # First call to input() → "0" (Exit)
+    inputs = iter(["0"])
 
     def fake_input(prompt: str = "") -> str:
         return next(inputs)
 
     monkeypatch.setattr("builtins.input", fake_input, raising=True)
 
-    orchestrator._main_menu()  # type: ignore[attr-defined]
+    orchestrator.main_menu()
     captured = capsys.readouterr()
 
-    assert "Goodbye." in captured.out
+    assert "Exiting" in captured.out
     assert called["profile_management"] == 0
     assert called["deal_generation"] == 0
 
@@ -170,6 +174,9 @@ def test_run_deal_generation_session_happy_path(monkeypatch, tmp_path: Path, cap
     class DummyProfile:
         def __init__(self, name: str) -> None:
             self.profile_name = name
+            self.version = "0.1"
+            self.tag = "Opener"
+            self.dealer = "N"
 
     dummy_profile = DummyProfile("Defense to Weak 2s")
 

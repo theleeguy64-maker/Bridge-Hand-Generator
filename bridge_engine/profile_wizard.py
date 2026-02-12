@@ -8,19 +8,13 @@ Design goals:
 """
 
 from __future__ import annotations
-from pathlib import Path
-
-from dataclasses import replace
-from typing import Optional
 
 # ---- Model + validation seams (tests monkeypatch these) ----------------------
 # HandProfile/validate_profile are expected to be available here so tests can do:
 #   monkeypatch.setattr(profile_wizard, "HandProfile", DummyHandProfile)
 # and so the wizard uses the patched symbol.
 
-from .hand_profile_model import HandProfile
-from .hand_profile import HandProfile, validate_profile  # type: ignore
-from .hand_profile_validate import validate_profile
+from .hand_profile import HandProfile, validate_profile
 
 # ---- I/O seams (tests monkeypatch these) ------------------------------------
 
@@ -28,7 +22,6 @@ from .hand_profile_validate import validate_profile
 # `bridge_engine.profile_wizard._input_int` and wizard code will see it.
 
 from . import wizard_flow
-from .cli_io import clear_screen
 
 from .wizard_io import (  # type: ignore
     clear_screen,
@@ -55,8 +48,6 @@ from .wizard_flow import (  # type: ignore
     _build_profile,
 )
 
-from . import wizard_flow
-
 # Some repos/tests import additional helpers; re-exporting is harmless.
 try:
     from .wizard_flow import (  # type: ignore
@@ -67,7 +58,7 @@ try:
         _build_queen_range_for_prompt,
         _build_jack_range_for_prompt,
     )
-except Exception:
+except ImportError:
     # Not all versions have these helpers; ignore if absent.
     pass
 
@@ -120,11 +111,17 @@ def create_profile_from_existing_constraints(existing: HandProfile) -> HandProfi
     print(f"Starting from template: {existing.profile_name}")
     print()
 
-    # Metadata-only – constraints come entirely from `existing`.
-    kwargs = _build_profile(
-        existing=existing,
-        original_path=None,
-        constraints_mode="metadata_only",
+    # Prompt for new metadata via the create flow (existing=None),
+    # then override constraints with the template's constraints.
+    kwargs = _build_profile(existing=None, original_path=None)
+
+    # Replace auto-generated standard constraints with the template's.
+    kwargs["seat_profiles"] = dict(existing.seat_profiles)
+    kwargs["subprofile_exclusions"] = list(
+        getattr(existing, "subprofile_exclusions", [])
+    )
+    kwargs["ns_role_mode"] = getattr(
+        existing, "ns_role_mode", "no_driver_no_index"
     )
 
     profile = HandProfile(**kwargs)

@@ -79,7 +79,18 @@ Options:
         • Weights are relative frequencies; if left blank, each file is treated
           as weight 1.
 
-  2) Help
+  3) Profile Diagnostic
+      Run the v2 deal builder on a chosen profile and print detailed
+      failure attribution diagnostics. Useful for analysing which seats
+      fail most often and why (shape vs HCP).
+      Typical flow:
+        - Choose a profile from disk
+        - Enter number of boards to diagnose (default 20)
+        - View per-board results: shape, HCP, attempt count
+        - View aggregate failure attribution table (5 categories x 4 seats)
+        - View attempt statistics (total, mean, min, max, wall time)
+
+  4) Help
       Show this help text describing the Admin menu.
 """,
 

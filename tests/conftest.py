@@ -93,6 +93,10 @@ def make_valid_profile():
         # Ensure rotate flag is present (default to True)
         data.setdefault("rotate_deals_by_default", True)
 
+        # P1.1 refactor: explicitly set invariants safety flag for test profiles
+        # (was previously set via magic string check on "Test profile" name)
+        data["is_invariants_safety_profile"] = True
+
         # Convert JSON → HandProfile
         return HandProfile.from_dict(data)
 

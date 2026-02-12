@@ -138,8 +138,8 @@ def _vul_to_bbo_code(vul: str) -> str:
         "EW": "e",
         "Both": "b",
     }
-    # Default to 'x' (none) for unexpected values.
-    return mapping.get(vul, "x")
+    # Default to '0' (none) for unexpected values.
+    return mapping.get(vul, "0")
 
 
 def encode_deal_to_lin_line(deal: Deal) -> str:

@@ -1,68 +1,93 @@
 {
-  "profile_name": "TEST_RS_only - revised RS Process",
-  "description": "testing random suit only new RS process",
-  "dealer": "N",
+  "profile_name": "Profile D Test - tight point and suit constraints",
+  "sort_order": 23,
+  "description": "Profile D Test - tight point and suit constraints",
+  "dealer": "W",
   "hand_dealing_order": [
+    "W",
     "N",
     "E",
-    "S",
-    "W"
+    "S"
   ],
   "tag": "Opener",
-  "author": "lee",
+  "author": "Lee",
   "version": "0.1",
-  "rotate_deals_by_default": false,
-  "ns_role_mode": "no_driver_no_index",
+  "rotate_deals_by_default": true,
+  "ns_role_mode": "north_drives",
   "seat_profiles": {
-    "N": {
-      "seat": "N",
+    "W": {
+      "seat": "W",
       "subprofiles": [
         {
           "standard": {
             "spades": {
-              "min_cards": 1,
-              "max_cards": 3,
+              "min_cards": 0,
+              "max_cards": 6,
               "min_hcp": 0,
               "max_hcp": 10
             },
             "hearts": {
-              "min_cards": 1,
-              "max_cards": 3,
+              "min_cards": 0,
+              "max_cards": 6,
               "min_hcp": 0,
               "max_hcp": 10
             },
             "diamonds": {
-              "min_cards": 1,
-              "max_cards": 3,
+              "min_cards": 0,
+              "max_cards": 6,
               "min_hcp": 0,
               "max_hcp": 10
             },
             "clubs": {
               "min_cards": 0,
-              "max_cards": 13,
+              "max_cards": 6,
               "min_hcp": 0,
               "max_hcp": 10
             },
             "total_min_hcp": 0,
             "total_max_hcp": 37
           },
-          "random_suit_constraint": {
-            "required_suits_count": 1,
-            "allowed_suits": [
-              "S",
-              "H",
-              "D"
-            ],
-            "suit_ranges": [
-              {
-                "min_cards": 6,
-                "max_cards": 6,
-                "min_hcp": 0,
-                "max_hcp": 10
-              }
-            ],
-            "pair_overrides": []
+          "random_suit_constraint": null,
+          "partner_contingent_constraint": null,
+          "opponents_contingent_suit_constraint": null,
+          "weight_percent": 0.0,
+          "ns_role_usage": "any"
+        }
+      ]
+    },
+    "N": {
+      "seat": "N",
+      "subprofiles": [
+        {
+          "standard": {
+            "spades": {
+              "min_cards": 5,
+              "max_cards": 6,
+              "min_hcp": 0,
+              "max_hcp": 10
+            },
+            "hearts": {
+              "min_cards": 0,
+              "max_cards": 6,
+              "min_hcp": 0,
+              "max_hcp": 10
+            },
+            "diamonds": {
+              "min_cards": 0,
+              "max_cards": 6,
+              "min_hcp": 0,
+              "max_hcp": 10
+            },
+            "clubs": {
+              "min_cards": 0,
+              "max_cards": 6,
+              "min_hcp": 0,
+              "max_hcp": 10
+            },
+            "total_min_hcp": 10,
+            "total_max_hcp": 12
           },
+          "random_suit_constraint": null,
           "partner_contingent_constraint": null,
           "opponents_contingent_suit_constraint": null,
           "weight_percent": 100.0,
@@ -124,46 +149,6 @@
             "hearts": {
               "min_cards": 0,
               "max_cards": 6,
-              "min_hcp": 0,
-              "max_hcp": 10
-            },
-            "diamonds": {
-              "min_cards": 0,
-              "max_cards": 6,
-              "min_hcp": 0,
-              "max_hcp": 10
-            },
-            "clubs": {
-              "min_cards": 0,
-              "max_cards": 6,
-              "min_hcp": 0,
-              "max_hcp": 10
-            },
-            "total_min_hcp": 0,
-            "total_max_hcp": 37
-          },
-          "random_suit_constraint": null,
-          "partner_contingent_constraint": null,
-          "opponents_contingent_suit_constraint": null,
-          "weight_percent": 0.0,
-          "ns_role_usage": "any"
-        }
-      ]
-    },
-    "W": {
-      "seat": "W",
-      "subprofiles": [
-        {
-          "standard": {
-            "spades": {
-              "min_cards": 0,
-              "max_cards": 13,
-              "min_hcp": 0,
-              "max_hcp": 10
-            },
-            "hearts": {
-              "min_cards": 0,
-              "max_cards": 13,
               "min_hcp": 0,
               "max_hcp": 10
             },

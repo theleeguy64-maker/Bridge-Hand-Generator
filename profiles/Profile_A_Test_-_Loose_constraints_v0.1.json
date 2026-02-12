@@ -1,17 +1,60 @@
 {
-  "profile_name": "Base",
-  "description": "Base",
-  "dealer": "N",
+  "profile_name": "Profile A Test - Loose constraints",
+  "sort_order": 20,
+  "description": "Profile A Test - Loose constraints",
+  "dealer": "W",
   "hand_dealing_order": [
+    "W",
     "N",
     "E",
-    "S",
-    "W"
+    "S"
   ],
   "tag": "Opener",
   "author": "Lee",
-  "version": "a",
+  "version": "0.1",
+  "rotate_deals_by_default": true,
+  "ns_role_mode": "no_driver_no_index",
   "seat_profiles": {
+    "W": {
+      "seat": "W",
+      "subprofiles": [
+        {
+          "standard": {
+            "spades": {
+              "min_cards": 0,
+              "max_cards": 6,
+              "min_hcp": 0,
+              "max_hcp": 10
+            },
+            "hearts": {
+              "min_cards": 0,
+              "max_cards": 6,
+              "min_hcp": 0,
+              "max_hcp": 10
+            },
+            "diamonds": {
+              "min_cards": 0,
+              "max_cards": 6,
+              "min_hcp": 0,
+              "max_hcp": 10
+            },
+            "clubs": {
+              "min_cards": 0,
+              "max_cards": 6,
+              "min_hcp": 0,
+              "max_hcp": 10
+            },
+            "total_min_hcp": 0,
+            "total_max_hcp": 37
+          },
+          "random_suit_constraint": null,
+          "partner_contingent_constraint": null,
+          "opponents_contingent_suit_constraint": null,
+          "weight_percent": 0.0,
+          "ns_role_usage": "any"
+        }
+      ]
+    },
     "N": {
       "seat": "N",
       "subprofiles": [
@@ -131,49 +174,7 @@
           "ns_role_usage": "any"
         }
       ]
-    },
-    "W": {
-      "seat": "W",
-      "subprofiles": [
-        {
-          "standard": {
-            "spades": {
-              "min_cards": 0,
-              "max_cards": 6,
-              "min_hcp": 0,
-              "max_hcp": 10
-            },
-            "hearts": {
-              "min_cards": 0,
-              "max_cards": 6,
-              "min_hcp": 0,
-              "max_hcp": 10
-            },
-            "diamonds": {
-              "min_cards": 0,
-              "max_cards": 6,
-              "min_hcp": 0,
-              "max_hcp": 10
-            },
-            "clubs": {
-              "min_cards": 0,
-              "max_cards": 6,
-              "min_hcp": 0,
-              "max_hcp": 10
-            },
-            "total_min_hcp": 0,
-            "total_max_hcp": 37
-          },
-          "random_suit_constraint": null,
-          "partner_contingent_constraint": null,
-          "opponents_contingent_suit_constraint": null,
-          "weight_percent": 0.0,
-          "ns_role_usage": "any"
-        }
-      ]
     }
   },
-  "rotate_deals_by_default": true,
-  "ns_role_mode": "north_drives",
   "subprofile_exclusions": []
 }

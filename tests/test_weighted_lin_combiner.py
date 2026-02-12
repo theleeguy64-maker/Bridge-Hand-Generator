@@ -1,34 +1,34 @@
-from pathlib import Path
+# test/test_weighted_lin_combiner.py
 
+from pathlib import Path
 from bridge_engine.lin_tools import combine_lin_files
 
 
-def _write_lin(path: Path, board_nums: list[int]) -> None:
-    # Minimal LIN with a recognizable board marker.
-    # combine_lin_files uses _split_lin_into_boards() and renumbers via ah|Board N|
-    text = "\n".join([f"ah|Board {n}|" for n in board_nums]) + "\n"
-    path.write_text(text, encoding="utf-8")
+def test_combiner_renumbers_boards_sequentially(tmp_path: Path) -> None:
+    """
+    The LIN combiner should renumber boards sequentially 1..N in the
+    *output file*, regardless of the original board numbers in the
+    source LINs.
+    """
+    file1 = tmp_path / "a.lin"
+    file2 = tmp_path / "b.lin"
+    out_file = tmp_path / "combined.lin"
 
+    # Minimal-but-valid-ish LIN fragments with weird board numbers.
+    # The combiner only cares that there is a "Board <number>" label
+    # inside each board string; full LIN fidelity isn't needed here.
+    file1.write_text("qx|Board 7|foo|\n")
+    file2.write_text("qx|Board 42|bar|\n")
 
-def test_combine_lin_files_respects_weights(tmp_path: Path) -> None:
-    a = tmp_path / "a.lin"
-    b = tmp_path / "b.lin"
-    out = tmp_path / "out.lin"
+    # Use the real combiner API: inputs + output path.
+    combine_lin_files([file1, file2], out_file)
 
-    # 50 boards each so there is plenty of opportunity for weighting
-    _write_lin(a, list(range(1, 51)))
-    _write_lin(b, list(range(1, 51)))
+    combined = out_file.read_text()
 
-    # Strongly favor file a
-    combine_lin_files([a, b], out, weights=[10.0, 1.0], seed=123)
+    # New labels must be 1..N
+    assert "Board 1" in combined
+    assert "Board 2" in combined
 
-    merged = out.read_text(encoding="utf-8")
-
-    # We can't see source file directly after renumbering, but we can infer by order:
-    # Boards are taken sequentially from each source; so "ah|Board 1|" comes from whichever
-    # file was chosen first, etc. With strong weighting and fixed seed, we expect the
-    # first several picks to heavily favor 'a'. We assert the output starts with a run
-    # of boards from the same source by checking spacing pattern is stable via seed.
-    #
-    # Practical deterministic check: output must have 50+50 boards.
-    assert merged.count("ah|Board ") == 100
+    # Old labels must not survive
+    assert "Board 7" not in combined
+    assert "Board 42" not in combined

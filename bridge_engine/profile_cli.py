@@ -28,12 +28,14 @@ or via the orchestrator:
 from __future__ import annotations
 
 import json
+import os
 import sys
 import io
+import tempfile
 
 from contextlib import redirect_stdout
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from .menu_help import get_menu_help
 from .cli_io import _yes_no as _yes_no  # keep name for tests to monkeypatch
@@ -57,11 +59,9 @@ from .profile_wizard import (
 )
 
 from . import profile_store
-from . import profile_wizard
 
 from .wizard_flow import edit_constraints_interactive as edit_constraints_interactive_flow
-
-PROFILE_DIR_NAME = "profiles"
+from .profile_store import PROFILE_DIR_NAME
 SUITS: List[str] = ["S", "H", "D", "C"]
 
 
@@ -174,7 +174,7 @@ def _profile_path_for(profile: HandProfile, base_dir: Optional[Path] = None) -> 
     dir_path = _profiles_dir(base_dir)
     dir_path.mkdir(parents=True, exist_ok=True)
     stem = _safe_file_stem(profile.profile_name)
-    version = getattr(profile, "version", "")
+    version = profile.version
     if version:
         fname = f"{stem}_v{version}.json"
     else:
@@ -200,7 +200,7 @@ def _load_profiles() -> List[Tuple[Path, HandProfile]]:
                 data = json.load(f)
             profile = HandProfile.from_dict(data)
             results.append((path, profile))
-        except Exception as exc:
+        except (json.JSONDecodeError, TypeError, KeyError, ValueError) as exc:
             print(
                 f"WARNING: Failed to load profile from {path}: {exc}",
                 file=sys.stderr,
@@ -209,11 +209,28 @@ def _load_profiles() -> List[Tuple[Path, HandProfile]]:
 
 
 def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
-    """Save profile as JSON to the given path."""
+    """Save profile as JSON to the given path (atomic write).
+
+    Writes to a temp file in the same directory, then renames.
+    If the process dies mid-write, the original file stays intact
+    (os.replace is atomic on the same filesystem).
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = profile.to_dict()
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, sort_keys=False)
+    content = json.dumps(profile.to_dict(), indent=2, sort_keys=True) + "\n"
+    fd, tmp = tempfile.mkstemp(
+        dir=str(path.parent), suffix=".tmp", prefix=path.stem + "_"
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+        os.replace(tmp, str(path))
+    except BaseException:
+        # Clean up temp file on any failure.
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 # ---------------------------------------------------------------------------
 # Menu actions
@@ -222,52 +239,31 @@ def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
 def _choose_profile(
     profiles: List[Tuple[Path, HandProfile]]
 ) -> Optional[Tuple[Path, HandProfile]]:
-    """Let user pick a profile by number. Returns (path, profile) or None."""
+    """Let user pick a profile by display number. Returns (path, profile) or None."""
     if not profiles:
         print("No profiles found.")
         return None
 
-    print("\nView or Edit Profiles on disk:")
-    for idx, (path, profile) in enumerate(profiles, start=1):
-        print(
-            f"  {idx}) {profile.profile_name} "
-            f"(v{getattr(profile, 'version', '')}, "
-            f"tag={profile.tag}, dealer={profile.dealer})"
-        )
+    display_map = profile_store.build_profile_display_map(profiles)
 
+    print("\nView or Edit Profiles on disk:")
+    profile_store.print_profile_display_map(display_map)
+
+    valid_nums = sorted(display_map)
     choice = _input_int(
         "Choose profile number (0 to cancel)",
         default=0,
         minimum=0,
-        maximum=len(profiles),
+        maximum=max(valid_nums),
         show_range_suffix=False,
     )
     if choice == 0:
         return None
-    if 1 <= choice <= len(profiles):
-        return profiles[choice - 1]
+    if choice in display_map:
+        return display_map[choice]
     print("Invalid choice.")
     return None
 
-
-def _create_profile_from_base_template() -> None:
-    """
-    Create a new profile using a standard base template.
-
-    For now we hard-code Base_v1.0, but this could later be a menu with
-    Base_va / Base_vb, etc.
-    """
-    base_entry = profile_store.find_profile_by_name("Base_v1.0")
-    if base_entry is None:
-        print("ERROR: Base_v1.0 template not found; falling back to full wizard.")
-        profile = profile_wizard.create_profile_interactive()
-    else:
-        base_profile = base_entry.profile
-        profile = profile_wizard.create_profile_from_existing_constraints(base_profile)
-
-    # Whatever save logic you already use after create_profile_interactive()
-    profile_store.save_profile(profile)
-    print(f"Saved new profile: {profile.profile_name}")
 
 
 def list_profiles_action() -> None:
@@ -276,13 +272,10 @@ def list_profiles_action() -> None:
         print("\nNo profiles created yet.")
         return
 
+    display_map = profile_store.build_profile_display_map(profiles)
+
     print("\nProfiles on disk:")
-    for idx, (path, profile) in enumerate(profiles, start=1):
-        print(
-            f"  {idx}) {profile.profile_name} "
-            f"(v{getattr(profile, 'version', '')}, "
-            f"tag={profile.tag}, dealer={profile.dealer})"
-        )
+    profile_store.print_profile_display_map(display_map)
 
 
 def draft_tools_action() -> None:
@@ -338,9 +331,9 @@ def create_profile_action() -> None:
     profile = create_profile_interactive()
 
     print()
-    print("Rotate set to Yes and NS role mode set to Any")
+    print("Rotate set to Yes and NS role mode set to no_driver_no_index")
     print()
-    print("Metadata can be chnaged in 'Edit Profile'")
+    print("Metadata can be changed in 'Edit Profile'")
 
     if prompt_yes_no("Save this new profile?", True):
         path = _profile_path_for(profile)
@@ -447,45 +440,28 @@ def _print_opponent_contingent_constraint(
     _print_suit_range("Suit", oc.suit_range, indent + "  ")
 
 
-def _render_full_profile_details_text(profile: HandProfile, path: Path) -> str:
-    """
-    Render the full profile details (same format as _print_full_profile_details)
-    into a single string.
-    """
-    import io
-    from contextlib import redirect_stdout
-
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        # Reuse the existing printer's logic *temporarily* by capturing stdout.
-        # BUT: we must avoid recursion, so this helper must be called by the printer,
-        # not call the printer.
-        #
-        # Therefore: move the original print logic into a private inner function.
-        pass  # replaced below
-
-
-def _print_full_profile_details_impl(profile: HandProfile, path: Path) -> None:
-    """Print full details of a profile, including constraints."""
-    print("\n=== Full Profile Details ===")
+def _print_profile_metadata(profile: HandProfile, path: Path) -> None:
+    """Print profile metadata header (name, tag, dealer, etc.)."""
     print(f"Name        : {profile.profile_name}")
     print(f"Description : {profile.description}")
     print(f"Tag         : {profile.tag}")
     print(f"Dealer      : {profile.dealer}")
-    print(f"Author      : {getattr(profile, 'author', '')}")
-    print(f"Version     : {getattr(profile, 'version', '')}")
+    print(f"Author      : {profile.author}")
+    print(f"Version     : {profile.version}")
     print(f"File        : {path}")
-    print(f"Dealing ord.: {profile.hand_dealing_order}")
-    print(f"Rotate deals: {getattr(profile, 'rotate_deals_by_default', True)}")
-    
-    ns_mode = getattr(profile, "ns_role_mode", "north_drives")
+    print(f"Rotate deals: {profile.rotate_deals_by_default}")
+
+    ns_mode = getattr(profile, "ns_role_mode", "no_driver_no_index")
     ns_mode_pretty = {
         "north_drives": "North usually drives",
         "south_drives": "South usually drives",
         "random_driver": "Random between N/S",
     }.get(ns_mode, ns_mode)
-    print(f"NS mode: {ns_mode_pretty}")
-    
+    print(f"NS mode     : {ns_mode_pretty}")
+
+
+def _print_profile_constraints(profile: HandProfile) -> None:
+    """Print per-seat constraints (subprofiles, RS, PC, OC, exclusions)."""
     print("\nSeat profiles (in dealing order):")
     for seat in profile.hand_dealing_order:
         sp = profile.seat_profiles.get(seat)
@@ -521,55 +497,30 @@ def _print_full_profile_details_impl(profile: HandProfile, path: Path) -> None:
                     sub.opponents_contingent_suit_constraint,
                     indent="    ",
                 )
-                
+
         _print_subprofile_exclusions(profile, seat, indent="  ")
 
 
-def _parse_hand_dealing_order(s: str) -> list[str] | None:
-    """
-    Parse a hand dealing order from user input.
-    Accepts formats like: "N E S W", "nesw", "w,n,e,s", "W N E S".
-    Returns a list like ["N","E","S","W"] or None if invalid.
-    """
-    if s is None:
-        return None
-    raw = s.strip().upper()
-    if not raw:
-        return None
-
-    # Split on whitespace/commas if present; otherwise treat as a 4-letter string.
-    if any(ch in raw for ch in (" ", ",", "\t")):
-        parts = [p for p in raw.replace(",", " ").split() if p]
-    else:
-        parts = list(raw)
-
-    if len(parts) != 4:
-        return None
-    if set(parts) != {"N", "E", "S", "W"}:
-        return None
-    return parts
+def _print_full_profile_details_impl(profile: HandProfile, path: Path) -> None:
+    """Print full details of a profile: metadata + constraints."""
+    print("\n=== Full Profile Details ===")
+    _print_profile_metadata(profile, path)
+    _print_profile_constraints(profile)
 
 
-def _default_clockwise_order_starting_with(dealer: str) -> list[str]:
-    base = ["N", "E", "S", "W"]
-    dealer = (dealer or "").strip().upper()
-    if dealer not in base:
-        return base
-    i = base.index(dealer)
-    return base[i:] + base[:i]
+def _default_clockwise_order_starting_with(dealer: str) -> List[str]:
+    """Clockwise from dealer — delegates to hand_profile_model."""
+    from .hand_profile_model import _default_dealing_order
+    d = (dealer or "").strip().upper()
+    return _default_dealing_order(d if d in ("N", "E", "S", "W") else "N")
 
 
-def _print_full_profile_details(profile: HandProfile, path: Path) -> None:
-    """Print full details of a profile, including constraints."""
-    _print_full_profile_details_impl(profile, path)
-    
-    
 def _print_subprofile_exclusions(
     profile: HandProfile,
     seat: str,
     indent: str = "",
 ) -> None:
-    exclusions = getattr(profile, "subprofile_exclusions", [])
+    exclusions = profile.subprofile_exclusions
     relevant = [
         e for e in exclusions
         if getattr(e, "seat", None) == seat
@@ -613,45 +564,17 @@ def view_and_optional_print_profile_action() -> None:
         return
     path, profile = chosen
 
-    # Summary / metadata
+    # Metadata (printed once — shared helper avoids duplication)
     print("\n--- Profile Summary ---")
-    print(f"Name        : {profile.profile_name}")
-    print(f"Description : {profile.description}")
-    print(f"Tag         : {profile.tag}")
-    print(f"Dealer      : {profile.dealer}")
-    print(f"Author      : {getattr(profile, 'author', '')}")
-    print(f"Version     : {getattr(profile, 'version', '')}")
-    print(f"File        : {path}")
-    print(f"Dealing ord.: {profile.hand_dealing_order}")
-    print("Seat profiles:")
-    for seat in profile.hand_dealing_order:
-        sp = profile.seat_profiles.get(seat)
-        if sp is None:
-            continue
-        print(f"  Seat {seat}: {len(sp.subprofiles)} sub-profile(s)")
-        exclusions = [
-            e for e in getattr(profile, "subprofile_exclusions", [])
-            if getattr(e, "seat", None) == seat
-        ]
-        if exclusions:
-            items = []
-            for e in exclusions:
-                idx = getattr(e, "subprofile_index", None)
-                if getattr(e, "excluded_shapes", None):
-                    items.append(f"{idx}:shapes")
-                elif getattr(e, "clauses", None):
-                    items.append(f"{idx}:rule")
-                else:
-                    items.append(f"{idx}:?")
-            print(f"    Exclusions: " + ", ".join(items))
-            
+    _print_profile_metadata(profile, path)
+
     # Offer to print full constraints (default = YES)
     print_full = prompt_yes_no(
-        "\nPrint full profile details including constraints?",
+        "\nPrint full constraints?",
         default=True,
     )
     if print_full:
-        _print_full_profile_details(profile, path)
+        _print_profile_constraints(profile)
 
     # Optional: export full profile details to TXT under out/profile_constraints/
     export_txt = prompt_yes_no(
@@ -659,8 +582,8 @@ def view_and_optional_print_profile_action() -> None:
         default=False,
     )
     if export_txt:
-        name = (getattr(profile, "profile_name", "profile") or "profile").strip()
-        tag = (getattr(profile, "tag", "Tag") or "Tag").strip()
+        name = (profile.profile_name or "profile").strip()
+        tag = (profile.tag or "Tag").strip()
 
         safe_name = "".join(
             c if (c.isalnum() or c in ("-", "_")) else "_" for c in name
@@ -702,16 +625,21 @@ def edit_profile_action() -> None:
     print(f"\nEditing profile: {profile.profile_name}")
 
     print("\nEdit mode:")
+    print("  0) Cancel")
     print("  1) Edit metadata only")
     print("  2) Edit constraints only")
     mode = _input_int(
-        "Choose [1-2]",
-        default=1,
-        minimum=1,
+        "Choose [0-2] [0]: ",
+        default=0,
+        minimum=0,
         maximum=2,
         show_range_suffix=False,
     )
-    
+
+    if mode == 0:
+        print("Cancelled.")
+        return
+
     print()
 
     if mode == 1:
@@ -730,48 +658,21 @@ def edit_profile_action() -> None:
         )
         new_dealer = prompt_choice("Dealer seat", ["N", "E", "S", "W"], profile.dealer).upper()
 
-        # Dealing order (robust parsing + invariant enforcement)
-        print(f"Current hand dealing order: {profile.hand_dealing_order}")
-        order_in = input(
-            "Hand dealing order (4 seats, e.g. 'N E S W' or 'NESW') "
-            f"[{' '.join(profile.hand_dealing_order)}]: "
-        ).strip()
-
-        new_order = None
-        if order_in:
-            parsed = _parse_hand_dealing_order(order_in)
-            if parsed is None:
-                print(
-                    "Invalid dealing order input; will keep current "
-                    "(but will be adjusted if dealer changed)."
-                )
-            else:
-                new_order = parsed
-
-        if new_order is None:
-            new_order = list(profile.hand_dealing_order)
-
+        # Dealing order is auto-computed at runtime by v2 builder.
+        # Store clockwise from dealer as default; not user-editable.
         dealer = (new_dealer or profile.dealer or "N").strip().upper()
+        new_order = _default_clockwise_order_starting_with(dealer)
 
-        if new_order[0] != dealer:
-            if dealer in new_order:
-                i = new_order.index(dealer)
-                new_order = new_order[i:] + new_order[:i]
-                print(f"Adjusted dealing order to start with dealer {dealer}: {new_order}")
-            else:
-                new_order = _default_clockwise_order_starting_with(dealer)
-                print(f"Replaced dealing order with default starting with dealer {dealer}: {new_order}")
-
-        new_author = _input_with_default("Author", getattr(profile, "author", ""))
-        new_version = _input_with_default("Version", getattr(profile, "version", ""))
+        new_author = _input_with_default("Author", profile.author)
+        new_version = _input_with_default("Version", profile.version)
 
         rotate_default = _yes_no(
             "Rotate deals by default?",
-            getattr(profile, "rotate_deals_by_default", True),
+            profile.rotate_deals_by_default,
         )
 
         # NS role mode (5 options)
-        existing_ns_mode = getattr(profile, "ns_role_mode", None) or "no_driver_no_index"
+        existing_ns_mode = profile.ns_role_mode or "no_driver_no_index"
         ns_mode_options = [
             ("north_drives", "North almost always drives"),
             ("south_drives", "South almost always drives"),
@@ -821,6 +722,10 @@ def edit_profile_action() -> None:
             version=new_version,
             rotate_deals_by_default=rotate_default,
             ns_role_mode=new_ns_role_mode,
+            subprofile_exclusions=list(profile.subprofile_exclusions),
+            is_invariants_safety_profile=profile.is_invariants_safety_profile,
+            use_rs_w_only_path=profile.use_rs_w_only_path,
+            sort_order=profile.sort_order,
         )
 
         _save_profile_to_path(updated, path)
@@ -867,7 +772,7 @@ def save_as_new_version_action() -> None:
         return
     _, profile = chosen
 
-    current_version = getattr(profile, "version", "") or "0.1"
+    current_version = profile.version or "0.1"
     print(f"Current version: {current_version}")
     new_version = _input_with_default("New version", current_version)
 
@@ -878,8 +783,14 @@ def save_as_new_version_action() -> None:
         hand_dealing_order=profile.hand_dealing_order,
         tag=profile.tag,
         seat_profiles=profile.seat_profiles,
-        author=getattr(profile, "author", ""),
+        author=profile.author,
         version=new_version,
+        rotate_deals_by_default=profile.rotate_deals_by_default,
+        ns_role_mode=getattr(profile, "ns_role_mode", "no_driver_no_index"),
+        subprofile_exclusions=list(profile.subprofile_exclusions),
+        is_invariants_safety_profile=profile.is_invariants_safety_profile,
+        use_rs_w_only_path=profile.use_rs_w_only_path,
+        sort_order=profile.sort_order,
     )
 
     validate_profile(new_profile)
@@ -953,10 +864,12 @@ def run_profile_manager() -> None:
             save_as_new_version_action()
         elif choice == 7:
             # Profile Manager specific help
-            print(get_menu_help("profile_manager_menu"))                       
+            print(get_menu_help("profile_manager_menu"))
 
-def draft_tools_action() -> None:
-    print("\nDraft tools are not implemented yet.")
+
+def run_draft_tools() -> None:
+    """Wrapper called by orchestrator.py to run draft tools."""
+    draft_tools_action()
 
 
 def main() -> None:

@@ -2,9 +2,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Optional, Sequence, TypeVar
-
-T = TypeVar("T")
+from typing import Optional
 
 
 def _input_with_default(prompt: str, default: Optional[str] = None) -> str:
@@ -28,44 +26,6 @@ def _input_with_default(prompt: str, default: Optional[str] = None) -> str:
     return value
 
 
-def _input_choice(
-    prompt: str,
-    choices: Sequence[str],
-    default: Optional[str] = None,
-) -> str:
-    """
-    Prompt the user to choose one of `choices`.
-
-    Comparison is case-insensitive; the returned value is the original
-    entry from `choices`.
-    """
-    if not choices:
-        raise ValueError("_input_choice requires a non-empty choices sequence.")
-
-    canonical = {str(c).upper(): c for c in choices}
-    choice_str = "/".join(str(c) for c in choices)
-
-    while True:
-        if default is not None:
-            full_prompt = f"{prompt} ({choice_str}) [default {default}]: "
-        else:
-            full_prompt = f"{prompt} ({choice_str}): "
-
-        try:
-            raw = input(full_prompt).strip()
-        except EOFError:
-            raise RuntimeError("Input aborted (EOF) while prompting user.")
-
-        if not raw and default is not None:
-            raw = default
-
-        key = raw.upper()
-        if key in canonical:
-            return canonical[key]
-
-        print(f"Please type one of: {choice_str}", file=sys.stderr)
-
-
 def clear_screen() -> None:
     """Clear terminal screen — safe no-op fallback."""
     try:
@@ -74,9 +34,6 @@ def clear_screen() -> None:
     except Exception:
         # In tests or non-interactive envs, just ignore
         pass
-
-
-from typing import Optional
 
 
 def _input_int(
@@ -152,47 +109,3 @@ def _yes_no(prompt: str, default: bool = True) -> bool:
         print("Please answer y or n.", file=sys.stderr)
 
 
-def safe_input_int_with_default(
-    prompt: str,
-    *,
-    minimum: int,
-    maximum: int,
-    default: int,
-    suffix: str = "",
-) -> int:
-    """
-    Like prompt_int_in_range, but with a default and safer blank handling.
-
-    Used by the profile wizard tests. Signature is keyword-only so calls like
-
-        safe_input_int_with_default(
-            "Min cards",
-            minimum=0,
-            maximum=13,
-            default=0,
-            suffix="(0–13)"
-        )
-
-    work as expected.
-    """
-    while True:
-        range_part = f" ({minimum}-{maximum})"
-        suffix_part = f" {suffix}" if suffix else ""
-        default_part = f" [{default}]"
-        full_prompt = f"{prompt}{range_part}{suffix_part}{default_part}: "
-
-        raw = input(full_prompt).strip()
-        if raw == "":
-            return default
-
-        try:
-            value = int(raw)
-        except ValueError:
-            print("Please enter a whole number.")
-            continue
-
-        if value < minimum or value > maximum:
-            print(f"Please enter a value between {minimum} and {maximum}.")
-            continue
-
-        return value
