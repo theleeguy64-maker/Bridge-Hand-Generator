@@ -248,7 +248,7 @@
               "min_hcp": 0
             },
             "total_max_hcp": 15,
-            "total_min_hcp": 12
+            "total_min_hcp": 10
           },
           "weight_percent": 45.0
         }

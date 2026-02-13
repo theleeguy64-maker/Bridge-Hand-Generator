@@ -4,12 +4,14 @@
 - [x] Run profile management in program
 - [ ] Review all profiles (check constraints, metadata, dealing order)
 
-## Recent Fixes (#42)
+## Recent Fixes (#42, #43, #44)
 - [x] Fix prompt_int argument order bug in _prompt_suit_range (OC/PC suit range prompts showed inverted bounds)
 - [x] Profile Summary: move File to last, rename to "File name", show filename only
 - [x] Version change in metadata edit now saves to new file (keeps old version)
 - [x] Add delete_draft_for_canonical to constraints-only edit and save-as-new-version paths
 - [x] New profile: Opps_Open_&_Our_TO_Dbl_Balancing_v0.1
+- [x] Exclusions: numbered menu (0 Exit, 1 Shapes, 2 Rule, 3 Help) replaces text prompt (#43)
+- [x] Code review #44: 7 fixes (misleading save msg, dead _build_exclusion_shapes, stale comment, 5 menu tests, draft stub, admin help option 2, unused imports)
 
 ---
 
@@ -356,7 +358,7 @@
 ## Summary
 Architecture: 15 (15 done) | Enhancements: 22 (22 done) | **All complete**
 
-**Tests**: 433 passed, 4 skipped | **Branch**: refactor/deal-generator
+**Tests**: 434 passed, 4 skipped | **Branch**: cleanup/cli-menu/Test
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 

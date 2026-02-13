@@ -38,14 +38,13 @@ from __future__ import annotations
 
 import sys
 
-from dataclasses import dataclass, field, replace
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Iterable
 
 from . import cli_io
 from . import profile_store
 from .menu_help import get_menu_help
-from .wizard_io import _input_choice
 from .wizard_constants import SUITS
 from . import wizard_io as wiz_io
 from .hand_profile_validate import validate_profile as _validate_profile_fallback
@@ -215,7 +214,7 @@ def _build_exclusion_rule(
     subprofile_index: int,
     kind: str = "",
 ) -> SubprofileExclusionData:
-    # If kind not provided, prompt for it (backward compat)
+    # If kind not provided, prompt for it (standalone/fallback usage)
     if not kind:
         kind = _input_choice(
             "Exclusion type (shapes=exact 4-digit patterns, rule=ANY/MAJOR/MINOR clauses)",
@@ -272,89 +271,6 @@ def _build_exclusion_rule(
         excluded_shapes=None,
         clauses=clauses,
     )
-    
-# Near other small helpers in wizard_flow.py
-
-def _build_exclusion_shapes(
-    seat: Any,
-    subprofile_index: Optional[int] = None,
-) -> List[str]:
-    """
-    Build a list of shape strings for use in the exclusions wizard.
-
-    This is deliberately duck-typed so tests (and future callers) can
-    use simple dummy objects instead of the real SeatProfile/SubProfile
-    classes.
-
-    Rules (best-effort, no hard schema assumptions):
-
-    - `seat` is expected to expose `.subprofiles` (iterable).
-    - If `subprofile_index` is not None and in range, we only inspect
-      that subprofile; otherwise we inspect all subprofiles on the seat.
-    - For each selected subprofile we look, in order, for:
-
-        * a string attribute `shape_string` or `shape`, e.g. "5-3-3-2"
-        * or a 4-tuple / 4-list attribute named one of
-          ("shape", "shape_tuple", "suit_lengths", "suit_counts")
-
-      and normalise 4-int sequences into "x-y-z-w" strings.
-
-    - We deduplicate while preserving first-seen order.
-    - If nothing shape-like can be found, we return an empty list.
-    """
-
-    # --- internal helper -------------------------------------------------
-    def _shape_from_sub(sub: Any) -> Optional[str]:
-        if sub is None:
-            return None
-
-        # 1) Direct string attributes.
-        for attr in ("shape_string", "shape"):
-            val = getattr(sub, attr, None)
-            if isinstance(val, str) and val.strip():
-                return val.strip()
-
-        # 2) 4-card-count sequence attributes.
-        for attr in ("shape", "shape_tuple", "suit_lengths", "suit_counts"):
-            val = getattr(sub, attr, None)
-            if isinstance(val, (list, tuple)) and len(val) == 4 and all(
-                isinstance(n, int) for n in val
-            ):
-                return "-".join(str(int(n)) for n in val)
-
-        # If we can't recognise anything, skip this subprofile.
-        return None
-
-    # --- select which subprofiles we care about --------------------------
-    subs = getattr(seat, "subprofiles", None)
-    if not isinstance(subs, Iterable):
-        return []
-
-    # Normalise to a list so we can index safely.
-    subs_list = list(subs)
-
-    if subprofile_index is not None:
-        try:
-            selected_subs: Iterable[Any] = [subs_list[subprofile_index]]
-        except IndexError:
-            selected_subs = []
-    else:
-        selected_subs = subs_list
-
-    # --- build unique shape list -----------------------------------------
-    seen: set[str] = set()
-    shapes: List[str] = []
-
-    for sub in selected_subs:
-        shape_str = _shape_from_sub(sub)
-        if not shape_str:
-            continue
-        if shape_str in seen:
-            continue
-        seen.add(shape_str)
-        shapes.append(shape_str)
-
-    return shapes
 
 
 def _edit_subprofile_exclusions_for_seat(

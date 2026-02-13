@@ -79,6 +79,13 @@ Options:
         • Weights are relative frequencies; if left blank, each file is treated
           as weight 1.
 
+  2) Recover/Delete *_TEST.json drafts
+      Manage draft profile files (created during editing as autosaves).
+      Options:
+        • Delete a single draft by number
+        • Delete all drafts at once
+      Draft files end in _TEST.json and sit alongside canonical profiles.
+
   3) Profile Diagnostic
       Run the v2 deal builder on a chosen profile and print detailed
       failure attribution diagnostics. Useful for analysing which seats

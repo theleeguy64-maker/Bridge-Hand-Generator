@@ -728,13 +728,13 @@ def edit_profile_action() -> None:
             sort_order=profile.sort_order,
         )
 
-        # If version changed, save to a new file (keep old version intact)
+        # If name or version changed, save to a new file (keep old file intact)
         new_path = _profile_path_for(updated)
         _save_profile_to_path(updated, new_path)
         profile_store.delete_draft_for_canonical(new_path)
         if new_path != path:
-            print(f"\nNew version saved to {new_path.name}")
-            print(f"Previous version kept: {path.name}")
+            print(f"\nSaved to new file: {new_path.name}")
+            print(f"Previous file kept: {path.name}")
         else:
             print(f"\nUpdated profile saved to {new_path.name}")
         return

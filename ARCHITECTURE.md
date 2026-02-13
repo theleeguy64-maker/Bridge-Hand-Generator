@@ -16,7 +16,7 @@ bridge_engine/
 ├── orchestrator.py          (491 lines) - CLI/session management + generic menu loop
 ├── profile_cli.py           (881 lines) - Profile commands
 ├── profile_wizard.py        (161 lines) - Profile creation UI
-├── wizard_flow.py         (1,410 lines) - Wizard steps, seat editing, RS/PC/OC prompts
+├── wizard_flow.py         (1,334 lines) - Wizard steps, seat editing, RS/PC/OC prompts
 ├── profile_viability.py     (361 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py         (303 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
 ├── lin_tools.py             (458 lines) - LIN file operations

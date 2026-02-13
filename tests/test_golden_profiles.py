@@ -52,7 +52,7 @@ def test_golden_ops_interference_over_our_1nt_profile_valid() -> None:
     be structurally valid and mapped to the expected JSON file.
     """
     expected_name = "Ops interference over our 1NT"
-    expected_file = "Ops_interference_over_our_1NT_v0.1.json"
+    expected_file = "Ops_interference_over_our_1NT_v0.9.json"
 
     path, profile = _get_profile_entry_by_name(expected_name)
 

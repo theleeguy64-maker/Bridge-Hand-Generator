@@ -153,6 +153,7 @@ def test_edit_constraints_delegates_to_wizard(monkeypatch, tmp_path, capsys):
     # Capture save
     saved: list = []
     monkeypatch.setattr(pc, "_save_profile_to_path", lambda p, pth: saved.append((p, pth)))
+    monkeypatch.setattr(profile_store, "delete_draft_for_canonical", lambda p: None)
 
     pc.edit_profile_action()
 
@@ -251,6 +252,7 @@ def test_save_as_new_version_preserves_all_fields(monkeypatch, tmp_path, capsys)
 
     saved: list = []
     monkeypatch.setattr(pc, "_save_profile_to_path", lambda p, pth: saved.append((p, pth)))
+    monkeypatch.setattr(profile_store, "delete_draft_for_canonical", lambda p: None)
 
     pc.save_as_new_version_action()
 
