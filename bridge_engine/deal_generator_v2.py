@@ -10,7 +10,8 @@
 # ---------------------------------------------------------------------------
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Optional, Tuple
+import sys
+from typing import Callable, Dict, List, Optional, Set, Tuple
 
 import math
 import random
@@ -96,7 +97,7 @@ def _dispersion_check(
     chosen_subprofiles: Dict[Seat, "SubProfile"],
     threshold: float = SHAPE_PROB_THRESHOLD,
     rs_pre_selections: Optional[Dict[Seat, List[str]]] = None,
-) -> set:
+) -> Set[str]:
     """
     Identify seats with tight shape constraints that need pre-allocation help.
 
@@ -1049,7 +1050,7 @@ def _build_single_constrained_deal_v2(
                         dict(seat_fail_shape),
                     )
                 except Exception as exc:
-                    import sys; print(f"WARNING: debug hook failed: {exc}", file=sys.stderr)
+                    print(f"WARNING: debug hook failed: {exc}", file=sys.stderr)
             continue  # Skip matching, next attempt.
         # ----- end early HCP rejection handling -----
 
@@ -1178,7 +1179,7 @@ def _build_single_constrained_deal_v2(
                         dict(seat_fail_shape),
                     )
                 except Exception as exc:
-                    import sys; print(f"WARNING: debug hook failed: {exc}", file=sys.stderr)
+                    print(f"WARNING: debug hook failed: {exc}", file=sys.stderr)
 
         if all_matched:
             # Fire debug_board_stats callback on success.
@@ -1210,7 +1211,7 @@ def _build_single_constrained_deal_v2(
                 viability_summary,
             )
         except Exception as exc:
-            import sys; print(f"WARNING: debug hook failed: {exc}", file=sys.stderr)
+            print(f"WARNING: debug hook failed: {exc}", file=sys.stderr)
 
     raise DealGenerationError(
         f"v2: Failed to construct constrained deal for board {board_number} "

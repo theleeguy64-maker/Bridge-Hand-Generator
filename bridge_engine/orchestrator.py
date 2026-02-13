@@ -143,6 +143,8 @@ def _discover_profiles(base_dir: Path | None = None) -> List[Tuple[Path, HandPro
         return results
 
     for path in sorted(dir_path.glob("*.json")):
+        if profile_store.is_draft_path(path):
+            continue
         try:
             with path.open("r", encoding="utf-8") as f:
                 data: Dict[str, Any] = json.load(f)

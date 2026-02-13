@@ -13,6 +13,7 @@
 - [x] Exclusions: numbered menu (0 Exit, 1 Shapes, 2 Rule, 3 Help) replaces text prompt (#43)
 - [x] Code review #44: 7 fixes (misleading save msg, dead _build_exclusion_shapes, stale comment, 5 menu tests, draft stub, admin help option 2, unused imports)
 - [x] Code review #45: circular import fix, duplicate wrapper removed, empty-rows guard, dead import, stale docstring, debug hook warnings
+- [x] Code review #46: _dispersion_check return type, sys import cleanup, draft filtering in orchestrator
 
 ---
 
