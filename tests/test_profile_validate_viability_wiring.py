@@ -1,6 +1,7 @@
 import pytest
 
 from bridge_engine import hand_profile_validate
+from bridge_engine import profile_viability
 
 
 class _DummyProfile:
@@ -65,8 +66,10 @@ def test_validate_profile_calls_viability(monkeypatch) -> None:
         # Ensure we're being passed the HandProfile instance built inside validate_profile
         assert profile is dummy_profile
 
+    # Patch on source module — hand_profile_validate uses a local import
+    # from profile_viability, so we patch there.
     monkeypatch.setattr(
-        hand_profile_validate,
+        profile_viability,
         "validate_profile_viability",
         fake_viability,
     )
@@ -91,8 +94,10 @@ def test_validate_profile_propagates_viability_errors(monkeypatch) -> None:
     def fake_viability(profile):
         raise SentinelError("boom")
 
+    # Patch on source module — hand_profile_validate uses a local import
+    # from profile_viability, so we patch there.
     monkeypatch.setattr(
-        hand_profile_validate,
+        profile_viability,
         "validate_profile_viability",
         fake_viability,
     )

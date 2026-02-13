@@ -1048,8 +1048,8 @@ def _build_single_constrained_deal_v2(
                         dict(seat_fail_hcp),
                         dict(seat_fail_shape),
                     )
-                except Exception:
-                    pass  # Debug hooks must never interfere with generation.
+                except Exception as exc:
+                    import sys; print(f"WARNING: debug hook failed: {exc}", file=sys.stderr)
             continue  # Skip matching, next attempt.
         # ----- end early HCP rejection handling -----
 
@@ -1177,8 +1177,8 @@ def _build_single_constrained_deal_v2(
                         dict(seat_fail_hcp),
                         dict(seat_fail_shape),
                     )
-                except Exception:
-                    pass  # Debug hooks must never interfere with generation.
+                except Exception as exc:
+                    import sys; print(f"WARNING: debug hook failed: {exc}", file=sys.stderr)
 
         if all_matched:
             # Fire debug_board_stats callback on success.
@@ -1209,8 +1209,8 @@ def _build_single_constrained_deal_v2(
                 dict(seat_fail_counts),
                 viability_summary,
             )
-        except Exception:
-            pass  # Debug hooks must never interfere with error reporting.
+        except Exception as exc:
+            import sys; print(f"WARNING: debug hook failed: {exc}", file=sys.stderr)
 
     raise DealGenerationError(
         f"v2: Failed to construct constrained deal for board {board_number} "

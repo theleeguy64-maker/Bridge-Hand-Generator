@@ -127,6 +127,8 @@ class FailureAttributionReport:
                 "pain_share": ps[seat],
             })
 
+        if not rows:
+            return  # Nothing to write
         with path.open("w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
             writer.writeheader()

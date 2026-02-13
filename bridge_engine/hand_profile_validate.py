@@ -5,9 +5,6 @@ from typing import Any, Dict, List, Tuple
 
 from .hand_profile_model import HandProfile, SeatProfile, SubProfile, ProfileError
 
-from .seat_viability import validate_profile_viability_light
-from .profile_viability import validate_profile_viability
-
 # Type alias for seat names (N, E, S, W)
 Seat = str
 
@@ -509,6 +506,9 @@ def validate_profile(data: Any) -> HandProfile:
     # 7. Seat-level viability check (light + cross-seat dead subprofile detection)
     # validate_profile_viability() calls the light check first, then NS coupling,
     # then cross-seat HCP/card feasibility to detect dead subprofiles.
+    # Late import to break circular dependency:
+    #   seat_viability → hand_profile → hand_profile_validate → profile_viability → seat_viability
+    from .profile_viability import validate_profile_viability  # noqa: E402
     validate_profile_viability(profile)
 
     # 8. Validate subprofile exclusions (if present)

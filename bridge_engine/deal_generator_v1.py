@@ -337,14 +337,14 @@ def _build_single_board_random_suit_w_only(
     board_number: int,
 ) -> "Deal":
     """
-    Test-only helper for the Random Suit W + Partner Contingent E profile.
+    Simplified builder for profiles with use_rs_w_only_path=True.
 
-    This builds a single board where we only enforce West's Random Suit
-    constraint via _match_seat. Other seats are unconstrained in this path.
+    Builds a single board where only West's Random Suit constraint is
+    enforced via _match_seat. Other seats are unconstrained in this path.
 
-    Used by generate_deals for the special test profile 'Test_RandomSuit_W_PC_E'
-    so that tests which only assert West's Random Suit behaviour remain fast and
-    robust without needing the full-table RS+PC constraints to be satisfied.
+    Used by generate_deals() for any profile that sets use_rs_w_only_path,
+    providing a fast path that only enforces West's RS constraint without
+    needing the full-table RS+PC constraints to be satisfied.
     """
     # Late import: SeatProfile, _match_seat, and _build_single_constrained_deal
     # are resolved through the facade so that tests which monkeypatch
