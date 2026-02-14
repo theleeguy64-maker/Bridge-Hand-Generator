@@ -7,7 +7,7 @@
 
 ## Shortcuts
 - **"Lee Title"** - Change terminal title to "Bridge Hand Generator"
-- **"Lee commit"** - Update CLAUDE.md, TODO.md, and ARCHITECTURE.md, then commit, then git push, then output "/usage" so user can check usage
+- **"Lee commit"** - Run mypy (`.venv/bin/mypy bridge_engine/ --ignore-missing-imports`), then run tests, then update CLAUDE.md, TODO.md, and ARCHITECTURE.md, then commit, then git push, then output "/usage" so user can check usage
 - **"Lee slow"** - Careful mode. After EACH code change:
   1. Run tests (`.venv/bin/pytest -v`)
   2. If passed: Explicitly state "✅ All X tests passed"
@@ -24,6 +24,10 @@
 - Focus on the stability of large files - be careful with changes that could introduce bugs
 - Prefer early returns and guard statements for error handling
 - Put lots of remarks/comments in code for the benefit of all of us (future developers, Claude, and you)
+
+## Type Checking
+- Run mypy after code changes: `.venv/bin/mypy bridge_engine/ --ignore-missing-imports`
+- Keep mypy at 0 errors — fix any new type errors before committing
 
 ## Testing
 - Run the full test suite after every change to ensure no bugs are introduced
