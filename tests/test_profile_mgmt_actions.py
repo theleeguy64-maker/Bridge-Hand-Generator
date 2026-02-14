@@ -59,14 +59,16 @@ def test_edit_metadata_saves_updated_fields(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(pc, "_save_profile_to_path", lambda p, pth: saved.append((p, pth)))
     monkeypatch.setattr(profile_store, "delete_draft_for_canonical", lambda p: None)
 
-    # Stub _input_int for mode selection (1 = metadata edit) and ns_role_mode choice
+    # Stub _input_int for mode selection (1 = metadata edit), ns_role_mode choice,
+    # and loop exit (0 = done).  edit_profile_action() now loops, so call 3 = exit.
     call_count = {"input_int": 0}
     def fake_input_int(prompt, default=0, minimum=0, maximum=99, show_range_suffix=True):
         call_count["input_int"] += 1
         if call_count["input_int"] == 1:
             return 1  # mode = metadata edit
-        # ns_role_mode choice — pick option 5 (no_driver_no_index)
-        return 5
+        if call_count["input_int"] == 2:
+            return 5  # ns_role_mode choice — option 5 (no_driver_no_index)
+        return 0  # exit the edit loop
     monkeypatch.setattr(pc, "_input_int", fake_input_int)
 
     # Stub _input_with_default for text prompts
@@ -137,8 +139,14 @@ def test_edit_constraints_delegates_to_wizard(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(pc, "_load_profiles", lambda: [(path, profile)])
     monkeypatch.setattr(pc, "_choose_profile", lambda profiles: (path, profile))
 
-    # Stub _input_int: mode=2
-    monkeypatch.setattr(pc, "_input_int", lambda prompt, **kw: 2)
+    # Stub _input_int: mode=2 first call, then 0 to exit loop
+    int_calls = {"n": 0}
+    def fake_input_int(prompt, **kw):
+        int_calls["n"] += 1
+        if int_calls["n"] == 1:
+            return 2  # mode = constraints edit
+        return 0  # exit the edit loop
+    monkeypatch.setattr(pc, "_input_int", fake_input_int)
 
     # Stub wizard call
     wizard_calls: list = []
@@ -184,7 +192,6 @@ def test_edit_cancel_does_not_save(monkeypatch, tmp_path, capsys):
     pc.edit_profile_action()
 
     assert len(saved) == 0
-    assert "Cancelled" in capsys.readouterr().out
 
 
 # ---------------------------------------------------------------------------

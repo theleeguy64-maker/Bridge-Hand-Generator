@@ -28,8 +28,8 @@ def test_golden_defense_to_weak_2s_profile_valid() -> None:
     Golden test: the 'Defense to Weak 2s' profile on disk should
     be structurally valid and keep its expected filename/version.
     """
-    expected_name = "Defense to 3 Weak 2s"
-    expected_file = "Defense_to_3_Weak_2s_v0.2.json"
+    expected_name = "Defense to 3 Weak 2s - Multi Overcall Shapes"
+    expected_file = "Defense_to_3_Weak_2s_-_Multi__Overcall_Shapes_v0.3.json"
 
     path, profile = _get_profile_entry_by_name(expected_name)
 

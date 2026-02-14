@@ -359,7 +359,7 @@
 ## Summary
 Architecture: 15 (15 done) | Enhancements: 22 (22 done) | **All complete**
 
-**Tests**: 426 passed, 0 skipped | **Branch**: cleanup/cli-menu/Test
+**Tests**: 425 passed | **Branch**: cleanup/cli-menu/Test
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 

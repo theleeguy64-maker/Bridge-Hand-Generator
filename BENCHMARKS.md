@@ -110,6 +110,14 @@ When adding new benchmarks:
 
 ---
 
+## Benchmark Status
+
+**2026-02-14:** Weak 3s profile has been changed and is expected to run faster.
+Benchmarks need to be re-run to establish new baselines. Use "rebenchmark" to
+trigger a full re-run and reset results for future comparison.
+
+---
+
 ## Debug Hooks for Instrumentation
 
 Benchmarks use debug hooks in `deal_generator.py` for telemetry:

@@ -58,7 +58,7 @@ def _real_sub_from_profile(profile: HandProfile, seat: str, index: int):
     return sp.subprofiles[index]
 
 
-WEAK2S_PATH = Path("profiles/Defense_to_3_Weak_2s_v0.2.json")
+WEAK2S_PATH = Path("profiles/Defense_to_3_Weak_2s_-_Multi__Overcall_Shapes_v0.3.json")
 
 
 def _load_weak2s() -> HandProfile:
@@ -106,10 +106,10 @@ class TestAccessors:
     def test_accessors_real_subprofile(self):
         """Verify accessors work on a real SubProfile from the Weak 2s profile."""
         profile = _load_weak2s()
-        # W sub0: total_min_hcp=6, total_max_hcp=11
+        # W sub0: total_min_hcp=6, total_max_hcp=10
         w_sub = _real_sub_from_profile(profile, "W", 0)
         assert _get_total_min_hcp(w_sub) == 6
-        assert _get_total_max_hcp(w_sub) == 11
+        assert _get_total_max_hcp(w_sub) == 10
         # W has max 6 cards in each suit
         assert _get_suit_max(w_sub, "S") == 6
         # N sub0: min 2 in each suit
@@ -200,8 +200,8 @@ class TestCrossSeatFeasible:
         }
         ok, reason = _cross_seat_feasible(subs)
         assert ok is False
-        assert "sum(min_hcp)=44" in reason
-        assert "> 40" in reason
+        assert "combined min HCP" in reason
+        assert "over by 4" in reason
 
     def test_infeasible_max_hcp_below_40(self):
         """sum(max_hcp) = 36 < 40 — infeasible."""
@@ -213,8 +213,8 @@ class TestCrossSeatFeasible:
         }
         ok, reason = _cross_seat_feasible(subs)
         assert ok is False
-        assert "sum(max_hcp)=36" in reason
-        assert "< 40" in reason
+        assert "combined max HCP" in reason
+        assert "short by 4" in reason
 
     def test_infeasible_suit_min_cards_exceeds_13(self):
         """All seats want 4+ spades = 16 > 13 — infeasible."""
@@ -226,8 +226,8 @@ class TestCrossSeatFeasible:
         }
         ok, reason = _cross_seat_feasible(subs)
         assert ok is False
-        assert "suit S" in reason
-        assert "sum(min_cards)=16" in reason
+        assert "Spades" in reason
+        assert "= 16" in reason
 
     def test_infeasible_suit_max_cards_below_13(self):
         """All seats allow max 2 spades = 8 < 13 — infeasible."""
@@ -239,57 +239,56 @@ class TestCrossSeatFeasible:
         }
         ok, reason = _cross_seat_feasible(subs)
         assert ok is False
-        assert "suit S" in reason
-        assert "sum(max_cards)=8" in reason
+        assert "Spades" in reason
+        assert "= 8" in reason
 
     # --- Real Weak 2s profile tests ---
 
-    def test_weak2s_n1_e1_infeasible(self):
-        """N sub1 + E sub1: both OC 15-18 HCP — impossible (sum = 44)."""
+    def test_weak2s_n0_e0_feasible(self):
+        """N sub0 (15-18) + E sub0 (6-8): sum min = 6+15+8+6 = 35 <= 40."""
         profile = _load_weak2s()
         subs = {
             "W": _real_sub_from_profile(profile, "W", 0),
             "N": _real_sub_from_profile(profile, "N", 0),  # 15-18
-            "S": _real_sub_from_profile(profile, "S", 0),
-            "E": _real_sub_from_profile(profile, "E", 0),  # 15-18
-        }
-        ok, reason = _cross_seat_feasible(subs)
-        assert ok is False
-        assert "min_hcp" in reason
-
-    def test_weak2s_n1_e2_infeasible(self):
-        """N sub1 (15-18) + E sub2 (12-20): sum min = 6+15+8+12 = 41 > 40."""
-        profile = _load_weak2s()
-        subs = {
-            "W": _real_sub_from_profile(profile, "W", 0),
-            "N": _real_sub_from_profile(profile, "N", 0),  # 15-18
-            "S": _real_sub_from_profile(profile, "S", 0),
-            "E": _real_sub_from_profile(profile, "E", 1),  # 12-20
-        }
-        ok, reason = _cross_seat_feasible(subs)
-        assert ok is False
-
-    def test_weak2s_n2_e2_feasible(self):
-        """N sub2 (12-20) + E sub2 (12-20): sum min = 6+12+8+12 = 38 <= 40."""
-        profile = _load_weak2s()
-        subs = {
-            "W": _real_sub_from_profile(profile, "W", 0),
-            "N": _real_sub_from_profile(profile, "N", 1),  # 12-20
-            "S": _real_sub_from_profile(profile, "S", 0),
-            "E": _real_sub_from_profile(profile, "E", 1),  # 12-20
+            "S": _real_sub_from_profile(profile, "S", 0),  # 8-17
+            "E": _real_sub_from_profile(profile, "E", 0),  # 6-8
         }
         ok, reason = _cross_seat_feasible(subs)
         assert ok is True
 
-    def test_weak2s_all_16_combos(self):
-        """Verify exactly 7 of 16 N×E combos are infeasible (N1/E1 with anything)."""
+    def test_weak2s_n0_e1_feasible(self):
+        """N sub0 (15-18) + E sub1 (11-15): sum min = 6+15+8+11 = 40 <= 40."""
+        profile = _load_weak2s()
+        subs = {
+            "W": _real_sub_from_profile(profile, "W", 0),
+            "N": _real_sub_from_profile(profile, "N", 0),  # 15-18
+            "S": _real_sub_from_profile(profile, "S", 0),  # 8-17
+            "E": _real_sub_from_profile(profile, "E", 1),  # 11-15
+        }
+        ok, reason = _cross_seat_feasible(subs)
+        assert ok is True
+
+    def test_weak2s_n1_e1_feasible(self):
+        """N sub1 (12-20) + E sub1 (11-15): sum min = 6+12+8+11 = 37 <= 40."""
+        profile = _load_weak2s()
+        subs = {
+            "W": _real_sub_from_profile(profile, "W", 0),
+            "N": _real_sub_from_profile(profile, "N", 1),  # 12-20
+            "S": _real_sub_from_profile(profile, "S", 0),  # 8-17
+            "E": _real_sub_from_profile(profile, "E", 1),  # 11-15
+        }
+        ok, reason = _cross_seat_feasible(subs)
+        assert ok is True
+
+    def test_weak2s_all_8_combos_feasible(self):
+        """All N×E combos (4×2=8) in v0.3 should be feasible (no dead subs)."""
         profile = _load_weak2s()
         w_sub = _real_sub_from_profile(profile, "W", 0)
         s_sub = _real_sub_from_profile(profile, "S", 0)
 
         infeasible_count = 0
         for n_idx in range(4):
-            for e_idx in range(4):
+            for e_idx in range(2):
                 subs = {
                     "W": w_sub,
                     "N": _real_sub_from_profile(profile, "N", n_idx),
@@ -300,9 +299,8 @@ class TestCrossSeatFeasible:
                 if not ok:
                     infeasible_count += 1
 
-        # N sub0 with all 4 E subs = 4 infeasible
-        # E sub0 with N sub1/2/3 = 3 more infeasible (N sub0 already counted)
-        assert infeasible_count == 7
+        # v0.3 profile has no infeasible combos
+        assert infeasible_count == 0
 
 
 # ===================================================================
@@ -353,7 +351,7 @@ class TestDeadSubprofileDetection:
         warnings_list = _check_cross_seat_subprofile_viability(profile)
         assert len(warnings_list) == 1
         assert "Seat N subprofile 1" in warnings_list[0]
-        assert "dead" in warnings_list[0]
+        assert "DEAD" in warnings_list[0]
 
     def test_all_dead_raises_profile_error(self):
         """ALL subprofiles on a seat are dead → ProfileError raised.
@@ -370,7 +368,7 @@ class TestDeadSubprofileDetection:
             "E": [_toy_sub(min_hcp=11, max_hcp=15)],
         })
         # sum(min_hcp) = 44 > 40 → all subs dead on all seats.
-        with pytest.raises(ProfileError, match="ALL.*dead"):
+        with pytest.raises(ProfileError, match="ALL.*DEAD"):
             _check_cross_seat_subprofile_viability(profile)
 
     def test_dead_via_suit_min_cards(self):
@@ -386,52 +384,41 @@ class TestDeadSubprofileDetection:
         })
         warnings_list = _check_cross_seat_subprofile_viability(profile)
         assert len(warnings_list) == 1
-        assert "suit S" in warnings_list[0]
+        assert "Spades" in warnings_list[0]
 
-    def test_weak2s_detects_dead_n1_and_e1(self):
-        """Real Weak 2s profile: N sub1 and E sub1 detected as dead."""
+    def test_weak2s_no_dead_subs(self):
+        """Current Weak 2s v0.3 profile has no dead subprofiles."""
         profile = _load_weak2s()
         warnings_list = _check_cross_seat_subprofile_viability(profile)
-
-        # N sub1 (index 0) and E sub1 (index 0) should be flagged.
-        dead_seats = [w for w in warnings_list]
-        assert any("Seat N subprofile 1" in w for w in dead_seats), (
-            f"Expected N sub1 dead, got: {dead_seats}"
-        )
-        assert any("Seat E subprofile 1" in w for w in dead_seats), (
-            f"Expected E sub1 dead, got: {dead_seats}"
-        )
+        assert warnings_list == []
 
     def test_weak2s_does_not_raise(self):
-        """Weak 2s has dead subs but NOT all dead → no error, just warnings."""
+        """Weak 2s has no dead subs → no error, no warnings."""
         profile = _load_weak2s()
-        # Should not raise — N has 3 alive subs, E has 3 alive subs.
+        # Should not raise.
         warnings_list = _check_cross_seat_subprofile_viability(profile)
-        assert len(warnings_list) >= 2  # at least N sub1 and E sub1
+        assert warnings_list == []
 
-    def test_validate_profile_viability_emits_warnings(self):
-        """validate_profile_viability() emits warnings for dead subs."""
+    def test_validate_profile_viability_no_dead_warnings(self):
+        """validate_profile_viability() emits no dead-sub warnings for v0.3."""
         profile = _load_weak2s()
         import warnings as w_mod
         with w_mod.catch_warnings(record=True) as caught:
             w_mod.simplefilter("always")
             validate_profile_viability(profile)
 
-        dead_warnings = [str(c.message) for c in caught]
-        assert any("dead" in msg for msg in dead_warnings), (
-            f"Expected dead subprofile warnings, got: {dead_warnings}"
+        dead_warnings = [str(c.message) for c in caught if "DEAD" in str(c.message)]
+        assert dead_warnings == [], (
+            f"Unexpected dead subprofile warnings: {dead_warnings}"
         )
 
     def test_validate_profile_runs_cross_check(self):
-        """End-to-end: validate_profile() runs the cross-seat check."""
+        """End-to-end: validate_profile() runs the cross-seat check without error."""
+        if not WEAK2S_PATH.exists():
+            pytest.skip(f"Missing profile: {WEAK2S_PATH}")
         raw = json.loads(WEAK2S_PATH.read_text(encoding="utf-8"))
-        import warnings as w_mod
-        with w_mod.catch_warnings(record=True) as caught:
-            w_mod.simplefilter("always")
-            validate_profile(raw)
-
-        dead_warnings = [str(c.message) for c in caught]
-        assert any("dead" in msg for msg in dead_warnings)
+        # Should complete without raising ProfileError.
+        validate_profile(raw)
 
     def test_single_seat_profile_no_crash(self):
         """Profile with only 1 seat → no crash, no warnings."""
@@ -545,53 +532,30 @@ class TestRuntimeFeasibilityCheck:
             ok, _ = _cross_seat_feasible(chosen_subs)
             assert ok, f"Profile A selection infeasible at seed={seed}"
 
-    def test_weak2s_never_picks_dead_n1_e1_combo(self):
+    def test_weak2s_all_selections_feasible(self):
         """
-        The N sub0 (OC 15-18) should never appear in selections because
-        it's infeasible with ALL E subprofiles.  Every retry will reject it.
-        """
-        profile = _load_weak2s()
-        dealing_order = list(profile.hand_dealing_order)
-
-        n_sub0_count = 0
-        for seed in range(200):
-            rng = random.Random(seed)
-            _, chosen_indices = _select_subprofiles_for_board(
-                rng, profile, dealing_order
-            )
-            if chosen_indices.get("N") == 0:
-                n_sub0_count += 1
-
-        # N sub0 is dead (infeasible with any W+S+E combo).
-        # The retry loop should reject it 100% of the time.
-        assert n_sub0_count == 0, (
-            f"Expected N sub0 never selected, but got {n_sub0_count}/200"
-        )
-
-    def test_weak2s_never_picks_dead_e1_combo(self):
-        """
-        Similarly, E sub0 (OC 15-18) should never appear in feasible selections.
+        v0.3 has no dead subprofiles, so all 200 selections should be feasible.
         """
         profile = _load_weak2s()
         dealing_order = list(profile.hand_dealing_order)
 
-        e_sub0_count = 0
+        infeasible_count = 0
         for seed in range(200):
             rng = random.Random(seed)
-            _, chosen_indices = _select_subprofiles_for_board(
+            chosen_subs, _ = _select_subprofiles_for_board(
                 rng, profile, dealing_order
             )
-            if chosen_indices.get("E") == 0:
-                e_sub0_count += 1
+            ok, _ = _cross_seat_feasible(chosen_subs)
+            if not ok:
+                infeasible_count += 1
 
-        assert e_sub0_count == 0, (
-            f"Expected E sub0 never selected, but got {e_sub0_count}/200"
+        assert infeasible_count == 0, (
+            f"Expected 0 infeasible, got {infeasible_count}/200"
         )
 
-    def test_feasible_indices_distribution(self):
+    def test_weak2s_indices_distribution(self):
         """
-        With dead sub0 eliminated for N and E, the remaining 3 subs
-        (indices 1, 2, 3) should all appear in selections.
+        All N indices (0-3) and E indices (0-1) should appear in selections.
         """
         profile = _load_weak2s()
         dealing_order = list(profile.hand_dealing_order)
@@ -608,11 +572,9 @@ class TestRuntimeFeasibilityCheck:
             if "E" in chosen_indices:
                 e_indices.add(chosen_indices["E"])
 
-        # Should see indices 1, 2, 3 (not 0) for both N and E.
-        assert 0 not in n_indices, f"N sub0 (dead) appeared: {n_indices}"
-        assert 0 not in e_indices, f"E sub0 (dead) appeared: {e_indices}"
-        assert n_indices == {1, 2, 3}, f"Expected N indices {{1,2,3}}, got {n_indices}"
-        assert e_indices == {1, 2, 3}, f"Expected E indices {{1,2,3}}, got {e_indices}"
+        # All N subs (0-3) and E subs (0-1) should appear.
+        assert n_indices == {0, 1, 2, 3}, f"Expected N indices {{0,1,2,3}}, got {n_indices}"
+        assert e_indices == {0, 1}, f"Expected E indices {{0,1}}, got {e_indices}"
 
 
 # ===================================================================

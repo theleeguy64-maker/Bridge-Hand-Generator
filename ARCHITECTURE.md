@@ -7,22 +7,22 @@ bridge_engine/
 ├── deal_generator.py        (374 lines) - Facade: subprofile selection + generate_deals() + re-exports
 ├── deal_generator_v1.py     (787 lines) - v1 builder + hardest-seat + constructive help (legacy)
 ├── deal_generator_v2.py   (1,218 lines) - v2 shape-help helpers + v2 builder (active path)
-├── deal_generator_types.py  (283 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
+├── deal_generator_types.py  (284 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (450 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (838 lines) - Data models
 ├── seat_viability.py        (580 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (519 lines) - Validation
-├── profile_diagnostic.py     (209 lines) - Generic profile diagnostic runner (Admin menu)
+├── profile_diagnostic.py     (226 lines) - Generic profile diagnostic runner (Admin menu)
 ├── orchestrator.py          (491 lines) - CLI/session management + generic menu loop
-├── profile_cli.py           (881 lines) - Profile commands
+├── profile_cli.py           (897 lines) - Profile commands
 ├── profile_wizard.py        (161 lines) - Profile creation UI
 ├── wizard_flow.py         (1,334 lines) - Wizard steps, seat editing, RS/PC/OC prompts
-├── profile_viability.py     (361 lines) - Profile-level viability + cross-seat feasibility
+├── profile_viability.py     (384 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py         (303 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
 ├── lin_tools.py             (458 lines) - LIN file operations
-├── deal_output.py           (330 lines) - Deal rendering
+├── deal_output.py           (333 lines) - Deal rendering
 ├── lin_encoder.py           (188 lines) - LIN format encoding
-├── setup_env.py             (209 lines) - RNG seed management
+├── setup_env.py             (210 lines) - RNG seed management
 ├── cli_io.py                (111 lines) - CLI utilities
 ├── cli_prompts.py           (101 lines) - CLI prompts
 └── hand_profile.py           (34 lines) - Exports
@@ -387,9 +387,10 @@ mechanism in the facade (`_select_subprofiles_for_board()`).
 | 23 | Profile D Test - tight point and suit constraints | `Profile_D_Test_-_tight_and_suit_point_constraint_v0.1.json` |
 | 24 | Profile E Test - tight point and suit constraints_plus | `Profile_E_Test_-_tight_and_suit_point_constraint_plus_v0.1.json` |
 | — | Big Hands | `Big_Hands_v0.1.json` |
-| — | Defense to 3 Weak 2s | `Defense_to_3_Weak_2s_v0.2.json` |
-| — | Opps_Open_&_Our_TO_Dbl | `Opps_Open_&_Our_TO_Dbl_v0.2.json` |
-| — | Ops interference over our 1NT | `Ops_interference_over_our_1NT_v0.1.json` |
+| — | Defense to 3 Weak 2s - Multi Overcall Shapes | `Defense_to_3_Weak_2s_-_Multi__Overcall_Shapes_v0.3.json` |
+| — | Opps_Open_&_Our_TO_Dbl | `Opps_Open_&_Our_TO_Dbl_v0.9.json` |
+| — | Opps_Open_&_Our_TO_Dbl_Balancing | `Opps_Open_&_Our_TO_Dbl_Balancing_v0.9.json` |
+| — | Ops interference over our 1NT | `Ops_interference_over_our_1NT_v0.9.json` |
 | — | Our 1 Major & Opponents Interference | `Our_1_Major_&_Opponents_Interference_v0.2.json` |
 | — | Responding with a Major to 1NT Opening | `Responding_with_a_Major_to_1NT_Opening_v0.1.json` |
 
@@ -551,7 +552,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**433 passed, 4 skipped** organized by:
+**425 passed** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`
@@ -572,7 +573,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 **Untested modules** (low risk):
 - `profile_convert.py` - file I/O logic (should add tests)
-- `profile_print.py`, `wizard_constants.py`, `cli_prompts.py`, `menu_help.py` - minimal/static
+- `profile_print.py` (stub), `wizard_constants.py` (stub), `cli_prompts.py`, `menu_help.py` - minimal/static
 
 ---
 

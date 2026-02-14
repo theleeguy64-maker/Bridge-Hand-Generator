@@ -615,6 +615,9 @@ def edit_profile_action() -> None:
     User can choose:
         - Edit metadata only
         - Edit constraints only (keeping current constraints as defaults)
+
+    After each edit, returns to the edit menu for the same profile
+    so the user can make further changes without re-selecting.
     """
     profiles = _load_profiles()
     chosen = _choose_profile(profiles)
@@ -622,137 +625,142 @@ def edit_profile_action() -> None:
         return
 
     path, profile = chosen
-    print(f"\nEditing profile: {profile.profile_name}")
 
-    print("\nEdit mode:")
-    print("  0) Cancel")
-    print("  1) Edit metadata only")
-    print("  2) Edit constraints only")
-    mode = _input_int(
-        "Choose [0-2] [0]: ",
-        default=0,
-        minimum=0,
-        maximum=2,
-        show_range_suffix=False,
-    )
+    while True:
+        print(f"\nEditing profile: {profile.profile_name}")
 
-    if mode == 0:
-        print("Cancelled.")
-        return
-
-    print()
-
-    if mode == 1:
-        # ------------------------
-        # Metadata-only edit
-        # ------------------------
-        new_name = _input_with_default("Profile name", profile.profile_name)
-        new_desc = _input_with_default("Description", profile.description)
-        new_tag = (
-            prompt_choice(
-                "Tag (Opener / Overcaller)",
-                ["OPENER", "OVERCALLER"],
-                profile.tag.upper(),
-            )
-            .capitalize()
-        )
-        new_dealer = prompt_choice("Dealer seat", ["N", "E", "S", "W"], profile.dealer).upper()
-
-        # Dealing order is auto-computed at runtime by v2 builder.
-        # Store clockwise from dealer as default; not user-editable.
-        dealer = (new_dealer or profile.dealer or "N").strip().upper()
-        new_order = _default_clockwise_order_starting_with(dealer)
-
-        new_author = _input_with_default("Author", profile.author)
-        new_version = _input_with_default("Version", profile.version)
-
-        rotate_default = _yes_no(
-            "Rotate deals by default?",
-            profile.rotate_deals_by_default,
-        )
-
-        # NS role mode (5 options)
-        existing_ns_mode = profile.ns_role_mode or "no_driver_no_index"
-        ns_mode_options = [
-            ("north_drives", "North almost always drives"),
-            ("south_drives", "South almost always drives"),
-            (
-                "random_driver",
-                "Random driver (per board) – N or S is randomly assigned to drive the hand",
-            ),
-            (
-                "no_driver",
-                "No Driver – neither N or S explicitly drives, but SubProfile [index] matching applies",
-            ),
-            ("no_driver_no_index", "No driver / no index matching"),
-        ]
-
-        ns_default_label = next(
-            (label for m, label in ns_mode_options if m == existing_ns_mode),
-            "No driver / no index matching",
-        )
-
-        print("NS role mode (who probably drives the auction for NS?)")
-        for i, (_, label) in enumerate(ns_mode_options, start=1):
-            print(f"  {i}) {label}")
-
-        default_idx = next(
-            (i for i, (_, label) in enumerate(ns_mode_options, start=1) if label == ns_default_label),
-            len(ns_mode_options),
-        )
-
-        choice = _input_int(
-            f"Choose [1-{len(ns_mode_options)}]",
-            default=default_idx,
-            minimum=1,
-            maximum=len(ns_mode_options),
+        print("\nEdit mode:")
+        print("  0) Done (back to Profile Manager)")
+        print("  1) Edit metadata only")
+        print("  2) Edit constraints only")
+        mode = _input_int(
+            "Choose [0-2] [0]: ",
+            default=0,
+            minimum=0,
+            maximum=2,
             show_range_suffix=False,
         )
 
-        new_ns_role_mode = ns_mode_options[choice - 1][0]
-
-        updated = HandProfile(
-            profile_name=new_name,
-            description=new_desc,
-            dealer=new_dealer,
-            hand_dealing_order=new_order,
-            tag=new_tag,
-            seat_profiles=profile.seat_profiles,
-            author=new_author,
-            version=new_version,
-            rotate_deals_by_default=rotate_default,
-            ns_role_mode=new_ns_role_mode,
-            subprofile_exclusions=list(profile.subprofile_exclusions),
-            is_invariants_safety_profile=profile.is_invariants_safety_profile,
-            use_rs_w_only_path=profile.use_rs_w_only_path,
-            sort_order=profile.sort_order,
-        )
-
-        # If name or version changed, save to a new file (keep old file intact)
-        new_path = _profile_path_for(updated)
-        _save_profile_to_path(updated, new_path)
-        profile_store.delete_draft_for_canonical(new_path)
-        if new_path != path:
-            print(f"\nSaved to new file: {new_path.name}")
-            print(f"Previous file kept: {path.name}")
-        else:
-            print(f"\nUpdated profile saved to {new_path.name}")
-        return
-
-    else:        # ------------------------
-        # Constraints-only edit
-        # ------------------------
-        try:
-            updated = edit_constraints_interactive_flow(profile, profile_path=path)
-        except ProfileError as exc:
-            print(f"ERROR while editing constraints: {exc}")
+        if mode == 0:
             return
 
-        if prompt_yes_no("Save updated constraints to this profile?", True):
-            _save_profile_to_path(updated, path)
-            profile_store.delete_draft_for_canonical(path)
-            print(f"\nUpdated profile saved to {path}")
-        return
+        print()
+
+        if mode == 1:
+            # ------------------------
+            # Metadata-only edit
+            # ------------------------
+            new_name = _input_with_default("Profile name", profile.profile_name)
+            new_desc = _input_with_default("Description", profile.description)
+            new_tag = (
+                prompt_choice(
+                    "Tag (Opener / Overcaller)",
+                    ["OPENER", "OVERCALLER"],
+                    profile.tag.upper(),
+                )
+                .capitalize()
+            )
+            new_dealer = prompt_choice("Dealer seat", ["N", "E", "S", "W"], profile.dealer).upper()
+
+            # Dealing order is auto-computed at runtime by v2 builder.
+            # Store clockwise from dealer as default; not user-editable.
+            dealer = (new_dealer or profile.dealer or "N").strip().upper()
+            new_order = _default_clockwise_order_starting_with(dealer)
+
+            new_author = _input_with_default("Author", profile.author)
+            new_version = _input_with_default("Version", profile.version)
+
+            rotate_default = _yes_no(
+                "Rotate deals by default?",
+                profile.rotate_deals_by_default,
+            )
+
+            # NS role mode (5 options)
+            existing_ns_mode = profile.ns_role_mode or "no_driver_no_index"
+            ns_mode_options = [
+                ("north_drives", "North almost always drives"),
+                ("south_drives", "South almost always drives"),
+                (
+                    "random_driver",
+                    "Random driver (per board) – N or S is randomly assigned to drive the hand",
+                ),
+                (
+                    "no_driver",
+                    "No Driver – neither N or S explicitly drives, but SubProfile [index] matching applies",
+                ),
+                ("no_driver_no_index", "No driver / no index matching"),
+            ]
+
+            ns_default_label = next(
+                (label for m, label in ns_mode_options if m == existing_ns_mode),
+                "No driver / no index matching",
+            )
+
+            print("NS role mode (who probably drives the auction for NS?)")
+            for i, (_, label) in enumerate(ns_mode_options, start=1):
+                print(f"  {i}) {label}")
+
+            default_idx = next(
+                (i for i, (_, label) in enumerate(ns_mode_options, start=1) if label == ns_default_label),
+                len(ns_mode_options),
+            )
+
+            choice = _input_int(
+                f"Choose [1-{len(ns_mode_options)}]",
+                default=default_idx,
+                minimum=1,
+                maximum=len(ns_mode_options),
+                show_range_suffix=False,
+            )
+
+            new_ns_role_mode = ns_mode_options[choice - 1][0]
+
+            updated = HandProfile(
+                profile_name=new_name,
+                description=new_desc,
+                dealer=new_dealer,
+                hand_dealing_order=new_order,
+                tag=new_tag,
+                seat_profiles=profile.seat_profiles,
+                author=new_author,
+                version=new_version,
+                rotate_deals_by_default=rotate_default,
+                ns_role_mode=new_ns_role_mode,
+                subprofile_exclusions=list(profile.subprofile_exclusions),
+                is_invariants_safety_profile=profile.is_invariants_safety_profile,
+                use_rs_w_only_path=profile.use_rs_w_only_path,
+                sort_order=profile.sort_order,
+            )
+
+            # If name or version changed, save to a new file (keep old file intact)
+            new_path = _profile_path_for(updated)
+            _save_profile_to_path(updated, new_path)
+            profile_store.delete_draft_for_canonical(new_path)
+            if new_path != path:
+                print(f"\nSaved to new file: {new_path.name}")
+                print(f"Previous file kept: {path.name}")
+            else:
+                print(f"\nUpdated profile saved to {new_path.name}")
+            # Update references so next loop iteration uses the saved version
+            path = new_path
+            profile = updated
+
+        else:
+            # ------------------------
+            # Constraints-only edit
+            # ------------------------
+            try:
+                updated = edit_constraints_interactive_flow(profile, profile_path=path)
+            except ProfileError as exc:
+                print(f"ERROR while editing constraints: {exc}")
+                continue
+
+            if prompt_yes_no("Save updated constraints to this profile?", True):
+                _save_profile_to_path(updated, path)
+                profile_store.delete_draft_for_canonical(path)
+                print(f"\nUpdated profile saved to {path}")
+                # Update profile so next loop iteration uses the saved version
+                profile = updated
 
 
 def delete_profile_action() -> None:

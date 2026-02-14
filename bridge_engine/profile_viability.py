@@ -136,30 +136,52 @@ def _cross_seat_feasible(
     # Check 1: total HCP minimums must not exceed deck total.
     total_min_hcp = sum(_get_total_min_hcp(chosen_subs[s]) for s in seats)
     if total_min_hcp > FULL_DECK_HCP_SUM:
+        # Build per-seat breakdown for the warning message.
+        per_seat = ", ".join(
+            f"{s}={_get_total_min_hcp(chosen_subs[s])}" for s in seats
+        )
+        excess = total_min_hcp - FULL_DECK_HCP_SUM
         return False, (
-            f"sum(min_hcp)={total_min_hcp} > {FULL_DECK_HCP_SUM}: "
-            f"combined HCP minimums exceed deck total"
+            f"combined min HCP ({per_seat}) = {total_min_hcp}, "
+            f"but the deck only has {FULL_DECK_HCP_SUM} HCP — "
+            f"over by {excess}. Lower min_hcp on one or more seats"
         )
 
     # Check 2: total HCP maximums must be able to absorb all deck HCP.
     total_max_hcp = sum(_get_total_max_hcp(chosen_subs[s]) for s in seats)
     if total_max_hcp < FULL_DECK_HCP_SUM:
+        per_seat = ", ".join(
+            f"{s}={_get_total_max_hcp(chosen_subs[s])}" for s in seats
+        )
+        shortfall = FULL_DECK_HCP_SUM - total_max_hcp
         return False, (
-            f"sum(max_hcp)={total_max_hcp} < {FULL_DECK_HCP_SUM}: "
-            f"combined HCP maximums can't absorb all deck HCP"
+            f"combined max HCP ({per_seat}) = {total_max_hcp}, "
+            f"but the deck has {FULL_DECK_HCP_SUM} HCP to distribute — "
+            f"short by {shortfall}. Raise max_hcp on one or more seats"
         )
 
     # Check 3: per-suit card counts.
+    suit_names = {"S": "Spades", "H": "Hearts", "D": "Diamonds", "C": "Clubs"}
     for suit in ("S", "H", "D", "C"):
         suit_min_sum = sum(_get_suit_min(chosen_subs[s], suit) for s in seats)
         if suit_min_sum > CARDS_PER_SUIT:
+            per_seat = ", ".join(
+                f"{s}={_get_suit_min(chosen_subs[s], suit)}" for s in seats
+            )
             return False, (
-                f"suit {suit}: sum(min_cards)={suit_min_sum} > {CARDS_PER_SUIT}"
+                f"{suit_names[suit]}: combined min cards ({per_seat}) = "
+                f"{suit_min_sum}, but only {CARDS_PER_SUIT} exist. "
+                f"Lower min cards for {suit_names[suit]} on one or more seats"
             )
         suit_max_sum = sum(_get_suit_max(chosen_subs[s], suit) for s in seats)
         if suit_max_sum < CARDS_PER_SUIT:
+            per_seat = ", ".join(
+                f"{s}={_get_suit_max(chosen_subs[s], suit)}" for s in seats
+            )
             return False, (
-                f"suit {suit}: sum(max_cards)={suit_max_sum} < {CARDS_PER_SUIT}"
+                f"{suit_names[suit]}: combined max cards ({per_seat}) = "
+                f"{suit_max_sum}, but {CARDS_PER_SUIT} must be dealt. "
+                f"Raise max cards for {suit_names[suit]} on one or more seats"
             )
 
     return True, None
@@ -255,15 +277,16 @@ def _check_cross_seat_subprofile_viability(profile: Any) -> List[str]:
                 alive_count += 1
             else:
                 dead_warnings.append(
-                    f"Seat {seat} subprofile {idx + 1}: dead "
-                    f"(infeasible with best-case other seats: {reason})"
+                    f"Seat {seat} subprofile {idx + 1}: DEAD — "
+                    f"can never be dealt. Even with the most generous "
+                    f"settings on all other seats: {reason}"
                 )
 
         if alive_count == 0:
             raise ProfileError(
-                f"Seat {seat}: ALL {len(subs)} subprofiles are dead — "
-                f"no subprofile can work with any combination of other seats. "
-                f"Check HCP ranges and suit constraints."
+                f"Seat {seat}: ALL {len(subs)} subprofile(s) are DEAD — "
+                f"no valid deal is possible for this seat. "
+                f"Review the min/max HCP and suit constraints across all seats."
             )
 
     return dead_warnings
