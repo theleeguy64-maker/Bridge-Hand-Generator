@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 # Type alias used in annotations throughout this file.
 Seat = str
@@ -36,8 +36,8 @@ class SubprofileExclusionClause:
 class SubprofileExclusionData:
     seat: str                          # "N", "E", "S", "W"
     subprofile_index: int              # 1-based
-    excluded_shapes: Optional[list[str]] = None
-    clauses: Optional[list[SubprofileExclusionClause]] = None
+    excluded_shapes: Optional[List[str]] = None
+    clauses: Optional[List[SubprofileExclusionClause]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         d: Dict[str, Any] = {
@@ -89,7 +89,7 @@ class SubprofileExclusionData:
             )
 
         if self.excluded_shapes:
-            seen: set[str] = set()
+            seen: Set[str] = set()
             for s in self.excluded_shapes:
                 if s in seen:
                     raise ProfileError(f"Duplicate excluded shape: {s}")

@@ -4,10 +4,12 @@
   "description": "Practice Staymen  and transfers over 1NT",
   "hand_dealing_order": [
     "N",
-    "S",
     "E",
+    "S",
     "W"
   ],
+  "is_invariants_safety_profile": false,
+  "ns_role_mode": "no_driver_no_index",
   "profile_name": "Responding with a Major to 1NT Opening",
   "rotate_deals_by_default": true,
   "seat_profiles": {
@@ -15,6 +17,7 @@
       "seat": "E",
       "subprofiles": [
         {
+          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
@@ -54,33 +57,34 @@
       "seat": "N",
       "subprofiles": [
         {
+          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
           "standard": {
             "clubs": {
               "max_cards": 5,
-              "max_hcp": 6,
+              "max_hcp": 8,
               "min_cards": 2,
               "min_hcp": 0
             },
             "diamonds": {
               "max_cards": 5,
-              "max_hcp": 6,
+              "max_hcp": 8,
               "min_cards": 2,
               "min_hcp": 0
             },
             "hearts": {
               "max_cards": 5,
-              "max_hcp": 6,
+              "max_hcp": 8,
               "min_cards": 2,
               "min_hcp": 0
             },
             "spades": {
               "max_cards": 5,
-              "max_hcp": 10,
+              "max_hcp": 8,
               "min_cards": 2,
-              "min_hcp": 2
+              "min_hcp": 0
             },
             "total_max_hcp": 17,
             "total_min_hcp": 15
@@ -93,6 +97,7 @@
       "seat": "S",
       "subprofiles": [
         {
+          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -136,8 +141,8 @@
               "min_cards": 0,
               "min_hcp": 0
             },
-            "total_max_hcp": 14,
-            "total_min_hcp": 6
+            "total_max_hcp": 16,
+            "total_min_hcp": 4
           },
           "weight_percent": 100.0
         }
@@ -147,6 +152,7 @@
       "seat": "W",
       "subprofiles": [
         {
+          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
@@ -185,5 +191,6 @@
   },
   "subprofile_exclusions": [],
   "tag": "Opener",
-  "version": "0.1"
+  "use_rs_w_only_path": false,
+  "version": "0.2"
 }

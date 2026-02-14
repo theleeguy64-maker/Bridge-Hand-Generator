@@ -228,15 +228,15 @@ def collect_failure_attribution(
             latest_shape = {}
 
             # Attempt to build the deal (v2 is the active production builder).
-            result = dg._build_single_constrained_deal_v2(
-                rng=rng,
-                profile=profile,
-                board_number=board_num,
-            )
-
-            if result is not None:
+            # The v2 builder raises DealGenerationError on failure (never returns None).
+            try:
+                dg._build_single_constrained_deal_v2(
+                    rng=rng,
+                    profile=profile,
+                    board_number=board_num,
+                )
                 boards_succeeded += 1
-            else:
+            except dg.DealGenerationError:
                 boards_failed += 1
 
             # Accumulate the final snapshot from this board

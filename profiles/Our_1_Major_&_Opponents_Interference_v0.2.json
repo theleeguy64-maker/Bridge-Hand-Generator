@@ -8,13 +8,16 @@
     "S",
     "W"
   ],
-  "profile_name": "Our 1 Major & Opponents Interrference",
+  "is_invariants_safety_profile": false,
+  "ns_role_mode": "no_driver_no_index",
+  "profile_name": "Our 1 Major & Opponents Interference",
   "rotate_deals_by_default": true,
   "seat_profiles": {
     "E": {
       "seat": "E",
       "subprofiles": [
         {
+          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -64,6 +67,7 @@
           "weight_percent": 33.4
         },
         {
+          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": {
             "opponent_seat": "N",
             "suit_range": {
@@ -106,6 +110,7 @@
           "weight_percent": 33.3
         },
         {
+          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -160,6 +165,7 @@
       "seat": "N",
       "subprofiles": [
         {
+          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -214,6 +220,7 @@
       "seat": "S",
       "subprofiles": [
         {
+          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": {
             "partner_seat": "N",
@@ -261,6 +268,7 @@
       "seat": "W",
       "subprofiles": [
         {
+          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": {
             "opponent_seat": "N",
             "suit_range": {
@@ -307,5 +315,6 @@
   },
   "subprofile_exclusions": [],
   "tag": "Opener",
+  "use_rs_w_only_path": false,
   "version": "0.2"
 }

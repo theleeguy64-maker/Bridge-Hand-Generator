@@ -340,10 +340,7 @@ def _validate_ns_coupling(profile: Any) -> None:
 
     # NS coupling is enabled for all ns_role_mode values EXCEPT
     # "no_driver_no_index", which explicitly opts out of index coupling.
-    _ns_mode = (
-        getattr(profile, "ns_role_mode", "no_driver_no_index")
-        or "no_driver_no_index"
-    )
+    _ns_mode = profile.ns_role_mode or "no_driver_no_index"
     ns_coupling_enabled = _ns_mode != "no_driver_no_index"
     if not ns_coupling_enabled:
         return
@@ -356,7 +353,7 @@ def _validate_ns_coupling(profile: Any) -> None:
         # No NS coupling scenario we care about.
         return
 
-    individually_viable_indices: list[int] = []
+    individually_viable_indices: List[int] = []
 
     for idx, (n_sub, s_sub) in enumerate(zip(n_subs, s_subs)):
         # Use the light viability check (doesn't require dealing cards)

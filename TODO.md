@@ -324,6 +324,13 @@
 - Used `# type: ignore[no-redef]` for intentional variable reuse across code branches
 - Run: `.venv/bin/mypy bridge_engine/ --ignore-missing-imports`
 
+### 42. [x] Code Reviews #51-#52 — ~25 fixes across 16 files
+- ✅ **A-severity (bug)**: Fixed `failure_report.py` — v2 builder raises `DealGenerationError` on failure, but code checked `result is None`; now uses try/except
+- ✅ **B-severity (dead code)**: Deleted `wizard_constants.py` (single constant), deleted `profile_print.py` (empty stub), removed dead `_match_random_suit()` wrapper from `seat_viability.py`, removed dead `prompt_text()` from `cli_prompts.py`, removed dead `prompt_text` import + `SUITS` import + `sub_kwargs` dict from `wizard_flow.py`, removed unused `SUITS` constant from `profile_cli.py`, removed unused `asdict` import from `hand_profile_validate.py`
+- ✅ **C-severity (consistency)**: Standardized 14 lowercase type hints (`list[str]`→`List[str]`, `dict`→`Dict`, `tuple`→`Tuple`, `set`→`Set`) across 8 files; narrowed `except Exception` → `except OSError` in `setup_env.py` (2 locations); narrowed `except Exception` → `except ImportError` in `wizard_flow.py`; removed 4 redundant `hasattr(x, "to_dict")` guards in `hand_profile_validate.py` + `profile_store.py`; removed emoji from `profile_wizard.py` comment
+- ✅ **D-severity (simplification)**: Replaced 2 `object.__setattr__` with `dataclasses.replace()` in `wizard_flow.py`; simplified 3 redundant `getattr(profile, "ns_role_mode", ...)` patterns; added type hints to `_pw_attr()`
+- Skipped: v1 dead code items (preserved for rollback)
+
 ### 36. [x] v1 vs v2 Review + Debug Hook Fix
 - ✅ Comprehensive review of `deal_generator_v1.py` (790 lines) vs `deal_generator_v2.py` (1,122 lines)
 - **Conclusion**: v2 is a complete successor — every v1 feature was replaced with a superior mechanism or deliberately removed
@@ -364,9 +371,9 @@
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 22 (22 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 23 (23 done) | **All complete**
 
-**Tests**: 425 passed | **mypy**: 0 errors (30 files) | **Branch**: cleanup/cli-menu/Test
+**Tests**: 425 passed | **mypy**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 

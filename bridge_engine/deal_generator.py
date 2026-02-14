@@ -169,10 +169,8 @@ def _select_subprofiles_for_board(
 
         # --- NS coupling ---
         # Enabled for all ns_role_mode values EXCEPT "no_driver_no_index".
-        _ns_mode = (
-            getattr(profile, "ns_role_mode", "no_driver_no_index")
-            or "no_driver_no_index"
-        )
+        # getattr needed: tests pass DummyProfile objects without ns_role_mode
+        _ns_mode = getattr(profile, "ns_role_mode", None) or "no_driver_no_index"
         if _ns_mode != "no_driver_no_index":
             ns_driver: Optional[Seat] = profile.ns_driver_seat(rng)
             if ns_driver not in ("N", "S"):

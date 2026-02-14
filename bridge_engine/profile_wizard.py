@@ -79,7 +79,7 @@ def create_profile_interactive() -> HandProfile:
     # Build all kwargs (metadata + default standard constraints)
     kwargs = wizard_flow._build_profile(existing=None)
 
-    # 🔒 Force backwards-compatible NS default for brand-new profiles:
+    # Force backwards-compatible NS default for brand-new profiles:
     # treat them as "no driver / no index" unless explicitly changed later.
     kwargs["ns_role_mode"] = "no_driver_no_index"
 

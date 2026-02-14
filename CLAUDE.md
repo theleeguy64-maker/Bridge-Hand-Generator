@@ -7,7 +7,8 @@
 
 ## Shortcuts
 - **"Lee Title"** - Change terminal title to "Bridge Hand Generator"
-- **"Lee commit"** - Run mypy (`.venv/bin/mypy bridge_engine/ --ignore-missing-imports`), then run tests, then update CLAUDE.md, TODO.md, and ARCHITECTURE.md, then commit, then git push, then output "/usage" so user can check usage
+- **"Lee commit"** - Update CLAUDE.md, TODO.md, and ARCHITECTURE.md, then commit, then git push, then output "/usage" so user can check usage
+- **"Lee code review"** - Run mypy (`.venv/bin/mypy bridge_engine/ --ignore-missing-imports`), then perform a full code review of all `bridge_engine/` files looking for: bugs, dead code, incorrect types, missing imports, unreachable code, narrowable exceptions, inconsistent naming, stale comments/docstrings. Present findings grouped by severity (A=bugs, B=dead code, C=consistency, D=simplification). Use "Lee slow" mode for all fixes.
 - **"Lee slow"** - Careful mode. After EACH code change:
   1. Run tests (`.venv/bin/pytest -v`)
   2. If passed: Explicitly state "✅ All X tests passed"

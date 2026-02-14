@@ -45,14 +45,12 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Iterable
 from . import cli_io
 from . import profile_store
 from .menu_help import get_menu_help
-from .wizard_constants import SUITS
 from . import wizard_io as wiz_io
 from .hand_profile_validate import validate_profile as _validate_profile_fallback
 
 from .cli_prompts import (
     prompt_choice,
     prompt_int,
-    prompt_text,
     prompt_yes_no as _prompt_yes_no,
 )
 
@@ -75,16 +73,16 @@ def _validate_profile(profile) -> None:
 # After splitting the wizard into modules, we route interactive I/O through
 # that module when available (falling back to wizard_io). This preserves the
 # stable monkeypatch seam expected by tests.
-def _pw_attr(name: str, fallback):
+def _pw_attr(name: str, fallback: Any) -> Any:
     """
     Late attribute lookup on the already-imported profile_wizard module.
     This preserves monkeypatch seams even if imports happen in different order.
-    """    
+    """
     pw = sys.modules.get("bridge_engine.profile_wizard")
-    if pw is None:    
+    if pw is None:
         try:
             from . import profile_wizard as pw  # local import avoids cycles at import time
-        except Exception:
+        except ImportError:
             return fallback
             
     return getattr(pw, name, fallback)
@@ -199,8 +197,8 @@ from .hand_profile import (
 # Sub-profile exclusions (F2) — wizard helpers
 # ---------------------------------------------------------------------------
 
-def _parse_shapes_csv(raw: str) -> list[str]:
-    shapes: list[str] = []
+def _parse_shapes_csv(raw: str) -> List[str]:
+    shapes: List[str] = []
     for part in raw.split(","):
         s = part.strip()
         if not s:
@@ -237,7 +235,7 @@ def _build_exclusion_rule(
         )
 
     # kind == "rule"
-    clauses: list[SubprofileExclusionClause] = []
+    clauses: List[SubprofileExclusionClause] = []
     max_clauses = 2
     for idx in range(1, max_clauses + 1):
         group = _input_choice(
@@ -376,11 +374,8 @@ def _make_default_standard_seat_profile(seat: str) -> SeatProfile:
         clubs=SuitRange(min_cards=0, max_cards=6, min_hcp=0, max_hcp=10),
     )
 
-    sub_kwargs: Dict[str, Any] = {}
-    
     sub = SubProfile(
         standard=std,
-        **sub_kwargs,
     )
 
     return SeatProfile(seat=seat, subprofiles=[sub])
@@ -974,7 +969,7 @@ def _build_seat_profile(
     
 def _assign_ns_role_usage_interactive(
     seat: str,
-    subprofiles: list[SubProfile],
+    subprofiles: List[SubProfile],
     existing_seat_profile: Optional[SeatProfile],
 ) -> None:
     """
@@ -993,7 +988,7 @@ def _assign_ns_role_usage_interactive(
         return
 
     # Start from existing values if we have them, else default to "any".
-    existing_usage: list[str] = []
+    existing_usage: List[str] = []
     if existing_seat_profile is not None:
         for sp in existing_seat_profile.subprofiles:
             existing_usage.append(getattr(sp, "ns_role_usage", "any"))
@@ -1015,8 +1010,8 @@ def _assign_ns_role_usage_interactive(
         default=False,
     ):
         # Just write defaults back into the new objects.
-        for sub, usage in zip(subprofiles, defaults):
-            object.__setattr__(sub, "ns_role_usage", usage)
+        for i, (sub, usage) in enumerate(zip(subprofiles, defaults)):
+            subprofiles[i] = replace(sub, ns_role_usage=usage)
         return
 
     # User wants to edit them.
@@ -1036,7 +1031,7 @@ def _assign_ns_role_usage_interactive(
             if value in valid_options:
                 break
             print("Please enter one of: any, driver_only, follower_only")
-        object.__setattr__(subprofiles[idx - 1], "ns_role_usage", value)
+        subprofiles[idx - 1] = replace(subprofiles[idx - 1], ns_role_usage=value)
 
 
 def _autosave_profile_draft(profile: HandProfile, original_path: Path) -> None:

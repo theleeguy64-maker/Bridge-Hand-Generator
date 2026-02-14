@@ -186,15 +186,6 @@ def _match_random_suit_with_attempt(
     return True, chosen_suits
 
 
-def _match_random_suit(
-    analysis: SuitAnalysis,
-    rs: RandomSuitConstraintData,
-    rng: random.Random,
-) -> Optional[List[str]]:
-    matched, chosen = _match_random_suit_with_attempt(analysis, rs, rng)
-    return chosen if matched else None
-
-
 def _check_suit_range(analysis: SuitAnalysis, suit: str, sr: SuitRange) -> bool:
     """Check whether a single suit in the hand satisfies a SuitRange constraint."""
     if suit not in analysis.cards_by_suit:
@@ -354,7 +345,7 @@ def _is_excluded_for_seat_subprofile(
                 length_eq = int(getattr(c, "length_eq", -1))
                 want_count = int(getattr(c, "count", -1))
 
-                suits: tuple[str, ...]
+                suits: Tuple[str, ...]
                 if group == "MAJOR":
                     suits = ("S", "H")
                 elif group == "MINOR":

@@ -62,7 +62,6 @@ from . import profile_store
 
 from .wizard_flow import edit_constraints_interactive as edit_constraints_interactive_flow
 from .profile_store import PROFILE_DIR_NAME
-SUITS: List[str] = ["S", "H", "D", "C"]
 
 
 # ---------------------------------------------------------------------------
@@ -406,7 +405,7 @@ def _print_random_suit_constraint(
 
             suits2 = _fmt_suits(suits)
 
-            parts: list[str] = []
+            parts: List[str] = []
             if first_range is not None:
                 parts.append(
                     f"first cards {first_range.min_cards}–{first_range.max_cards}, "

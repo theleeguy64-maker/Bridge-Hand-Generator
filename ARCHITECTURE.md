@@ -4,27 +4,27 @@
 
 ```
 bridge_engine/
-├── deal_generator.py        (374 lines) - Facade: subprofile selection + generate_deals() + re-exports
+├── deal_generator.py        (372 lines) - Facade: subprofile selection + generate_deals() + re-exports
 ├── deal_generator_v1.py     (787 lines) - v1 builder + hardest-seat + constructive help (legacy)
 ├── deal_generator_v2.py   (1,218 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py  (284 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (450 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
-├── hand_profile_model.py    (838 lines) - Data models
-├── seat_viability.py        (580 lines) - Constraint matching + RS pre-selection threading
-├── hand_profile_validate.py (519 lines) - Validation
+├── hand_profile_model.py    (842 lines) - Data models
+├── seat_viability.py        (573 lines) - Constraint matching + RS pre-selection threading
+├── hand_profile_validate.py (514 lines) - Validation
 ├── profile_diagnostic.py     (226 lines) - Generic profile diagnostic runner (Admin menu)
 ├── orchestrator.py          (491 lines) - CLI/session management + generic menu loop
 ├── profile_cli.py           (897 lines) - Profile commands
-├── profile_wizard.py        (161 lines) - Profile creation UI
-├── wizard_flow.py         (1,334 lines) - Wizard steps, seat editing, RS/PC/OC prompts
-├── profile_viability.py     (384 lines) - Profile-level viability + cross-seat feasibility
+├── profile_wizard.py        (158 lines) - Profile creation UI
+├── wizard_flow.py         (1,332 lines) - Wizard steps, seat editing, RS/PC/OC prompts
+├── profile_viability.py     (381 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py         (303 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
 ├── lin_tools.py             (458 lines) - LIN file operations
 ├── deal_output.py           (333 lines) - Deal rendering
 ├── lin_encoder.py           (188 lines) - LIN format encoding
 ├── setup_env.py             (210 lines) - RNG seed management
 ├── cli_io.py                (111 lines) - CLI utilities
-├── cli_prompts.py           (101 lines) - CLI prompts
+├── cli_prompts.py            (96 lines) - CLI prompts
 └── hand_profile.py           (34 lines) - Exports
 ```
 
@@ -581,7 +581,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 **Untested modules** (low risk):
 - `profile_convert.py` - file I/O logic (should add tests)
-- `profile_print.py` (stub), `wizard_constants.py` (stub), `cli_prompts.py`, `menu_help.py` - minimal/static
+- `cli_prompts.py`, `menu_help.py` - minimal/static
 
 ---
 

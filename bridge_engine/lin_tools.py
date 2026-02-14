@@ -79,7 +79,7 @@ def logical_lin_key(path: Path) -> str:
     stem = _TRAILING_NUMBERS_RE.sub("", stem)
     return stem
 
-def select_latest_per_group(paths: Iterable[Path]) -> list[Path]:
+def select_latest_per_group(paths: Iterable[Path]) -> List[Path]:
     """
     Given an iterable of .lin Paths, group them by logical_lin_key,
     and return only the latest (lexicographically largest filename)
@@ -90,7 +90,7 @@ def select_latest_per_group(paths: Iterable[Path]) -> list[Path]:
       Lee_Opps_Open_&_Our_TO_Dbl_BBO_1209_0922.lin
     only the 1209_0922 file is returned.
     """
-    groups: dict[str, Path] = {}
+    groups: Dict[str, Path] = {}
 
     for p in paths:
         key = logical_lin_key(p)

@@ -9,11 +9,6 @@ from . import cli_io
 T = TypeVar("T")
 
 
-def prompt_text(prompt: str, default: str = "") -> str:
-    """Text input with default."""
-    return cli_io._input_with_default(prompt, default)
-
-
 def prompt_choice(
     prompt: str,
     options: Sequence[T],

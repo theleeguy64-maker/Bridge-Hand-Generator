@@ -109,7 +109,7 @@ def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
       - draft saving is handled elsewhere (autosave_profile_draft)
     """
     data: Dict[str, Any] = (
-        profile.to_dict() if hasattr(profile, "to_dict") else dict(profile.__dict__)
+        profile.to_dict()
     )
 
     name = str(data.get("profile_name", "") or "")
@@ -176,7 +176,7 @@ def save_profile(profile: HandProfile, base_dir: Path | None = None) -> Path:
     Save profile to its canonical path. Returns the saved path.
     """
     path = _profile_path_for(profile, base_dir=base_dir)
-    data: Dict[str, Any] = profile.to_dict() if hasattr(profile, "to_dict") else dict(profile.__dict__)
+    data: Dict[str, Any] = profile.to_dict()
 
     # Canonical metadata should NOT carry the " TEST" suffix.
     data["profile_name"] = _strip_test_suffix(str(data.get("profile_name", "") or ""))
@@ -211,7 +211,7 @@ def autosave_profile_draft(profile: HandProfile, canonical_path: Path) -> Path:
     """
     draft_path = canonical_path.with_name(canonical_path.stem + "_TEST.json")
 
-    payload: Dict[str, Any] = profile.to_dict() if hasattr(profile, "to_dict") else dict(profile.__dict__)
+    payload: Dict[str, Any] = profile.to_dict()
     payload["profile_name"] = _with_test_suffix(str(payload.get("profile_name", "") or ""))
 
     _atomic_write(draft_path, json.dumps(payload, indent=2, sort_keys=True) + "\n")

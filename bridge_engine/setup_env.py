@@ -94,7 +94,7 @@ def _ensure_directories(base_dir: Path) -> Tuple[Path, Path, Path]:
     """
     try:
         base_dir.mkdir(parents=True, exist_ok=True)
-    except Exception as exc:
+    except OSError as exc:
         raise SetupError(f"Could not create base directory {base_dir}: {exc}")
 
     txt = base_dir / "txt"

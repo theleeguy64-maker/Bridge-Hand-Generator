@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import asdict, is_dataclass, fields
-from typing import Any, Dict, List, Tuple
+from dataclasses import is_dataclass, fields
+from typing import Any, Dict, List, Set, Tuple
 
 from .hand_profile_model import HandProfile, SeatProfile, SubProfile, ProfileError
 
@@ -18,11 +18,7 @@ def _to_raw_dict(data: Any) -> Dict[str, Any]:
     - A mapping (e.g. dict) as loaded from JSON
     """
     if isinstance(data, HandProfile):
-        # Prefer a bespoke serialiser if it exists.
-        if hasattr(data, "to_dict"):
-            raw = data.to_dict()  # type: ignore[assignment]
-        else:
-            raw = asdict(data)
+        raw = data.to_dict()  # type: ignore[assignment]
         if not isinstance(raw, dict):
             raise TypeError("HandProfile.to_dict() must return a mapping")
         return dict(raw)
@@ -266,7 +262,7 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
     """
 
     # Only relevant if N or S actually has subprofiles.
-    ns_seats: list[Seat] = [
+    ns_seats: List[Seat] = [
         seat
         for seat in ("N", "S")
         if seat in profile.seat_profiles
@@ -284,8 +280,7 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
     # Back-compat:
     #   - missing/blank ns_role_mode → treated as "no_driver_no_index" (skip checks)
     #   - unknown/future values      → treated as "no_driver_no_index" (lenient)
-    mode = getattr(profile, "ns_role_mode", "no_driver_no_index") or "no_driver_no_index"
-    mode = (mode or "").strip()
+    mode = (profile.ns_role_mode or "no_driver_no_index").strip()
 
     if mode in ("no_driver", "no_driver_no_index"):
         return
@@ -295,7 +290,7 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
         # failing profile creation.
         return
 
-    def roles_for(seat: Seat) -> set[str]:
+    def roles_for(seat: Seat) -> Set[str]:
         """Return roles ('driver', 'follower') that this seat may take."""
         if seat not in ("N", "S"):
             return set()
