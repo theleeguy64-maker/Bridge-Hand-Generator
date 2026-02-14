@@ -354,6 +354,7 @@ def _is_excluded_for_seat_subprofile(
                 length_eq = int(getattr(c, "length_eq", -1))
                 want_count = int(getattr(c, "count", -1))
 
+                suits: tuple[str, ...]
                 if group == "MAJOR":
                     suits = ("S", "H")
                 elif group == "MINOR":
@@ -541,7 +542,8 @@ def _subprofile_is_viable(
 
     try:
         # Temporarily narrow this seat to a single subprofile.
-        seat_profile.subprofiles = [subprofile]
+        # SeatProfile is frozen, so use object.__setattr__ to bypass.
+        object.__setattr__(seat_profile, "subprofiles", [subprofile])
         # If this doesn't raise, the subprofile is viable in the context
         # of the whole profile (NS coupling, etc.).
         validate_profile_viability_light(profile)
@@ -551,7 +553,7 @@ def _subprofile_is_viable(
         return False
     finally:
         # Restore the original configuration.
-        seat_profile.subprofiles = original_subprofiles
+        object.__setattr__(seat_profile, "subprofiles", original_subprofiles)
         
         
 def validate_profile_viability_light(profile: HandProfile) -> None:

@@ -281,4 +281,4 @@ _DEBUG_STANDARD_CONSTRUCTIVE_USED = None
 #   (profile, board_number, attempt_number,
 #    seat_fail_as_seat, seat_fail_global_other, seat_fail_global_unchecked,
 #    seat_fail_hcp, seat_fail_shape)
-_DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION = None
+_DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION: Optional[Callable] = None

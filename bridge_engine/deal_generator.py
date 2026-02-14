@@ -93,7 +93,7 @@ from .deal_generator_v2 import (
 
 def _try_pair_coupling(
     rng: random.Random,
-    seat_profiles: Dict[str, object],
+    seat_profiles: Dict[str, SeatProfile],
     seat_a: Seat,
     seat_b: Seat,
     driver_seat: Seat,
@@ -285,7 +285,7 @@ def generate_deals(
     # the full matching pipeline.
     # ---------------------------------------------------------------
     if getattr(profile, "use_rs_w_only_path", False):
-        deals: List[Deal] = []
+        deals: List[Deal] = []  # type: ignore[no-redef]
         for board_number in range(1, num_deals + 1):
             deal = _build_single_board_random_suit_w_only(
                 rng=rng,
@@ -313,13 +313,13 @@ def generate_deals(
     # For hard profiles (e.g. "Defense to Weak 2s" at ~10% per-retry
     # success rate), 50 retries gives ~99.5% per-board success.
     try:
-        deals: List[Deal] = []
+        deals: List[Deal] = []  # type: ignore[no-redef]
         board_times: List[float] = []   # Per-board elapsed seconds
         reseed_count: int = 0           # Number of adaptive re-seeds
 
         for board_number in range(1, num_deals + 1):
             board_start = time.monotonic()
-            deal = None
+            deal: Optional[Deal] = None  # type: ignore[no-redef]
             last_exc: Optional[Exception] = None
             for _retry in range(MAX_BOARD_RETRIES):
                 try:

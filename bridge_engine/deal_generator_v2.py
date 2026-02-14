@@ -36,7 +36,9 @@ from .deal_generator_helpers import (
     _check_hcp_feasibility, _build_deck, _compute_viability_summary,
     _vulnerability_for_board,
 )
-from .hand_profile import HandProfile, SeatProfile, SubProfile, SuitRange
+from .hand_profile import (
+    HandProfile, SeatProfile, SubProfile, SuitRange, RandomSuitConstraintData,
+)
 from .seat_viability import _match_seat
 
 
@@ -46,9 +48,9 @@ from .seat_viability import _match_seat
 
 
 def _resolve_rs_ranges(
-    rs: object,
+    rs: RandomSuitConstraintData,
     pre_selected_suits: List[str],
-) -> Dict[str, object]:
+) -> Dict[str, SuitRange]:
     """
     Resolve the effective RS suit ranges for pre-selected suits.
 
@@ -147,10 +149,10 @@ def _dispersion_check(
         for seat, pre_suits in rs_pre_selections.items():
             if seat in tight_seats:
                 continue  # Already flagged by standard constraints
-            sub = chosen_subprofiles.get(seat)
-            if sub is None:
+            rs_sub = chosen_subprofiles.get(seat)
+            if rs_sub is None:
                 continue
-            rs = getattr(sub, "random_suit_constraint", None)
+            rs = getattr(rs_sub, "random_suit_constraint", None)
             if rs is None:
                 continue
 
@@ -519,8 +521,8 @@ def _pre_allocate_rs(
         # the first whose pro-rated HCP is on-track for the suit's target.
         # This dramatically improves success rates for tight HCP constraints
         # (e.g. W in "Defense to Weak 2s" needs 5-7 HCP in exactly 6 cards).
-        min_hcp = getattr(sr, "min_hcp", None)
-        max_hcp = getattr(sr, "max_hcp", None)
+        min_hcp: Optional[int] = getattr(sr, "min_hcp", None)
+        max_hcp: Optional[int] = getattr(sr, "max_hcp", None)
         use_hcp_targeting = (
             RS_PRE_ALLOCATE_HCP_RETRIES > 0
             and min_hcp is not None
@@ -531,6 +533,7 @@ def _pre_allocate_rs(
         if use_hcp_targeting:
             # Pro-rate HCP target to the pre-allocated card count.
             # E.g. 6 cards need 5-7 HCP → 3 pre-allocated need 2-4 HCP.
+            assert min_hcp is not None and max_hcp is not None  # guarded above
             target_low = math.floor(min_hcp * actual / min_cards)
             target_high = math.ceil(max_hcp * actual / min_cards)
 
@@ -644,7 +647,7 @@ def _deal_with_help(
         deck_size = len(deck)
 
         for seat in dealing_order:
-            pre = pre_allocated.get(seat)
+            pre: Optional[List[Card]] = pre_allocated.get(seat)  # type: ignore[no-redef]
             if not pre:
                 continue
             sub = chosen_subprofiles.get(seat)
@@ -699,7 +702,7 @@ def _deal_with_help(
 
                 # Extract per-suit HCP max from RS constraints (#13).
                 # Only needed when RS suits have an explicit max_hcp cap.
-                rs_hcp_max = None
+                rs_hcp_max: Optional[Dict[str, int]] = None
                 if rs_for_seat:
                     rs = getattr(sub, "random_suit_constraint", None)
                     if rs is not None:
@@ -1004,7 +1007,7 @@ def _build_single_constrained_deal_v2(
         rng.shuffle(deck)
 
         # Deal with shape help for tight seats (RS-aware).
-        hands, hcp_rejected_seat = _deal_with_help(
+        hands, hcp_rejected_seat = _deal_with_help(  # type: ignore[assignment]
             rng, deck, chosen_subprofiles, tight_seats, dealing_order,
             rs_pre_selections=rs_pre_selections,
         )

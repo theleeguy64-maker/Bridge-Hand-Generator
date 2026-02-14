@@ -399,7 +399,7 @@ def _print_random_suit_constraint(
             suits = getattr(o, "suits", None)
             first_range = getattr(o, "first_range", None)
             second_range = getattr(o, "second_range", None)
-            if suits is None:
+            if suits is None and isinstance(o, dict):
                 suits = o.get("suits")
                 first_range = o.get("first_range")
                 second_range = o.get("second_range")
@@ -492,9 +492,10 @@ def _print_profile_constraints(profile: HandProfile) -> None:
                     indent="    ",
                 )
 
-            if getattr(sub, "opponents_contingent_suit_constraint", None) is not None:
+            oc_constraint = getattr(sub, "opponents_contingent_suit_constraint", None)
+            if oc_constraint is not None:
                 _print_opponent_contingent_constraint(
-                    sub.opponents_contingent_suit_constraint,
+                    oc_constraint,
                     indent="    ",
                 )
 

@@ -292,7 +292,7 @@ def _construct_hand_for_seat(
         s = str(card)
         return s[-1].upper() if s else ""
 
-    hand: List[Card] = []
+    hand: List[Card] = []  # type: ignore[no-redef]
 
     # Phase 1 – satisfy minima per suit.
     for suit, required in min_suit_counts.items():
@@ -528,7 +528,7 @@ def _build_single_constrained_deal(
         deck = _build_deck()
         rng.shuffle(deck)
 
-        hands: Dict[Seat, List[Card]] = {}
+        hands: Dict[Seat, List[Card]] = {}  # type: ignore[no-redef]
 
         # --------------------------
         # Optional constructive path
@@ -671,7 +671,7 @@ def _build_single_constrained_deal(
             if chosen_sub is None or idx0 is None:
                 matched = False
                 chosen_rs = None
-                fail_reason = "other"  # No subprofile to classify against
+                fail_reason: Optional[str] = "other"  # No subprofile to classify against
             else:
                 # Match the seat against profile constraints
                 matched, chosen_rs, fail_reason = _dg._match_seat(
@@ -765,7 +765,7 @@ def _build_single_constrained_deal(
 
     if _dg._DEBUG_ON_MAX_ATTEMPTS is not None:
         try:
-            viability_summary = _compute_viability_summary(
+            viability_summary = _compute_viability_summary(  # type: ignore[assignment]
                 seat_fail_counts=seat_fail_counts,
                 seat_seen_counts=seat_seen_counts,
             )

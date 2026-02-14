@@ -317,6 +317,13 @@
 - Skipped C2/C3 (diverged semantics, `&` in filenames) and D3 (v1 dependency)
 - wizard_flow.py: 1,667 → 1,410 lines (−257); seat_viability.py: 598 → 596; profile_cli.py: 889 → 881
 
+### 41. [x] Install mypy + fix all type errors (48 → 0)
+- ✅ Installed mypy; initial run found 48 errors across 11 files
+- ✅ Fixed all 48 errors across 10 files (30 source files checked, 0 errors)
+- Key fixes: missing imports (`random`, `Seat`, `Sequence`), `object` → proper types (`RandomSuitConstraintData`, `SeatProfile`, `SuitRange`), `Optional` annotations for nullable variables, `object.__setattr__` for frozen dataclass writes, `isinstance` guard for dict fallback, removed stale import shadowing
+- Used `# type: ignore[no-redef]` for intentional variable reuse across code branches
+- Run: `.venv/bin/mypy bridge_engine/ --ignore-missing-imports`
+
 ### 36. [x] v1 vs v2 Review + Debug Hook Fix
 - ✅ Comprehensive review of `deal_generator_v1.py` (790 lines) vs `deal_generator_v2.py` (1,122 lines)
 - **Conclusion**: v2 is a complete successor — every v1 feature was replaced with a superior mechanism or deliberately removed
@@ -359,7 +366,7 @@
 ## Summary
 Architecture: 15 (15 done) | Enhancements: 22 (22 done) | **All complete**
 
-**Tests**: 425 passed | **Branch**: cleanup/cli-menu/Test
+**Tests**: 425 passed | **mypy**: 0 errors (30 files) | **Branch**: cleanup/cli-menu/Test
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 

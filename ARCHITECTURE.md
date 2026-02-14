@@ -550,6 +550,14 @@ SeatProfile(seat, subprofiles)
 HandProfile(seat_profiles, dealer, dealing_order, ...)
 ```
 
+## Type Checking
+
+**mypy** installed — 0 errors across 30 source files.
+
+```bash
+.venv/bin/mypy bridge_engine/ --ignore-missing-imports
+```
+
 ## Test Coverage
 
 **425 passed** organized by:

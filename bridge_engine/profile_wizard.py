@@ -34,11 +34,8 @@ from .wizard_io import (  # type: ignore
 
 # ---- Wizard flow / builders -------------------------------------------------
 
-# Entry points expected by CLI:
-from .wizard_flow import (  # type: ignore
-    create_profile_interactive,
-    edit_constraints_interactive,
-)
+# Entry points: create_profile_interactive and edit_constraints_interactive
+# are defined locally below (they delegate to wizard_flow._build_profile).
 
 # Internal helpers used by unit tests:
 from .wizard_flow import (  # type: ignore

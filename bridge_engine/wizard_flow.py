@@ -376,7 +376,7 @@ def _make_default_standard_seat_profile(seat: str) -> SeatProfile:
         clubs=SuitRange(min_cards=0, max_cards=6, min_hcp=0, max_hcp=10),
     )
 
-    sub_kwargs: dict[str, object] = {}
+    sub_kwargs: Dict[str, Any] = {}
     
     sub = SubProfile(
         standard=std,
@@ -1155,8 +1155,8 @@ def _build_profile(
     # ------------------------------------------------------------------
     # EDIT FLOW (existing is not None): full constraints wizard
     # ------------------------------------------------------------------
-    seat_profiles: Dict[str, SeatProfile] = {}
-    subprofile_exclusions: List[SubprofileExclusionData] = list(
+    seat_profiles: Dict[str, SeatProfile] = {}  # type: ignore[no-redef]
+    subprofile_exclusions: List[SubprofileExclusionData] = list(  # type: ignore[no-redef]
         getattr(existing, "subprofile_exclusions", []) or []
     )
 
@@ -1276,7 +1276,10 @@ def create_profile_interactive() -> HandProfile:
 
     for seat in ("N", "E", "S", "W"):
         # Completely open "standard" ranges:
-        std = StandardSuitConstraints()
+        _open = SuitRange()
+        std = StandardSuitConstraints(
+            spades=_open, hearts=_open, diamonds=_open, clubs=_open,
+        )
         sub = SubProfile(
             standard=std,
             random_suit_constraint=None,
