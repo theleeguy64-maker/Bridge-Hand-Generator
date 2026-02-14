@@ -45,17 +45,12 @@ from typing import Any, Dict, List, Optional, Sequence
 from . import profile_store
 from .menu_help import get_menu_help
 from . import wizard_io as wiz_io
-from .hand_profile_validate import validate_profile as _validate_profile_fallback
-
 from .cli_prompts import (
     prompt_int,
 )
 
 from .hand_profile_model import _default_dealing_order
 
-
-def _validate_profile(profile) -> None:
-    return _pw_attr("validate_profile", _validate_profile_fallback)(profile)
 
 # NOTE: pytest monkeypatches input helpers on bridge_engine.profile_wizard.
 # After splitting the wizard into modules, we route interactive I/O through
@@ -185,8 +180,8 @@ from .hand_profile import (
 # Sub-profile exclusions (F2) — wizard helpers
 # ---------------------------------------------------------------------------
 
-def _parse_shapes_csv(raw: str) -> list[str]:
-    shapes: list[str] = []
+def _parse_shapes_csv(raw: str) -> List[str]:
+    shapes: List[str] = []
     for part in raw.split(","):
         s = part.strip()
         if not s:
@@ -223,7 +218,7 @@ def _build_exclusion_rule(
         )
 
     # kind == "rule"
-    clauses: list[SubprofileExclusionClause] = []
+    clauses: List[SubprofileExclusionClause] = []
     max_clauses = 2
     for idx in range(1, max_clauses + 1):
         group = _input_choice(
@@ -955,7 +950,7 @@ def _build_seat_profile(
     
 def _assign_ns_role_usage_interactive(
     seat: str,
-    subprofiles: list[SubProfile],
+    subprofiles: List[SubProfile],
     existing_seat_profile: Optional[SeatProfile],
 ) -> None:
     """
@@ -974,7 +969,7 @@ def _assign_ns_role_usage_interactive(
         return
 
     # Start from existing values if we have them, else default to "any".
-    existing_usage: list[str] = []
+    existing_usage: List[str] = []
     if existing_seat_profile is not None:
         for sp in existing_seat_profile.subprofiles:
             existing_usage.append(getattr(sp, "ns_role_usage", "any"))

@@ -16,6 +16,9 @@
 - [x] Code review #46: _dispersion_check return type, sys import cleanup, draft filtering in orchestrator
 - [x] Code review #47: failure_report bugs (DealGenerationError catch, total_attempts +=), 7 dead code removals, 9 consistency fixes
 - [x] Code review #48: 7 bug fixes (stale docstring, missing imports, frozen dataclass mutation, broad except), 7 dead code removals (dead function, empty stub, unused imports/re-exports), 9 consistency fixes (type hints, redundant guards, getattr cleanup)
+- [x] Code review #49: 2 bug fixes (int(None) guard, seat init order), 8 dead code removals (_subprofile_is_viable, _validate_profile wrapper, prompt_text, wizard_constants.py, unused imports/constants), 10 consistency fixes (type hints, hasattr guards, clear_screen, redundant .upper())
+- [x] Code review #50: 2 bug fixes (guard clause ordering in lin_tools, incorrect docstring in lin_encoder), 1 dead code fix (redundant if/else in _fmt_suits), 7 consistency fixes (list→List across 7 files, _CLOCKWISE annotation, extra blank line, broad except narrowed)
+- [x] Fix Defense_to_3_Weak_2s profile: N sub4 RS max_hcp 37→10 (typo, should match E sub4's value of 10)
 
 ---
 

@@ -35,8 +35,8 @@ class SubprofileExclusionClause:
 class SubprofileExclusionData:
     seat: str                          # "N", "E", "S", "W"
     subprofile_index: int              # 1-based
-    excluded_shapes: Optional[list[str]] = None
-    clauses: Optional[list[SubprofileExclusionClause]] = None
+    excluded_shapes: Optional[List[str]] = None
+    clauses: Optional[List[SubprofileExclusionClause]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         d: Dict[str, Any] = {
@@ -782,21 +782,7 @@ class HandProfile:
 
             if sp is not None:
                 for sub in sp.subprofiles:
-                    # Preferred Phase 3 field.
-                    usage = getattr(sub, "ns_role_usage", None)
-
-                    if usage is None:
-                        # Legacy experimental metadata: ns_role_for_seat
-                        legacy_role = getattr(sub, "ns_role_for_seat", "neutral")
-                        legacy_role = str(legacy_role).lower()
-                        if legacy_role == "driver":
-                            seat_buckets["driver"].append(sub)
-                        elif legacy_role == "follower":
-                            seat_buckets["follower"].append(sub)
-                        else:
-                            seat_buckets["neutral"].append(sub)
-                        continue
-
+                    usage = sub.ns_role_usage
                     usage_lc = str(usage).lower()
                     if usage_lc == "driver_only":
                         seat_buckets["driver"].append(sub)

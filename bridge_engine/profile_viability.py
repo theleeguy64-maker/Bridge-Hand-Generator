@@ -4,7 +4,6 @@ Extended profile-level viability helpers.
 Historically these lived in a `profile_viability` module. The current
 per-seat implementation lives in `seat_viability`. This module:
 
-  * re-exports `_subprofile_is_viable` for backwards compatibility, and
   * provides a profile-level `validate_profile_viability(...)` that adds
     NS index-coupling checks on top of the lighter per-seat validation.
 """
@@ -201,7 +200,7 @@ def _check_cross_seat_subprofile_viability(profile: Any) -> List[str]:
         return []
 
     # Collect all seats and their subprofile lists.
-    seat_subs: Dict[str, list] = {}
+    seat_subs: Dict[str, List] = {}
     for seat, sp in seat_profiles.items():
         subs = getattr(sp, "subprofiles", None)
         if subs:

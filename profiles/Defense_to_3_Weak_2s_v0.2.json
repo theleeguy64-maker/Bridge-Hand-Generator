@@ -367,7 +367,7 @@
             "suit_ranges": [
               {
                 "max_cards": 7,
-                "max_hcp": 37,
+                "max_hcp": 10,
                 "min_cards": 6,
                 "min_hcp": 3
               }

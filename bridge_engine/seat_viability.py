@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import random
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from .hand_profile import (
     HandProfile,
@@ -343,8 +343,8 @@ def _is_excluded_for_seat_subprofile(
             ok = True
             for c in clauses:
                 group = getattr(c, "group", None)
-                length_eq = int(getattr(c, "length_eq", -1))
-                want_count = int(getattr(c, "count", -1))
+                length_eq = int(getattr(c, "length_eq", -1) or -1)
+                want_count = int(getattr(c, "count", -1) or -1)
 
                 if group == "MAJOR":
                     suits = ("S", "H")
@@ -457,7 +457,7 @@ def _match_seat(
 # ---------------------------------------------------------------------------
 
 
-def _subprofile_is_viable_light(sub: SubProfile, *, return_reason: bool = False):
+def _subprofile_is_viable_light(sub: SubProfile, *, return_reason: bool = False) -> Union[bool, Tuple[bool, str]]:
     """
     Cheap feasibility checks that do NOT require dealing cards.
     Intended for fast 'this can never work' rejection.
@@ -492,10 +492,10 @@ def _subprofile_is_viable_light(sub: SubProfile, *, return_reason: bool = False)
         return (ok, reason) if return_reason else ok
 
     # HCP feasibility: a 13-card hand maxes at 37 HCP
-    if getattr(std, "total_min_hcp", 0) > 37:
+    if std.total_min_hcp > 37:
         ok, reason = False, f"total_min_hcp {std.total_min_hcp} > 37"
         return (ok, reason) if return_reason else ok
-    if getattr(std, "total_max_hcp", 37) < 0:
+    if std.total_max_hcp < 0:
         ok, reason = False, f"total_max_hcp {std.total_max_hcp} < 0"
         return (ok, reason) if return_reason else ok
 
@@ -503,49 +503,6 @@ def _subprofile_is_viable_light(sub: SubProfile, *, return_reason: bool = False)
     return (ok, reason) if return_reason else ok
     
     
-def _subprofile_is_viable(
-    profile: HandProfile,
-    seat: str,
-    subprofile: SubProfile,
-) -> bool:
-    """
-    Return True if this specific subprofile for a given seat is globally viable.
-
-    Implementation strategy:
-
-      * Temporarily restrict the given seat to use only this `subprofile`
-        (leave all other seats unchanged).
-      * Run `validate_profile_viability_light(profile)`.
-      * If it does not raise, the subprofile is considered viable; otherwise not.
-      * Always restore the original subprofiles before returning.
-    """
-    # Defensive: ensure we have a proper seat_profiles mapping and a SeatProfile.
-    seat_profiles = getattr(profile, "seat_profiles", None)
-    if not isinstance(seat_profiles, dict):
-        return False
-
-    seat_profile = seat_profiles.get(seat)
-    if not isinstance(seat_profile, SeatProfile):
-        return False
-
-    # Save the original subprofiles so we can restore them.
-    original_subprofiles = list(getattr(seat_profile, "subprofiles", []))
-
-    try:
-        # Temporarily narrow this seat to a single subprofile.
-        seat_profile.subprofiles = [subprofile]
-        # If this doesn't raise, the subprofile is viable in the context
-        # of the whole profile (NS coupling, etc.).
-        validate_profile_viability_light(profile)
-        return True
-    except (ProfileError, ValueError, TypeError):
-        # Validation failure means this subprofile is not viable.
-        return False
-    finally:
-        # Restore the original configuration.
-        seat_profile.subprofiles = original_subprofiles
-        
-        
 def validate_profile_viability_light(profile: HandProfile) -> None:
     """
     Lightweight feasibility validation:

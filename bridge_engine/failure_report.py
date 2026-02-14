@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from .hand_profile_model import HandProfile
+from .hand_profile import HandProfile
 from .deal_generator_types import DealGenerationError
 from . import deal_generator as dg
 

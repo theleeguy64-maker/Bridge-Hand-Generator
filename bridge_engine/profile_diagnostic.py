@@ -27,17 +27,17 @@ Seat = str
 # Hand display helpers
 # ---------------------------------------------------------------------------
 
-def _hand_hcp(hand: list) -> int:
+def _hand_hcp(hand: List[str]) -> int:
     """Sum HCP for a hand (list of card strings like 'AS', '2H')."""
     return sum(_card_hcp(c) for c in hand)
 
 
-def _suit_count(hand: list, suit_letter: str) -> int:
+def _suit_count(hand: List[str], suit_letter: str) -> int:
     """Count cards belonging to a suit (S/H/D/C)."""
     return sum(1 for c in hand if len(c) >= 2 and c[1] == suit_letter)
 
 
-def _hand_shape(hand: list) -> str:
+def _hand_shape(hand: List[str]) -> str:
     """Return shape string like '6-3-2-2' (S-H-D-C order)."""
     counts = [_suit_count(hand, s) for s in "SHDC"]
     return "-".join(str(c) for c in counts)
@@ -78,11 +78,11 @@ def run_profile_diagnostic(
     profile_name = getattr(profile, "profile_name", "Unknown")
 
     # ---- Aggregated counters across all boards ----
-    total_as_seat: Dict[Seat, int] = {s: 0 for s in "WNES"}
-    total_global_other: Dict[Seat, int] = {s: 0 for s in "WNES"}
-    total_global_unchecked: Dict[Seat, int] = {s: 0 for s in "WNES"}
-    total_hcp: Dict[Seat, int] = {s: 0 for s in "WNES"}
-    total_shape: Dict[Seat, int] = {s: 0 for s in "WNES"}
+    total_as_seat: Dict[Seat, int] = {s: 0 for s in "WNSE"}
+    total_global_other: Dict[Seat, int] = {s: 0 for s in "WNSE"}
+    total_global_unchecked: Dict[Seat, int] = {s: 0 for s in "WNSE"}
+    total_hcp: Dict[Seat, int] = {s: 0 for s in "WNSE"}
+    total_shape: Dict[Seat, int] = {s: 0 for s in "WNSE"}
 
     board_results: List[tuple] = []  # (board_number, success, attempts, deal_or_None)
     total_attempts = 0

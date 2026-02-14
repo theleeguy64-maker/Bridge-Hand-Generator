@@ -4,29 +4,29 @@
 
 ```
 bridge_engine/
-├── deal_generator.py        (374 lines) - Facade: subprofile selection + generate_deals() + re-exports
+├── deal_generator.py        (375 lines) - Facade: subprofile selection + generate_deals() + re-exports
 ├── deal_generator_v1.py     (787 lines) - v1 builder + hardest-seat + constructive help (legacy)
 ├── deal_generator_v2.py   (1,219 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py  (283 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (450 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
-├── hand_profile_model.py    (841 lines) - Data models
-├── seat_viability.py        (572 lines) - Constraint matching + RS pre-selection threading
+├── hand_profile_model.py    (827 lines) - Data models
+├── seat_viability.py        (529 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (519 lines) - Validation
 ├── profile_diagnostic.py    (226 lines) - Generic profile diagnostic runner (Admin menu)
 ├── orchestrator.py          (493 lines) - CLI/session management + generic menu loop
-├── profile_cli.py           (885 lines) - Profile commands
+├── profile_cli.py           (881 lines) - Profile commands
 ├── profile_wizard.py        (111 lines) - Profile creation UI
-├── wizard_flow.py         (1,233 lines) - Wizard steps, seat editing, RS/PC/OC prompts
-├── profile_viability.py     (359 lines) - Profile-level viability + cross-seat feasibility
-├── profile_store.py         (304 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
+├── wizard_flow.py         (1,228 lines) - Wizard steps, seat editing, RS/PC/OC prompts
+├── profile_viability.py     (358 lines) - Profile-level viability + cross-seat feasibility
+├── profile_store.py         (302 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
 ├── failure_report.py        (265 lines) - Failure attribution reporting
-├── lin_tools.py             (428 lines) - LIN file operations
+├── lin_tools.py             (429 lines) - LIN file operations
 ├── deal_output.py           (335 lines) - Deal rendering
 ├── lin_encoder.py           (188 lines) - LIN format encoding
 ├── setup_env.py             (210 lines) - RNG seed management
-├── wizard_io.py             (124 lines) - Wizard I/O wrappers
+├── wizard_io.py             (120 lines) - Wizard I/O wrappers
 ├── cli_io.py                (111 lines) - CLI utilities
-├── cli_prompts.py           (100 lines) - CLI prompts
+├── cli_prompts.py            (95 lines) - CLI prompts
 └── hand_profile.py           (34 lines) - Exports
 ```
 

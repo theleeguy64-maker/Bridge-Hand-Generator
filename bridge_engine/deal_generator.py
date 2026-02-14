@@ -29,6 +29,7 @@ from .hand_profile import (
     HandProfile,
     SeatProfile,
     SubProfile,
+    ProfileError,
 )
 from .seat_viability import _match_seat
 from .profile_viability import _cross_seat_feasible
@@ -370,5 +371,5 @@ def generate_deals(
         )
     except DealGenerationError:
         raise  # Pass through domain errors without wrapping.
-    except Exception as exc:
+    except (ProfileError, ValueError, TypeError) as exc:
         raise DealGenerationError(f"Failed to generate deals: {exc}") from exc

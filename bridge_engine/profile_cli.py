@@ -62,7 +62,6 @@ from . import profile_store
 
 from .wizard_flow import edit_constraints_interactive as edit_constraints_interactive_flow
 from .profile_store import PROFILE_DIR_NAME
-SUITS: List[str] = ["S", "H", "D", "C"]
 
 
 # ---------------------------------------------------------------------------
@@ -355,10 +354,7 @@ def _fmt_suits(suits) -> str:
     """
     if suits is None:
         return "[]"
-    if isinstance(suits, str):
-        suits_list = list(suits)
-    else:
-        suits_list = list(suits)
+    suits_list = list(suits)
 
     order = ["S", "H", "D", "C"]
     suits_sorted = [s for s in order if s in set(suits_list)]
@@ -402,7 +398,7 @@ def _print_random_suit_constraint(
 
             suits2 = _fmt_suits(suits)
 
-            parts: list[str] = []
+            parts: List[str] = []
             if first_range is not None:
                 parts.append(
                     f"first cards {first_range.min_cards}–{first_range.max_cards}, "
@@ -652,7 +648,7 @@ def edit_profile_action() -> None:
             )
             .capitalize()
         )
-        new_dealer = prompt_choice("Dealer seat", ["N", "E", "S", "W"], profile.dealer).upper()
+        new_dealer = prompt_choice("Dealer seat", ["N", "E", "S", "W"], profile.dealer)
 
         # Dealing order is auto-computed at runtime by v2 builder.
         # Store clockwise from dealer as default; not user-editable.

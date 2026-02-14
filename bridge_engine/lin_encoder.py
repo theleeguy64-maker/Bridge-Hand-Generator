@@ -89,7 +89,7 @@ def _hand_to_lin_suits(cards: List[str]) -> str:
         "S<spades>H<hearts>D<diamonds>C<clubs>"
 
     Example (all spades):
-        ["AS", "KS"] -> "SAKSHTD C"
+        ["AS", "KS"] -> "SAKHDC"
     """
     by_suit: Dict[str, List[str]] = {s: [] for s in _SUITS}
     for card in cards:

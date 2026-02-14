@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 import re
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence
+from typing import Dict, Iterable, List
 
 # ---------------------------------------------------------------------------
 # Compiled regex patterns (all in one place for easy auditing)
@@ -78,6 +78,7 @@ def logical_lin_key(path: Path) -> str:
     stem = _TRAILING_NUMBERS_RE.sub("", stem)
     return stem
 
+
 def select_latest_per_group(paths: Iterable[Path]) -> List[Path]:
     """
     Given an iterable of .lin Paths, group them by logical_lin_key,
@@ -100,7 +101,6 @@ def select_latest_per_group(paths: Iterable[Path]) -> List[Path]:
 
     # Return a stable list (sorted by filename for nicer menus/tests)
     return sorted(groups.values(), key=lambda p: p.name)
-
 
 
 def _split_lin_into_boards(text: str) -> List[str]:
@@ -179,6 +179,9 @@ def combine_lin_files(
     length, or all weights are zero/negative, we fall back to equal
     weighting across files.
     """
+    if not input_paths:
+        return 0
+
     rng = random.Random(seed)
 
     # Load boards per file
@@ -193,8 +196,6 @@ def combine_lin_files(
 
     # Normalise / validate weights
     file_weights: List[float]
-    if not input_paths:
-        return 0
 
     if weights is None or len(weights) != len(input_paths):
         # Default: equal weights
@@ -357,35 +358,35 @@ def run_lin_combiner() -> None:
         print(f"  - {label}")
 
     # 5b) Optional weighted selection (F4)
+    # chosen_files is guaranteed non-empty (>= 2 items) by the selection loop above.
     file_weights: List[float] | None = None
-    if chosen_files:
-        use_weights = input(
-            "\nUse weighted selection by source file? [y/N]: "
-        ).strip().lower()
-        if use_weights.startswith("y"):
-            print(
-                "Enter a *relative* weight for each file. "
-                "Higher numbers mean that file's boards are used more often.\n"
-                "For example, weights 1,2,1 make the second file appear about twice "
-                "as often as each of the others. Weights do NOT need to sum to 100; "
-                "a weight of 0 means 'never use this file'."
-            )
-            file_weights = []
-            for p in chosen_files:
-                while True:
-                    raw_w = input(f"  Weight for {p.name} [1]: ").strip()
-                    if not raw_w:
-                        raw_w = "1"
-                    try:
-                        w = float(raw_w)
-                    except ValueError:
-                        print(f"    Invalid number {raw_w!r}; please enter a numeric weight.")
-                        continue
-                    if w < 0.0:
-                        print("    Weight must be non-negative.")
-                        continue
-                    file_weights.append(w)
-                    break
+    use_weights = input(
+        "\nUse weighted selection by source file? [y/N]: "
+    ).strip().lower()
+    if use_weights.startswith("y"):
+        print(
+            "Enter a *relative* weight for each file. "
+            "Higher numbers mean that file's boards are used more often.\n"
+            "For example, weights 1,2,1 make the second file appear about twice "
+            "as often as each of the others. Weights do NOT need to sum to 100; "
+            "a weight of 0 means 'never use this file'."
+        )
+        file_weights = []
+        for p in chosen_files:
+            while True:
+                raw_w = input(f"  Weight for {p.name} [1]: ").strip()
+                if not raw_w:
+                    raw_w = "1"
+                try:
+                    w = float(raw_w)
+                except ValueError:
+                    print(f"    Invalid number {raw_w!r}; please enter a numeric weight.")
+                    continue
+                if w < 0.0:
+                    print("    Weight must be non-negative.")
+                    continue
+                file_weights.append(w)
+                break
 
     # 6) Ask for output filename (stem; we always write .lin)
     default_stem = "combined"

@@ -740,7 +740,7 @@ _CONSTRAINT_RISK: Dict[str, float] = {
     "standard": 0.0,   # No cross-seat dependency
 }
 
-_CLOCKWISE = ["N", "E", "S", "W"]
+_CLOCKWISE: List[str] = ["N", "E", "S", "W"]
 
 
 def _subprofile_constraint_type(sub: "SubProfile") -> str:

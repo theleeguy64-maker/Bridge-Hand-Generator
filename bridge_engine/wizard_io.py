@@ -117,8 +117,4 @@ def clear_screen() -> None:
     Local wrapper so existing code can call clear_screen()
     without caring where it lives.
     """
-    fn = getattr(cli_io, "clear_screen", None)
-    if callable(fn):
-        fn()
-        return
-    print("\n" * 100)
+    cli_io.clear_screen()
