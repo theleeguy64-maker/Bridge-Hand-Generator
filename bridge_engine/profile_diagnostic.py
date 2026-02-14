@@ -196,8 +196,8 @@ def run_profile_diagnostic(
     )
     print(f"Wall time: {wall_elapsed:.1f}s")
 
-    # Column widths: label=26, each seat=13 "NNNNNN (NN.N%)", total=8
-    col = 13  # width per seat column
+    # Column widths: label=26, each seat=14 "NNNNNN (NN.N%)", total=8
+    col = 14  # width per seat column
     print(
         f"\n  {'Failure Attribution':<26} "
         f"{'W':>{col}} {'N':>{col}} {'S':>{col}} {'E':>{col}} {'TOTAL':>8}"

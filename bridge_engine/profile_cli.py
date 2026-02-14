@@ -200,7 +200,7 @@ def _load_profiles() -> List[Tuple[Path, HandProfile]]:
                 data = json.load(f)
             profile = HandProfile.from_dict(data)
             results.append((path, profile))
-        except (json.JSONDecodeError, TypeError, KeyError, ValueError) as exc:
+        except (json.JSONDecodeError, TypeError, KeyError, ValueError, ProfileError) as exc:
             print(
                 f"WARNING: Failed to load profile from {path}: {exc}",
                 file=sys.stderr,
@@ -396,13 +396,9 @@ def _print_random_suit_constraint(
     if rs.pair_overrides:
         print(f"{indent}  Pair overrides:")
         for o in rs.pair_overrides:
-            suits = getattr(o, "suits", None)
-            first_range = getattr(o, "first_range", None)
-            second_range = getattr(o, "second_range", None)
-            if suits is None:
-                suits = o.get("suits")
-                first_range = o.get("first_range")
-                second_range = o.get("second_range")
+            suits = o.suits
+            first_range = o.first_range
+            second_range = o.second_range
 
             suits2 = _fmt_suits(suits)
 

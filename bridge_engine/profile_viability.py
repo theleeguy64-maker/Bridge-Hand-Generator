@@ -19,13 +19,11 @@ from types import SimpleNamespace
 from .hand_profile_model import ProfileError
 from .deal_generator_types import FULL_DECK_HCP_SUM
 from .seat_viability import (
-    _subprofile_is_viable,
     _subprofile_is_viable_light,
     validate_profile_viability_light,
 )
 
 __all__ = [
-    "_subprofile_is_viable",
     "validate_profile_viability",
     "_cross_seat_feasible",
 ]
@@ -303,7 +301,7 @@ def _validate_ns_coupling(profile: Any) -> None:
     If NS index-coupling is enabled and both N/S have >1 subprofiles
     with equal lengths, then for each index i:
       - If both N[i] and S[i] are individually viable, they must also
-        be jointly viable as a pair; otherwise we raise ValueError.
+        be jointly viable as a pair; otherwise we raise ProfileError.
       - If no index has both N[i] and S[i] individually viable, raise.
     """
     seat_profiles = getattr(profile, "seat_profiles", None)
@@ -333,7 +331,7 @@ def _validate_ns_coupling(profile: Any) -> None:
         # No NS coupling scenario we care about.
         return
 
-    individually_viable_indices: list[int] = []
+    individually_viable_indices: List[int] = []
 
     for idx, (n_sub, s_sub) in enumerate(zip(n_subs, s_subs)):
         # Use the light viability check (doesn't require dealing cards)
@@ -351,7 +349,7 @@ def _validate_ns_coupling(profile: Any) -> None:
         # For indices where both sides are individually viable, the pair must
         # also be jointly viable (cannot over-demand any suit).
         if not _ns_pair_jointly_viable(n_sub, s_sub):
-            raise ValueError(
+            raise ProfileError(
                 "NS index-coupled subprofile pair is not jointly viable "
                 f"at index {idx}"
             )
@@ -359,4 +357,4 @@ def _validate_ns_coupling(profile: Any) -> None:
     # If NS coupling is present but there is *no* index where both N and S are
     # individually viable, the profile is unusable.
     if not individually_viable_indices:
-        raise ValueError("No NS index-coupled subprofile pair is jointly viable")
+        raise ProfileError("No NS index-coupled subprofile pair is jointly viable")

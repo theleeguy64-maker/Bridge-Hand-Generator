@@ -34,11 +34,9 @@ from .wizard_io import (  # type: ignore
 
 # ---- Wizard flow / builders -------------------------------------------------
 
-# Entry points expected by CLI:
-from .wizard_flow import (  # type: ignore
-    create_profile_interactive,
-    edit_constraints_interactive,
-)
+# edit_constraints_interactive is imported here for re-export but shadowed
+# below by the local definition that forces ns_role_mode defaults.
+from .wizard_flow import edit_constraints_interactive  # noqa: F811
 
 # Internal helpers used by unit tests:
 from .wizard_flow import (  # type: ignore
@@ -47,20 +45,6 @@ from .wizard_flow import (  # type: ignore
     _build_seat_profile,
     _build_profile,
 )
-
-# Some repos/tests import additional helpers; re-exporting is harmless.
-try:
-    from .wizard_flow import (  # type: ignore
-        _build_card_range_for_prompt,
-        _build_hcp_range_for_prompt,
-        _build_ace_range_for_prompt,
-        _build_king_range_for_prompt,
-        _build_queen_range_for_prompt,
-        _build_jack_range_for_prompt,
-    )
-except ImportError:
-    # Not all versions have these helpers; ignore if absent.
-    pass
 
 def create_profile_interactive() -> HandProfile:
     """
@@ -93,41 +77,7 @@ def create_profile_interactive() -> HandProfile:
     validate_profile(profile)
 
     return profile
-            
-def create_profile_from_existing_constraints(existing: HandProfile) -> HandProfile:
-    """
-    Create a new profile that reuses all constraints from `existing`
-    (seat_profiles + subprofile_exclusions) but lets the user enter new
-    metadata fields (name, description, tag, dealer, dealing order,
-    author, version, rotate_deals_by_default).
 
-    This is intended for “new standard profile” flows built from a
-    base template; constraint tweaks are done later via
-    edit_constraints_interactive().
-    """
-    clear_screen()
-    print("=== Create New Profile (from template) ===")
-    print()
-    print(f"Starting from template: {existing.profile_name}")
-    print()
-
-    # Prompt for new metadata via the create flow (existing=None),
-    # then override constraints with the template's constraints.
-    kwargs = _build_profile(existing=None, original_path=None)
-
-    # Replace auto-generated standard constraints with the template's.
-    kwargs["seat_profiles"] = dict(existing.seat_profiles)
-    kwargs["subprofile_exclusions"] = list(
-        getattr(existing, "subprofile_exclusions", [])
-    )
-    kwargs["ns_role_mode"] = getattr(
-        existing, "ns_role_mode", "no_driver_no_index"
-    )
-
-    profile = HandProfile(**kwargs)
-    validate_profile(profile)
-    return profile
-    
 def edit_constraints_interactive(existing: HandProfile) -> HandProfile:
     print("\n=== Edit Constraints for Profile ===")
     print(f"Profile: {existing.profile_name}")

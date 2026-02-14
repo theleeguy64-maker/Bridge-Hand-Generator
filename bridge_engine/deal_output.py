@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence
+from typing import Dict, List, Sequence
 
 from .deal_generator import Deal, DealSet
 from .hand_profile import HandProfile
@@ -113,7 +113,7 @@ def _format_vertical_hand(cards: Sequence[str], indent: int = 8) -> List[str]:
 
 
 def _format_horizontal_pair(
-    west_cards: Sequence[str], east_cards: Sequence[str], inner_indent: int = 0
+    west_cards: Sequence[str], east_cards: Sequence[str]
 ) -> List[str]:
     """
     Format West and East horizontally on the same set of lines, e.g.:
@@ -170,6 +170,8 @@ def _format_single_board_text(board: Deal) -> List[str]:
     lines.append("")
 
     return lines
+
+
 def _convert_to_formatted_deals(
     profile: HandProfile, deals: Sequence[Deal]
 ) -> List[str]:
@@ -263,7 +265,7 @@ def _convert_to_lin_deals(deals: Sequence[Deal]) -> List[LinDeal]:
                 board_number=d.board_number,
                 dealer=d.dealer,
                 hands=d.hands,
-                vulnerability=getattr(d, "vulnerability", "None"),
+                vulnerability=d.vulnerability,
             )
         )
     return lin_deals

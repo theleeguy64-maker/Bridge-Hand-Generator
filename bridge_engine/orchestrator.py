@@ -150,7 +150,7 @@ def _discover_profiles(base_dir: Path | None = None) -> List[Tuple[Path, HandPro
                 data: Dict[str, Any] = json.load(f)
             profile = HandProfile.from_dict(data)
             results.append((path, profile))
-        except Exception as exc:  # pragma: no cover  (used only in CLI)
+        except (json.JSONDecodeError, TypeError, KeyError, ValueError, ProfileError) as exc:  # pragma: no cover
             print(
                 f"WARNING: Failed to load profile from {path}: {exc}",
                 file=sys.stderr,

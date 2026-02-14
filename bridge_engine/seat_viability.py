@@ -178,21 +178,13 @@ def _match_random_suit_with_attempt(
         sr = ranges_by_suit[suit]
         count = len(analysis.cards_by_suit[suit])
         hcp = analysis.hcp_by_suit[suit]
-        if not (sr.min_cards <= count <= sr.max_cards):  # type: ignore[attr-defined]
+        if not (sr.min_cards <= count <= sr.max_cards):
             return False, chosen_suits
-        if not (sr.min_hcp <= hcp <= sr.max_hcp):        # type: ignore[attr-defined]
+        if not (sr.min_hcp <= hcp <= sr.max_hcp):
             return False, chosen_suits
 
     return True, chosen_suits
 
-
-def _match_random_suit(
-    analysis: SuitAnalysis,
-    rs: RandomSuitConstraintData,
-    rng: random.Random,
-) -> Optional[List[str]]:
-    matched, chosen = _match_random_suit_with_attempt(analysis, rs, rng)
-    return chosen if matched else None
 
 
 def _check_suit_range(analysis: SuitAnalysis, suit: str, sr: SuitRange) -> bool:

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from .hand_profile import HandProfile
+from .hand_profile_model import ProfileError
 
 PROFILE_DIR_NAME = "profiles"
 TEST_NAME_SUFFIX = " TEST"
@@ -157,7 +158,7 @@ def _load_profiles(base_dir: Path | None = None) -> List[Tuple[Path, HandProfile
             raw = json.loads(json_path.read_text(encoding="utf-8"))
             profile = HandProfile.from_dict(raw)
             profiles.append((json_path, profile))
-        except (json.JSONDecodeError, TypeError, KeyError, ValueError) as exc:
+        except (json.JSONDecodeError, TypeError, KeyError, ValueError, ProfileError) as exc:
             print(
                 f"WARNING: Failed to load profile from {json_path}: {exc}",
                 file=sys.stderr,

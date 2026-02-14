@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
+
+Seat = str  # Type alias for seat identifiers ("N", "E", "S", "W")
 
 class ProfileError(Exception):
     """Raised when a hand profile or its constraints are invalid."""

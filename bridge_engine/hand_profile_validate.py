@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, is_dataclass, fields
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Set, Tuple
 
 from .hand_profile_model import HandProfile, SeatProfile, SubProfile, ProfileError
 
@@ -266,7 +266,7 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
     """
 
     # Only relevant if N or S actually has subprofiles.
-    ns_seats: list[Seat] = [
+    ns_seats: List[Seat] = [
         seat
         for seat in ("N", "S")
         if seat in profile.seat_profiles
@@ -285,7 +285,7 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
     #   - missing/blank ns_role_mode → treated as "no_driver_no_index" (skip checks)
     #   - unknown/future values      → treated as "no_driver_no_index" (lenient)
     mode = getattr(profile, "ns_role_mode", "no_driver_no_index") or "no_driver_no_index"
-    mode = (mode or "").strip()
+    mode = mode.strip()
 
     if mode in ("no_driver", "no_driver_no_index"):
         return
@@ -295,7 +295,7 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
         # failing profile creation.
         return
 
-    def roles_for(seat: Seat) -> set[str]:
+    def roles_for(seat: Seat) -> Set[str]:
         """Return roles ('driver', 'follower') that this seat may take."""
         if seat not in ("N", "S"):
             return set()

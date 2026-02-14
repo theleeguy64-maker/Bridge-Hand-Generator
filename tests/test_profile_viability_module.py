@@ -13,6 +13,8 @@ from typing import Any, Dict, List, Optional
 
 import pytest
 
+from bridge_engine.hand_profile_model import ProfileError
+
 from bridge_engine.profile_viability import (
     _ns_pair_jointly_viable,
     validate_profile_viability,
@@ -175,7 +177,7 @@ def test_validate_profile_viability_respects_coupling_enabled() -> None:
     )
 
     # Should raise because index 1 is not jointly viable
-    with pytest.raises(ValueError, match="not jointly viable"):
+    with pytest.raises(ProfileError, match="not jointly viable"):
         validate_profile_viability(profile)
 
 
@@ -250,7 +252,7 @@ def test_validate_profile_viability_no_viable_pair_raises() -> None:
     # Index 0: N viable, S not viable (suit mins > 13)
     # Index 1: N not viable, S viable
     # No index where both are viable
-    with pytest.raises(ValueError, match="No NS index-coupled subprofile pair is jointly viable"):
+    with pytest.raises(ProfileError, match="No NS index-coupled subprofile pair is jointly viable"):
         validate_profile_viability(profile)
 
 

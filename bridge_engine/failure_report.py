@@ -17,11 +17,12 @@ from __future__ import annotations
 import csv
 import json
 import random
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from .hand_profile_model import HandProfile
+from .deal_generator_types import DealGenerationError
 from . import deal_generator as dg
 
 
@@ -127,8 +128,6 @@ class FailureAttributionReport:
                 "pain_share": ps[seat],
             })
 
-        if not rows:
-            return  # Nothing to write
         with path.open("w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
             writer.writeheader()
@@ -205,7 +204,7 @@ def collect_failure_attribution(
         latest_global_unchecked = dict(seat_fail_global_unchecked)
         latest_hcp = dict(seat_fail_hcp)
         latest_shape = dict(seat_fail_shape)
-        total_attempts = attempt_number
+        total_attempts += attempt_number
 
     # Save and set hook
     old_hook = getattr(dg, "_DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION", None)
@@ -228,15 +227,15 @@ def collect_failure_attribution(
             latest_shape = {}
 
             # Attempt to build the deal (v2 is the active production builder).
-            result = dg._build_single_constrained_deal_v2(
-                rng=rng,
-                profile=profile,
-                board_number=board_num,
-            )
-
-            if result is not None:
+            # v2 raises DealGenerationError on exhaustion (never returns None).
+            try:
+                dg._build_single_constrained_deal_v2(
+                    rng=rng,
+                    profile=profile,
+                    board_number=board_num,
+                )
                 boards_succeeded += 1
-            else:
+            except DealGenerationError:
                 boards_failed += 1
 
             # Accumulate the final snapshot from this board

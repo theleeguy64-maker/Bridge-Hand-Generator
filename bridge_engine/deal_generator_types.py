@@ -92,7 +92,6 @@ _HARDEST_SEAT_CONFIG: HardestSeatConfig = HardestSeatConfig()
 # ---------------------------------------------------------------------------
 
 MAX_BOARD_ATTEMPTS: int = 10000
-MAX_ATTEMPTS_HAND_2_3: int = 1000
 
 # P1.3: Minimum attempts before early termination for unviable profiles.
 # Must have enough data for reliable viability classification before

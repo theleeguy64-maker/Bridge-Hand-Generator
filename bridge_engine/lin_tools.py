@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import random
 import re
-from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Sequence
+from typing import Dict, Iterable, List, Sequence
 
 # ---------------------------------------------------------------------------
 # Compiled regex patterns (all in one place for easy auditing)
@@ -79,7 +78,7 @@ def logical_lin_key(path: Path) -> str:
     stem = _TRAILING_NUMBERS_RE.sub("", stem)
     return stem
 
-def select_latest_per_group(paths: Iterable[Path]) -> list[Path]:
+def select_latest_per_group(paths: Iterable[Path]) -> List[Path]:
     """
     Given an iterable of .lin Paths, group them by logical_lin_key,
     and return only the latest (lexicographically largest filename)
@@ -90,7 +89,7 @@ def select_latest_per_group(paths: Iterable[Path]) -> list[Path]:
       Lee_Opps_Open_&_Our_TO_Dbl_BBO_1209_0922.lin
     only the 1209_0922 file is returned.
     """
-    groups: dict[str, Path] = {}
+    groups: Dict[str, Path] = {}
 
     for p in paths:
         key = logical_lin_key(p)
@@ -102,35 +101,6 @@ def select_latest_per_group(paths: Iterable[Path]) -> list[Path]:
     # Return a stable list (sorted by filename for nicer menus/tests)
     return sorted(groups.values(), key=lambda p: p.name)
 
-
-def group_lin_files_by_scenario(paths: Sequence[Path]) -> Dict[str, List[Path]]:
-    """
-    Group LIN files by their logical 'scenario key'.
-
-    Returns:
-        dict: {scenario_key -> [Path, Path, ...]}
-    """
-    groups: Dict[str, List[Path]] = defaultdict(list)
-    for p in paths:
-        groups[logical_lin_key(p)].append(p)
-    return dict(groups)
-
-
-def latest_lin_file_per_scenario(
-    groups: Mapping[str, Sequence[Path]],
-) -> Dict[str, Path]:
-    """
-    From grouped LIN files, pick the latest (by mtime) for each scenario.
-
-    Returns:
-        dict: {scenario_key -> latest Path}
-    """
-    latest: Dict[str, Path] = {}
-    for key, files in groups.items():
-        if not files:
-            continue
-        latest[key] = max(files, key=lambda p: p.stat().st_mtime)
-    return latest
 
 
 def _split_lin_into_boards(text: str) -> List[str]:

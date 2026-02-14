@@ -6,6 +6,8 @@ We keep them in a dedicated module and re-export them.
 
 from __future__ import annotations
 
+from typing import Sequence
+
 from . import cli_io
 
 def _input_bool(prompt: str, default: bool = True) -> bool:

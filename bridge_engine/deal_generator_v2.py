@@ -49,7 +49,7 @@ from .seat_viability import _match_seat
 def _resolve_rs_ranges(
     rs: object,
     pre_selected_suits: List[str],
-) -> Dict[str, object]:
+) -> Dict[str, "SuitRange"]:
     """
     Resolve the effective RS suit ranges for pre-selected suits.
 
@@ -121,7 +121,7 @@ def _dispersion_check(
         Set of seat names (e.g. {"N", "S"}) that need shape help.
         Empty set if no seats are tight.
     """
-    tight_seats: set = set()
+    tight_seats: Set[str] = set()
 
     for seat, sub in chosen_subprofiles.items():
         std = getattr(sub, "standard", None)
@@ -560,7 +560,7 @@ def _deal_with_help(
     rng: random.Random,
     deck: List[Card],
     chosen_subprofiles: Dict[Seat, "SubProfile"],
-    tight_seats: set,
+    tight_seats: Set[str],
     dealing_order: List[Seat],
     rs_pre_selections: Optional[Dict[Seat, List[str]]] = None,
 ) -> Tuple[Optional[Dict[Seat, List[Card]]], Optional[Seat]]:

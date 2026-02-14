@@ -40,32 +40,18 @@ import sys
 
 from dataclasses import replace
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Iterable
+from typing import Any, Dict, List, Optional, Sequence
 
-from . import cli_io
 from . import profile_store
 from .menu_help import get_menu_help
-from .wizard_constants import SUITS
 from . import wizard_io as wiz_io
 from .hand_profile_validate import validate_profile as _validate_profile_fallback
 
 from .cli_prompts import (
-    prompt_choice,
     prompt_int,
-    prompt_text,
-    prompt_yes_no as _prompt_yes_no,
 )
 
-from .hand_profile_model import (
-    HandProfile,
-    SeatProfile,
-    SubProfile,
-    SubprofileExclusionData,
-    StandardSuitConstraints,
-    SuitRange,
-    OpponentContingentSuitData,
-    _default_dealing_order,
-)
+from .hand_profile_model import _default_dealing_order
 
 
 def _validate_profile(profile) -> None:
@@ -376,12 +362,7 @@ def _make_default_standard_seat_profile(seat: str) -> SeatProfile:
         clubs=SuitRange(min_cards=0, max_cards=6, min_hcp=0, max_hcp=10),
     )
 
-    sub_kwargs: dict[str, object] = {}
-    
-    sub = SubProfile(
-        standard=std,
-        **sub_kwargs,
-    )
+    sub = SubProfile(standard=std)
 
     return SeatProfile(seat=seat, subprofiles=[sub])
 
@@ -1015,8 +996,8 @@ def _assign_ns_role_usage_interactive(
         default=False,
     ):
         # Just write defaults back into the new objects.
-        for sub, usage in zip(subprofiles, defaults):
-            object.__setattr__(sub, "ns_role_usage", usage)
+        for i, usage in enumerate(defaults):
+            subprofiles[i] = replace(subprofiles[i], ns_role_usage=usage)
         return
 
     # User wants to edit them.
@@ -1036,7 +1017,7 @@ def _assign_ns_role_usage_interactive(
             if value in valid_options:
                 break
             print("Please enter one of: any, driver_only, follower_only")
-        object.__setattr__(subprofiles[idx - 1], "ns_role_usage", value)
+        subprofiles[idx - 1] = replace(subprofiles[idx - 1], ns_role_usage=value)
 
 
 def _autosave_profile_draft(profile: HandProfile, original_path: Path) -> None:
@@ -1049,7 +1030,6 @@ def _autosave_profile_draft(profile: HandProfile, original_path: Path) -> None:
       - Does NOT mutate the in-memory HandProfile
     """
     try:
-        from . import profile_store
         profile_store.autosave_profile_draft(profile, canonical_path=original_path)
     except Exception:
         # Never let autosave kill the wizard
@@ -1228,87 +1208,6 @@ def _build_profile(
         "subprofile_exclusions": list(subprofile_exclusions),
         "sort_order": getattr(existing, "sort_order", None),
     }
-         
-def create_profile_interactive() -> HandProfile:
-    """
-    Top-level helper for creating a new profile interactively.
-
-    New behaviour:
-      • Ask ONLY for profile metadata (name, tag, dealer, order, author, version,
-        rotate flag).
-      • Automatically attach standard "open" constraints to all four seats
-        (N, E, S, W) – one sub-profile per seat, weight 100%, ns_role_usage="any".
-      • NS role metadata defaults to "no_driver_no_index".
-      • Users can later refine constraints via edit_constraints_interactive().
-    """
-    clear_screen()
-    print("=== Create New Profile ===")
-    print()
-
-    # ---- Metadata prompts (same feel as before) ---------------------------
-    profile_name = _input_with_default("Profile name: ", "New profile")
-    description = _input_with_default("Description: ", "")
-
-    tag = _input_choice(
-        "Tag [Opener/Overcaller]: ",
-        ["Opener", "Overcaller"],
-        "Opener",
-    )
-
-    dealer = _input_choice(
-        "Dealer seat [N/E/S/W]: ",
-        ["N", "E", "S", "W"],
-        "N",
-    )
-
-    # New default NS role mode for fresh profiles.
-    ns_role_mode = "no_driver_no_index"
-
-    # Dealing order is auto-computed at runtime by v2 builder
-    # (_compute_dealing_order).  Store clockwise from dealer as default.
-    hand_dealing_order = _default_dealing_order(dealer)
-
-    author = _input_with_default("Author: ", "")
-    version = _input_with_default("Version: ", "0.1")
-
-    # ---- Standard constraints for all seats -------------------------------
-    seat_profiles: Dict[str, SeatProfile] = {}
-
-    for seat in ("N", "E", "S", "W"):
-        # Completely open "standard" ranges:
-        std = StandardSuitConstraints()
-        sub = SubProfile(
-            standard=std,
-            random_suit_constraint=None,
-            partner_contingent_constraint=None,
-            opponents_contingent_suit_constraint=None,
-            weight_percent=100.0,
-            ns_role_usage="any",
-        )
-        seat_profiles[seat] = SeatProfile(seat=seat, subprofiles=[sub])
-
-    # No exclusions on a fresh standard profile
-    subprofile_exclusions: List[SubprofileExclusionData] = []
-
-    # Build the HandProfile via the same indirection tests use
-    hp_cls = _pw_attr("HandProfile", HandProfile)
-    profile = hp_cls(
-        profile_name=profile_name,
-        description=description,
-        dealer=dealer,
-        hand_dealing_order=hand_dealing_order,
-        tag=tag,
-        seat_profiles=seat_profiles,
-        author=author,
-        version=version,
-        rotate_deals_by_default=True,
-        ns_role_mode=ns_role_mode,
-        subprofile_exclusions=subprofile_exclusions,
-    )
-
-    # Run normal validation so new profiles behave like edited/loaded ones.
-    _validate_profile(profile)
-    return profile
 
 def edit_constraints_interactive(
     existing: HandProfile,

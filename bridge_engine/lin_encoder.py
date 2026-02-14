@@ -174,7 +174,7 @@ def encode_deal_to_lin_line(deal: Deal) -> str:
     container = "qx|o%d|" % deal.board_number
 
     # Vulnerability mapping
-    vul_code = _vul_to_bbo_code(getattr(deal, "vulnerability", "None"))
+    vul_code = _vul_to_bbo_code(deal.vulnerability)
 
     return "%s%s|ah|%s|sv|%s|pg||" % (container, md_part, board_title, vul_code)
 

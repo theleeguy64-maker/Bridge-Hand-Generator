@@ -14,6 +14,8 @@
 - [x] Code review #44: 7 fixes (misleading save msg, dead _build_exclusion_shapes, stale comment, 5 menu tests, draft stub, admin help option 2, unused imports)
 - [x] Code review #45: circular import fix, duplicate wrapper removed, empty-rows guard, dead import, stale docstring, debug hook warnings
 - [x] Code review #46: _dispersion_check return type, sys import cleanup, draft filtering in orchestrator
+- [x] Code review #47: failure_report bugs (DealGenerationError catch, total_attempts +=), 7 dead code removals, 9 consistency fixes
+- [x] Code review #48: 7 bug fixes (stale docstring, missing imports, frozen dataclass mutation, broad except), 7 dead code removals (dead function, empty stub, unused imports/re-exports), 9 consistency fixes (type hints, redundant guards, getattr cleanup)
 
 ---
 
@@ -360,7 +362,7 @@
 ## Summary
 Architecture: 15 (15 done) | Enhancements: 22 (22 done) | **All complete**
 
-**Tests**: 426 passed, 0 skipped | **Branch**: cleanup/cli-menu/Test
+**Tests**: 426 passed, 0 skipped | **Branch**: main
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 
