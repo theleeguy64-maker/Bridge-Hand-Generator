@@ -408,16 +408,16 @@ Profiles with `sort_order` appear first in menus in that order; profiles without
 | 4 | Our 1 Major & Interference | 1×3×1×1 = 3 | All 4 seats: RS+PC+OC |
 | 5 | Defense to 3 Weak 2s | 1×4×1×4 = 16 | OC+RS mixing, 16 sub combos |
 
-**Baseline (20 boards, seed=778899) — with auto-compute dealing order (#37):**
+**Baseline (20 boards, seed=778899) — with v0.3 Weak 2s profile:**
 
 | Profile | Wall(s) | Avg(ms) | Med(ms) | P95(ms) | Max(ms) |
 |---------|---------|---------|---------|---------|---------|
 | Profile A | 0.001 | 0.0 | 0.0 | 0.1 | 0.1 |
 | Profile D | 0.002 | 0.1 | 0.1 | 0.3 | 0.3 |
 | Profile E | 0.002 | 0.1 | 0.1 | 0.2 | 0.2 |
-| Our 1 Major | 0.044 | 2.2 | 0.5 | 9.4 | 9.4 |
-| Defense Weak 2s | 0.384 | 19.2 | 11.5 | 78.0 | 78.0 |
-| **TOTAL** | **0.433** | | | | |
+| Our 1 Major | 0.044 | 2.2 | 0.5 | 9.3 | 9.3 |
+| Defense Weak 2s | 0.298 | 14.9 | 2.8 | 77.1 | 77.1 |
+| **TOTAL** | **0.348** | | | | |
 
 ## Debug Hooks
 
