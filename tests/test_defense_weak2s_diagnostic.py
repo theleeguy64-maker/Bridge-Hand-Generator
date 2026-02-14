@@ -38,7 +38,7 @@ from bridge_engine.setup_env import run_setup
 Seat = str
 
 PROFILE_DIR = Path("profiles")
-PROFILE_FNAME = "Defense_to_3_Weak_2s_-_Multi__Overcall_Shapes_v0.3.json"
+PROFILE_FNAME = "Defense_to_3_Weak_2s_-_Multi_Overcall_Shapes_v0.9.json"
 
 NUM_BOARDS = 20
 

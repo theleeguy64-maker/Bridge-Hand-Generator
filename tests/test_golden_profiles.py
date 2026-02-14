@@ -29,7 +29,7 @@ def test_golden_defense_to_weak_2s_profile_valid() -> None:
     be structurally valid and keep its expected filename/version.
     """
     expected_name = "Defense to 3 Weak 2s - Multi Overcall Shapes"
-    expected_file = "Defense_to_3_Weak_2s_-_Multi__Overcall_Shapes_v0.3.json"
+    expected_file = "Defense_to_3_Weak_2s_-_Multi_Overcall_Shapes_v0.9.json"
 
     path, profile = _get_profile_entry_by_name(expected_name)
 

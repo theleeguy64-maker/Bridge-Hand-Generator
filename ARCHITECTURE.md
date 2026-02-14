@@ -387,7 +387,7 @@ mechanism in the facade (`_select_subprofiles_for_board()`).
 | 23 | Profile D Test - tight point and suit constraints | `Profile_D_Test_-_tight_and_suit_point_constraint_v0.1.json` |
 | 24 | Profile E Test - tight point and suit constraints_plus | `Profile_E_Test_-_tight_and_suit_point_constraint_plus_v0.1.json` |
 | — | Big Hands | `Big_Hands_v0.1.json` |
-| — | Defense to 3 Weak 2s - Multi Overcall Shapes | `Defense_to_3_Weak_2s_-_Multi__Overcall_Shapes_v0.3.json` |
+| — | Defense to 3 Weak 2s - Multi Overcall Shapes | `Defense_to_3_Weak_2s_-_Multi_Overcall_Shapes_v0.9.json` |
 | — | Opps_Open_&_Our_TO_Dbl | `Opps_Open_&_Our_TO_Dbl_v0.9.json` |
 | — | Opps_Open_&_Our_TO_Dbl_Balancing | `Opps_Open_&_Our_TO_Dbl_Balancing_v0.9.json` |
 | — | Ops interference over our 1NT | `Ops_interference_over_our_1NT_v0.9.json` |

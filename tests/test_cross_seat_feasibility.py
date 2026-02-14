@@ -58,7 +58,7 @@ def _real_sub_from_profile(profile: HandProfile, seat: str, index: int):
     return sp.subprofiles[index]
 
 
-WEAK2S_PATH = Path("profiles/Defense_to_3_Weak_2s_-_Multi__Overcall_Shapes_v0.3.json")
+WEAK2S_PATH = Path("profiles/Defense_to_3_Weak_2s_-_Multi_Overcall_Shapes_v0.9.json")
 
 
 def _load_weak2s() -> HandProfile:
