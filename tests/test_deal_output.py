@@ -24,8 +24,11 @@ class SetupStub:
 
 
 class DummyProfile:
-    """Placeholder profile, not used by render_deals yet."""
-    pass
+    """Minimal profile stub with required attributes for deal output."""
+    profile_name = "TestProfile"
+    tag = "TestTag"
+    author = "TestAuthor"
+    version = "0.1"
 
 
 def test_render_deals_creates_files(tmp_path: Path) -> None:

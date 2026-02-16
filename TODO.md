@@ -324,6 +324,12 @@
 - Used `# type: ignore[no-redef]` for intentional variable reuse across code branches
 - Run: `.venv/bin/mypy bridge_engine/ --ignore-missing-imports`
 
+### 43. [x] Code Review #53 — 7 fixes across 5 files
+- ✅ **A1 (bug)**: Fixed `failure_report.py` — `total_attempts` overwritten on each hook call instead of accumulated per board; now uses `latest_attempt_count` pattern matching other counters
+- ✅ **B1-B3 (dead code)**: Removed unused `import re` and `Iterable` from `cli_prompts.py`; removed unused `Iterable` from `wizard_flow.py`
+- ✅ **C1 (consistency)**: Narrowed `except Exception` → `except OSError` in `setup_env.py` subdirectory creation (matching parent dir pattern)
+- ✅ **C2-C3 (consistency)**: Removed 5 redundant `getattr` calls on typed `HandProfile`/`Deal` attributes in `deal_output.py`; updated `DummyProfile` test stub with required attributes
+
 ### 42. [x] Code Reviews #51-#52 — ~25 fixes across 16 files
 - ✅ **A-severity (bug)**: Fixed `failure_report.py` — v2 builder raises `DealGenerationError` on failure, but code checked `result is None`; now uses try/except
 - ✅ **B-severity (dead code)**: Deleted `wizard_constants.py` (single constant), deleted `profile_print.py` (empty stub), removed dead `_match_random_suit()` wrapper from `seat_viability.py`, removed dead `prompt_text()` from `cli_prompts.py`, removed dead `prompt_text` import + `SUITS` import + `sub_kwargs` dict from `wizard_flow.py`, removed unused `SUITS` constant from `profile_cli.py`, removed unused `asdict` import from `hand_profile_validate.py`
@@ -371,7 +377,7 @@
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 23 (23 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 24 (24 done) | **All complete**
 
 **Tests**: 425 passed | **mypy**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
 

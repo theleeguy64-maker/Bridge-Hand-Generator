@@ -104,7 +104,7 @@ def _ensure_directories(base_dir: Path) -> Tuple[Path, Path, Path]:
     for d in (txt, lin, logs):
         try:
             d.mkdir(parents=True, exist_ok=True)
-        except Exception as exc:
+        except OSError as exc:
             raise SetupError(f"Could not create directory {d}: {exc}")
 
     return txt, lin, logs

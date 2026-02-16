@@ -40,7 +40,7 @@ import sys
 
 from dataclasses import replace
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Iterable
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from . import cli_io
 from . import profile_store

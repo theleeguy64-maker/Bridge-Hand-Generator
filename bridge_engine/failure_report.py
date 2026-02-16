@@ -184,6 +184,7 @@ def collect_failure_attribution(
     latest_shape: Dict[Seat, int] = {}
 
     total_attempts = 0
+    latest_attempt_count = 0
     boards_succeeded = 0
     boards_failed = 0
 
@@ -199,13 +200,14 @@ def collect_failure_attribution(
         seat_fail_shape: Dict[Seat, int],
     ) -> None:
         nonlocal latest_as_seat, latest_global_other, latest_global_unchecked
-        nonlocal latest_hcp, latest_shape, total_attempts
+        nonlocal latest_hcp, latest_shape, latest_attempt_count
         latest_as_seat = dict(seat_fail_as_seat)
         latest_global_other = dict(seat_fail_global_other)
         latest_global_unchecked = dict(seat_fail_global_unchecked)
         latest_hcp = dict(seat_fail_hcp)
         latest_shape = dict(seat_fail_shape)
-        total_attempts = attempt_number
+        # Capture the latest attempt number for this board (accumulated after board completes)
+        latest_attempt_count = attempt_number
 
     # Save and set hook
     old_hook = getattr(dg, "_DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION", None)
@@ -220,12 +222,13 @@ def collect_failure_attribution(
         rng = random.Random(seed)
 
         for board_num in range(1, num_boards + 1):
-            # Reset latest snapshots
+            # Reset latest snapshots for this board
             latest_as_seat = {}
             latest_global_other = {}
             latest_global_unchecked = {}
             latest_hcp = {}
             latest_shape = {}
+            latest_attempt_count = 0
 
             # Attempt to build the deal (v2 is the active production builder).
             # The v2 builder raises DealGenerationError on failure (never returns None).
@@ -240,6 +243,7 @@ def collect_failure_attribution(
                 boards_failed += 1
 
             # Accumulate the final snapshot from this board
+            total_attempts += latest_attempt_count
             for seat in ("N", "E", "S", "W"):
                 total_as_seat[seat] += latest_as_seat.get(seat, 0)
                 total_global_other[seat] += latest_global_other.get(seat, 0)

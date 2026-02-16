@@ -187,10 +187,10 @@ def _convert_to_formatted_deals(
     lines: List[str] = []
 
     # One-time profile header
-    profile_name = getattr(profile, "profile_name", "UnknownProfile")
-    tag = getattr(profile, "tag", "UnknownTag")
-    author = getattr(profile, "author", "UnknownAuthor")
-    version = getattr(profile, "version", "0.0")
+    profile_name = profile.profile_name
+    tag = profile.tag
+    author = profile.author
+    version = profile.version
 
     lines.append(f"Profile : {profile_name}")
     lines.append(f"Tag     : {tag}")
@@ -263,7 +263,7 @@ def _convert_to_lin_deals(deals: Sequence[Deal]) -> List[LinDeal]:
                 board_number=d.board_number,
                 dealer=d.dealer,
                 hands=d.hands,
-                vulnerability=getattr(d, "vulnerability", "None"),
+                vulnerability=d.vulnerability,
             )
         )
     return lin_deals
