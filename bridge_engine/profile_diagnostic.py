@@ -77,7 +77,7 @@ def run_profile_diagnostic(
     The debug hook ``_DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION`` is temporarily
     installed on the deal_generator module and restored afterwards.
     """
-    profile_name = getattr(profile, "profile_name", "Unknown")
+    profile_name = profile.profile_name
 
     # ---- Aggregated counters across all boards ----
     total_as_seat: Dict[Seat, int] = {s: 0 for s in "WNES"}

@@ -91,24 +91,22 @@ def _validate_random_suit_vs_standard(profile: HandProfile) -> None:
         sub-profile (std is None), we *skip* this check rather than rejecting.
         Those profiles are already validated by the existing standard logic.
     """
-    seat_profiles = getattr(profile, "seat_profiles", None)
-    if not seat_profiles:
+    if not profile.seat_profiles:
         return
 
-    for seat_name, seat_profile in seat_profiles.items():
-        subprofiles = getattr(seat_profile, "subprofiles", None)
+    for seat_name, seat_profile in profile.seat_profiles.items():
+        subprofiles = seat_profile.subprofiles
         if not subprofiles:
             continue
 
         for sub_idx, sub in enumerate(subprofiles, start=1):
-            rs = getattr(sub, "random_suit_constraint", None)
+            rs = sub.random_suit_constraint
             if rs is None:
                 continue
 
-            # Try both attribute names to be robust with model evolution
-            std = getattr(sub, "standard", None) or getattr(sub, "standard_constraints", None)
+            # SubProfile.standard is a declared field (Optional[StandardSuitConstraints]).
+            std = sub.standard
             if std is None:
-                # Legacy / non-standard setup: do not enforce this cross-check
                 continue
 
             # Map standard suit ranges by suit symbol
@@ -296,12 +294,11 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
         return {"driver", "follower"}
 
     def has_compatible_usage(sub: SubProfile, allowed: Tuple[str, str]) -> bool:
-        usage = getattr(sub, "ns_role_usage", "any") or "any"
-        return usage in allowed
+        return sub.ns_role_usage in allowed
 
     for seat in ("N", "S"):
         sp = profile.seat_profiles.get(seat)
-        if sp is None or not getattr(sp, "subprofiles", None):
+        if sp is None or not sp.subprofiles:
             continue
 
         roles = roles_for(seat)
@@ -488,7 +485,7 @@ def validate_profile(data: Any) -> HandProfile:
     validate_profile_viability(profile)
 
     # 8. Validate subprofile exclusions (if present)
-    for exc in getattr(profile, "subprofile_exclusions", []):
+    for exc in profile.subprofile_exclusions:
         exc.validate(profile)
 
     # IMPORTANT: callers expect the validated HandProfile back

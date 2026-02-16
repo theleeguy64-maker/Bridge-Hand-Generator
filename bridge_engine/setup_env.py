@@ -186,8 +186,8 @@ def run_setup(
         seed = random.randint(1, 2**31 - 1)
         seeded_flag = False
 
-    # Apply seed
-    random.seed(seed)
+    # NOTE: generate_deals() creates its own random.Random(setup.seed) instance,
+    # so we do NOT call random.seed() here — no global RNG side effect.
 
     # Create directories
     txt_dir, lin_dir, log_dir = _ensure_directories(base_dir)

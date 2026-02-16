@@ -240,11 +240,15 @@ def collect_failure_attribution(
                     board_number=board_num,
                 )
                 boards_succeeded += 1
+                # The hook only fires on failures, so add 1 for the
+                # successful final attempt that didn't trigger the hook.
+                total_attempts += latest_attempt_count + 1
             except dg.DealGenerationError:
                 boards_failed += 1
+                # All attempts failed — hook fired on every one, count is exact.
+                total_attempts += latest_attempt_count
 
             # Accumulate the final snapshot from this board
-            total_attempts += latest_attempt_count
             for seat in ("N", "E", "S", "W"):
                 total_as_seat[seat] += latest_as_seat.get(seat, 0)
                 total_global_other[seat] += latest_global_other.get(seat, 0)

@@ -324,6 +324,16 @@
 - Used `# type: ignore[no-redef]` for intentional variable reuse across code branches
 - Run: `.venv/bin/mypy bridge_engine/ --ignore-missing-imports`
 
+### 44. [x] Code Review #54 — 10 fixes across 11 files
+- ✅ **A1 (bug)**: Fixed `failure_report.py` — `total_attempts` under-counted on successful boards (missing +1 for the succeeding attempt that doesn't trigger the hook)
+- ✅ **B1 (dead code)**: Removed unreachable `ns_role_for_seat` legacy fallback path in `hand_profile_model.py` `ns_role_buckets()` — `ns_role_usage` is a declared field, `getattr` never returns `None`
+- ✅ **B2 (dead code)**: Removed dead `standard_constraints` fallback in `hand_profile_validate.py` — field is named `standard`
+- ✅ **C1 (consistency)**: Removed stale `random.seed()` global side effect from `setup_env.py` — `generate_deals()` uses its own `random.Random(setup.seed)`
+- ✅ **C5 (consistency)**: Added missing `from __future__ import annotations` to `profile_convert.py` (only file without it)
+- ✅ **D1-D5 (simplification)**: Removed ~15 redundant `getattr` calls on known dataclass fields across `hand_profile_validate.py`, `lin_encoder.py`, `orchestrator.py`, `profile_diagnostic.py`, `profile_store.py`; updated test `DummyProfile` stubs
+- Skipped: B3 (dual creation paths), C2/C3 (duplicate helpers — diverged semantics), C4 (`Seat` alias — 6 files)
+- Also includes: `os.system("clear")` → `subprocess.run(["clear"])` (bandit B605 fix), removed dead `inner_indent` param from `deal_output.py`, upgraded 4 vulnerable deps (cryptography, pip, protobuf, pyasn1)
+
 ### 43. [x] Code Review #53 — 7 fixes across 5 files
 - ✅ **A1 (bug)**: Fixed `failure_report.py` — `total_attempts` overwritten on each hook call instead of accumulated per board; now uses `latest_attempt_count` pattern matching other counters
 - ✅ **B1-B3 (dead code)**: Removed unused `import re` and `Iterable` from `cli_prompts.py`; removed unused `Iterable` from `wizard_flow.py`
@@ -377,7 +387,7 @@
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 24 (24 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 25 (25 done) | **All complete**
 
 **Tests**: 425 passed | **mypy**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
 

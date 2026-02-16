@@ -112,7 +112,7 @@ def _format_vertical_hand(cards: Sequence[str], indent: int = 8) -> List[str]:
     return lines
 
 
-def _format_horizontal_pair(west_cards: Sequence[str], east_cards: Sequence[str], inner_indent: int = 0) -> List[str]:
+def _format_horizontal_pair(west_cards: Sequence[str], east_cards: Sequence[str]) -> List[str]:
     """
     Format West and East horizontally on the same set of lines, e.g.:
 

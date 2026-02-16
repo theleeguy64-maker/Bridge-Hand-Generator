@@ -723,22 +723,8 @@ class HandProfile:
 
             if sp is not None:
                 for sub in sp.subprofiles:
-                    # Preferred Phase 3 field.
-                    usage = getattr(sub, "ns_role_usage", None)
-
-                    if usage is None:
-                        # Legacy experimental metadata: ns_role_for_seat
-                        legacy_role = getattr(sub, "ns_role_for_seat", "neutral")
-                        legacy_role = str(legacy_role).lower()
-                        if legacy_role == "driver":
-                            seat_buckets["driver"].append(sub)
-                        elif legacy_role == "follower":
-                            seat_buckets["follower"].append(sub)
-                        else:
-                            seat_buckets["neutral"].append(sub)
-                        continue
-
-                    usage_lc = str(usage).lower()
+                    # ns_role_usage is a declared field (default "any") — always present.
+                    usage_lc = sub.ns_role_usage.lower()
                     if usage_lc == "driver_only":
                         seat_buckets["driver"].append(sub)
                     elif usage_lc == "follower_only":

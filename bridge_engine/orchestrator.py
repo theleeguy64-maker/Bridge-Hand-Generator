@@ -304,7 +304,7 @@ def _run_deal_generation_session() -> None:
 
     # Ask whether to use random N/S, E/W rotation for this generation.
     # Default comes from profile metadata, falling back to True.
-    default_rotate = getattr(profile, "rotate_deals_by_default", True)
+    default_rotate = profile.rotate_deals_by_default
     rotate_deals = _yes_no(
         "Randomly rotate deals (swap N/S and E/W) for this generation?",
         default_rotate,

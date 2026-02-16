@@ -30,8 +30,10 @@ def clear_screen() -> None:
     """Clear terminal screen — safe no-op fallback."""
     try:
         import os
+        import subprocess
 
-        os.system("cls" if os.name == "nt" else "clear")
+        cmd = "cls" if os.name == "nt" else "clear"
+        subprocess.run([cmd], check=False)  # noqa: S603
     except Exception:
         # In tests or non-interactive envs, just ignore
         pass

@@ -124,9 +124,9 @@ def _profile_path_for(profile: HandProfile, base_dir: Path | None = None) -> Pat
     IMPORTANT: canonical filename is derived from the stripped name (no trailing " TEST").
     """
     profiles_dir = _profiles_dir(base_dir)
-    base_name = _strip_test_suffix(getattr(profile, "profile_name", "") or "UNNAMED")
+    base_name = _strip_test_suffix(profile.profile_name or "UNNAMED")
     safe_name = _slugify(base_name)
-    version = getattr(profile, "version", "") or "0.1"
+    version = profile.version or "0.1"
     return profiles_dir / f"{safe_name}_v{version}.json"
 
 

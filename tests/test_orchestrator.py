@@ -171,6 +171,7 @@ def test_run_deal_generation_session_happy_path(monkeypatch, tmp_path: Path, cap
             self.version = "0.1"
             self.tag = "Opener"
             self.dealer = "N"
+            self.rotate_deals_by_default = True
 
     dummy_profile = DummyProfile("Defense to Weak 2s")
 
