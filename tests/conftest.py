@@ -51,6 +51,7 @@ def make_valid_profile():
     Uses a JSON-style dict → HandProfile.from_dict so tests don't depend
     on HandProfile.__init__ signature.
     """
+
     def _make(profile_name: str = "Test profile", version: str = "0.1") -> HandProfile:
         data = copy.deepcopy(MINIMAL_VALID_PROFILE)
 
@@ -75,9 +76,7 @@ def make_valid_profile():
             subprofiles=[
                 SubProfile(
                     standard=_standard_all_open(),
-                    partner_contingent_constraint=PartnerContingentData(
-                        partner_seat="E", suit_range=SuitRange()
-                    ),
+                    partner_contingent_constraint=PartnerContingentData(partner_seat="E", suit_range=SuitRange()),
                 )
             ],
         )

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import is_dataclass, fields
 from typing import Any, Dict, List, Set, Tuple
 
-from .hand_profile_model import HandProfile, SeatProfile, SubProfile, ProfileError
+from .hand_profile_model import HandProfile, SubProfile, ProfileError
 
 # Type alias for seat names (N, E, S, W)
 Seat = str
@@ -71,6 +71,7 @@ def _extract_seat_names_from_constraint(constraint: Any) -> List[str]:
 
     return seats
 
+
 def _validate_random_suit_vs_standard(profile: HandProfile) -> None:
     """
     Sanity-check RandomSuitConstraintData against the standard suit constraints.
@@ -105,9 +106,7 @@ def _validate_random_suit_vs_standard(profile: HandProfile) -> None:
                 continue
 
             # Try both attribute names to be robust with model evolution
-            std = getattr(sub, "standard", None) or getattr(
-                sub, "standard_constraints", None
-            )
+            std = getattr(sub, "standard", None) or getattr(sub, "standard_constraints", None)
             if std is None:
                 # Legacy / non-standard setup: do not enforce this cross-check
                 continue
@@ -156,6 +155,7 @@ def _validate_random_suit_vs_standard(profile: HandProfile) -> None:
                         f"{total_max} cards across suits (< 13)."
                     )
 
+
 def _normalise_subprofile_weights(raw: Dict[str, Any]) -> None:
     """
     In-place normalisation of subprofile weights on a raw profile dict.
@@ -196,22 +196,14 @@ def _normalise_subprofile_weights(raw: Dict[str, Any]) -> None:
         weights: List[float] = []
         for idx, sp_dict in enumerate(sub_list):
             if not isinstance(sp_dict, dict):
-                raise ProfileError(
-                    f"Subprofile #{idx} on seat {seat!r} must be a dict"
-                )
+                raise ProfileError(f"Subprofile #{idx} on seat {seat!r} must be a dict")
             w_raw = sp_dict.get("weight_percent", 0.0)
             try:
                 w = float(w_raw)
             except (TypeError, ValueError):
-                raise ProfileError(
-                    f"Subprofile weight_percent on seat {seat!r} must be numeric; "
-                    f"got {w_raw!r}"
-                )
+                raise ProfileError(f"Subprofile weight_percent on seat {seat!r} must be numeric; got {w_raw!r}")
             if w < 0.0:
-                raise ProfileError(
-                    f"Subprofile weight_percent on seat {seat!r} must be "
-                    f"non-negative; got {w}"
-                )
+                raise ProfileError(f"Subprofile weight_percent on seat {seat!r} must be non-negative; got {w}")
             weights.append(w)
 
         total = sum(weights)
@@ -225,10 +217,7 @@ def _normalise_subprofile_weights(raw: Dict[str, Any]) -> None:
 
         # Require "about 100" – within ±2 (see tests).
         if not (98.0 <= total <= 102.0):
-            raise ProfileError(
-                f"Subprofile weights on seat {seat!r} must sum to "
-                f"approximately 100 (got {total:.2f})."
-            )
+            raise ProfileError(f"Subprofile weights on seat {seat!r} must sum to approximately 100 (got {total:.2f}).")
 
         # Rescale so the sum is exactly 100.0, and close rounding on the last.
         factor = 100.0 / total
@@ -240,6 +229,7 @@ def _normalise_subprofile_weights(raw: Dict[str, Any]) -> None:
 
         # Last one takes the slack so we hit 100.0 exactly.
         sub_list[-1]["weight_percent"] = 100.0 - running
+
 
 def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
     """
@@ -265,8 +255,7 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
     ns_seats: List[Seat] = [
         seat
         for seat in ("N", "S")
-        if seat in profile.seat_profiles
-        and getattr(profile.seat_profiles[seat], "subprofiles", None)
+        if seat in profile.seat_profiles and getattr(profile.seat_profiles[seat], "subprofiles", None)
     ]
     if not ns_seats:
         return
@@ -333,6 +322,7 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
                     f"{allowed}."
                 )
 
+
 def _validate_partner_contingent(profile: HandProfile) -> None:
     """
     Ensure that for any subprofile with a partner-contingent constraint,
@@ -358,22 +348,17 @@ def _validate_partner_contingent(profile: HandProfile) -> None:
             partner_seat = seats[0]
 
             if partner_seat not in index:
-                raise ProfileError(
-                    f"Partner seat {partner_seat!r} for seat {seat!r} "
-                    "is not in hand_dealing_order."
-                )
+                raise ProfileError(f"Partner seat {partner_seat!r} for seat {seat!r} is not in hand_dealing_order.")
             if seat not in index:
                 raise ProfileError(
-                    f"Seat {seat!r} has a partner-contingent constraint but "
-                    "is not in hand_dealing_order."
+                    f"Seat {seat!r} has a partner-contingent constraint but is not in hand_dealing_order."
                 )
 
             if index[partner_seat] >= index[seat]:
                 # The invalid case exercised by the test:
                 # partner is dealt after the constrained hand.
                 raise ProfileError(
-                    f"Partner seat {partner_seat} must be dealt before {seat} "
-                    "for partner-contingent constraints."
+                    f"Partner seat {partner_seat} must be dealt before {seat} for partner-contingent constraints."
                 )
 
 
@@ -405,22 +390,17 @@ def _validate_opponent_contingent(profile: HandProfile) -> None:
 
             if seat not in index:
                 raise ProfileError(
-                    f"Seat {seat!r} has an opponents-contingent constraint but "
-                    "is not in hand_dealing_order."
+                    f"Seat {seat!r} has an opponents-contingent constraint but is not in hand_dealing_order."
                 )
 
             seat_idx = index[seat]
 
             for opp in opp_seats:
                 if opp not in index:
-                    raise ProfileError(
-                        f"Opponent seat {opp!r} referenced from {seat!r} is not "
-                        "in hand_dealing_order."
-                    )
+                    raise ProfileError(f"Opponent seat {opp!r} referenced from {seat!r} is not in hand_dealing_order.")
                 if index[opp] >= seat_idx:
                     raise ProfileError(
-                        f"Opponent seat {opp} must be dealt before {seat} "
-                        "for opponents-contingent constraints."
+                        f"Opponent seat {opp} must be dealt before {seat} for opponents-contingent constraints."
                     )
 
 
@@ -471,8 +451,8 @@ def validate_profile(data: Any) -> HandProfile:
         "north_drives",
         "south_drives",
         "random_driver",
-        "no_driver",          # no driver roles, but index matching ON
-        "no_driver_no_index", # no driver roles, and index matching OFF
+        "no_driver",  # no driver roles, but index matching ON
+        "no_driver_no_index",  # no driver roles, and index matching OFF
     }
     if mode not in allowed_modes:
         mode = "no_driver_no_index"
@@ -504,6 +484,7 @@ def validate_profile(data: Any) -> HandProfile:
     # Late import to break circular dependency:
     #   seat_viability → hand_profile → hand_profile_validate → profile_viability → seat_viability
     from .profile_viability import validate_profile_viability  # noqa: E402
+
     validate_profile_viability(profile)
 
     # 8. Validate subprofile exclusions (if present)
@@ -512,4 +493,3 @@ def validate_profile(data: Any) -> HandProfile:
 
     # IMPORTANT: callers expect the validated HandProfile back
     return profile
-    

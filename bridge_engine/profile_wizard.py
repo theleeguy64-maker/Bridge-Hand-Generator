@@ -59,6 +59,7 @@ except ImportError:
     # Not all versions have these helpers; ignore if absent.
     pass
 
+
 def create_profile_interactive() -> HandProfile:
     """
     Top-level helper for creating a new profile interactively.
@@ -90,7 +91,8 @@ def create_profile_interactive() -> HandProfile:
     validate_profile(profile)
 
     return profile
-            
+
+
 def create_profile_from_existing_constraints(existing: HandProfile) -> HandProfile:
     """
     Create a new profile that reuses all constraints from `existing`
@@ -114,17 +116,14 @@ def create_profile_from_existing_constraints(existing: HandProfile) -> HandProfi
 
     # Replace auto-generated standard constraints with the template's.
     kwargs["seat_profiles"] = dict(existing.seat_profiles)
-    kwargs["subprofile_exclusions"] = list(
-        getattr(existing, "subprofile_exclusions", [])
-    )
-    kwargs["ns_role_mode"] = getattr(
-        existing, "ns_role_mode", "no_driver_no_index"
-    )
+    kwargs["subprofile_exclusions"] = list(getattr(existing, "subprofile_exclusions", []))
+    kwargs["ns_role_mode"] = getattr(existing, "ns_role_mode", "no_driver_no_index")
 
     profile = HandProfile(**kwargs)
     validate_profile(profile)
     return profile
-    
+
+
 def edit_constraints_interactive(existing: HandProfile) -> HandProfile:
     print("\n=== Edit Constraints for Profile ===")
     print(f"Profile: {existing.profile_name}")
@@ -136,6 +135,7 @@ def edit_constraints_interactive(existing: HandProfile) -> HandProfile:
     validate_profile(profile)
     # any save logic here should use `profile`
     return profile
+
 
 __all__ = [
     # model/validation

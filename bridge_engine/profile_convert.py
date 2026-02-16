@@ -1,7 +1,7 @@
-
 import json
 from pathlib import Path
 from bridge_engine.hand_profile import validate_profile
+
 
 def convert_profiles(dir_path: Path, write: bool = False):
     """
@@ -27,8 +27,10 @@ def convert_profiles(dir_path: Path, write: bool = False):
         else:
             print(f"Would convert: {path}")
 
+
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir", required=True)
     parser.add_argument("--write", action="store_true")

@@ -28,6 +28,6 @@ def test_viability_unlikely_when_rare_successes() -> None:
 
 def test_viability_likely_when_success_rate_reasonable() -> None:
     # success_rate >= 0.1 -> likely
-    assert classify_viability(successes=1, attempts=5) == "likely"   # 0.2
-    assert classify_viability(successes=2, attempts=10) == "likely" # 0.2
-    assert classify_viability(successes=9, attempts=10) == "likely" # 0.9
+    assert classify_viability(successes=1, attempts=5) == "likely"  # 0.2
+    assert classify_viability(successes=2, attempts=10) == "likely"  # 0.2
+    assert classify_viability(successes=9, attempts=10) == "likely"  # 0.9

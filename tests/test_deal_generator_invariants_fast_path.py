@@ -48,9 +48,7 @@ def test_invariants_safety_profile_uses_fast_path(monkeypatch) -> None:
     # If the constrained pipeline is used, this will be called and the
     # test will fail loudly.
     def boom_match_seat(*args: Any, **kwargs: Any) -> None:  # pragma: no cover
-        raise AssertionError(
-            "_match_seat should not be called for invariants-safety fast path"
-        )
+        raise AssertionError("_match_seat should not be called for invariants-safety fast path")
 
     monkeypatch.setattr(deal_generator, "_match_seat", boom_match_seat)
 

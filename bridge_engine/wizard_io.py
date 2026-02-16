@@ -10,9 +10,11 @@ from typing import Sequence
 
 from . import cli_io
 
+
 def _input_bool(prompt: str, default: bool = True) -> bool:
     # Backwards-compat / façade seam: callers expect _input_bool
     return _yes_no(prompt, default=default)
+
 
 def _input_with_default(prompt: str, default: str) -> str:
     """
@@ -21,11 +23,13 @@ def _input_with_default(prompt: str, default: str) -> str:
     """
     return cli_io._input_with_default(prompt, default)
 
+
 def _yes_no(prompt: str, default: bool = True) -> bool:
     """
     Backwards-compat: tests monkeypatch profile_wizard._yes_no.
     """
     return cli_io._yes_no(prompt, default=default)
+
 
 def prompt_str(prompt: str, default: str = "") -> str:
     """
@@ -44,6 +48,7 @@ def prompt_str(prompt: str, default: str = "") -> str:
 
     text = raw.strip()
     return text if text else default
+
 
 def _input_int(
     prompt: str,
@@ -64,6 +69,7 @@ def _input_int(
         show_range_suffix=show_range_suffix,
     )
 
+
 def _input_choice(prompt: str, options: Sequence[str], default: str) -> str:
     """
     Legacy: choose by typing the value (not by number).
@@ -79,8 +85,8 @@ def _input_choice(prompt: str, options: Sequence[str], default: str) -> str:
             return raw
         print(f"Please enter one of: {', '.join(options)}")
 
-def _input_float_with_default(
 
+def _input_float_with_default(
     prompt: str,
     default: float,
     *,
@@ -109,6 +115,7 @@ def _input_float_with_default(
             continue
 
         return round(value, decimal_places)
+
 
 def clear_screen() -> None:
     """

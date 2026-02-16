@@ -1,7 +1,7 @@
 # bridge_engine/cli_prompts.py
 from __future__ import annotations
 
-from typing import Optional, Sequence, TypeVar
+from typing import Sequence, TypeVar
 
 from . import cli_io
 

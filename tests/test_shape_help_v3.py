@@ -58,7 +58,7 @@ class TestShapeProbGTE:
         for n in range(1, 14):
             assert dg.SHAPE_PROB_GTE[n] < dg.SHAPE_PROB_GTE[n - 1], (
                 f"SHAPE_PROB_GTE[{n}]={dg.SHAPE_PROB_GTE[n]} should be < "
-                f"SHAPE_PROB_GTE[{n-1}]={dg.SHAPE_PROB_GTE[n-1]}"
+                f"SHAPE_PROB_GTE[{n - 1}]={dg.SHAPE_PROB_GTE[n - 1]}"
             )
 
     def test_all_positive(self):
@@ -472,9 +472,7 @@ class TestDealWithHelp:
             "S": _DummySubProfile(),
             "W": _DummySubProfile(),
         }
-        hands, _ = dg._deal_with_help(
-            rng, deck, subs, {"N"}, self._dealing_order()
-        )
+        hands, _ = dg._deal_with_help(rng, deck, subs, {"N"}, self._dealing_order())
         n_spades = [c for c in hands["N"] if self._suit_of(c) == "S"]
         # Pre-allocate gives 3 spades (50% of 6), plus random fill may add more.
         assert len(n_spades) >= 3
@@ -489,9 +487,7 @@ class TestDealWithHelp:
             "S": _DummySubProfile(h=5),
             "W": _DummySubProfile(),
         }
-        hands, _ = dg._deal_with_help(
-            rng, deck, subs, {"N", "S"}, self._dealing_order()
-        )
+        hands, _ = dg._deal_with_help(rng, deck, subs, {"N", "S"}, self._dealing_order())
         all_cards = []
         for h in hands.values():
             all_cards.extend(h)
@@ -503,9 +499,7 @@ class TestDealWithHelp:
         rng = random.Random(42)
         deck = self._make_deck()
         subs = {s: _DummySubProfile(s=5) for s in "NESW"}
-        hands, _ = dg._deal_with_help(
-            rng, deck, subs, {"N", "E", "S", "W"}, self._dealing_order()
-        )
+        hands, _ = dg._deal_with_help(rng, deck, subs, {"N", "E", "S", "W"}, self._dealing_order())
         all_cards = []
         for h in hands.values():
             all_cards.extend(h)
@@ -547,9 +541,7 @@ class TestDealWithHelp:
             "S": _DummySubProfile(d=6),
             "W": _DummySubProfile(c=5),
         }
-        hands, _ = dg._deal_with_help(
-            rng, deck, subs, {"N", "E", "S", "W"}, self._dealing_order()
-        )
+        hands, _ = dg._deal_with_help(rng, deck, subs, {"N", "E", "S", "W"}, self._dealing_order())
         all_cards = []
         for h in hands.values():
             all_cards.extend(h)
@@ -585,9 +577,7 @@ class TestDealWithHelp:
             "S": _DummySubProfile(),
             "W": _DummySubProfile(),
         }
-        hands, _ = dg._deal_with_help(
-            rng, deck, subs, {"N"}, self._dealing_order()
-        )
+        hands, _ = dg._deal_with_help(rng, deck, subs, {"N"}, self._dealing_order())
         assert len(hands["N"]) == 13
 
 
@@ -605,8 +595,12 @@ def _wide_standard(total_min=0, total_max=37) -> StandardSuitConstraints:
     """Completely open standard constraints."""
     sr = _wide_range()
     return StandardSuitConstraints(
-        spades=sr, hearts=sr, diamonds=sr, clubs=sr,
-        total_min_hcp=total_min, total_max_hcp=total_max,
+        spades=sr,
+        hearts=sr,
+        diamonds=sr,
+        clubs=sr,
+        total_min_hcp=total_min,
+        total_max_hcp=total_max,
     )
 
 
@@ -649,11 +643,13 @@ def _tight_spades_profile(min_spades=5) -> HandProfile:
     seats = {}
     seats["N"] = SeatProfile(
         seat="N",
-        subprofiles=[SubProfile(
-            standard=north_std,
-            random_suit_constraint=None,
-            partner_contingent_constraint=None,
-        )],
+        subprofiles=[
+            SubProfile(
+                standard=north_std,
+                random_suit_constraint=None,
+                partner_contingent_constraint=None,
+            )
+        ],
     )
     for s in ("E", "S", "W"):
         sub = SubProfile(
@@ -690,11 +686,13 @@ def _impossible_profile() -> HandProfile:
     seats = {}
     seats["N"] = SeatProfile(
         seat="N",
-        subprofiles=[SubProfile(
-            standard=north_std,
-            random_suit_constraint=None,
-            partner_contingent_constraint=None,
-        )],
+        subprofiles=[
+            SubProfile(
+                standard=north_std,
+                random_suit_constraint=None,
+                partner_contingent_constraint=None,
+            )
+        ],
     )
     for s in ("E", "S", "W"):
         sub = SubProfile(
@@ -794,7 +792,7 @@ class TestBuildSingleConstrainedDealV2:
         for bn in range(1, 5):
             deal = dg._build_single_constrained_deal_v2(rng, profile, bn)
             assert deal.vulnerability == expected[bn - 1], (
-                f"Board {bn}: expected {expected[bn-1]}, got {deal.vulnerability}"
+                f"Board {bn}: expected {expected[bn - 1]}, got {deal.vulnerability}"
             )
 
     def test_raises_on_impossible_profile(self, monkeypatch):
@@ -863,11 +861,13 @@ def _tight_hcp_profile(min_hcp=18, max_hcp=20) -> HandProfile:
     seats = {}
     seats["N"] = SeatProfile(
         seat="N",
-        subprofiles=[SubProfile(
-            standard=north_std,
-            random_suit_constraint=None,
-            partner_contingent_constraint=None,
-        )],
+        subprofiles=[
+            SubProfile(
+                standard=north_std,
+                random_suit_constraint=None,
+                partner_contingent_constraint=None,
+            )
+        ],
     )
     for s in ("E", "S", "W"):
         sub = SubProfile(
@@ -903,31 +903,37 @@ def _north_tight_south_tight_profile() -> HandProfile:
         hearts=_wide_range(),
         diamonds=_wide_range(),
         clubs=_wide_range(),
-        total_min_hcp=0, total_max_hcp=37,
+        total_min_hcp=0,
+        total_max_hcp=37,
     )
     south_std = StandardSuitConstraints(
         spades=_wide_range(),
         hearts=tight_hearts,
         diamonds=_wide_range(),
         clubs=_wide_range(),
-        total_min_hcp=0, total_max_hcp=37,
+        total_min_hcp=0,
+        total_max_hcp=37,
     )
     seats = {}
     seats["N"] = SeatProfile(
         seat="N",
-        subprofiles=[SubProfile(
-            standard=north_std,
-            random_suit_constraint=None,
-            partner_contingent_constraint=None,
-        )],
+        subprofiles=[
+            SubProfile(
+                standard=north_std,
+                random_suit_constraint=None,
+                partner_contingent_constraint=None,
+            )
+        ],
     )
     seats["S"] = SeatProfile(
         seat="S",
-        subprofiles=[SubProfile(
-            standard=south_std,
-            random_suit_constraint=None,
-            partner_contingent_constraint=None,
-        )],
+        subprofiles=[
+            SubProfile(
+                standard=south_std,
+                random_suit_constraint=None,
+                partner_contingent_constraint=None,
+            )
+        ],
     )
     for s in ("E", "W"):
         sub = SubProfile(
@@ -961,9 +967,7 @@ class TestV2Attribution:
 
         rng = random.Random(42)
         profile = _loose_profile()
-        dg._build_single_constrained_deal_v2(
-            rng, profile, 1, debug_board_stats=callback
-        )
+        dg._build_single_constrained_deal_v2(rng, profile, 1, debug_board_stats=callback)
         # Callback should have fired.
         assert "fail" in captured
         assert "seen" in captured
@@ -984,9 +988,7 @@ class TestV2Attribution:
         rng = random.Random(42)
         profile = _impossible_profile()
         with pytest.raises(dg.DealGenerationError):
-            dg._build_single_constrained_deal_v2(
-                rng, profile, 1, debug_board_stats=callback
-            )
+            dg._build_single_constrained_deal_v2(rng, profile, 1, debug_board_stats=callback)
         # Callback should have fired with accumulated counts.
         assert "fail" in captured
         assert captured["fail"].get("N", 0) > 0
@@ -999,15 +1001,16 @@ class TestV2Attribution:
         monkeypatch.setattr(dg, "MAX_BOARD_ATTEMPTS", 30)
         captured_attempts = []
 
-        def hook(profile, board_number, attempt_number,
-                 as_seat, global_other, global_unchecked, hcp, shape):
-            captured_attempts.append({
-                "as_seat": dict(as_seat),
-                "global_other": dict(global_other),
-                "global_unchecked": dict(global_unchecked),
-                "hcp": dict(hcp),
-                "shape": dict(shape),
-            })
+        def hook(profile, board_number, attempt_number, as_seat, global_other, global_unchecked, hcp, shape):
+            captured_attempts.append(
+                {
+                    "as_seat": dict(as_seat),
+                    "global_other": dict(global_other),
+                    "global_unchecked": dict(global_unchecked),
+                    "hcp": dict(hcp),
+                    "shape": dict(shape),
+                }
+            )
 
         monkeypatch.setattr(dg, "_DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION", hook)
         rng = random.Random(42)
@@ -1027,11 +1030,12 @@ class TestV2Attribution:
         monkeypatch.setattr(dg, "MAX_BOARD_ATTEMPTS", 20)
         captured_attempts = []
 
-        def hook(profile, board_number, attempt_number,
-                 as_seat, global_other, global_unchecked, hcp, shape):
-            captured_attempts.append({
-                "global_unchecked": dict(global_unchecked),
-            })
+        def hook(profile, board_number, attempt_number, as_seat, global_other, global_unchecked, hcp, shape):
+            captured_attempts.append(
+                {
+                    "global_unchecked": dict(global_unchecked),
+                }
+            )
 
         monkeypatch.setattr(dg, "_DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION", hook)
         rng = random.Random(42)
@@ -1054,12 +1058,13 @@ class TestV2Attribution:
         # Over many attempts, some will have N pass + later seat fail.
         captured_attempts = []
 
-        def hook(profile, board_number, attempt_number,
-                 as_seat, global_other, global_unchecked, hcp, shape):
-            captured_attempts.append({
-                "as_seat": dict(as_seat),
-                "global_other": dict(global_other),
-            })
+        def hook(profile, board_number, attempt_number, as_seat, global_other, global_unchecked, hcp, shape):
+            captured_attempts.append(
+                {
+                    "as_seat": dict(as_seat),
+                    "global_other": dict(global_other),
+                }
+            )
 
         rng = random.Random(42)
         profile = _tight_hcp_profile(min_hcp=18, max_hcp=20)
@@ -1085,8 +1090,7 @@ class TestV2Attribution:
         monkeypatch.setattr(dg, "MAX_BOARD_ATTEMPTS", 10)
         captured_shape = []
 
-        def hook(profile, board_number, attempt_number,
-                 as_seat, global_other, global_unchecked, hcp, shape):
+        def hook(profile, board_number, attempt_number, as_seat, global_other, global_unchecked, hcp, shape):
             captured_shape.append(dict(shape))
 
         monkeypatch.setattr(dg, "_DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION", hook)
@@ -1103,8 +1107,7 @@ class TestV2Attribution:
         monkeypatch.setattr(dg, "MAX_BOARD_ATTEMPTS", 15)
         captured = {}
 
-        def hook(profile, board_number, attempts, chosen_indices,
-                 seat_fail_counts, viability_summary):
+        def hook(profile, board_number, attempts, chosen_indices, seat_fail_counts, viability_summary):
             captured["board_number"] = board_number
             captured["attempts"] = attempts
             captured["seat_fail_counts"] = seat_fail_counts
@@ -1134,8 +1137,7 @@ class TestV2Attribution:
         monkeypatch.setattr(dg, "MAX_BOARD_ATTEMPTS", 5)
         captured = []
 
-        def hook(profile, board_number, attempt_number,
-                 as_seat, global_other, global_unchecked, hcp, shape):
+        def hook(profile, board_number, attempt_number, as_seat, global_other, global_unchecked, hcp, shape):
             # Mutate the dict — this should NOT affect future hook calls.
             as_seat["MUTATED"] = True
             captured.append(dict(as_seat))
@@ -1158,13 +1160,14 @@ class TestV2Attribution:
         """
         captured_attempts = []
 
-        def hook(profile, board_number, attempt_number,
-                 as_seat, global_other, global_unchecked, hcp, shape):
-            captured_attempts.append({
-                "as_seat": dict(as_seat),
-                "global_other": dict(global_other),
-                "global_unchecked": dict(global_unchecked),
-            })
+        def hook(profile, board_number, attempt_number, as_seat, global_other, global_unchecked, hcp, shape):
+            captured_attempts.append(
+                {
+                    "as_seat": dict(as_seat),
+                    "global_other": dict(global_other),
+                    "global_unchecked": dict(global_unchecked),
+                }
+            )
 
         # Seed 0 ensures the deal doesn't succeed on the very first
         # attempt (which can happen with aggressive pre-allocation),
@@ -1206,9 +1209,7 @@ def test_constrained_fill_rs_hcp_max_blocks_honor():
     maxima = {"S": 13, "H": 13, "D": 13, "C": 13}
 
     # Hearts capped at 7 HCP — adding AH (4) would make 9 > 7, so skip.
-    result = dg._constrained_fill(
-        deck, 3, pre_cards, maxima, 40, rs_suit_hcp_max={"H": 7}
-    )
+    result = dg._constrained_fill(deck, 3, pre_cards, maxima, 40, rs_suit_hcp_max={"H": 7})
 
     # AH should be skipped; 3 spot cards accepted instead.
     assert "AH" not in result
@@ -1225,9 +1226,7 @@ def test_constrained_fill_rs_hcp_max_allows_spot_cards():
     maxima = {"S": 13, "H": 13, "D": 13, "C": 13}
 
     # Hearts capped at 7 — but 2H and 3H are spots (0 HCP), so accepted.
-    result = dg._constrained_fill(
-        deck, 3, pre_cards, maxima, 40, rs_suit_hcp_max={"H": 7}
-    )
+    result = dg._constrained_fill(deck, 3, pre_cards, maxima, 40, rs_suit_hcp_max={"H": 7})
 
     assert "2H" in result
     assert "3H" in result
@@ -1242,9 +1241,7 @@ def test_constrained_fill_rs_hcp_max_none_no_effect():
     maxima = {"S": 13, "H": 13, "D": 13, "C": 13}
 
     result_a = dg._constrained_fill(deck_a, 4, pre_cards, maxima, 40)
-    result_b = dg._constrained_fill(
-        deck_b, 4, pre_cards, maxima, 40, rs_suit_hcp_max=None
-    )
+    result_b = dg._constrained_fill(deck_b, 4, pre_cards, maxima, 40, rs_suit_hcp_max=None)
 
     assert result_a == result_b
     assert deck_a == deck_b
@@ -1259,7 +1256,11 @@ def test_constrained_fill_rs_hcp_max_multiple_suits():
 
     # H capped at 5, D capped at 4 — AH (3+4=7>5) and AD (3+4=7>4) both skip.
     result = dg._constrained_fill(
-        deck, 4, pre_cards, maxima, 40,
+        deck,
+        4,
+        pre_cards,
+        maxima,
+        40,
         rs_suit_hcp_max={"H": 5, "D": 4},
     )
 
@@ -1275,9 +1276,7 @@ def test_constrained_fill_rs_hcp_max_under_limit_accepted():
     pre_cards = ["2H"]  # 0 HCP in hearts
     maxima = {"S": 13, "H": 13, "D": 13, "C": 13}
 
-    result = dg._constrained_fill(
-        deck, 3, pre_cards, maxima, 40, rs_suit_hcp_max={"H": 3}
-    )
+    result = dg._constrained_fill(deck, 3, pre_cards, maxima, 40, rs_suit_hcp_max={"H": 3})
 
     # JH should be accepted (0 + 1 = 1 <= 3).
     assert "JH" in result
@@ -1288,13 +1287,14 @@ def test_constrained_fill_rs_hcp_max_under_limit_accepted():
 # _compute_dealing_order — auto-compute with least constrained last
 # ===================================================================
 
+
 class TestComputeDealingOrder:
     """Tests for _compute_dealing_order (least constrained seat last)."""
 
-    def _make_sub(self, *, rs=False, pc=False, oc=False,
-                  hcp_min=0, hcp_max=37):
+    def _make_sub(self, *, rs=False, pc=False, oc=False, hcp_min=0, hcp_max=37):
         """Build a minimal SubProfile-like object for testing."""
         from types import SimpleNamespace
+
         std = SimpleNamespace(total_min_hcp=hcp_min, total_max_hcp=hcp_max)
         return SimpleNamespace(
             standard=std,
@@ -1306,8 +1306,10 @@ class TestComputeDealingOrder:
     def test_all_standard_clockwise_from_dealer(self):
         """All standard seats: clockwise from dealer, all equal risk."""
         subs = {
-            "N": self._make_sub(), "E": self._make_sub(),
-            "S": self._make_sub(), "W": self._make_sub(),
+            "N": self._make_sub(),
+            "E": self._make_sub(),
+            "S": self._make_sub(),
+            "W": self._make_sub(),
         }
         assert dg._compute_dealing_order(subs, "N") == ["N", "E", "S", "W"]
         assert dg._compute_dealing_order(subs, "W") == ["W", "N", "E", "S"]
@@ -1351,34 +1353,34 @@ class TestComputeDealingOrder:
         """Among equal-risk seats, narrower HCP range goes first."""
         subs = {
             "N": self._make_sub(hcp_min=10, hcp_max=12),  # range 2
-            "E": self._make_sub(hcp_min=0, hcp_max=37),   # range 37
-            "S": self._make_sub(hcp_min=0, hcp_max=37),   # range 37
-            "W": self._make_sub(hcp_min=0, hcp_max=37),   # range 37
+            "E": self._make_sub(hcp_min=0, hcp_max=37),  # range 37
+            "S": self._make_sub(hcp_min=0, hcp_max=37),  # range 37
+            "W": self._make_sub(hcp_min=0, hcp_max=37),  # range 37
         }
         result = dg._compute_dealing_order(subs, "N")
-        assert result[0] == "N"   # narrowest HCP = dealt first
+        assert result[0] == "N"  # narrowest HCP = dealt first
         assert result[-1] != "N"  # NOT last
 
     def test_pc_oc_between_rs_and_standard(self):
         """PC/OC seats (risk 0.5) should be between RS (1.0) and standard (0.0)."""
         subs = {
-            "N": self._make_sub(rs=True),   # risk 1.0
-            "E": self._make_sub(pc=True),   # risk 0.5
-            "S": self._make_sub(),          # risk 0.0
-            "W": self._make_sub(oc=True),   # risk 0.5
+            "N": self._make_sub(rs=True),  # risk 1.0
+            "E": self._make_sub(pc=True),  # risk 0.5
+            "S": self._make_sub(),  # risk 0.0
+            "W": self._make_sub(oc=True),  # risk 0.5
         }
         result = dg._compute_dealing_order(subs, "N")
-        assert result[0] == "N"   # RS first
+        assert result[0] == "N"  # RS first
         assert result[-1] == "S"  # standard last
         assert set(result[1:3]) == {"E", "W"}  # PC/OC in middle
 
     def test_clockwise_tiebreaker(self):
         """Equal risk + equal HCP range: clockwise from dealer breaks tie."""
         subs = {
-            "N": self._make_sub(pc=True),   # risk 0.5
-            "E": self._make_sub(oc=True),   # risk 0.5
-            "S": self._make_sub(),          # risk 0.0
-            "W": self._make_sub(),          # risk 0.0
+            "N": self._make_sub(pc=True),  # risk 0.5
+            "E": self._make_sub(oc=True),  # risk 0.5
+            "S": self._make_sub(),  # risk 0.0
+            "W": self._make_sub(),  # risk 0.0
         }
         # Dealer E → clockwise: E, S, W, N
         result = dg._compute_dealing_order(subs, "E")

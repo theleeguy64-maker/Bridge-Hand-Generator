@@ -38,8 +38,8 @@ def _impossible_profile() -> HandProfile:
     wide_suit = SuitRange(min_cards=0, max_cards=13, min_hcp=0, max_hcp=37)
 
     north_std = StandardSuitConstraints(
-        spades=spades_13,        # 13 spades required
-        hearts=hearts_1_plus,    # Plus 1+ hearts = impossible!
+        spades=spades_13,  # 13 spades required
+        hearts=hearts_1_plus,  # Plus 1+ hearts = impossible!
         diamonds=wide_suit,
         clubs=wide_suit,
         total_min_hcp=0,
@@ -132,6 +132,7 @@ def test_impossible_profile_terminates_after_min_attempts():
     # Extract attempt count from error message
     # Format: "... after X attempts ..."
     import re
+
     match = re.search(r"after (\d+) attempts", error_msg)
     assert match, f"Could not extract attempt count from: {error_msg}"
 
@@ -139,11 +140,8 @@ def test_impossible_profile_terminates_after_min_attempts():
 
     # Verify we waited at least MIN_ATTEMPTS_FOR_UNVIABLE_CHECK
     assert attempts >= MIN_ATTEMPTS_FOR_UNVIABLE_CHECK, (
-        f"Should have waited at least {MIN_ATTEMPTS_FOR_UNVIABLE_CHECK} attempts, "
-        f"but terminated after {attempts}"
+        f"Should have waited at least {MIN_ATTEMPTS_FOR_UNVIABLE_CHECK} attempts, but terminated after {attempts}"
     )
 
     # Verify we didn't grind to MAX_BOARD_ATTEMPTS
-    assert attempts < MAX_BOARD_ATTEMPTS, (
-        f"Should have terminated early, not at {MAX_BOARD_ATTEMPTS}"
-    )
+    assert attempts < MAX_BOARD_ATTEMPTS, f"Should have terminated early, not at {MAX_BOARD_ATTEMPTS}"

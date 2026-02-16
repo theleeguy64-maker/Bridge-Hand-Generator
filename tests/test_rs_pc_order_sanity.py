@@ -20,6 +20,7 @@ class DummySubProfile:
     We don't care about real constraint dataclasses here – just whether a seat
     *has* Random Suit or Partner Contingent in the generator's eyes.
     """
+
     has_random_suit: bool = False
     has_partner_contingent: bool = False
 

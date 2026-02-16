@@ -8,6 +8,7 @@ Covers menu choices:
   2) Add rule exclusion — appends a rule-based exclusion
   3) Help — prints help text, loops back without adding
 """
+
 from __future__ import annotations
 
 from bridge_engine.hand_profile import (
@@ -28,6 +29,7 @@ from bridge_engine.menu_help import get_menu_help
 # Shared helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_seat_profiles():
     """Minimal seat_profiles dict with one sub-profile per seat."""
     sr = SuitRange()
@@ -43,6 +45,7 @@ def _make_seat_profiles():
 # Test: choice 0 — Exit immediately, no exclusions added
 # ---------------------------------------------------------------------------
 
+
 def test_menu_exit_adds_nothing(monkeypatch):
     """
     When user picks 0 (Exit) on the exclusion menu, no exclusions should
@@ -57,11 +60,13 @@ def test_menu_exit_adds_nothing(monkeypatch):
     #   1) sub-profile index → 1
     #   2) menu choice → 0 (exit)
     int_calls = {"n": 0}
+
     def fake_input_int(prompt, default=0, minimum=0, maximum=99, show_range_suffix=True):
         int_calls["n"] += 1
         if int_calls["n"] == 1:
             return 1  # sub-profile index
         return 0  # menu choice: exit
+
     monkeypatch.setattr(profile_wizard, "_input_int", fake_input_int)
 
     result = wizard_flow._edit_subprofile_exclusions_for_seat(
@@ -78,6 +83,7 @@ def test_menu_exit_adds_nothing(monkeypatch):
 # Test: choice 1 — Add shapes exclusion
 # ---------------------------------------------------------------------------
 
+
 def test_menu_shapes_adds_exclusion(monkeypatch):
     """
     When user picks 1 (Shapes), enters shape patterns, then 0 (Exit),
@@ -92,6 +98,7 @@ def test_menu_shapes_adds_exclusion(monkeypatch):
     #   2) menu choice → 1 (shapes)
     #   3) menu choice → 0 (exit)
     int_calls = {"n": 0}
+
     def fake_input_int(prompt, default=0, minimum=0, maximum=99, show_range_suffix=True):
         int_calls["n"] += 1
         if int_calls["n"] == 1:
@@ -99,11 +106,13 @@ def test_menu_shapes_adds_exclusion(monkeypatch):
         if int_calls["n"] == 2:
             return 1  # menu: add shapes
         return 0  # menu: exit
+
     monkeypatch.setattr(profile_wizard, "_input_int", fake_input_int)
 
     # _input_with_default: shapes CSV prompt → "4333,4432"
     monkeypatch.setattr(
-        profile_wizard, "_input_with_default",
+        profile_wizard,
+        "_input_with_default",
         lambda prompt, default="": "4333,4432",
     )
 
@@ -126,6 +135,7 @@ def test_menu_shapes_adds_exclusion(monkeypatch):
 # Test: choice 2 — Add rule exclusion
 # ---------------------------------------------------------------------------
 
+
 def test_menu_rule_adds_exclusion(monkeypatch):
     """
     When user picks 2 (Rule), enters clause details, then 0 (Exit),
@@ -143,15 +153,18 @@ def test_menu_rule_adds_exclusion(monkeypatch):
     #   5) menu choice → 0 (exit)
     int_calls = {"n": 0}
     int_responses = [1, 2, 4, 2, 0]
+
     def fake_input_int(prompt, default=0, minimum=0, maximum=99, show_range_suffix=True):
         idx = int_calls["n"]
         int_calls["n"] += 1
         return int_responses[idx]
+
     monkeypatch.setattr(profile_wizard, "_input_int", fake_input_int)
 
     # _input_choice: clause group → "MAJOR" (defined in wizard_flow, not profile_wizard)
     monkeypatch.setattr(
-        wizard_flow, "_input_choice",
+        wizard_flow,
+        "_input_choice",
         lambda prompt, options, default=None: "MAJOR",
     )
 
@@ -159,11 +172,13 @@ def test_menu_rule_adds_exclusion(monkeypatch):
     #   1) "Add/edit exclusions for seat S?" → True  (handled by _yes_no above)
     #   2) "Add a second clause?" → False (stop at 1 clause)
     yes_no_calls = {"n": 0}
+
     def fake_yes_no(prompt, default=True):
         yes_no_calls["n"] += 1
         if yes_no_calls["n"] == 1:
             return True  # add/edit exclusions
         return False  # don't add second clause
+
     monkeypatch.setattr(profile_wizard, "_yes_no", fake_yes_no)
 
     result = wizard_flow._edit_subprofile_exclusions_for_seat(
@@ -188,6 +203,7 @@ def test_menu_rule_adds_exclusion(monkeypatch):
 # Test: choice 3 — Help prints text, loops back
 # ---------------------------------------------------------------------------
 
+
 def test_menu_help_prints_text_and_loops(monkeypatch, capsys):
     """
     When user picks 3 (Help), help text should be printed and no
@@ -202,6 +218,7 @@ def test_menu_help_prints_text_and_loops(monkeypatch, capsys):
     #   2) menu choice → 3 (help)
     #   3) menu choice → 0 (exit)
     int_calls = {"n": 0}
+
     def fake_input_int(prompt, default=0, minimum=0, maximum=99, show_range_suffix=True):
         int_calls["n"] += 1
         if int_calls["n"] == 1:
@@ -209,6 +226,7 @@ def test_menu_help_prints_text_and_loops(monkeypatch, capsys):
         if int_calls["n"] == 2:
             return 3  # menu: help
         return 0  # menu: exit
+
     monkeypatch.setattr(profile_wizard, "_input_int", fake_input_int)
 
     result = wizard_flow._edit_subprofile_exclusions_for_seat(
@@ -231,6 +249,7 @@ def test_menu_help_prints_text_and_loops(monkeypatch, capsys):
 # Test: multiple additions — shapes then rule, then exit
 # ---------------------------------------------------------------------------
 
+
 def test_menu_multiple_additions(monkeypatch):
     """
     User adds one shapes exclusion, then one rule exclusion, then exits.
@@ -240,11 +259,13 @@ def test_menu_multiple_additions(monkeypatch):
 
     # _yes_no: first call = add/edit → True; second call = no second clause
     yes_no_calls = {"n": 0}
+
     def fake_yes_no(prompt, default=True):
         yes_no_calls["n"] += 1
         if yes_no_calls["n"] == 1:
             return True  # add/edit exclusions
         return False  # don't add second clause
+
     monkeypatch.setattr(profile_wizard, "_yes_no", fake_yes_no)
 
     # _input_int calls:
@@ -256,21 +277,25 @@ def test_menu_multiple_additions(monkeypatch):
     #   6) menu choice → 0 (exit)
     int_calls = {"n": 0}
     int_responses = [1, 1, 2, 3, 4, 0]
+
     def fake_input_int(prompt, default=0, minimum=0, maximum=99, show_range_suffix=True):
         idx = int_calls["n"]
         int_calls["n"] += 1
         return int_responses[idx]
+
     monkeypatch.setattr(profile_wizard, "_input_int", fake_input_int)
 
     # _input_with_default: shapes CSV
     monkeypatch.setattr(
-        profile_wizard, "_input_with_default",
+        profile_wizard,
+        "_input_with_default",
         lambda prompt, default="": "5332",
     )
 
     # _input_choice: clause group → "ANY" (defined in wizard_flow, not profile_wizard)
     monkeypatch.setattr(
-        wizard_flow, "_input_choice",
+        wizard_flow,
+        "_input_choice",
         lambda prompt, options, default=None: "ANY",
     )
 

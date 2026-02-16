@@ -178,10 +178,7 @@ def _choose_profile_for_session() -> HandProfile | None:
 
     valid_nums = sorted(display_map)
     while True:
-        raw = input(
-            f"\nChoose a profile by number "
-            "or press Enter to cancel: "
-        ).strip()
+        raw = input("\nChoose a profile by number or press Enter to cancel: ").strip()
         if not raw:
             print("Cancelled profile selection.")
             return None
@@ -283,9 +280,7 @@ def _run_deal_generation_session() -> None:
 
     # --- Get session parameters from the user ---
     owner = _input_with_default("Owner / player name", "Lee")
-    base_dir_str = _input_with_default(
-        "Base output directory (will contain txt/ and lin/)", "out"
-    )
+    base_dir_str = _input_with_default("Base output directory (will contain txt/ and lin/)", "out")
     base_dir = Path(base_dir_str).expanduser().resolve()
     num_deals = _input_int_with_default("Number of deals to generate", 6, minimum=1)
 
@@ -356,6 +351,7 @@ def _run_deal_generation_session() -> None:
 def run_deal_generation() -> None:
     _run_deal_generation_session()
 
+
 # ---------------------------------------------------------------------------
 # Generic menu loop
 # ---------------------------------------------------------------------------
@@ -411,6 +407,7 @@ def _run_menu_loop(
 # Main menu
 # ---------------------------------------------------------------------------
 
+
 def _help_main() -> None:
     print()
     print(get_menu_help("main_menu"))
@@ -447,9 +444,7 @@ def _run_profile_diagnostic_interactive() -> None:
     if profile is None:
         return
 
-    num_boards = _input_int_with_default(
-        "Number of boards to diagnose", 20, minimum=1
-    )
+    num_boards = _input_int_with_default("Number of boards to diagnose", 20, minimum=1)
 
     profile_diagnostic.run_profile_diagnostic(
         profile=profile,
@@ -477,7 +472,6 @@ def admin_menu() -> None:
     )
 
 
-
 def main() -> None:
     """
     Public entrypoint for interactive CLI.
@@ -489,4 +483,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-    

@@ -6,6 +6,7 @@ from bridge_engine import profile_viability
 
 class _DummyProfile:
     """Minimal stand-in for a HandProfile instance used inside validate_profile."""
+
     def __init__(self) -> None:
         # validate_profile may iterate subprofile_exclusions, so make it harmless
         self.subprofile_exclusions = []

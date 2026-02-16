@@ -83,9 +83,7 @@ def _input_with_default(prompt: str, default: str = "") -> str:
     return raw if raw != "" else default
 
 
-def prompt_choice(
-    prompt: str, choices: List[str], default: Optional[str] = None
-) -> str:
+def prompt_choice(prompt: str, choices: List[str], default: Optional[str] = None) -> str:
     """
     Prompt the user to choose one of choices.
 
@@ -216,9 +214,7 @@ def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     content = json.dumps(profile.to_dict(), indent=2, sort_keys=True) + "\n"
-    fd, tmp = tempfile.mkstemp(
-        dir=str(path.parent), suffix=".tmp", prefix=path.stem + "_"
-    )
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp", prefix=path.stem + "_")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(content)
@@ -231,13 +227,13 @@ def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
             pass
         raise
 
+
 # ---------------------------------------------------------------------------
 # Menu actions
 # ---------------------------------------------------------------------------
 
-def _choose_profile(
-    profiles: List[Tuple[Path, HandProfile]]
-) -> Optional[Tuple[Path, HandProfile]]:
+
+def _choose_profile(profiles: List[Tuple[Path, HandProfile]]) -> Optional[Tuple[Path, HandProfile]]:
     """Let user pick a profile by display number. Returns (path, profile) or None."""
     if not profiles:
         print("No profiles found.")
@@ -262,7 +258,6 @@ def _choose_profile(
         return display_map[choice]
     print("Invalid choice.")
     return None
-
 
 
 def list_profiles_action() -> None:
@@ -326,6 +321,7 @@ def draft_tools_action() -> None:
         except OSError as exc:
             print(f"Failed to delete {p.name}: {exc}")
 
+
 def create_profile_action() -> None:
     profile = create_profile_interactive()
 
@@ -341,10 +337,7 @@ def create_profile_action() -> None:
 
 
 def _print_suit_range(label: str, r: SuitRange, indent: str = "") -> None:
-    print(
-        f"{indent}{label}: cards {r.min_cards}–{r.max_cards}, "
-        f"HCP {r.min_hcp}–{r.max_hcp}"
-    )
+    print(f"{indent}{label}: cards {r.min_cards}–{r.max_cards}, HCP {r.min_hcp}–{r.max_hcp}")
 
 
 def _fmt_suits(suits) -> str:
@@ -369,28 +362,20 @@ def _fmt_suits(suits) -> str:
 
 
 def _print_standard_constraints(std: StandardSuitConstraints, indent: str = "") -> None:
-    print(
-        f"{indent}Total HCP: {std.total_min_hcp}–{std.total_max_hcp} "
-        "(for entire hand)"
-    )
+    print(f"{indent}Total HCP: {std.total_min_hcp}–{std.total_max_hcp} (for entire hand)")
     _print_suit_range("Spades", std.spades, indent + "  ")
     _print_suit_range("Hearts", std.hearts, indent + "  ")
     _print_suit_range("Diamonds", std.diamonds, indent + "  ")
     _print_suit_range("Clubs", std.clubs, indent + "  ")
 
 
-def _print_random_suit_constraint(
-    rs: RandomSuitConstraintData, indent: str = ""
-) -> None:
+def _print_random_suit_constraint(rs: RandomSuitConstraintData, indent: str = "") -> None:
     suits_txt = _fmt_suits(rs.allowed_suits)
     req = rs.required_suits_count
 
     print(f"{indent}Random Suit: {req} of {suits_txt} must meet:")
     for idx, r in enumerate(rs.suit_ranges, start=1):
-        print(
-            f"{indent}  #{idx}: cards {r.min_cards}–{r.max_cards}, "
-            f"HCP {r.min_hcp}–{r.max_hcp}"
-        )
+        print(f"{indent}  #{idx}: cards {r.min_cards}–{r.max_cards}, HCP {r.min_hcp}–{r.max_hcp}")
 
     if rs.pair_overrides:
         print(f"{indent}  Pair overrides:")
@@ -423,17 +408,13 @@ def _print_random_suit_constraint(
                 print(f"{indent}    {suits2}")
 
 
-def _print_partner_contingent_constraint(
-    pc: PartnerContingentData, indent: str = ""
-) -> None:
+def _print_partner_contingent_constraint(pc: PartnerContingentData, indent: str = "") -> None:
     print(f"{indent}Partner Contingent constraint:")
     print(f"{indent}  Partner seat: {pc.partner_seat}")
     _print_suit_range("Suit", pc.suit_range, indent + "  ")
 
 
-def _print_opponent_contingent_constraint(
-    oc: OpponentContingentSuitData, indent: str = ""
-) -> None:
+def _print_opponent_contingent_constraint(oc: OpponentContingentSuitData, indent: str = "") -> None:
     print(f"{indent}Opponent Contingent-Suit constraint:")
     print(f"{indent}  Opponent seat: {oc.opponent_seat}")
     _print_suit_range("Suit", oc.suit_range, indent + "  ")
@@ -511,6 +492,7 @@ def _print_full_profile_details_impl(profile: HandProfile, path: Path) -> None:
 def _default_clockwise_order_starting_with(dealer: str) -> List[str]:
     """Clockwise from dealer — delegates to hand_profile_model."""
     from .hand_profile_model import _default_dealing_order
+
     d = (dealer or "").strip().upper()
     return _default_dealing_order(d if d in ("N", "E", "S", "W") else "N")
 
@@ -521,10 +503,7 @@ def _print_subprofile_exclusions(
     indent: str = "",
 ) -> None:
     exclusions = profile.subprofile_exclusions
-    relevant = [
-        e for e in exclusions
-        if getattr(e, "seat", None) == seat
-    ]
+    relevant = [e for e in exclusions if getattr(e, "seat", None) == seat]
     if not relevant:
         return
 
@@ -585,17 +564,11 @@ def view_and_optional_print_profile_action() -> None:
         name = (profile.profile_name or "profile").strip()
         tag = (profile.tag or "Tag").strip()
 
-        safe_name = "".join(
-            c if (c.isalnum() or c in ("-", "_")) else "_" for c in name
-        )
-        safe_tag = "".join(
-            c if (c.isalnum() or c in ("-", "_")) else "_" for c in tag
-        )
+        safe_name = "".join(c if (c.isalnum() or c in ("-", "_")) else "_" for c in name)
+        safe_tag = "".join(c if (c.isalnum() or c in ("-", "_")) else "_" for c in tag)
 
         # Write constraints to out/profile_constraints (created if needed)
-        out_root = (
-            Path(__file__).resolve().parent.parent / "out" / "profile_constraints"
-        )
+        out_root = Path(__file__).resolve().parent.parent / "out" / "profile_constraints"
         out_root.mkdir(parents=True, exist_ok=True)
 
         out_path = out_root / f"{safe_name}_{safe_tag}_constraints.txt"
@@ -652,14 +625,11 @@ def edit_profile_action() -> None:
             # ------------------------
             new_name = _input_with_default("Profile name", profile.profile_name)
             new_desc = _input_with_default("Description", profile.description)
-            new_tag = (
-                prompt_choice(
-                    "Tag (Opener / Overcaller)",
-                    ["OPENER", "OVERCALLER"],
-                    profile.tag.upper(),
-                )
-                .capitalize()
-            )
+            new_tag = prompt_choice(
+                "Tag (Opener / Overcaller)",
+                ["OPENER", "OVERCALLER"],
+                profile.tag.upper(),
+            ).capitalize()
             new_dealer = prompt_choice("Dealer seat", ["N", "E", "S", "W"], profile.dealer).upper()
 
             # Dealing order is auto-computed at runtime by v2 builder.

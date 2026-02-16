@@ -18,6 +18,7 @@ TEST_NAME_SUFFIX = " TEST"
 # Path helpers
 # ---------------------------------------------------------------------------
 
+
 def _project_root() -> Path:
     # bridge_engine/ -> project root (Exec/)
     return Path(__file__).resolve().parents[1]
@@ -78,6 +79,7 @@ def _strip_test_suffix(name: str) -> str:
         return base[: -len(TEST_NAME_SUFFIX)].rstrip()
     return base
 
+
 def _atomic_write(path: Path, content: str) -> None:
     """
     Write content to path atomically: write to a temp file in the same
@@ -85,9 +87,7 @@ def _atomic_write(path: Path, content: str) -> None:
     file stays intact (rename is atomic on the same filesystem).
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(
-        dir=str(path.parent), suffix=".tmp", prefix=path.stem + "_"
-    )
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp", prefix=path.stem + "_")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(content)
@@ -108,15 +108,14 @@ def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
       - canonical save must strip trailing ' TEST' from metadata profile_name
       - draft saving is handled elsewhere (autosave_profile_draft)
     """
-    data: Dict[str, Any] = (
-        profile.to_dict()
-    )
+    data: Dict[str, Any] = profile.to_dict()
 
     name = str(data.get("profile_name", "") or "")
     if name.endswith(" TEST"):
         data["profile_name"] = name[:-5].rstrip()
 
     _atomic_write(path, json.dumps(data, indent=2, sort_keys=True) + "\n")
+
 
 def _profile_path_for(profile: HandProfile, base_dir: Path | None = None) -> Path:
     """
@@ -134,6 +133,7 @@ def _profile_path_for(profile: HandProfile, base_dir: Path | None = None) -> Pat
 # ---------------------------------------------------------------------------
 # Load / save
 # ---------------------------------------------------------------------------
+
 
 def _load_profiles(base_dir: Path | None = None) -> List[Tuple[Path, HandProfile]]:
     """
@@ -201,6 +201,7 @@ def find_profile_by_name(target_name: str, base_dir: Path | None = None) -> Opti
 # Draft autosave helpers
 # ---------------------------------------------------------------------------
 
+
 def autosave_profile_draft(profile: HandProfile, canonical_path: Path) -> Path:
     """
     Write an autosave draft copy of the profile next to the canonical path.
@@ -233,6 +234,7 @@ def autosave_profile_draft_for_new(profile: HandProfile, base_dir: Path | None =
 # ---------------------------------------------------------------------------
 # Display ordering
 # ---------------------------------------------------------------------------
+
 
 def build_profile_display_map(
     profiles: List[Tuple[Path, HandProfile]],
@@ -284,10 +286,7 @@ def print_profile_display_map(
     for num in sorted(display_map):
         _, profile = display_map[num]
         version_str = f"v{profile.version}" if profile.version else "(no version)"
-        print(
-            f"  {num}) {profile.profile_name} "
-            f"({version_str}, tag={profile.tag}, dealer={profile.dealer})"
-        )
+        print(f"  {num}) {profile.profile_name} ({version_str}, tag={profile.tag}, dealer={profile.dealer})")
 
 
 def delete_draft_for_canonical(canonical_path: Path) -> None:

@@ -10,9 +10,9 @@ def test_logical_lin_key_groups_bbo_variants_together() -> None:
     Files that differ only by the BBO date/time (and optional _FIXED)
     should share the same logical key.
     """
-    p_old  = Path("Lee_Opps_Open_&_Our_TO_Dbl_BBO_1128_2008.lin")
-    p_new  = Path("Lee_Opps_Open_&_Our_TO_Dbl_BBO_1209_0922.lin")
-    p_fix  = Path("Lee_Defense to 3 Weak 2s_BBO_1130_0844_FIXED.lin")
+    p_old = Path("Lee_Opps_Open_&_Our_TO_Dbl_BBO_1128_2008.lin")
+    p_new = Path("Lee_Opps_Open_&_Our_TO_Dbl_BBO_1209_0922.lin")
+    p_fix = Path("Lee_Defense to 3 Weak 2s_BBO_1130_0844_FIXED.lin")
     p_new2 = Path("Lee_Defense to 3 Weak 2s_BBO_1209_0922.lin")
 
     k_old = lin_tools.logical_lin_key(p_old)
@@ -87,20 +87,11 @@ def test_select_latest_per_group_picks_latest_for_each_scenario() -> None:
     assert "Lee_Ops interference over our 1NT_BBO_1209_0923.lin" in selected_names
     assert "Lee_Ops interference over our 1NT_BBO_1128_2015.lin" not in selected_names
 
-    assert (
-        "Lee_Our 1 Major & Opponents Interrference_BBO_1209_0923.lin"
-        in selected_names
-    )
-    assert (
-        "Lee_Our 1 Major & Opponents Interrference_BBO_1130_0844_FIXED.lin"
-        not in selected_names
-    )
+    assert "Lee_Our 1 Major & Opponents Interrference_BBO_1209_0923.lin" in selected_names
+    assert "Lee_Our 1 Major & Opponents Interrference_BBO_1130_0844_FIXED.lin" not in selected_names
 
     # The lone scenario must remain
-    assert (
-        "Lee_Responding with a Major to 1NT Opening_BBO_1130_0844_FIXED.lin"
-        in selected_names
-    )
+    assert "Lee_Responding with a Major to 1NT Opening_BBO_1130_0844_FIXED.lin" in selected_names
 
     # We started with 7, but only 4 logical scenarios:
     #   - Opps Open & Our TO Dbl  → latest

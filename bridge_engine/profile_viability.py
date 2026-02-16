@@ -107,7 +107,7 @@ def _get_total_max_hcp(sub: Any) -> int:
 # these deck-level limits, the combination can never succeed.
 
 # FULL_DECK_HCP_SUM (40) imported from deal_generator_types — single source of truth.
-CARDS_PER_SUIT = 13       # standard bridge deck
+CARDS_PER_SUIT = 13  # standard bridge deck
 
 
 def _cross_seat_feasible(
@@ -137,9 +137,7 @@ def _cross_seat_feasible(
     total_min_hcp = sum(_get_total_min_hcp(chosen_subs[s]) for s in seats)
     if total_min_hcp > FULL_DECK_HCP_SUM:
         # Build per-seat breakdown for the warning message.
-        per_seat = ", ".join(
-            f"{s}={_get_total_min_hcp(chosen_subs[s])}" for s in seats
-        )
+        per_seat = ", ".join(f"{s}={_get_total_min_hcp(chosen_subs[s])}" for s in seats)
         excess = total_min_hcp - FULL_DECK_HCP_SUM
         return False, (
             f"combined min HCP ({per_seat}) = {total_min_hcp}, "
@@ -150,9 +148,7 @@ def _cross_seat_feasible(
     # Check 2: total HCP maximums must be able to absorb all deck HCP.
     total_max_hcp = sum(_get_total_max_hcp(chosen_subs[s]) for s in seats)
     if total_max_hcp < FULL_DECK_HCP_SUM:
-        per_seat = ", ".join(
-            f"{s}={_get_total_max_hcp(chosen_subs[s])}" for s in seats
-        )
+        per_seat = ", ".join(f"{s}={_get_total_max_hcp(chosen_subs[s])}" for s in seats)
         shortfall = FULL_DECK_HCP_SUM - total_max_hcp
         return False, (
             f"combined max HCP ({per_seat}) = {total_max_hcp}, "
@@ -165,9 +161,7 @@ def _cross_seat_feasible(
     for suit in ("S", "H", "D", "C"):
         suit_min_sum = sum(_get_suit_min(chosen_subs[s], suit) for s in seats)
         if suit_min_sum > CARDS_PER_SUIT:
-            per_seat = ", ".join(
-                f"{s}={_get_suit_min(chosen_subs[s], suit)}" for s in seats
-            )
+            per_seat = ", ".join(f"{s}={_get_suit_min(chosen_subs[s], suit)}" for s in seats)
             return False, (
                 f"{suit_names[suit]}: combined min cards ({per_seat}) = "
                 f"{suit_min_sum}, but only {CARDS_PER_SUIT} exist. "
@@ -175,9 +169,7 @@ def _cross_seat_feasible(
             )
         suit_max_sum = sum(_get_suit_max(chosen_subs[s], suit) for s in seats)
         if suit_max_sum < CARDS_PER_SUIT:
-            per_seat = ", ".join(
-                f"{s}={_get_suit_max(chosen_subs[s], suit)}" for s in seats
-            )
+            per_seat = ", ".join(f"{s}={_get_suit_max(chosen_subs[s], suit)}" for s in seats)
             return False, (
                 f"{suit_names[suit]}: combined max cards ({per_seat}) = "
                 f"{suit_max_sum}, but {CARDS_PER_SUIT} must be dealt. "
@@ -239,10 +231,10 @@ def _check_cross_seat_subprofile_viability(profile: Any) -> List[str]:
 
     # For each seat, precompute the "most generous" values across all
     # subprofiles — these represent the best case for other seats.
-    best_min_hcp: Dict[str, int] = {}     # lowest min_hcp on this seat
-    best_max_hcp: Dict[str, int] = {}     # highest max_hcp on this seat
-    best_suit_min: Dict[str, Dict[str, int]] = {}   # lowest min_cards per suit
-    best_suit_max: Dict[str, Dict[str, int]] = {}   # highest max_cards per suit
+    best_min_hcp: Dict[str, int] = {}  # lowest min_hcp on this seat
+    best_max_hcp: Dict[str, int] = {}  # highest max_hcp on this seat
+    best_suit_min: Dict[str, Dict[str, int]] = {}  # lowest min_cards per suit
+    best_suit_max: Dict[str, Dict[str, int]] = {}  # highest max_cards per suit
 
     for seat, subs in seat_subs.items():
         best_min_hcp[seat] = min(_get_total_min_hcp(s) for s in subs)
@@ -371,10 +363,7 @@ def _validate_ns_coupling(profile: Any) -> None:
         # For indices where both sides are individually viable, the pair must
         # also be jointly viable (cannot over-demand any suit).
         if not _ns_pair_jointly_viable(n_sub, s_sub):
-            raise ValueError(
-                "NS index-coupled subprofile pair is not jointly viable "
-                f"at index {idx}"
-            )
+            raise ValueError(f"NS index-coupled subprofile pair is not jointly viable at index {idx}")
 
     # If NS coupling is present but there is *no* index where both N and S are
     # individually viable, the profile is unusable.

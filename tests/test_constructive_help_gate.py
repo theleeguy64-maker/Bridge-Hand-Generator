@@ -53,8 +53,8 @@ class DummyProfile:
             return "N"
 
         self.ns_driver_seat = _ns_driver_seat
-        
-        
+
+
 def test_constructive_help_gate_does_not_call_choose_hardest(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     When ENABLE_CONSTRUCTIVE_HELP is False, the main constrained loop must not
@@ -99,4 +99,3 @@ def test_constructive_help_gate_does_not_call_choose_hardest(monkeypatch: pytest
     assert deal is not None
     assert set(deal.hands.keys()) == {"N", "E", "S", "W"}
     assert all(len(hand) == 13 for hand in deal.hands.values())
-    

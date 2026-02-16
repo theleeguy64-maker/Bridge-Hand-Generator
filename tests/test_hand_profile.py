@@ -147,6 +147,7 @@ def test_standard_constraints_bad_total_hcp_range_raises() -> None:
             total_max_hcp=10,
         )
 
+
 def test_ns_driver_seat_defaults_to_no_driver(make_valid_profile) -> None:
     """
     If ns_role_mode is not explicitly set in legacy data, we treat it as
@@ -175,6 +176,7 @@ def test_ns_driver_seat_respects_ns_role_mode(make_valid_profile) -> None:
     profile.ns_role_mode = "something_weird"
     assert profile.ns_driver_seat() is None
 
+
 def test_ns_role_buckets_all_neutral_for_legacy_profiles(make_valid_profile) -> None:
     """
     For existing profiles (no ns_role_for_seat metadata),
@@ -192,6 +194,7 @@ def test_ns_role_buckets_all_neutral_for_legacy_profiles(make_valid_profile) -> 
         assert seat_buckets["follower"] == []
         # Legacy profiles should still have at least one neutral subprofile
         assert len(seat_buckets["neutral"]) >= 1
+
 
 def test_ns_role_mode_default_and_roundtrip(make_valid_profile) -> None:
     """
@@ -215,6 +218,7 @@ def test_ns_role_mode_default_and_roundtrip(make_valid_profile) -> None:
     assert rebuilt.ns_role_mode == "no_driver_no_index"
     assert rebuilt.ns_driver_seat() is None
 
+
 def test_ns_role_mode_defaults_for_legacy_dict(make_valid_profile) -> None:
     """
     If a legacy dict has no ns_role_mode key, HandProfile.from_dict()
@@ -227,10 +231,12 @@ def test_ns_role_mode_defaults_for_legacy_dict(make_valid_profile) -> None:
     restored = HandProfile.from_dict(raw)
     assert restored.ns_role_mode == "no_driver_no_index"
 
+
 def test_ns_driver_seat_south_drives(make_valid_profile) -> None:
     profile = make_valid_profile()
     profile = replace(profile, ns_role_mode="south_drives")
     assert profile.ns_driver_seat() == "S"
+
 
 def test_ns_driver_seat_random_driver_only_ns(make_valid_profile) -> None:
     profile = make_valid_profile()
@@ -241,6 +247,7 @@ def test_ns_driver_seat_random_driver_only_ns(make_valid_profile) -> None:
         seat = profile.ns_driver_seat(rng)
         assert seat in ("N", "S")
 
+
 def test_ns_driver_seat_invalid_mode_falls_back_to_none(make_valid_profile) -> None:
     """
     Unknown ns_role_mode values should be treated as 'no driver' at metadata level.
@@ -249,6 +256,7 @@ def test_ns_driver_seat_invalid_mode_falls_back_to_none(make_valid_profile) -> N
     profile = replace(profile, ns_role_mode="totally_bogus")
 
     assert profile.ns_driver_seat() is None
+
 
 def test_rotate_default_on_new_profile_is_true(make_valid_profile) -> None:
     """
@@ -313,7 +321,8 @@ def test_exclusion_clause_is_frozen() -> None:
 def test_exclusion_data_round_trip_with_shapes() -> None:
     """SubprofileExclusionData with excluded_shapes round-trips."""
     exc = SubprofileExclusionData(
-        seat="N", subprofile_index=1,
+        seat="N",
+        subprofile_index=1,
         excluded_shapes=["5332", "4432"],
     )
     d = exc.to_dict()
@@ -327,7 +336,8 @@ def test_exclusion_data_round_trip_with_shapes() -> None:
 def test_exclusion_data_round_trip_with_clauses() -> None:
     """SubprofileExclusionData with clauses round-trips."""
     exc = SubprofileExclusionData(
-        seat="S", subprofile_index=2,
+        seat="S",
+        subprofile_index=2,
         clauses=[
             SubprofileExclusionClause(group="ANY", length_eq=6, count=1),
             SubprofileExclusionClause(group="MINOR", length_eq=4, count=2),
@@ -357,7 +367,8 @@ def test_profile_round_trip_with_exclusions(make_valid_profile) -> None:
     profile = make_valid_profile()
     exclusions = [
         SubprofileExclusionData(
-            seat="N", subprofile_index=1,
+            seat="N",
+            subprofile_index=1,
             excluded_shapes=["5332"],
         ),
     ]
@@ -382,9 +393,9 @@ def test_exclusion_validate_catches_bad_subprofile_index(make_valid_profile) -> 
     profile = make_valid_profile()
     # Index 99 should be out of range (each seat has 1 subprofile).
     exc = SubprofileExclusionData(
-        seat="N", subprofile_index=99,
+        seat="N",
+        subprofile_index=99,
         excluded_shapes=["5332"],
     )
     with pytest.raises(ProfileError, match="Invalid subprofile index"):
         exc.validate(profile)
-

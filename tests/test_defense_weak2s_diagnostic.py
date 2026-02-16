@@ -16,6 +16,7 @@ The test generates boards and prints full diagnostic output:
 
 Run with:  pytest -q -s tests/test_defense_weak2s_diagnostic.py
 """
+
 from __future__ import annotations
 
 import json
@@ -119,10 +120,10 @@ class TestDefenseWeak2sDiagnostic:
         try:
             dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION = hook
 
-            print(f"\n{'='*75}")
+            print(f"\n{'=' * 75}")
             print(f"Profile: {PROFILE_FNAME}")
             print(f"Boards: {NUM_BOARDS}  |  Dealer: W  |  Order: W-N-S-E")
-            print(f"{'='*75}")
+            print(f"{'=' * 75}")
 
             for board_number in range(1, NUM_BOARDS + 1):
                 latest_snapshot.clear()
@@ -190,28 +191,22 @@ class TestDefenseWeak2sDiagnostic:
         max_attempts = max(attempt_list) if attempt_list else 0
         min_attempts = min(attempt_list) if attempt_list else 0
 
-        print(f"\n{'─'*75}")
+        print(f"\n{'─' * 75}")
         print(f"SUMMARY: {successes}/{NUM_BOARDS} boards succeeded, {failures} failed")
-        print(
-            f"Attempts: total={total_attempts}  mean={mean_attempts:.1f}  "
-            f"min={min_attempts}  max={max_attempts}"
-        )
+        print(f"Attempts: total={total_attempts}  mean={mean_attempts:.1f}  min={min_attempts}  max={max_attempts}")
 
         print(f"\n  {'Failure Attribution':<26} {'W':>6} {'N':>6} {'S':>6} {'E':>6} {'TOTAL':>8}")
-        print(f"  {'─'*26} {'─'*6} {'─'*6} {'─'*6} {'─'*6} {'─'*8}")
+        print(f"  {'─' * 26} {'─' * 6} {'─' * 6} {'─' * 6} {'─' * 6} {'─' * 8}")
         print(_fmt_row("seat_fail_as_seat", total_as_seat))
         print(_fmt_row("seat_fail_global_other", total_global_other))
         print(_fmt_row("seat_fail_global_unchecked", total_global_unchecked))
         print(_fmt_row("seat_fail_hcp", total_hcp))
         print(_fmt_row("seat_fail_shape", total_shape))
-        print(f"{'='*75}\n")
+        print(f"{'=' * 75}\n")
 
         # ---- Assertions ----
         # This profile should be viable — assert at least some boards succeed.
-        assert successes > 0, (
-            f"No boards succeeded out of {NUM_BOARDS}. "
-            f"Profile may be too hard for v2 builder."
-        )
+        assert successes > 0, f"No boards succeeded out of {NUM_BOARDS}. Profile may be too hard for v2 builder."
 
     def test_full_pipeline(self, tmp_path):
         """Run generate_deals() pipeline on Defense to Weak 2s (1 board at a time).
@@ -236,15 +231,10 @@ class TestDefenseWeak2sDiagnostic:
                     board_number=board_number,
                 )
                 w = deal.hands.get("W", [])
-                print(
-                    f"  Pipeline board {board_number}: OK  "
-                    f"W:{_hand_shape(w)} {_hand_hcp(w):2d}hcp"
-                )
+                print(f"  Pipeline board {board_number}: OK  W:{_hand_shape(w)} {_hand_hcp(w):2d}hcp")
                 successes += 1
             except DealGenerationError:
                 pass  # Expected for this tough profile
 
         print(f"\n  Pipeline: {successes}/{num_pipeline_boards} boards succeeded")
-        assert successes > 0, (
-            f"No pipeline boards succeeded out of {num_pipeline_boards} attempts."
-        )
+        assert successes > 0, f"No pipeline boards succeeded out of {num_pipeline_boards} attempts."

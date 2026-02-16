@@ -11,9 +11,7 @@ from typing import Dict, Iterable, List, Mapping, Sequence
 # ---------------------------------------------------------------------------
 
 # Match full BBO filenames: Lee_Profile_BBO_1128_2008 (optional _FIXED suffix)
-_BBO_PATTERN = re.compile(
-    r"^(?P<prefix>.+?)_BBO_\d{4}_\d{4}(?:_FIXED)?$"
-)
+_BBO_PATTERN = re.compile(r"^(?P<prefix>.+?)_BBO_\d{4}_\d{4}(?:_FIXED)?$")
 
 # Fallback patterns for stripping trailing timestamps from LIN stems
 _BBO_TIMESTAMP_SUFFIX_RE = re.compile(r"_\d{4}_\d{4}(?:_FIXED)?$")
@@ -78,6 +76,7 @@ def logical_lin_key(path: Path) -> str:
     stem = _BBO_TIMESTAMP_SUFFIX_RE.sub("", stem)
     stem = _TRAILING_NUMBERS_RE.sub("", stem)
     return stem
+
 
 def select_latest_per_group(paths: Iterable[Path]) -> List[Path]:
     """
@@ -288,8 +287,8 @@ def combine_lin_files(
     output_path.write_text("\n\n".join(combined) + "\n", encoding="utf-8")
 
     return len(combined)
-    
-    
+
+
 def combine_lin_files_interactive() -> None:
     """
     CLI entrypoint for the LIN combiner, used by the Admin menu.
@@ -299,8 +298,8 @@ def combine_lin_files_interactive() -> None:
       • tests for the combiner can keep using their current APIs.
     """
     run_lin_combiner()
-    
-    
+
+
 def run_lin_combiner() -> None:
     """
     Interactive LIN combiner used by the Admin menu.
@@ -346,8 +345,7 @@ def run_lin_combiner() -> None:
             print(f"  {idx}) {p.name}")
 
         raw = input(
-            "\nEnter numbers to include (exact format x,y,z, e.g. 1,3,7) "
-            "or press Enter to include ALL: "
+            "\nEnter numbers to include (exact format x,y,z, e.g. 1,3,7) or press Enter to include ALL: "
         ).strip()
 
         if not raw:
@@ -389,9 +387,7 @@ def run_lin_combiner() -> None:
     # 5b) Optional weighted selection (F4)
     file_weights: List[float] | None = None
     if chosen_files:
-        use_weights = input(
-            "\nUse weighted selection by source file? [y/N]: "
-        ).strip().lower()
+        use_weights = input("\nUse weighted selection by source file? [y/N]: ").strip().lower()
         if use_weights.startswith("y"):
             print(
                 "Enter a *relative* weight for each file. "
@@ -419,10 +415,7 @@ def run_lin_combiner() -> None:
 
     # 6) Ask for output filename (stem; we always write .lin)
     default_stem = "combined"
-    out_stem = input(
-        "\nUser can determine combined LIN file name "
-        f"[{default_stem}]: "
-    ).strip() or default_stem
+    out_stem = input(f"\nUser can determine combined LIN file name [{default_stem}]: ").strip() or default_stem
 
     if not out_stem.lower().endswith(".lin"):
         out_name = out_stem + ".lin"
@@ -432,9 +425,7 @@ def run_lin_combiner() -> None:
     output_path = base_dir / out_name
 
     # 7) Optional seed
-    seed_str = input(
-        "Random seed for shuffling (integer 1 to 2 billion or blank for default): "
-    ).strip()
+    seed_str = input("Random seed for shuffling (integer 1 to 2 billion or blank for default): ").strip()
     seed = None
     if seed_str:
         try:
@@ -456,4 +447,3 @@ def run_lin_combiner() -> None:
 
     print(f"\nCombined {len(chosen_files)} LIN files into: {output_path}")
     print("Deal numbers have been renumbered starting from 1.")
-    

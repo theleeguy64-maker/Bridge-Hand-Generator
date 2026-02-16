@@ -6,6 +6,7 @@ Tests for untested profile_cli action functions:
   - save_as_new_version_action
   - draft_tools_action (no drafts, delete one, delete all)
 """
+
 from __future__ import annotations
 
 import json
@@ -20,6 +21,7 @@ from bridge_engine import profile_store
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_profile(name: str = "TestProfile", **overrides) -> HandProfile:
     """Minimal valid HandProfile for action-level tests."""
@@ -42,6 +44,7 @@ def _make_profile(name: str = "TestProfile", **overrides) -> HandProfile:
 # edit_profile_action — metadata-only path (mode=1)
 # ---------------------------------------------------------------------------
 
+
 def test_edit_metadata_saves_updated_fields(monkeypatch, tmp_path, capsys):
     """
     edit_profile_action mode=1 should prompt for all metadata fields,
@@ -62,6 +65,7 @@ def test_edit_metadata_saves_updated_fields(monkeypatch, tmp_path, capsys):
     # Stub _input_int for mode selection (1 = metadata edit), ns_role_mode choice,
     # and loop exit (0 = done).  edit_profile_action() now loops, so call 3 = exit.
     call_count = {"input_int": 0}
+
     def fake_input_int(prompt, default=0, minimum=0, maximum=99, show_range_suffix=True):
         call_count["input_int"] += 1
         if call_count["input_int"] == 1:
@@ -69,26 +73,31 @@ def test_edit_metadata_saves_updated_fields(monkeypatch, tmp_path, capsys):
         if call_count["input_int"] == 2:
             return 5  # ns_role_mode choice — option 5 (no_driver_no_index)
         return 0  # exit the edit loop
+
     monkeypatch.setattr(pc, "_input_int", fake_input_int)
 
     # Stub _input_with_default for text prompts
     text_calls = {"n": 0}
     text_responses = ["Renamed", "New desc", "NewAuthor", "0.2"]
+
     def fake_input_with_default(prompt, default=""):
         idx = text_calls["n"]
         text_calls["n"] += 1
         if idx < len(text_responses):
             return text_responses[idx]
         return default
+
     monkeypatch.setattr(pc, "_input_with_default", fake_input_with_default)
 
     # Stub prompt_choice for tag and dealer
     choice_calls = {"n": 0}
+
     def fake_prompt_choice(prompt, choices, default=""):
         choice_calls["n"] += 1
         if choice_calls["n"] == 1:
             return "Overcaller"  # tag
         return "S"  # dealer
+
     monkeypatch.setattr(pc, "prompt_choice", fake_prompt_choice)
 
     # Stub _yes_no for rotate default
@@ -127,6 +136,7 @@ def test_edit_metadata_saves_updated_fields(monkeypatch, tmp_path, capsys):
 # edit_profile_action — constraints-only path (mode=2)
 # ---------------------------------------------------------------------------
 
+
 def test_edit_constraints_delegates_to_wizard(monkeypatch, tmp_path, capsys):
     """
     edit_profile_action mode=2 should delegate to edit_constraints_interactive_flow
@@ -141,18 +151,22 @@ def test_edit_constraints_delegates_to_wizard(monkeypatch, tmp_path, capsys):
 
     # Stub _input_int: mode=2 first call, then 0 to exit loop
     int_calls = {"n": 0}
+
     def fake_input_int(prompt, **kw):
         int_calls["n"] += 1
         if int_calls["n"] == 1:
             return 2  # mode = constraints edit
         return 0  # exit the edit loop
+
     monkeypatch.setattr(pc, "_input_int", fake_input_int)
 
     # Stub wizard call
     wizard_calls: list = []
+
     def fake_wizard(prof, profile_path=None):
         wizard_calls.append((prof, profile_path))
         return updated_profile
+
     monkeypatch.setattr(pc, "edit_constraints_interactive_flow", fake_wizard)
 
     # Confirm save
@@ -174,6 +188,7 @@ def test_edit_constraints_delegates_to_wizard(monkeypatch, tmp_path, capsys):
 # ---------------------------------------------------------------------------
 # edit_profile_action — cancel path (mode=0)
 # ---------------------------------------------------------------------------
+
 
 def test_edit_cancel_does_not_save(monkeypatch, tmp_path, capsys):
     """edit_profile_action mode=0 should cancel without saving."""
@@ -197,6 +212,7 @@ def test_edit_cancel_does_not_save(monkeypatch, tmp_path, capsys):
 # ---------------------------------------------------------------------------
 # delete_profile_action — confirm and cancel
 # ---------------------------------------------------------------------------
+
 
 def test_delete_profile_confirm(monkeypatch, tmp_path, capsys):
     """delete_profile_action should remove file when user confirms."""
@@ -232,6 +248,7 @@ def test_delete_profile_cancel(monkeypatch, tmp_path, capsys):
 # ---------------------------------------------------------------------------
 # save_as_new_version_action
 # ---------------------------------------------------------------------------
+
 
 def test_save_as_new_version_preserves_all_fields(monkeypatch, tmp_path, capsys):
     """
@@ -283,6 +300,7 @@ def test_save_as_new_version_preserves_all_fields(monkeypatch, tmp_path, capsys)
 # draft_tools_action
 # ---------------------------------------------------------------------------
 
+
 def test_draft_tools_no_drafts(monkeypatch, capsys):
     """draft_tools_action should print 'No draft' when no drafts exist."""
     monkeypatch.setattr(profile_store, "list_drafts", lambda d: [])
@@ -305,9 +323,11 @@ def test_draft_tools_delete_one(monkeypatch, tmp_path, capsys):
 
     # _input_int calls: action=1 (delete one), which draft=1
     int_calls = {"n": 0}
+
     def fake_input_int(prompt, default=0, minimum=0, maximum=99, show_range_suffix=True):
         int_calls["n"] += 1
         return 1  # first call: action=1, second call: draft #1
+
     monkeypatch.setattr(pc, "_input_int", fake_input_int)
 
     # Confirm deletion

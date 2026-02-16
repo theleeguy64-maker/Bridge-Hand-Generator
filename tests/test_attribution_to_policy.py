@@ -15,6 +15,7 @@ from bridge_engine.deal_generator import _is_shape_dominant_failure
 # Unit tests for _is_shape_dominant_failure()
 # ---------------------------------------------------------------------------
 
+
 def test_is_shape_dominant_no_data_returns_true():
     """When no failures recorded, return True (benefit of the doubt)."""
     result = _is_shape_dominant_failure(

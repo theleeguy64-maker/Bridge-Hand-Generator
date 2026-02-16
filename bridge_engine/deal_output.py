@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence
+from typing import Dict, List, Sequence
 
 from .deal_generator import Deal, DealSet
 from .hand_profile import HandProfile
@@ -112,9 +112,7 @@ def _format_vertical_hand(cards: Sequence[str], indent: int = 8) -> List[str]:
     return lines
 
 
-def _format_horizontal_pair(
-    west_cards: Sequence[str], east_cards: Sequence[str], inner_indent: int = 0
-) -> List[str]:
+def _format_horizontal_pair(west_cards: Sequence[str], east_cards: Sequence[str], inner_indent: int = 0) -> List[str]:
     """
     Format West and East horizontally on the same set of lines, e.g.:
 
@@ -152,8 +150,8 @@ def _format_single_board_text(board: Deal) -> List[str]:
 
     # --- New NS indent behaviour (+6 spaces vs previous) ---
     NS_EXTRA = 6
-    NS_HEADER_INDENT = 11 + NS_EXTRA   # was 11 ("           ")
-    NS_SUIT_INDENT = 8 + NS_EXTRA      # was 8 (default in _format_vertical_hand)
+    NS_HEADER_INDENT = 11 + NS_EXTRA  # was 11 ("           ")
+    NS_SUIT_INDENT = 8 + NS_EXTRA  # was 8 (default in _format_vertical_hand)
 
     # North
     lines.append(" " * NS_HEADER_INDENT + "North")
@@ -170,9 +168,9 @@ def _format_single_board_text(board: Deal) -> List[str]:
     lines.append("")
 
     return lines
-def _convert_to_formatted_deals(
-    profile: HandProfile, deals: Sequence[Deal]
-) -> List[str]:
+
+
+def _convert_to_formatted_deals(profile: HandProfile, deals: Sequence[Deal]) -> List[str]:
     """
     Build the full TXT file content as a list of lines, including:
 
@@ -316,9 +314,7 @@ def render_deals(
             setup.output_lin_file.parent.mkdir(parents=True, exist_ok=True)
             write_lin_file(setup.output_lin_file, lin_deals)
         except OSError as exc:
-            raise OutputError(
-                f"Failed to write LIN output to {setup.output_lin_file}: {exc}"
-            ) from exc
+            raise OutputError(f"Failed to write LIN output to {setup.output_lin_file}: {exc}") from exc
 
         return DealOutputSummary(
             num_deals=len(deal_set.deals),

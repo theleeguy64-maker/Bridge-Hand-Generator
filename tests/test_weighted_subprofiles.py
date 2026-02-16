@@ -121,9 +121,7 @@ def test_sum_near_100_is_normalised():
     )
 
     validated = validate_profile(profile)
-    weights = [
-        sp.weight_percent for sp in validated.seat_profiles["N"].subprofiles
-    ]
+    weights = [sp.weight_percent for sp in validated.seat_profiles["N"].subprofiles]
     assert pytest.approx(sum(weights), rel=0, abs=1e-6) == 100.0
 
 

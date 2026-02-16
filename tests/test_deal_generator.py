@@ -14,6 +14,7 @@ from bridge_engine.deal_generator import generate_deals
 
 class DummyProfile:
     """Minimal placeholder for a profile object."""
+
     pass
 
 
@@ -23,7 +24,7 @@ def test_generate_deals_count_and_board_numbers(tmp_path: Path) -> None:
         base_dir=base_dir,
         owner="Lee",
         profile_name="TestProfile",
-        ask_seed_choice=False,   # force seeded default, no prompt
+        ask_seed_choice=False,  # force seeded default, no prompt
     )
 
     profile = DummyProfile()

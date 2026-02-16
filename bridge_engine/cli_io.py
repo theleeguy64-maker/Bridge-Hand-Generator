@@ -30,6 +30,7 @@ def clear_screen() -> None:
     """Clear terminal screen — safe no-op fallback."""
     try:
         import os
+
         os.system("cls" if os.name == "nt" else "clear")
     except Exception:
         # In tests or non-interactive envs, just ignore
@@ -107,5 +108,3 @@ def _yes_no(prompt: str, default: bool = True) -> bool:
             return False
 
         print("Please answer y or n.", file=sys.stderr)
-
-

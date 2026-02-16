@@ -29,6 +29,7 @@ DEFAULT_SEED = 778899  # canonical project-wide deterministic default seed
 # Exceptions
 # ---------------------------------------------------------------------------
 
+
 class SetupError(Exception):
     """Raised when the environment cannot be prepared."""
 
@@ -37,6 +38,7 @@ class SetupError(Exception):
 # Data class returned by run_setup()
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class SetupResult:
     """
@@ -44,6 +46,7 @@ class SetupResult:
 
     This object must be passed intact to Section C without modification.
     """
+
     # Directory roots
     base_dir: Path
     txt_dir: Path
@@ -55,17 +58,18 @@ class SetupResult:
     output_lin_file: Path
 
     # Metadata for logging and Section C reproducibility
-    owner: str                  # preserved human-readable owner
-    owner_file: str             # filename-safe version (spaces collapsed)
-    profile_name: str           # profile ID/name from user
-    timestamp: str              # MMDD_HHMM
-    seed: int                   # actual seed used
-    use_seeded_run: bool        # True = default seed, False = random seed
+    owner: str  # preserved human-readable owner
+    owner_file: str  # filename-safe version (spaces collapsed)
+    profile_name: str  # profile ID/name from user
+    timestamp: str  # MMDD_HHMM
+    seed: int  # actual seed used
+    use_seeded_run: bool  # True = default seed, False = random seed
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _normalise_owner_for_filename(owner: str) -> str:
     """
@@ -113,6 +117,7 @@ def _ensure_directories(base_dir: Path) -> Tuple[Path, Path, Path]:
 # ---------------------------------------------------------------------------
 # Main entry point for Section A
 # ---------------------------------------------------------------------------
+
 
 def run_setup(
     *,
@@ -180,7 +185,7 @@ def run_setup(
     else:
         seed = random.randint(1, 2**31 - 1)
         seeded_flag = False
-            
+
     # Apply seed
     random.seed(seed)
 

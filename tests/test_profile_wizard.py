@@ -9,9 +9,9 @@ from bridge_engine.hand_profile import SuitRange
 def test_build_suit_range_simple(monkeypatch):
     # Prepare answers the wizard will "read" from input()
     responses: List[str] = [
-        "0",   # min_cards
+        "0",  # min_cards
         "13",  # max_cards
-        "0",   # min_hcp
+        "0",  # min_hcp
         "10",  # max_hcp
     ]
 

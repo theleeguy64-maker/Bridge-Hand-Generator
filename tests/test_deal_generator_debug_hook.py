@@ -21,10 +21,7 @@ class DummySeatProfile:
     """Minimal seat profile with a configurable number of subprofiles."""
 
     def __init__(self, num_subprofiles: int = 1, has_nonstandard: bool = False) -> None:
-        self.subprofiles = [
-            DummySubprofile(has_nonstandard=has_nonstandard)
-            for _ in range(num_subprofiles)
-        ]
+        self.subprofiles = [DummySubprofile(has_nonstandard=has_nonstandard) for _ in range(num_subprofiles)]
 
 
 class DummyProfile:
@@ -125,9 +122,7 @@ def test_debug_hook_called_when_max_attempts_exhausted(monkeypatch) -> None:
 
     # Viability summary should be a dict keyed by seat, matching the fail-count keys.
     assert isinstance(captured["viability_summary"], dict)
-    assert set(captured["viability_summary"].keys()) == set(
-        captured["seat_fail_counts"].keys()
-    )
+    assert set(captured["viability_summary"].keys()) == set(captured["seat_fail_counts"].keys())
 
 
 def test_debug_hook_not_called_for_invariants_fast_path(monkeypatch) -> None:

@@ -17,7 +17,7 @@ from __future__ import annotations
 import csv
 import json
 import random
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -117,15 +117,17 @@ class FailureAttributionReport:
         rows = []
         ps = self.pain_share
         for seat in ("N", "E", "S", "W"):
-            rows.append({
-                "seat": seat,
-                "fail_as_seat": self.seat_fail_as_seat[seat],
-                "fail_global_other": self.seat_fail_global_other[seat],
-                "fail_global_unchecked": self.seat_fail_global_unchecked[seat],
-                "fail_hcp": self.seat_fail_hcp[seat],
-                "fail_shape": self.seat_fail_shape[seat],
-                "pain_share": ps[seat],
-            })
+            rows.append(
+                {
+                    "seat": seat,
+                    "fail_as_seat": self.seat_fail_as_seat[seat],
+                    "fail_global_other": self.seat_fail_global_other[seat],
+                    "fail_global_unchecked": self.seat_fail_global_unchecked[seat],
+                    "fail_hcp": self.seat_fail_hcp[seat],
+                    "fail_shape": self.seat_fail_shape[seat],
+                    "pain_share": ps[seat],
+                }
+            )
 
         if not rows:
             return  # Nothing to write
@@ -138,8 +140,7 @@ class FailureAttributionReport:
         """Return a human-readable summary string."""
         lines = [
             f"Profile: {self.profile_name}",
-            f"Boards: {self.num_boards_succeeded}/{self.num_boards_requested} "
-            f"({self.success_rate:.1%} success)",
+            f"Boards: {self.num_boards_succeeded}/{self.num_boards_requested} ({self.success_rate:.1%} success)",
             f"Total attempts: {self.total_attempts}",
             f"Hardest seat: {self.hardest_seat or 'N/A'}",
             "",

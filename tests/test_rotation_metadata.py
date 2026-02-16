@@ -61,6 +61,7 @@ class DummyHandProfile:
     """
     Captures kwargs so tests can assert rotate_deals_by_default is always present.
     """
+
     created_kwargs: Dict[str, Any] = {}
 
     def __init__(self, **kwargs: Any) -> None:
@@ -83,6 +84,7 @@ def _patch_cli_io(monkeypatch: pytest.MonkeyPatch, *, rotate_answer: Optional[bo
       - True/False -> when prompt includes 'Rotate deals by default', return that;
                       otherwise return defaults.
     """
+
     def fake_input_with_default(prompt: str, default: str = "") -> str:
         return default
 
@@ -113,7 +115,9 @@ def _patch_cli_io(monkeypatch: pytest.MonkeyPatch, *, rotate_answer: Optional[bo
 
     # Some modules bind helpers at import time; patch there too.
     _patch_if_hasattr(monkeypatch, profile_cli, "_yes_no", fake_yes_no)
-    _patch_if_hasattr(monkeypatch, profile_cli, "prompt_yes_no", lambda prompt, default=True: fake_yes_no(prompt, default))
+    _patch_if_hasattr(
+        monkeypatch, profile_cli, "prompt_yes_no", lambda prompt, default=True: fake_yes_no(prompt, default)
+    )
     _patch_if_hasattr(monkeypatch, wizard_flow, "_yes_no", fake_yes_no)
     if hasattr(wizard_flow, "wiz_io"):
         _patch_if_hasattr(monkeypatch, wizard_flow.wiz_io, "_yes_no", fake_yes_no)  # type: ignore[attr-defined]
@@ -123,6 +127,7 @@ def _dummy_existing(*, rotate: Optional[bool]) -> Any:
     """
     Returns a minimal existing profile-like object for edit_constraints_interactive.
     """
+
     class Existing:
         def __init__(self) -> None:
             self.profile_name = "Existing"

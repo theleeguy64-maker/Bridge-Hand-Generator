@@ -6,6 +6,7 @@ Tests for the profile management and admin menu loops:
   - admin_menu() dispatches to all 4 actions
   - admin_menu() exits immediately on 0
 """
+
 from __future__ import annotations
 
 from bridge_engine import profile_cli as pc
@@ -17,14 +18,20 @@ from bridge_engine import lin_tools
 # run_profile_manager() — full dispatch
 # ---------------------------------------------------------------------------
 
+
 def test_profile_manager_dispatches_all_actions(monkeypatch, capsys):
     """
     Walking through choices 1-7 then 0 should call each action exactly once,
     then exit the loop cleanly.
     """
     calls = {
-        "list": 0, "view": 0, "edit": 0,
-        "create": 0, "delete": 0, "save_ver": 0, "help": 0,
+        "list": 0,
+        "view": 0,
+        "edit": 0,
+        "create": 0,
+        "delete": 0,
+        "save_ver": 0,
+        "help": 0,
     }
 
     monkeypatch.setattr(pc, "list_profiles_action", lambda: _inc(calls, "list"))
@@ -42,8 +49,13 @@ def test_profile_manager_dispatches_all_actions(monkeypatch, capsys):
     pc.run_profile_manager()
 
     assert calls == {
-        "list": 1, "view": 1, "edit": 1,
-        "create": 1, "delete": 1, "save_ver": 1, "help": 1,
+        "list": 1,
+        "view": 1,
+        "edit": 1,
+        "create": 1,
+        "delete": 1,
+        "save_ver": 1,
+        "help": 1,
     }
 
 
@@ -71,6 +83,7 @@ def test_profile_manager_error_recovery(monkeypatch, capsys):
 # admin_menu() — full dispatch
 # ---------------------------------------------------------------------------
 
+
 def test_admin_menu_dispatches_all_actions(monkeypatch, capsys):
     """
     Walking through choices 1-4 then 0 should call each action exactly once.
@@ -80,7 +93,8 @@ def test_admin_menu_dispatches_all_actions(monkeypatch, capsys):
     monkeypatch.setattr(lin_tools, "combine_lin_files_interactive", lambda: _inc(calls, "lin"))
     monkeypatch.setattr(pc, "run_draft_tools", lambda: _inc(calls, "drafts"))
     monkeypatch.setattr(
-        orchestrator, "_run_profile_diagnostic_interactive",
+        orchestrator,
+        "_run_profile_diagnostic_interactive",
         lambda: _inc(calls, "diag"),
     )
     monkeypatch.setattr(orchestrator, "get_menu_help", lambda key: _inc(calls, "help") or "help")
@@ -101,7 +115,8 @@ def test_admin_menu_exit_immediately(monkeypatch, capsys):
     monkeypatch.setattr(lin_tools, "combine_lin_files_interactive", lambda: _inc(calls, "lin"))
     monkeypatch.setattr(pc, "run_draft_tools", lambda: _inc(calls, "drafts"))
     monkeypatch.setattr(
-        orchestrator, "_run_profile_diagnostic_interactive",
+        orchestrator,
+        "_run_profile_diagnostic_interactive",
         lambda: _inc(calls, "diag"),
     )
 
@@ -116,6 +131,7 @@ def test_admin_menu_exit_immediately(monkeypatch, capsys):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _inc(d: dict, key: str) -> None:
     """Increment a counter in a tracking dict."""

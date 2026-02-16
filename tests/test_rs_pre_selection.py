@@ -46,8 +46,7 @@ class _DummyStandard:
 class _DummyRS:
     """Minimal duck-typed RandomSuitConstraintData for testing."""
 
-    def __init__(self, allowed_suits, required_suits_count, suit_ranges=None,
-                 pair_overrides=None):
+    def __init__(self, allowed_suits, required_suits_count, suit_ranges=None, pair_overrides=None):
         self.allowed_suits = allowed_suits
         self.required_suits_count = required_suits_count
         self.suit_ranges = suit_ranges or [_DummySuitRange(min_cards=6)]
@@ -128,8 +127,11 @@ class TestPreSelectRsSuits:
     def test_multiple_rs_seats_independent(self):
         """Multiple RS seats each get their own pre-selection."""
         rs_w = _DummyRS(allowed_suits=["S", "H", "D"], required_suits_count=1)
-        rs_n = _DummyRS(allowed_suits=["S", "H", "D", "C"], required_suits_count=2,
-                        suit_ranges=[_DummySuitRange(), _DummySuitRange()])
+        rs_n = _DummyRS(
+            allowed_suits=["S", "H", "D", "C"],
+            required_suits_count=2,
+            suit_ranges=[_DummySuitRange(), _DummySuitRange()],
+        )
         subs = {
             "W": _DummySubProfile(rs=rs_w),
             "N": _DummySubProfile(rs=rs_n),
@@ -275,9 +277,7 @@ class TestDispersionCheckRS:
     def test_non_rs_seat_unaffected_by_rs_pre_selections(self):
         """A standard-only seat is not affected by rs_pre_selections dict."""
         subs = {"W": _DummySubProfile(), "N": _DummySubProfile()}
-        result = dg._dispersion_check(
-            subs, rs_pre_selections={"W": ["S"]}
-        )
+        result = dg._dispersion_check(subs, rs_pre_selections={"W": ["S"]})
         # W has no RS constraint, so the pre-selection is harmless.
         assert "W" not in result
         assert "N" not in result
@@ -460,9 +460,7 @@ class TestDealWithHelpRS:
 
         deck = _make_deck()
         rng = random.Random(42)
-        hands, rejected = dg._deal_with_help(
-            rng, deck, subs, tight, order, rs_pre_selections=rs_pre
-        )
+        hands, rejected = dg._deal_with_help(rng, deck, subs, tight, order, rs_pre_selections=rs_pre)
         assert rejected is None
         assert hands is not None
         # W should have 13 cards total.
@@ -489,9 +487,7 @@ class TestDealWithHelpRS:
         rs_pre = {"W": ["D"]}
 
         deck = _make_deck()
-        hands, _ = dg._deal_with_help(
-            random.Random(42), deck, subs, tight, order, rs_pre_selections=rs_pre
-        )
+        hands, _ = dg._deal_with_help(random.Random(42), deck, subs, tight, order, rs_pre_selections=rs_pre)
         assert hands is not None
         total_cards = sum(len(h) for h in hands.values())
         assert total_cards == 52
@@ -516,9 +512,7 @@ class TestDealWithHelpRS:
         rs_pre = {"W": ["S"]}
 
         deck = _make_deck()
-        hands, _ = dg._deal_with_help(
-            random.Random(42), deck, subs, tight, order, rs_pre_selections=rs_pre
-        )
+        hands, _ = dg._deal_with_help(random.Random(42), deck, subs, tight, order, rs_pre_selections=rs_pre)
         assert hands is not None
         all_cards = []
         for h in hands.values():
@@ -544,9 +538,7 @@ class TestDealWithHelpRS:
         rs_pre = {"W": ["H"]}
 
         deck = _make_deck()
-        hands, _ = dg._deal_with_help(
-            random.Random(42), deck, subs, tight, order, rs_pre_selections=rs_pre
-        )
+        hands, _ = dg._deal_with_help(random.Random(42), deck, subs, tight, order, rs_pre_selections=rs_pre)
         assert hands is not None
         assert len(hands["W"]) == 13
         # W should have clubs from standard pre-alloc + hearts from RS pre-alloc.
@@ -575,9 +567,7 @@ class TestDealWithHelpRS:
         rs_pre = {"W": ["H"]}
 
         deck = _make_deck()
-        hands, _ = dg._deal_with_help(
-            random.Random(42), deck, subs, tight, order, rs_pre_selections=rs_pre
-        )
+        hands, _ = dg._deal_with_help(random.Random(42), deck, subs, tight, order, rs_pre_selections=rs_pre)
         assert hands is not None
         # W gets 13 random cards, no guaranteed pre-allocation.
         assert len(hands["W"]) == 13

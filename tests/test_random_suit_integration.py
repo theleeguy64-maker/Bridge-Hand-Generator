@@ -57,8 +57,8 @@ def _profile_with_rs_north_pc_south() -> DummyProfile:
         partner_contingent_constraint=object(),
         opponents_contingent_suit_constraint=None,
     )
-    east_sub = DummySubProfile()   # unconstrained
-    west_sub = DummySubProfile()   # unconstrained
+    east_sub = DummySubProfile()  # unconstrained
+    west_sub = DummySubProfile()  # unconstrained
 
     return DummyProfile(
         seat_profiles={

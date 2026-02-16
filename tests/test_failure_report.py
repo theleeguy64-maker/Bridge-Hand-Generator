@@ -21,6 +21,7 @@ from bridge_engine.failure_report import (
 # Tests for FailureAttributionReport
 # ---------------------------------------------------------------------------
 
+
 class TestFailureAttributionReport:
     """Tests for FailureAttributionReport dataclass."""
 
@@ -172,6 +173,7 @@ class TestFailureAttributionReport:
 # ---------------------------------------------------------------------------
 # Tests for collect_failure_attribution
 # ---------------------------------------------------------------------------
+
 
 class TestCollectFailureAttribution:
     """Tests for collect_failure_attribution() function."""

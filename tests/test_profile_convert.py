@@ -19,6 +19,7 @@ from bridge_engine.profile_convert import convert_profiles
 # Test fixtures
 # ---------------------------------------------------------------------------
 
+
 def _make_minimal_profile_dict(name: str = "TestProfile") -> dict:
     """
     Create a minimal valid profile dict for testing.
@@ -37,51 +38,59 @@ def _make_minimal_profile_dict(name: str = "TestProfile") -> dict:
         "seat_profiles": {
             "N": {
                 "seat": "N",
-                "subprofiles": [{
-                    "standard": {
-                        "spades": {"min_cards": 0, "max_cards": 13},
-                        "hearts": {"min_cards": 0, "max_cards": 13},
-                        "diamonds": {"min_cards": 0, "max_cards": 13},
-                        "clubs": {"min_cards": 0, "max_cards": 13},
-                    },
-                    "weight_percent": 100,
-                }],
+                "subprofiles": [
+                    {
+                        "standard": {
+                            "spades": {"min_cards": 0, "max_cards": 13},
+                            "hearts": {"min_cards": 0, "max_cards": 13},
+                            "diamonds": {"min_cards": 0, "max_cards": 13},
+                            "clubs": {"min_cards": 0, "max_cards": 13},
+                        },
+                        "weight_percent": 100,
+                    }
+                ],
             },
             "E": {
                 "seat": "E",
-                "subprofiles": [{
-                    "standard": {
-                        "spades": {"min_cards": 0, "max_cards": 13},
-                        "hearts": {"min_cards": 0, "max_cards": 13},
-                        "diamonds": {"min_cards": 0, "max_cards": 13},
-                        "clubs": {"min_cards": 0, "max_cards": 13},
-                    },
-                    "weight_percent": 100,
-                }],
+                "subprofiles": [
+                    {
+                        "standard": {
+                            "spades": {"min_cards": 0, "max_cards": 13},
+                            "hearts": {"min_cards": 0, "max_cards": 13},
+                            "diamonds": {"min_cards": 0, "max_cards": 13},
+                            "clubs": {"min_cards": 0, "max_cards": 13},
+                        },
+                        "weight_percent": 100,
+                    }
+                ],
             },
             "S": {
                 "seat": "S",
-                "subprofiles": [{
-                    "standard": {
-                        "spades": {"min_cards": 0, "max_cards": 13},
-                        "hearts": {"min_cards": 0, "max_cards": 13},
-                        "diamonds": {"min_cards": 0, "max_cards": 13},
-                        "clubs": {"min_cards": 0, "max_cards": 13},
-                    },
-                    "weight_percent": 100,
-                }],
+                "subprofiles": [
+                    {
+                        "standard": {
+                            "spades": {"min_cards": 0, "max_cards": 13},
+                            "hearts": {"min_cards": 0, "max_cards": 13},
+                            "diamonds": {"min_cards": 0, "max_cards": 13},
+                            "clubs": {"min_cards": 0, "max_cards": 13},
+                        },
+                        "weight_percent": 100,
+                    }
+                ],
             },
             "W": {
                 "seat": "W",
-                "subprofiles": [{
-                    "standard": {
-                        "spades": {"min_cards": 0, "max_cards": 13},
-                        "hearts": {"min_cards": 0, "max_cards": 13},
-                        "diamonds": {"min_cards": 0, "max_cards": 13},
-                        "clubs": {"min_cards": 0, "max_cards": 13},
-                    },
-                    "weight_percent": 100,
-                }],
+                "subprofiles": [
+                    {
+                        "standard": {
+                            "spades": {"min_cards": 0, "max_cards": 13},
+                            "hearts": {"min_cards": 0, "max_cards": 13},
+                            "diamonds": {"min_cards": 0, "max_cards": 13},
+                            "clubs": {"min_cards": 0, "max_cards": 13},
+                        },
+                        "weight_percent": 100,
+                    }
+                ],
             },
         },
     }
@@ -90,6 +99,7 @@ def _make_minimal_profile_dict(name: str = "TestProfile") -> dict:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 def test_convert_profiles_dry_run(tmp_path: Path, capsys) -> None:
     """write=False should not modify files, only print what would be converted."""

@@ -13,6 +13,7 @@ These tests verify that:
 NOT gated behind an environment variable — runs in the normal test suite.
 Profile E with v2 shape help typically generates in <500 attempts per board.
 """
+
 from __future__ import annotations
 
 import json
@@ -33,9 +34,7 @@ from bridge_engine.setup_env import run_setup
 
 
 PROFILE_DIR = Path("profiles")
-PROFILE_E_FNAME = (
-    "Profile_E_Test_-_tight_and_suit_point_constraint_plus_v0.1.json"
-)
+PROFILE_E_FNAME = "Profile_E_Test_-_tight_and_suit_point_constraint_plus_v0.1.json"
 
 
 def _load_profile_e() -> HandProfile:
@@ -67,9 +66,7 @@ class TestHcpGateCanary:
 
     def test_hcp_feasibility_gate_is_on(self):
         """ENABLE_HCP_FEASIBILITY_CHECK should be True in production."""
-        assert ENABLE_HCP_FEASIBILITY_CHECK is True, (
-            "HCP feasibility gate is OFF — flip to True in deal_generator.py"
-        )
+        assert ENABLE_HCP_FEASIBILITY_CHECK is True, "HCP feasibility gate is OFF — flip to True in deal_generator.py"
 
 
 # ---------------------------------------------------------------------------
@@ -105,9 +102,7 @@ class TestProfileEV2Builder:
                 board_number=board_number,
             )
             n_spades = _count_spades(deal.hands["N"])
-            assert n_spades == 6, (
-                f"Board {board_number}: North has {n_spades} spades, expected 6"
-            )
+            assert n_spades == 6, f"Board {board_number}: North has {n_spades} spades, expected 6"
 
     def test_north_has_10_to_12_hcp(self):
         """North's hand must have 10-12 total HCP per Profile E constraints."""
@@ -120,9 +115,7 @@ class TestProfileEV2Builder:
                 board_number=board_number,
             )
             n_hcp = _hand_hcp(deal.hands["N"])
-            assert 10 <= n_hcp <= 12, (
-                f"Board {board_number}: North has {n_hcp} HCP, expected 10-12"
-            )
+            assert 10 <= n_hcp <= 12, f"Board {board_number}: North has {n_hcp} HCP, expected 10-12"
 
     def test_all_hands_have_13_cards(self):
         """Every seat should have exactly 13 cards."""
@@ -135,10 +128,7 @@ class TestProfileEV2Builder:
                 board_number=board_number,
             )
             for seat in ("N", "E", "S", "W"):
-                assert len(deal.hands[seat]) == 13, (
-                    f"Board {board_number}: {seat} has "
-                    f"{len(deal.hands[seat])} cards"
-                )
+                assert len(deal.hands[seat]) == 13, f"Board {board_number}: {seat} has {len(deal.hands[seat])} cards"
 
 
 # ---------------------------------------------------------------------------
@@ -161,9 +151,7 @@ class TestProfileEFullPipeline:
             ask_seed_choice=False,
             use_seeded_default=True,
         )
-        deal_set = generate_deals(
-            setup, profile, self.NUM_BOARDS, enable_rotation=False
-        )
+        deal_set = generate_deals(setup, profile, self.NUM_BOARDS, enable_rotation=False)
         assert len(deal_set.deals) == self.NUM_BOARDS
 
     def test_north_constraints_via_pipeline(self, tmp_path):
@@ -176,15 +164,9 @@ class TestProfileEFullPipeline:
             ask_seed_choice=False,
             use_seeded_default=True,
         )
-        deal_set = generate_deals(
-            setup, profile, self.NUM_BOARDS, enable_rotation=False
-        )
+        deal_set = generate_deals(setup, profile, self.NUM_BOARDS, enable_rotation=False)
         for deal in deal_set.deals:
             n_spades = _count_spades(deal.hands["N"])
             n_hcp = _hand_hcp(deal.hands["N"])
-            assert n_spades == 6, (
-                f"Board {deal.board_number}: North {n_spades} spades, expected 6"
-            )
-            assert 10 <= n_hcp <= 12, (
-                f"Board {deal.board_number}: North {n_hcp} HCP, expected 10-12"
-            )
+            assert n_spades == 6, f"Board {deal.board_number}: North {n_spades} spades, expected 6"
+            assert 10 <= n_hcp <= 12, f"Board {deal.board_number}: North {n_hcp} HCP, expected 10-12"

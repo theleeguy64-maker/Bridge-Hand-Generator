@@ -56,7 +56,6 @@ Tips:
     inspect an existing profile before generating deals.
   • You can always return here from submenus and choose "0) Exit" to quit.
 """,
-
     "admin_menu": """\
 === Bridge Hand Generator – Admin Menu ===
 
@@ -100,7 +99,6 @@ Options:
   4) Help
       Show this help text describing the Admin menu.
 """,
-
     "profile_manager_menu": """\
 === Profile Manager – Overview ===
 
@@ -131,7 +129,6 @@ The Profile Manager is where you define and maintain Hand Profiles.
 7) Help
    Show this help text.
 """,
-
     "deal_generation_menu": """\
 === Deal Generation – Overview ===
 
@@ -169,7 +166,6 @@ Typical steps:
 If generation is interrupted (Ctrl-C), partial diagnostics may still be printed
 to help you diagnose constraint tightness or RS behaviour.
 """,
-
     "exclusions": """\
 === Sub-profile Exclusions -- Help ===
 

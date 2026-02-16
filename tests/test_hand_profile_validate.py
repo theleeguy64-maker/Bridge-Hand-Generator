@@ -36,9 +36,19 @@ from bridge_engine.hand_profile_model import (
 # Test fixtures
 # ---------------------------------------------------------------------------
 
-def _make_standard(spade_min=0, spade_max=13, heart_min=0, heart_max=13,
-                   diamond_min=0, diamond_max=13, club_min=0, club_max=13,
-                   min_hcp=0, max_hcp=37) -> StandardSuitConstraints:
+
+def _make_standard(
+    spade_min=0,
+    spade_max=13,
+    heart_min=0,
+    heart_max=13,
+    diamond_min=0,
+    diamond_max=13,
+    club_min=0,
+    club_max=13,
+    min_hcp=0,
+    max_hcp=37,
+) -> StandardSuitConstraints:
     """Helper to create StandardSuitConstraints."""
     return StandardSuitConstraints(
         spades=SuitRange(min_cards=spade_min, max_cards=spade_max),
@@ -50,15 +60,18 @@ def _make_standard(spade_min=0, spade_max=13, heart_min=0, heart_max=13,
     )
 
 
-def _make_subprofile(spade_min=0, heart_min=0, diamond_min=0, club_min=0,
-                     min_hcp=0, max_hcp=37, weight=0.0,
-                     rs_constraint=None) -> SubProfile:
+def _make_subprofile(
+    spade_min=0, heart_min=0, diamond_min=0, club_min=0, min_hcp=0, max_hcp=37, weight=0.0, rs_constraint=None
+) -> SubProfile:
     """Helper to create SubProfile."""
     return SubProfile(
         standard=_make_standard(
-            spade_min=spade_min, heart_min=heart_min,
-            diamond_min=diamond_min, club_min=club_min,
-            min_hcp=min_hcp, max_hcp=max_hcp,
+            spade_min=spade_min,
+            heart_min=heart_min,
+            diamond_min=diamond_min,
+            club_min=club_min,
+            min_hcp=min_hcp,
+            max_hcp=max_hcp,
         ),
         random_suit_constraint=rs_constraint,
         weight_percent=weight,
@@ -82,15 +95,17 @@ def _make_minimal_profile_dict(name: str = "TestProfile") -> Dict[str, Any]:
         "seat_profiles": {
             seat: {
                 "seat": seat,
-                "subprofiles": [{
-                    "standard": {
-                        "spades": {"min_cards": 0, "max_cards": 13},
-                        "hearts": {"min_cards": 0, "max_cards": 13},
-                        "diamonds": {"min_cards": 0, "max_cards": 13},
-                        "clubs": {"min_cards": 0, "max_cards": 13},
-                    },
-                    "weight_percent": 100,
-                }],
+                "subprofiles": [
+                    {
+                        "standard": {
+                            "spades": {"min_cards": 0, "max_cards": 13},
+                            "hearts": {"min_cards": 0, "max_cards": 13},
+                            "diamonds": {"min_cards": 0, "max_cards": 13},
+                            "clubs": {"min_cards": 0, "max_cards": 13},
+                        },
+                        "weight_percent": 100,
+                    }
+                ],
             }
             for seat in ["N", "E", "S", "W"]
         },
@@ -100,6 +115,7 @@ def _make_minimal_profile_dict(name: str = "TestProfile") -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Tests for _to_raw_dict
 # ---------------------------------------------------------------------------
+
 
 class TestToRawDict:
     """Tests for _to_raw_dict() function."""
@@ -135,6 +151,7 @@ class TestToRawDict:
     def test_handles_mapping_like_objects(self) -> None:
         """Mapping-like objects (dict subclasses) should work."""
         from collections import OrderedDict
+
         data = OrderedDict([("profile_name", "Test"), ("dealer", "N")])
         result = _to_raw_dict(data)
 
@@ -145,6 +162,7 @@ class TestToRawDict:
 # ---------------------------------------------------------------------------
 # Tests for _extract_seat_names_from_constraint
 # ---------------------------------------------------------------------------
+
 
 class TestExtractSeatNames:
     """Tests for _extract_seat_names_from_constraint() function."""
@@ -161,6 +179,7 @@ class TestExtractSeatNames:
 
     def test_extracts_from_dataclass_with_list(self) -> None:
         """Should handle dataclass with list of seats."""
+
         @dataclass
         class MockConstraint:
             opponent_seats: List[str] = field(default_factory=list)
@@ -173,6 +192,7 @@ class TestExtractSeatNames:
 
     def test_handles_non_dataclass(self) -> None:
         """Should fall back to dir() probing for non-dataclass objects."""
+
         class MockConstraint:
             def __init__(self):
                 self.partner_seat = "S"
@@ -184,6 +204,7 @@ class TestExtractSeatNames:
 
     def test_returns_empty_for_no_seat_fields(self) -> None:
         """Should return empty list if no seat fields found."""
+
         @dataclass
         class MockConstraint:
             some_value: int = 42
@@ -198,6 +219,7 @@ class TestExtractSeatNames:
 # ---------------------------------------------------------------------------
 # Tests for _normalise_subprofile_weights
 # ---------------------------------------------------------------------------
+
 
 class TestNormaliseSubprofileWeights:
     """Tests for _normalise_subprofile_weights() function."""
@@ -281,6 +303,7 @@ class TestNormaliseSubprofileWeights:
 # Tests for _validate_random_suit_vs_standard
 # ---------------------------------------------------------------------------
 
+
 class TestValidateRandomSuitVsStandard:
     """Tests for _validate_random_suit_vs_standard() function."""
 
@@ -300,9 +323,7 @@ class TestValidateRandomSuitVsStandard:
             suit_ranges=[SuitRange(min_cards=10, max_cards=13)],  # 10 spades min
         )
         # Standard requires 2 of each other suit = 6 cards, plus 10 = 16 > 13
-        std = _make_standard(
-            spade_min=0, heart_min=2, diamond_min=2, club_min=2
-        )
+        std = _make_standard(spade_min=0, heart_min=2, diamond_min=2, club_min=2)
         sub = SubProfile(standard=std, random_suit_constraint=rs)
         seat_profile = SeatProfile(seat="N", subprofiles=[sub])
 
@@ -345,6 +366,7 @@ class TestValidateRandomSuitVsStandard:
 
     def test_skips_if_no_standard(self) -> None:
         """Should skip check if standard constraints are missing."""
+
         # This tests the legacy case where std is None
         @dataclass
         class MockSubProfile:
@@ -365,9 +387,7 @@ class TestValidateRandomSuitVsStandard:
             suit_ranges=[SuitRange(min_cards=10, max_cards=13)],
         )
         sub = MockSubProfile(random_suit_constraint=rs, standard=None)
-        profile = MockProfile(
-            seat_profiles={"N": MockSeatProfile(subprofiles=[sub])}
-        )
+        profile = MockProfile(seat_profiles={"N": MockSeatProfile(subprofiles=[sub])})
 
         # Should not raise because std is None
         _validate_random_suit_vs_standard(profile)
@@ -376,6 +396,7 @@ class TestValidateRandomSuitVsStandard:
 # ---------------------------------------------------------------------------
 # Tests for validate_profile (integration)
 # ---------------------------------------------------------------------------
+
 
 class TestValidateProfile:
     """Integration tests for validate_profile() function."""

@@ -7,6 +7,7 @@ Tests for the wizard constraint editing flow:
   - edit_constraints_interactive() roundtrip
   - _edit_subprofile_exclusions_for_seat() adds an exclusion
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -29,6 +30,7 @@ from bridge_engine import profile_store
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_full_profile(name: str = "EditTest") -> HandProfile:
     """HandProfile with real open seat profiles for all 4 seats."""
@@ -58,6 +60,7 @@ def _make_full_profile(name: str = "EditTest") -> HandProfile:
 # ---------------------------------------------------------------------------
 # Test 1: Skip all seats — profile preserved
 # ---------------------------------------------------------------------------
+
 
 def test_edit_skip_all_seats_preserves_profile(monkeypatch, capsys):
     """
@@ -90,6 +93,7 @@ def test_edit_skip_all_seats_preserves_profile(monkeypatch, capsys):
 # Test 2: Edit one seat, skip others
 # ---------------------------------------------------------------------------
 
+
 def test_edit_one_seat_updates_only_that_seat(monkeypatch, capsys):
     """
     When user edits only N (first in dealing order), other seats should
@@ -99,8 +103,7 @@ def test_edit_one_seat_updates_only_that_seat(monkeypatch, capsys):
 
     # Modified N seat profile (different HCP range)
     sr = SuitRange()
-    new_std = StandardSuitConstraints(spades=sr, hearts=sr, diamonds=sr, clubs=sr,
-                                      total_min_hcp=10, total_max_hcp=15)
+    new_std = StandardSuitConstraints(spades=sr, hearts=sr, diamonds=sr, clubs=sr, total_min_hcp=10, total_max_hcp=15)
     new_sub = SubProfile(standard=new_std, weight_percent=100.0, ns_role_usage="any")
     new_n_seat = SeatProfile(seat="N", subprofiles=[new_sub])
 
@@ -108,13 +111,15 @@ def test_edit_one_seat_updates_only_that_seat(monkeypatch, capsys):
     # Also False for exclusion editing prompt after N
     yes_no_calls = iter([True, False, False, False, False])
     monkeypatch.setattr(
-        profile_wizard, "_yes_no",
+        profile_wizard,
+        "_yes_no",
         lambda prompt, default=True: next(yes_no_calls),
     )
 
     # _build_seat_profile: return our modified seat profile for N
     monkeypatch.setattr(
-        profile_wizard, "_build_seat_profile",
+        profile_wizard,
+        "_build_seat_profile",
         lambda seat, existing_sp: new_n_seat,
     )
 
@@ -133,6 +138,7 @@ def test_edit_one_seat_updates_only_that_seat(monkeypatch, capsys):
 # Test 3: Autosave triggered when original_path is provided
 # ---------------------------------------------------------------------------
 
+
 def test_edit_triggers_autosave(monkeypatch, tmp_path, capsys):
     """
     When _build_profile is called with original_path, editing a seat
@@ -144,17 +150,28 @@ def test_edit_triggers_autosave(monkeypatch, tmp_path, capsys):
     # Edit N, skip E/S/W
     yes_no_calls = iter([True, False, False, False, False])
     monkeypatch.setattr(
-        profile_wizard, "_yes_no",
+        profile_wizard,
+        "_yes_no",
         lambda prompt, default=True: next(yes_no_calls),
     )
 
     # Return existing seat unchanged
     monkeypatch.setattr(
-        profile_wizard, "_build_seat_profile",
-        lambda seat, existing_sp: existing_sp or SeatProfile(seat=seat, subprofiles=[
-            SubProfile(standard=StandardSuitConstraints(
-                spades=SuitRange(), hearts=SuitRange(), diamonds=SuitRange(), clubs=SuitRange()))
-        ]),
+        profile_wizard,
+        "_build_seat_profile",
+        lambda seat, existing_sp: (
+            existing_sp
+            or SeatProfile(
+                seat=seat,
+                subprofiles=[
+                    SubProfile(
+                        standard=StandardSuitConstraints(
+                            spades=SuitRange(), hearts=SuitRange(), diamonds=SuitRange(), clubs=SuitRange()
+                        )
+                    )
+                ],
+            )
+        ),
     )
 
     monkeypatch.setattr(profile_wizard, "clear_screen", lambda: None)
@@ -162,7 +179,8 @@ def test_edit_triggers_autosave(monkeypatch, tmp_path, capsys):
     # Track autosave calls
     autosave_calls: list = []
     monkeypatch.setattr(
-        wizard_flow, "_autosave_profile_draft",
+        wizard_flow,
+        "_autosave_profile_draft",
         lambda snapshot, path: autosave_calls.append((snapshot, path)),
     )
 
@@ -182,6 +200,7 @@ def test_edit_triggers_autosave(monkeypatch, tmp_path, capsys):
 # ---------------------------------------------------------------------------
 # Test 4: edit_constraints_interactive roundtrip (skip all)
 # ---------------------------------------------------------------------------
+
 
 def test_edit_constraints_roundtrip(monkeypatch, capsys):
     """
@@ -211,6 +230,7 @@ def test_edit_constraints_roundtrip(monkeypatch, capsys):
 # ---------------------------------------------------------------------------
 # Test 5: Exclusion editing adds an exclusion
 # ---------------------------------------------------------------------------
+
 
 def test_exclusion_editing_adds_exclusion(monkeypatch, capsys):
     """
@@ -244,13 +264,15 @@ def test_exclusion_editing_adds_exclusion(monkeypatch, capsys):
     # _yes_no: True for N (edit), False for E/S/W
     yes_no_calls = iter([True, False, False, False])
     monkeypatch.setattr(
-        profile_wizard, "_yes_no",
+        profile_wizard,
+        "_yes_no",
         lambda prompt, default=True: next(yes_no_calls),
     )
 
     # _build_seat_profile: return existing unchanged
     monkeypatch.setattr(
-        profile_wizard, "_build_seat_profile",
+        profile_wizard,
+        "_build_seat_profile",
         lambda seat, existing_sp: existing_sp,
     )
 
@@ -258,7 +280,8 @@ def test_exclusion_editing_adds_exclusion(monkeypatch, capsys):
 
     # Stub _edit_subprofile_exclusions_for_seat to return our dummy exclusion
     monkeypatch.setattr(
-        wizard_flow, "_edit_subprofile_exclusions_for_seat",
+        wizard_flow,
+        "_edit_subprofile_exclusions_for_seat",
         lambda existing, seat, seat_profiles, current_all: [dummy_exclusion],
     )
 

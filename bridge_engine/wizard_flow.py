@@ -9,27 +9,27 @@ profiles so that both the CLI and tests can rely on a single behaviour.
 #
 # The following symbols are intentionally monkeypatched by tests and must remain
 # defined at module scope. Do not rename or remove without updating tests.
-# 
+#
 # Prompt wrappers (tests control interactive behavior):
 #   - _input_with_default(prompt: str, default: str) -> str
 #   - _input_int(prompt, default, minimum, maximum, show_range_suffix=True) -> int
 #   - _yes_no(prompt: str, default: bool = True) -> bool
 #   - clear_screen()
-# 
+#
 # Builder / flow helpers patched by tests:
 #   - _build_seat_profile(seat: str)
 #   - _build_profile(existing: Optional[HandProfile] = None)
 #   - create_profile_interactive()
 #   - edit_constraints_interactive(existing: HandProfile)
-# 
+#
 # Injection points:
 #   - HandProfile
 #   - validate_profile
-# 
+#
 # Behavioral guarantees relied on by tests:
 #   - rotate_deals_by_default is passed into HandProfile(...)
 #   - Accepting defaults bypasses optional prompts
-# 
+#
 # If you refactor internals, preserve these names or update tests accordingly.
 
 # file: bridge_engine/profile_wizard.py
@@ -40,18 +40,14 @@ import sys
 
 from dataclasses import replace
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence
 
-from . import cli_io
-from . import profile_store
 from .menu_help import get_menu_help
 from . import wizard_io as wiz_io
 from .hand_profile_validate import validate_profile as _validate_profile_fallback
 
 from .cli_prompts import (
-    prompt_choice,
     prompt_int,
-    prompt_yes_no as _prompt_yes_no,
 )
 
 from .hand_profile_model import (
@@ -69,6 +65,7 @@ from .hand_profile_model import (
 def _validate_profile(profile) -> None:
     return _pw_attr("validate_profile", _validate_profile_fallback)(profile)
 
+
 # NOTE: pytest monkeypatches input helpers on bridge_engine.profile_wizard.
 # After splitting the wizard into modules, we route interactive I/O through
 # that module when available (falling back to wizard_io). This preserves the
@@ -84,19 +81,23 @@ def _pw_attr(name: str, fallback: Any) -> Any:
             from . import profile_wizard as pw  # local import avoids cycles at import time
         except ImportError:
             return fallback
-            
+
     return getattr(pw, name, fallback)
-        
+
+
 def _yes_no(prompt: str, default: bool = True) -> bool:
     return _pw_attr("_yes_no", wiz_io._yes_no)(prompt, default=default)
 
+
 def _input_with_default(prompt: str, default: str) -> str:
     return _pw_attr("_input_with_default", wiz_io._input_with_default)(prompt, default)
+
 
 def _input_int(prompt: str, default: int, minimum: int, maximum: int, show_range_suffix: bool = True) -> int:
     return _pw_attr("_input_int", wiz_io._input_int)(
         prompt, default=default, minimum=minimum, maximum=maximum, show_range_suffix=show_range_suffix
     )
+
 
 def _input_choice(
     prompt: str,
@@ -119,9 +120,7 @@ def _input_choice(
     options_str = "/".join(options)
     while True:
         raw = wiz_io.prompt_str(
-            f"{prompt} ({options_str})"
-            + (f" [{default}]" if default is not None else "")
-            + ": ",
+            f"{prompt} ({options_str})" + (f" [{default}]" if default is not None else "") + ": ",
             default=default if default is not None else "",
         )
         key = raw.strip().upper()
@@ -136,7 +135,8 @@ def _input_choice(
             return norm_map[key]
 
         print(f"Please enter one of: {options_str}")
-    
+
+
 def _input_float_with_default(
     prompt: str,
     default: float,
@@ -175,8 +175,10 @@ def _input_float_with_default(
 
         return round(value, decimal_places)
 
+
 def clear_screen() -> None:
     return _pw_attr("clear_screen", wiz_io.clear_screen)()
+
 
 from .hand_profile import (
     HandProfile,
@@ -196,6 +198,7 @@ from .hand_profile import (
 # ---------------------------------------------------------------------------
 # Sub-profile exclusions (F2) — wizard helpers
 # ---------------------------------------------------------------------------
+
 
 def _parse_shapes_csv(raw: str) -> List[str]:
     shapes: List[str] = []
@@ -222,8 +225,7 @@ def _build_exclusion_rule(
 
     if kind == "shapes":
         raw = _input_with_default(
-            "Enter excluded shapes as comma-separated 4-digit S/H/D/C patterns "
-            "that sum to 13 (e.g. 4333,4432): ",
+            "Enter excluded shapes as comma-separated 4-digit S/H/D/C patterns that sum to 13 (e.g. 4333,4432): ",
             "",
         ).strip()
         shapes = _parse_shapes_csv(raw)
@@ -256,9 +258,7 @@ def _build_exclusion_rule(
             minimum=0,
             maximum=max_count,
         )
-        clauses.append(
-            SubprofileExclusionClause(group=group, length_eq=length_eq, count=count)
-        )
+        clauses.append(SubprofileExclusionClause(group=group, length_eq=length_eq, count=count))
 
         if idx < max_clauses and not _yes_no("Add a second clause? ", default=False):
             break
@@ -350,6 +350,7 @@ def _edit_subprofile_exclusions_for_seat(
 
     return other + this_seat
 
+
 # NEW: helper for auto-standard constraints on brand-new profiles
 def _make_default_standard_seat_profile(seat: str) -> SeatProfile:
     """
@@ -379,6 +380,7 @@ def _make_default_standard_seat_profile(seat: str) -> SeatProfile:
     )
 
     return SeatProfile(seat=seat, subprofiles=[sub])
+
 
 def _build_suit_range_for_prompt(
     label: str,
@@ -459,6 +461,7 @@ def _build_suit_range_for_prompt(
         max_hcp=max_hcp_val,
     )
 
+
 def _parse_suit_list(
     prompt: str,
     default: Optional[Sequence[str]] = None,
@@ -492,6 +495,7 @@ def _parse_suit_list(
         return ["S", "H", "D", "C"]
 
     return suits
+
 
 def _build_standard_constraints(
     existing: Optional[StandardSuitConstraints] = None,
@@ -551,6 +555,7 @@ def _build_standard_constraints(
         total_max_hcp=total_max,
     )
 
+
 def _prompt_suit_range(
     suit_name: str,
     existing: Optional[SuitRange] = None,
@@ -601,6 +606,7 @@ def _prompt_suit_range(
         max_hcp=max_hcp,
     )
 
+
 def _prompt_standard_constraints(
     existing: Optional[StandardSuitConstraints],
 ) -> StandardSuitConstraints:
@@ -608,6 +614,7 @@ def _prompt_standard_constraints(
     Wrapper used by the interactive sub-profile builder.
     """
     return _build_standard_constraints(existing)
+
 
 def _build_partner_contingent_constraint(
     existing: Optional[PartnerContingentData] = None,
@@ -636,6 +643,7 @@ def _build_partner_contingent_constraint(
         partner_seat=partner_seat,
         suit_range=suit_range,
     )
+
 
 def _build_opponent_contingent_constraint(
     existing: Optional[OpponentContingentSuitData] = None,
@@ -673,6 +681,7 @@ def _build_opponent_contingent_constraint(
         suit_range=suit_range,
     )
 
+
 def _build_random_suit_constraint(
     existing: Optional[RandomSuitConstraintData] = None,
 ) -> RandomSuitConstraintData:
@@ -697,9 +706,7 @@ def _build_random_suit_constraint(
     default_allowed_str = "".join(default_allowed)
 
     allowed_suits = _parse_suit_list(
-        f"  Allowed suits (any order) "
-        f"(e.g. SHC for Spades, Hearts, Clubs) "
-        f"(default {default_allowed_str}): ",
+        f"  Allowed suits (any order) (e.g. SHC for Spades, Hearts, Clubs) (default {default_allowed_str}): ",
         default=default_allowed,
     )
 
@@ -713,7 +720,7 @@ def _build_random_suit_constraint(
     max_required = min(2, len(allowed_suits)) if allowed_suits else 2
 
     num_required = _input_int(
-        f"  Number of suits that must meet the random-suit criteria",
+        "  Number of suits that must meet the random-suit criteria",
         default=default_required,
         minimum=1,
         maximum=max_required,
@@ -740,6 +747,7 @@ def _build_random_suit_constraint(
         suit_ranges=suit_ranges,
         pair_overrides=pair_overrides,
     )
+
 
 def _build_subprofile(
     seat: str,
@@ -786,18 +794,14 @@ def _build_subprofile(
     opponents_constraint = None
 
     if choice == 2:
-        random_constraint = _build_random_suit_constraint(
-            existing.random_suit_constraint if existing else None
-        )
+        random_constraint = _build_random_suit_constraint(existing.random_suit_constraint if existing else None)
     elif choice == 3:
         partner_constraint = _build_partner_contingent_constraint(
             existing.partner_contingent_constraint if existing else None
         )
     elif choice == 4:
         opponents_constraint = _build_opponent_contingent_constraint(
-            getattr(existing, "opponents_contingent_suit_constraint", None)
-            if existing
-            else None
+            getattr(existing, "opponents_contingent_suit_constraint", None) if existing else None
         )
 
     # Weighting (seat-level weighting edits are handled separately.)
@@ -811,6 +815,7 @@ def _build_subprofile(
         weight_percent=weight_percent,
     )
 
+
 def _build_subprofile_for_seat(
     seat: str,
     existing_sub: Optional[SubProfile] = None,
@@ -819,6 +824,7 @@ def _build_subprofile_for_seat(
     Wrapper used by tests and edit_constraints_interactive to build a subprofile.
     """
     return _build_subprofile(seat, existing_sub)
+
 
 def _assign_subprofile_weights_interactive(
     seat: str,
@@ -860,10 +866,7 @@ def _assign_subprofile_weights_interactive(
         default_weights = [equal_weight for _ in subprofiles]
     else:
         # Use existing (non-zero) weights as defaults, but ensure we have the right length.
-        default_weights = [
-            (existing_weights[i] if i < len(existing_weights) else 0.0)
-            for i in range(len(subprofiles))
-        ]
+        default_weights = [(existing_weights[i] if i < len(existing_weights) else 0.0) for i in range(len(subprofiles))]
 
     print(f"\nSub-profile weighting for seat {seat}:")
     for idx, w in enumerate(default_weights, start=1):
@@ -881,10 +884,7 @@ def _assign_subprofile_weights_interactive(
 
         factor = 100.0 / total_default
         normalised = [round(w * factor, 1) for w in default_weights]
-        return [
-            replace(sub, weight_percent=normalised[i])
-            for i, sub in enumerate(subprofiles)
-        ]
+        return [replace(sub, weight_percent=normalised[i]) for i, sub in enumerate(subprofiles)]
 
     # If the user wants to edit, we prompt for each weight,
     # enforce no negatives, and require the total to be within ±2 of 100.
@@ -892,10 +892,7 @@ def _assign_subprofile_weights_interactive(
         edited_weights: List[float] = []
         for i, sub in enumerate(subprofiles, start=1):
             default = default_weights[i - 1]
-            prompt = (
-                f"  Weight for sub-profile {i} as % of deals "
-                f"(0–100, at most one decimal)"
-            )
+            prompt = f"  Weight for sub-profile {i} as % of deals (0–100, at most one decimal)"
             w = _input_float_with_default(
                 prompt,
                 default=default,
@@ -911,20 +908,15 @@ def _assign_subprofile_weights_interactive(
             continue
 
         if abs(total - 100.0) > 2.0:
-            print(
-                f"Total weight {total:.1f}% is too far from 100% "
-                "(must be within ±2% of 100). Please re-enter."
-            )
+            print(f"Total weight {total:.1f}% is too far from 100% (must be within ±2% of 100). Please re-enter.")
             continue
 
         # Within ±2%: normalise
         factor = 100.0 / total
         normalised = [round(w * factor, 1) for w in edited_weights]
 
-        return [
-            replace(sub, weight_percent=normalised[i])
-            for i, sub in enumerate(subprofiles)
-        ]
+        return [replace(sub, weight_percent=normalised[i]) for i, sub in enumerate(subprofiles)]
+
 
 def _build_seat_profile(
     seat: str,
@@ -966,7 +958,8 @@ def _build_seat_profile(
     )
 
     return SeatProfile(seat=seat, subprofiles=subprofiles)
-    
+
+
 def _assign_ns_role_usage_interactive(
     seat: str,
     subprofiles: List[SubProfile],
@@ -1018,10 +1011,7 @@ def _assign_ns_role_usage_interactive(
     valid_options = {"any", "driver_only", "follower_only"}
 
     for idx, default_usage in enumerate(defaults, start=1):
-        prompt = (
-            f"  NS role usage for sub-profile {idx} "
-            "(any/driver_only/follower_only)"
-        )
+        prompt = f"  NS role usage for sub-profile {idx} (any/driver_only/follower_only)"
         while True:
             raw = _input_with_default(
                 prompt + f" [{default_usage}]: ",
@@ -1045,11 +1035,13 @@ def _autosave_profile_draft(profile: HandProfile, original_path: Path) -> None:
     """
     try:
         from . import profile_store
+
         profile_store.autosave_profile_draft(profile, canonical_path=original_path)
     except Exception:
         # Never let autosave kill the wizard
         return
-                
+
+
 def _build_profile(
     existing: Optional[HandProfile] = None,
     original_path: Optional[Path] = None,
@@ -1084,7 +1076,7 @@ def _build_profile(
 
     # Rotation is metadata; constraints edit must preserve existing value (default True).
     rotate_flag = getattr(existing, "rotate_deals_by_default", True)
-    
+
     # ----- Metadata (and rotation flag) -----
     if existing is not None:
         # EDIT FLOW: reuse metadata from existing profile
@@ -1223,7 +1215,8 @@ def _build_profile(
         "subprofile_exclusions": list(subprofile_exclusions),
         "sort_order": getattr(existing, "sort_order", None),
     }
-         
+
+
 def create_profile_interactive() -> HandProfile:
     """
     Top-level helper for creating a new profile interactively.
@@ -1273,7 +1266,10 @@ def create_profile_interactive() -> HandProfile:
         # Completely open "standard" ranges:
         _open = SuitRange()
         std = StandardSuitConstraints(
-            spades=_open, hearts=_open, diamonds=_open, clubs=_open,
+            spades=_open,
+            hearts=_open,
+            diamonds=_open,
+            clubs=_open,
         )
         sub = SubProfile(
             standard=std,
@@ -1307,6 +1303,7 @@ def create_profile_interactive() -> HandProfile:
     # Run normal validation so new profiles behave like edited/loaded ones.
     _validate_profile(profile)
     return profile
+
 
 def edit_constraints_interactive(
     existing: HandProfile,

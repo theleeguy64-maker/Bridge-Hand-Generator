@@ -6,6 +6,7 @@ The deck has exactly 40 HCP and 13 cards per suit.  If the chosen
 subprofiles across all 4 seats have combined minimums that exceed
 these limits, the combination can never produce a valid deal.
 """
+
 from __future__ import annotations
 
 import json
@@ -32,6 +33,7 @@ from bridge_engine.hand_profile_validate import validate_profile
 # Helpers: toy model subprofiles for quick test construction
 # ---------------------------------------------------------------------------
 
+
 def _toy_sub(
     min_hcp: int = 0,
     max_hcp: int = 37,
@@ -48,7 +50,7 @@ def _toy_sub(
         max_hcp=max_hcp,
         min_suit_counts=suit_mins or {},
         max_suit_counts=suit_maxs or {},
-        standard=None,   # force toy-model path in accessors
+        standard=None,  # force toy-model path in accessors
     )
 
 
@@ -71,6 +73,7 @@ def _load_weak2s() -> HandProfile:
 # ===================================================================
 # Accessor unit tests
 # ===================================================================
+
 
 class TestAccessors:
     """Unit tests for _get_suit_min, _get_suit_max, _get_total_min/max_hcp."""
@@ -121,6 +124,7 @@ class TestAccessors:
 # ===================================================================
 # _cross_seat_feasible — core function tests
 # ===================================================================
+
 
 class TestCrossSeatFeasible:
     """Tests for _cross_seat_feasible()."""
@@ -307,6 +311,7 @@ class TestCrossSeatFeasible:
 # Batch 2: Dead subprofile detection at profile validation time
 # ===================================================================
 
+
 def _make_toy_profile(seat_subs_dict):
     """
     Build a minimal toy profile for _check_cross_seat_subprofile_viability.
@@ -328,26 +333,30 @@ class TestDeadSubprofileDetection:
 
     def test_no_dead_subs_returns_empty(self):
         """All subprofiles feasible → no warnings."""
-        profile = _make_toy_profile({
-            "W": [_toy_sub(min_hcp=5, max_hcp=15)],
-            "N": [_toy_sub(min_hcp=5, max_hcp=15)],
-            "S": [_toy_sub(min_hcp=5, max_hcp=15)],
-            "E": [_toy_sub(min_hcp=5, max_hcp=15)],
-        })
+        profile = _make_toy_profile(
+            {
+                "W": [_toy_sub(min_hcp=5, max_hcp=15)],
+                "N": [_toy_sub(min_hcp=5, max_hcp=15)],
+                "S": [_toy_sub(min_hcp=5, max_hcp=15)],
+                "E": [_toy_sub(min_hcp=5, max_hcp=15)],
+            }
+        )
         warnings_list = _check_cross_seat_subprofile_viability(profile)
         assert warnings_list == []
 
     def test_some_dead_returns_warnings(self):
         """One subprofile is dead → warning returned, no error."""
-        profile = _make_toy_profile({
-            "W": [_toy_sub(min_hcp=10, max_hcp=15)],
-            "N": [
-                _toy_sub(min_hcp=25, max_hcp=37),  # dead: 10+25+5+5 = 45 > 40
-                _toy_sub(min_hcp=5, max_hcp=15),    # alive
-            ],
-            "S": [_toy_sub(min_hcp=5, max_hcp=15)],
-            "E": [_toy_sub(min_hcp=5, max_hcp=15)],
-        })
+        profile = _make_toy_profile(
+            {
+                "W": [_toy_sub(min_hcp=10, max_hcp=15)],
+                "N": [
+                    _toy_sub(min_hcp=25, max_hcp=37),  # dead: 10+25+5+5 = 45 > 40
+                    _toy_sub(min_hcp=5, max_hcp=15),  # alive
+                ],
+                "S": [_toy_sub(min_hcp=5, max_hcp=15)],
+                "E": [_toy_sub(min_hcp=5, max_hcp=15)],
+            }
+        )
         warnings_list = _check_cross_seat_subprofile_viability(profile)
         assert len(warnings_list) == 1
         assert "Seat N subprofile 1" in warnings_list[0]
@@ -361,27 +370,31 @@ class TestDeadSubprofileDetection:
         become dead (the constraint is symmetric).  We just verify that
         ProfileError is raised.
         """
-        profile = _make_toy_profile({
-            "W": [_toy_sub(min_hcp=11, max_hcp=15)],
-            "N": [_toy_sub(min_hcp=11, max_hcp=15)],
-            "S": [_toy_sub(min_hcp=11, max_hcp=15)],
-            "E": [_toy_sub(min_hcp=11, max_hcp=15)],
-        })
+        profile = _make_toy_profile(
+            {
+                "W": [_toy_sub(min_hcp=11, max_hcp=15)],
+                "N": [_toy_sub(min_hcp=11, max_hcp=15)],
+                "S": [_toy_sub(min_hcp=11, max_hcp=15)],
+                "E": [_toy_sub(min_hcp=11, max_hcp=15)],
+            }
+        )
         # sum(min_hcp) = 44 > 40 → all subs dead on all seats.
         with pytest.raises(ProfileError, match="ALL.*DEAD"):
             _check_cross_seat_subprofile_viability(profile)
 
     def test_dead_via_suit_min_cards(self):
         """Subprofile dead because per-suit min_cards sum > 13."""
-        profile = _make_toy_profile({
-            "W": [_toy_sub(suit_mins={"S": 5})],
-            "N": [
-                _toy_sub(suit_mins={"S": 6}),   # dead: 5+6+2+2 = 15 > 13
-                _toy_sub(suit_mins={"S": 1}),   # alive
-            ],
-            "S": [_toy_sub(suit_mins={"S": 2})],
-            "E": [_toy_sub(suit_mins={"S": 2})],
-        })
+        profile = _make_toy_profile(
+            {
+                "W": [_toy_sub(suit_mins={"S": 5})],
+                "N": [
+                    _toy_sub(suit_mins={"S": 6}),  # dead: 5+6+2+2 = 15 > 13
+                    _toy_sub(suit_mins={"S": 1}),  # alive
+                ],
+                "S": [_toy_sub(suit_mins={"S": 2})],
+                "E": [_toy_sub(suit_mins={"S": 2})],
+            }
+        )
         warnings_list = _check_cross_seat_subprofile_viability(profile)
         assert len(warnings_list) == 1
         assert "Spades" in warnings_list[0]
@@ -403,14 +416,13 @@ class TestDeadSubprofileDetection:
         """validate_profile_viability() emits no dead-sub warnings for v0.3."""
         profile = _load_weak2s()
         import warnings as w_mod
+
         with w_mod.catch_warnings(record=True) as caught:
             w_mod.simplefilter("always")
             validate_profile_viability(profile)
 
         dead_warnings = [str(c.message) for c in caught if "DEAD" in str(c.message)]
-        assert dead_warnings == [], (
-            f"Unexpected dead subprofile warnings: {dead_warnings}"
-        )
+        assert dead_warnings == [], f"Unexpected dead subprofile warnings: {dead_warnings}"
 
     def test_validate_profile_runs_cross_check(self):
         """End-to-end: validate_profile() runs the cross-seat check without error."""
@@ -422,15 +434,18 @@ class TestDeadSubprofileDetection:
 
     def test_single_seat_profile_no_crash(self):
         """Profile with only 1 seat → no crash, no warnings."""
-        profile = _make_toy_profile({
-            "W": [_toy_sub(min_hcp=10, max_hcp=20)],
-        })
+        profile = _make_toy_profile(
+            {
+                "W": [_toy_sub(min_hcp=10, max_hcp=20)],
+            }
+        )
         warnings_list = _check_cross_seat_subprofile_viability(profile)
         assert warnings_list == []
 
     def test_all_profiles_pass_validation(self):
         """All .json profiles in profiles/ pass validate_profile_viability."""
         import warnings as w_mod
+
         profiles_dir = Path("profiles")
         for path in sorted(profiles_dir.glob("*.json")):
             if "_TEST" in path.name:
@@ -475,16 +490,12 @@ class TestRuntimeFeasibilityCheck:
         infeasible_count = 0
         for seed in range(200):
             rng = random.Random(seed)
-            chosen_subs, _ = _select_subprofiles_for_board(
-                rng, profile, dealing_order
-            )
+            chosen_subs, _ = _select_subprofiles_for_board(rng, profile, dealing_order)
             ok, _ = _cross_seat_feasible(chosen_subs)
             if not ok:
                 infeasible_count += 1
 
-        assert infeasible_count == 0, (
-            f"Expected 0 infeasible selections, got {infeasible_count}/200"
-        )
+        assert infeasible_count == 0, f"Expected 0 infeasible selections, got {infeasible_count}/200"
 
     def test_weak2s_coupling_preserved(self):
         """
@@ -499,9 +510,7 @@ class TestRuntimeFeasibilityCheck:
 
         for seed in range(50):
             rng = random.Random(seed)
-            _, chosen_indices = _select_subprofiles_for_board(
-                rng, profile, dealing_order
-            )
+            _, chosen_indices = _select_subprofiles_for_board(rng, profile, dealing_order)
             # NS coupling: N and S should share an index (if coupled)
             if "N" in chosen_indices and "S" in chosen_indices:
                 # The Weak 2s profile doesn't have NS coupling (S has 1 sub),
@@ -526,9 +535,7 @@ class TestRuntimeFeasibilityCheck:
 
         for seed in range(50):
             rng = random.Random(seed)
-            chosen_subs, _ = _select_subprofiles_for_board(
-                rng, profile, dealing_order
-            )
+            chosen_subs, _ = _select_subprofiles_for_board(rng, profile, dealing_order)
             ok, _ = _cross_seat_feasible(chosen_subs)
             assert ok, f"Profile A selection infeasible at seed={seed}"
 
@@ -542,16 +549,12 @@ class TestRuntimeFeasibilityCheck:
         infeasible_count = 0
         for seed in range(200):
             rng = random.Random(seed)
-            chosen_subs, _ = _select_subprofiles_for_board(
-                rng, profile, dealing_order
-            )
+            chosen_subs, _ = _select_subprofiles_for_board(rng, profile, dealing_order)
             ok, _ = _cross_seat_feasible(chosen_subs)
             if not ok:
                 infeasible_count += 1
 
-        assert infeasible_count == 0, (
-            f"Expected 0 infeasible, got {infeasible_count}/200"
-        )
+        assert infeasible_count == 0, f"Expected 0 infeasible, got {infeasible_count}/200"
 
     def test_weak2s_indices_distribution(self):
         """
@@ -564,9 +567,7 @@ class TestRuntimeFeasibilityCheck:
         e_indices = set()
         for seed in range(200):
             rng = random.Random(seed)
-            _, chosen_indices = _select_subprofiles_for_board(
-                rng, profile, dealing_order
-            )
+            _, chosen_indices = _select_subprofiles_for_board(rng, profile, dealing_order)
             if "N" in chosen_indices:
                 n_indices.add(chosen_indices["N"])
             if "E" in chosen_indices:
@@ -580,6 +581,7 @@ class TestRuntimeFeasibilityCheck:
 # ===================================================================
 # Batch 4: Integration + performance benchmark
 # ===================================================================
+
 
 class TestIntegrationBenchmark:
     """Integration tests and performance benchmark for #16."""
@@ -606,21 +608,19 @@ class TestIntegrationBenchmark:
             rng = random.Random(60_000 + board_num)
             try:
                 deal = _build_single_constrained_deal_v2(
-                    rng=rng, profile=profile, board_number=board_num,
+                    rng=rng,
+                    profile=profile,
+                    board_number=board_num,
                 )
                 # Each deal should have 4 hands with 13 cards each.
                 for seat, hand in deal.hands.items():
-                    assert len(hand) == 13, (
-                        f"Board {board_num} seat {seat}: {len(hand)} cards"
-                    )
+                    assert len(hand) == 13, f"Board {board_num} seat {seat}: {len(hand)} cards"
                 successes += 1
             except DealGenerationError:
                 pass  # Expected for this tough profile
 
         # With feasibility check active, we should get most boards.
-        assert successes >= 10, (
-            f"Expected >= 10 boards, got {successes}/20"
-        )
+        assert successes >= 10, f"Expected >= 10 boards, got {successes}/20"
 
     def test_weak2s_selections_vs_naive_comparison(self):
         """
@@ -639,9 +639,7 @@ class TestIntegrationBenchmark:
         all_feasible = True
         for seed in range(total_selections):
             rng = random.Random(seed)
-            chosen_subs, _ = _select_subprofiles_for_board(
-                rng, profile, dealing_order
-            )
+            chosen_subs, _ = _select_subprofiles_for_board(rng, profile, dealing_order)
             ok, _ = _cross_seat_feasible(chosen_subs)
             if not ok:
                 all_feasible = False

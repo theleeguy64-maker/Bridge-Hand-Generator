@@ -18,6 +18,7 @@ class SetupStub:
     - output_txt_file
     - output_lin_file
     """
+
     def __init__(self, txt_path: Path, lin_path: Path) -> None:
         self.output_txt_file = txt_path
         self.output_lin_file = lin_path
@@ -25,6 +26,7 @@ class SetupStub:
 
 class DummyProfile:
     """Minimal profile stub with required attributes for deal output."""
+
     profile_name = "TestProfile"
     tag = "TestTag"
     author = "TestAuthor"

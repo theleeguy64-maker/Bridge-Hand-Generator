@@ -25,6 +25,7 @@ SeatSeenCounts = Dict[Seat, int]
 # Exception
 # ---------------------------------------------------------------------------
 
+
 class DealGenerationError(Exception):
     """Raised when something goes wrong during deal generation."""
 
@@ -32,6 +33,7 @@ class DealGenerationError(Exception):
 # ---------------------------------------------------------------------------
 # Dataclasses
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class Deal:
@@ -44,8 +46,8 @@ class Deal:
 @dataclass(frozen=True)
 class DealSet:
     deals: List[Deal]
-    board_times: List[float] = field(default_factory=list)   # Per-board seconds
-    reseed_count: int = 0                                     # Number of mid-run re-seeds
+    board_times: List[float] = field(default_factory=list)  # Per-board seconds
+    reseed_count: int = 0  # Number of mid-run re-seeds
 
 
 @dataclass(frozen=True)
@@ -63,6 +65,7 @@ class HardestSeatConfig:
 
     These names and semantics are chosen to match test_hardest_seat_selection.
     """
+
     # Do not even consider help until we've seen at least this many
     # seat-match attempts on the current board (sum over all seats).
     min_attempts_before_help: int = 50
@@ -119,16 +122,16 @@ ROTATE_MAP: Dict[Seat, Seat] = {
 # Used by _dispersion_check() to identify tight seats needing shape help.
 # ---------------------------------------------------------------------------
 SHAPE_PROB_GTE: Dict[int, float] = {
-    0:  1.000,
-    1:  0.987,
-    2:  0.920,
-    3:  0.710,
-    4:  0.430,
-    5:  0.189,
-    6:  0.063,
-    7:  0.021,
-    8:  0.005,
-    9:  0.001,
+    0: 1.000,
+    1: 0.987,
+    2: 0.920,
+    3: 0.710,
+    4: 0.430,
+    5: 0.189,
+    6: 0.063,
+    7: 0.021,
+    8: 0.005,
+    9: 0.001,
     10: 0.0002,
     11: 0.00002,
     12: 0.000001,
@@ -246,9 +249,7 @@ HCP_FEASIBILITY_NUM_SD: float = 1.0
 # Pre-built master deck: avoids 52 string concatenations per attempt.
 # _build_deck() returns a copy so callers can mutate freely.
 # ---------------------------------------------------------------------------
-_MASTER_DECK: List[Card] = [
-    r + s for s in "SHDC" for r in "AKQJT98765432"
-]
+_MASTER_DECK: List[Card] = [r + s for s in "SHDC" for r in "AKQJT98765432"]
 
 # Pre-built HCP lookup for every card in the deck.
 # Avoids per-call function overhead on the hot path (4.5M+ calls/run).

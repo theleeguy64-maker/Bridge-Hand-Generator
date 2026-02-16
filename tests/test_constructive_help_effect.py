@@ -21,6 +21,7 @@ class _DummyProfile:
       - dealer
       - hand_dealing_order
     """
+
     dealer: str = "N"
     hand_dealing_order: List[str] = ["N", "E", "S", "W"]
 
@@ -88,4 +89,3 @@ def test_viability_summary_matches_classify_viability() -> None:
     assert e_stats["successes"] == 0
     assert e_stats["success_rate"] == 0.0
     assert e_stats["viability"] == deal_generator.classify_viability(0, 8)
-    

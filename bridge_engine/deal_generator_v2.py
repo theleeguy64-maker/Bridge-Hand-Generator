@@ -16,15 +16,25 @@ import math
 import random
 
 from .deal_generator_types import (
-    Seat, Card, SeatFailCounts, SeatSeenCounts,
-    Deal, DealGenerationError,
-    SHAPE_PROB_GTE, SHAPE_PROB_THRESHOLD,
+    Seat,
+    Card,
+    SeatFailCounts,
+    SeatSeenCounts,
+    Deal,
+    DealGenerationError,
+    SHAPE_PROB_GTE,
+    SHAPE_PROB_THRESHOLD,
     PRE_ALLOCATE_FRACTION,
-    RS_PRE_ALLOCATE_FRACTION, RS_PRE_ALLOCATE_HCP_RETRIES,
-    MAX_BOARD_ATTEMPTS, SUBPROFILE_REROLL_INTERVAL, RS_REROLL_INTERVAL,
-    FULL_DECK_HCP_SUM, FULL_DECK_HCP_SUM_SQ, MAX_HAND_HCP,
+    RS_PRE_ALLOCATE_FRACTION,
+    RS_PRE_ALLOCATE_HCP_RETRIES,
+    SUBPROFILE_REROLL_INTERVAL,
+    RS_REROLL_INTERVAL,
+    FULL_DECK_HCP_SUM,
+    FULL_DECK_HCP_SUM_SQ,
+    MAX_HAND_HCP,
     _CARD_HCP,
 )
+
 # _DEBUG_ON_MAX_ATTEMPTS and _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION are
 # mutable module-level hooks that tests set on the facade module (dg).
 # Read them through the late-imported _dg reference at call time.
@@ -33,11 +43,17 @@ from .deal_generator_types import (
 # which monkeypatch `dg.ENABLE_HCP_FEASIBILITY_CHECK` still work.  The
 # facade re-exports these from deal_generator_types via `from ... import *`.
 from .deal_generator_helpers import (
-    _check_hcp_feasibility, _build_deck, _compute_viability_summary,
+    _check_hcp_feasibility,
+    _build_deck,
+    _compute_viability_summary,
     _vulnerability_for_board,
 )
 from .hand_profile import (
-    HandProfile, SeatProfile, SubProfile, SuitRange, RandomSuitConstraintData,
+    HandProfile,
+    SeatProfile,
+    SubProfile,
+    SuitRange,
+    RandomSuitConstraintData,
 )
 from .seat_viability import _match_seat
 
@@ -68,11 +84,7 @@ def _resolve_rs_ranges(
     """
     ranges: Dict[str, SuitRange] = {}
 
-    if (
-        rs.required_suits_count == 2
-        and rs.pair_overrides
-        and len(pre_selected_suits) == 2
-    ):
+    if rs.required_suits_count == 2 and rs.pair_overrides and len(pre_selected_suits) == 2:
         sorted_pair = tuple(sorted(pre_selected_suits))
         matched = None
         for po in rs.pair_overrides:
@@ -263,8 +275,10 @@ def _get_suit_maxima(
     std = getattr(subprofile, "standard", None)
     if std is not None:
         for suit_letter, suit_attr in [
-            ("S", "spades"), ("H", "hearts"),
-            ("D", "diamonds"), ("C", "clubs"),
+            ("S", "spades"),
+            ("H", "hearts"),
+            ("D", "diamonds"),
+            ("C", "clubs"),
         ]:
             sr = getattr(std, suit_attr, None)
             if sr is not None:
@@ -387,6 +401,7 @@ def _constrained_fill(
 # HCP utilities (_card_hcp, _deck_hcp_stats, _check_hcp_feasibility) are
 # imported from deal_generator_helpers (re-exported via *).
 
+
 def _pre_allocate(
     rng: random.Random,
     deck: List[Card],
@@ -426,8 +441,10 @@ def _pre_allocate(
     # Process each suit's minimum.  Card format is rank+suit, e.g. "AS".
     # Suit letter is at index 1 (S/H/D/C).
     for suit_letter, suit_attr in [
-        ("S", "spades"), ("H", "hearts"),
-        ("D", "diamonds"), ("C", "clubs"),
+        ("S", "spades"),
+        ("H", "hearts"),
+        ("D", "diamonds"),
+        ("C", "clubs"),
     ]:
         suit_range = getattr(std, suit_attr, None)
         if suit_range is None:
@@ -524,10 +541,7 @@ def _pre_allocate_rs(
         min_hcp: Optional[int] = getattr(sr, "min_hcp", None)
         max_hcp: Optional[int] = getattr(sr, "max_hcp", None)
         use_hcp_targeting = (
-            RS_PRE_ALLOCATE_HCP_RETRIES > 0
-            and min_hcp is not None
-            and max_hcp is not None
-            and min_cards > 0
+            RS_PRE_ALLOCATE_HCP_RETRIES > 0 and min_hcp is not None and max_hcp is not None and min_cards > 0
         )
 
         if use_hcp_targeting:
@@ -599,6 +613,7 @@ def _deal_with_help(
     # Late import: read gate flags from the facade module so that tests
     # which monkeypatch dg.ENABLE_HCP_FEASIBILITY_CHECK still work.
     from . import deal_generator as _dg
+
     _enable_hcp = _dg.ENABLE_HCP_FEASIBILITY_CHECK
     _hcp_num_sd = _dg.HCP_FEASIBILITY_NUM_SD
 
@@ -618,9 +633,7 @@ def _deal_with_help(
         pre = _pre_allocate(rng, deck, sub)
         # RS pre-allocation: if this seat has pre-selected RS suits.
         if rs_pre_selections and seat in rs_pre_selections:
-            rs_pre = _pre_allocate_rs(
-                rng, deck, sub, rs_pre_selections[seat]
-            )
+            rs_pre = _pre_allocate_rs(rng, deck, sub, rs_pre_selections[seat])
             pre = pre + rs_pre
         if pre:
             pre_allocated[seat] = pre
@@ -675,7 +688,7 @@ def _deal_with_help(
     # For non-last seats, use constrained fill to skip cards that would
     # bust a suit maximum.  Skipped cards stay in the deck for later seats.
     for i, seat in enumerate(dealing_order):
-        is_last = (i == len(dealing_order) - 1)
+        is_last = i == len(dealing_order) - 1
         pre = pre_allocated.get(seat, [])
 
         if is_last:
@@ -689,16 +702,10 @@ def _deal_with_help(
                 # Constrained fill: skip cards that would bust suit max,
                 # push total HCP over the maximum, or exceed per-suit
                 # HCP cap for RS suits (#13).
-                rs_for_seat = (
-                    rs_pre_selections.get(seat)
-                    if rs_pre_selections else None
-                )
+                rs_for_seat = rs_pre_selections.get(seat) if rs_pre_selections else None
                 maxima = _get_suit_maxima(sub, rs_for_seat)
                 std = getattr(sub, "standard", None)
-                max_hcp = (
-                    getattr(std, "total_max_hcp", MAX_HAND_HCP)
-                    if std is not None else MAX_HAND_HCP
-                )
+                max_hcp = getattr(std, "total_max_hcp", MAX_HAND_HCP) if std is not None else MAX_HAND_HCP
 
                 # Extract per-suit HCP max from RS constraints (#13).
                 # Only needed when RS suits have an explicit max_hcp cap.
@@ -716,7 +723,11 @@ def _deal_with_help(
                             rs_hcp_max = None
 
                 fill = _constrained_fill(
-                    deck, remaining_needed, pre, maxima, max_hcp,
+                    deck,
+                    remaining_needed,
+                    pre,
+                    maxima,
+                    max_hcp,
                     rs_hcp_max,
                 )
             else:
@@ -736,10 +747,10 @@ def _deal_with_help(
 
 # Risk scores for subprofile constraint types (higher = more constrained).
 _CONSTRAINT_RISK: Dict[str, float] = {
-    "rs": 1.0,         # Random Suit — must go first; others depend on it
-    "pc": 0.5,         # Partner Contingent
-    "oc": 0.5,         # Opponent Contingent
-    "standard": 0.0,   # No cross-seat dependency
+    "rs": 1.0,  # Random Suit — must go first; others depend on it
+    "pc": 0.5,  # Partner Contingent
+    "oc": 0.5,  # Opponent Contingent
+    "standard": 0.0,  # No cross-seat dependency
 }
 
 _CLOCKWISE = ["N", "E", "S", "W"]
@@ -854,9 +865,7 @@ def _build_single_constrained_deal_v2(
     rng: random.Random,
     profile: "HandProfile",
     board_number: int,
-    debug_board_stats: Optional[
-        Callable[["SeatFailCounts", "SeatSeenCounts"], None]
-    ] = None,
+    debug_board_stats: Optional[Callable[["SeatFailCounts", "SeatSeenCounts"], None]] = None,
 ) -> "Deal":
     """
     Build a single constrained deal using shape-based help (v2 algorithm).
@@ -916,9 +925,7 @@ def _build_single_constrained_deal_v2(
     # ------------------------------------------------------------------
 
     # Select subprofiles once per board (index-coupled where applicable).
-    chosen_subprofiles, chosen_indices = _dg._select_subprofiles_for_board(
-        rng, profile, profile_dealing_order
-    )
+    chosen_subprofiles, chosen_indices = _dg._select_subprofiles_for_board(rng, profile, profile_dealing_order)
 
     # Auto-compute dealing order from chosen subprofiles:
     # least constrained seat last (gets remainder without constrained fill).
@@ -931,15 +938,11 @@ def _build_single_constrained_deal_v2(
     rs_pre_selections = _pre_select_rs_suits(rng, chosen_subprofiles)
 
     # Identify tight seats that need shape help (RS-aware).
-    tight_seats = _dispersion_check(
-        chosen_subprofiles, rs_pre_selections=rs_pre_selections
-    )
+    tight_seats = _dispersion_check(chosen_subprofiles, rs_pre_selections=rs_pre_selections)
 
     # Build processing order: RS seats first so PC/OC can see partner's
     # RS choices, then everything else.
-    processing_order = _build_processing_order(
-        profile, dealing_order, chosen_subprofiles
-    )
+    processing_order = _build_processing_order(profile, dealing_order, chosen_subprofiles)
 
     # ------------------------------------------------------------------
     # Per-board failure attribution counters (D7)
@@ -974,33 +977,19 @@ def _build_single_constrained_deal_v2(
             and SUBPROFILE_REROLL_INTERVAL > 0
             and (board_attempts - 1) % SUBPROFILE_REROLL_INTERVAL == 0
         ):
-            chosen_subprofiles, chosen_indices = _dg._select_subprofiles_for_board(
-                rng, profile, profile_dealing_order
-            )
+            chosen_subprofiles, chosen_indices = _dg._select_subprofiles_for_board(rng, profile, profile_dealing_order)
             # Recompute dealing order for new subprofile combination.
-            dealing_order = _compute_dealing_order(
-                chosen_subprofiles, profile.dealer
-            )
+            dealing_order = _compute_dealing_order(chosen_subprofiles, profile.dealer)
             rs_pre_selections = _pre_select_rs_suits(rng, chosen_subprofiles)
-            tight_seats = _dispersion_check(
-                chosen_subprofiles, rs_pre_selections=rs_pre_selections
-            )
+            tight_seats = _dispersion_check(chosen_subprofiles, rs_pre_selections=rs_pre_selections)
             # Rebuild processing order since RS seats may have changed.
-            processing_order = _build_processing_order(
-                profile, dealing_order, chosen_subprofiles
-            )
+            processing_order = _build_processing_order(profile, dealing_order, chosen_subprofiles)
 
         # Periodic RS re-roll (more frequent): try different RS suit
         # combinations within the same subprofile selection.
-        elif (
-            board_attempts > 1
-            and RS_REROLL_INTERVAL > 0
-            and (board_attempts - 1) % RS_REROLL_INTERVAL == 0
-        ):
+        elif board_attempts > 1 and RS_REROLL_INTERVAL > 0 and (board_attempts - 1) % RS_REROLL_INTERVAL == 0:
             rs_pre_selections = _pre_select_rs_suits(rng, chosen_subprofiles)
-            tight_seats = _dispersion_check(
-                chosen_subprofiles, rs_pre_selections=rs_pre_selections
-            )
+            tight_seats = _dispersion_check(chosen_subprofiles, rs_pre_selections=rs_pre_selections)
 
         # Build and shuffle a full deck.
         deck = _build_deck()
@@ -1008,7 +997,11 @@ def _build_single_constrained_deal_v2(
 
         # Deal with shape help for tight seats (RS-aware).
         hands, hcp_rejected_seat = _deal_with_help(  # type: ignore[assignment]
-            rng, deck, chosen_subprofiles, tight_seats, dealing_order,
+            rng,
+            deck,
+            chosen_subprofiles,
+            tight_seats,
+            dealing_order,
             rs_pre_selections=rs_pre_selections,
         )
 
@@ -1017,27 +1010,17 @@ def _build_single_constrained_deal_v2(
         # make its HCP target statistically implausible, skip matching entirely.
         if hcp_rejected_seat is not None:
             # Attribute failure to the rejected seat (HCP-driven).
-            seat_fail_as_seat[hcp_rejected_seat] = (
-                seat_fail_as_seat.get(hcp_rejected_seat, 0) + 1
-            )
-            seat_fail_hcp[hcp_rejected_seat] = (
-                seat_fail_hcp.get(hcp_rejected_seat, 0) + 1
-            )
-            seat_fail_counts[hcp_rejected_seat] = (
-                seat_fail_counts.get(hcp_rejected_seat, 0) + 1
-            )
-            seat_seen_counts[hcp_rejected_seat] = (
-                seat_seen_counts.get(hcp_rejected_seat, 0) + 1
-            )
+            seat_fail_as_seat[hcp_rejected_seat] = seat_fail_as_seat.get(hcp_rejected_seat, 0) + 1
+            seat_fail_hcp[hcp_rejected_seat] = seat_fail_hcp.get(hcp_rejected_seat, 0) + 1
+            seat_fail_counts[hcp_rejected_seat] = seat_fail_counts.get(hcp_rejected_seat, 0) + 1
+            seat_seen_counts[hcp_rejected_seat] = seat_seen_counts.get(hcp_rejected_seat, 0) + 1
             # All other constrained seats: globally unchecked.
             for s in processing_order:
                 if s == hcp_rejected_seat:
                     continue
                 sp_check = profile.seat_profiles.get(s)
                 if isinstance(sp_check, SeatProfile) and sp_check.subprofiles:
-                    seat_fail_global_unchecked[s] = (
-                        seat_fail_global_unchecked.get(s, 0) + 1
-                    )
+                    seat_fail_global_unchecked[s] = seat_fail_global_unchecked.get(s, 0) + 1
             # Fire per-attempt debug hook with current counters.
             if _dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION is not None:
                 try:
@@ -1052,7 +1035,9 @@ def _build_single_constrained_deal_v2(
                         dict(seat_fail_shape),
                     )
                 except Exception as exc:
-                    import sys; print(f"WARNING: debug hook failed: {exc}", file=sys.stderr)
+                    import sys
+
+                    print(f"WARNING: debug hook failed: {exc}", file=sys.stderr)
             continue  # Skip matching, next attempt.
         # ----- end early HCP rejection handling -----
 
@@ -1090,10 +1075,7 @@ def _build_single_constrained_deal_v2(
             std_early = getattr(sub, "standard", None)
             if std_early is not None:
                 hand_hcp_quick = sum(_CARD_HCP[c] for c in hands[seat])
-                if (
-                    hand_hcp_quick < std_early.total_min_hcp
-                    or hand_hcp_quick > std_early.total_max_hcp
-                ):
+                if hand_hcp_quick < std_early.total_min_hcp or hand_hcp_quick > std_early.total_max_hcp:
                     # Count as checked + failed (HCP).
                     checked_seats_in_attempt.append(seat)
                     seat_seen_counts[seat] = seat_seen_counts.get(seat, 0) + 1
@@ -1152,9 +1134,7 @@ def _build_single_constrained_deal_v2(
         if not all_matched and first_failed_stage_idx is not None:
             # Seats checked BEFORE the first failure → "globally impacted (other)"
             for s in checked_seats_in_attempt[:first_failed_stage_idx]:
-                seat_fail_global_other[s] = (
-                    seat_fail_global_other.get(s, 0) + 1
-                )
+                seat_fail_global_other[s] = seat_fail_global_other.get(s, 0) + 1
 
             # Seats NOT checked because we broke early → "globally unchecked"
             checked_set = set(checked_seats_in_attempt)
@@ -1163,9 +1143,7 @@ def _build_single_constrained_deal_v2(
                 if not isinstance(sp, SeatProfile) or not sp.subprofiles:
                     continue
                 if s not in checked_set:
-                    seat_fail_global_unchecked[s] = (
-                        seat_fail_global_unchecked.get(s, 0) + 1
-                    )
+                    seat_fail_global_unchecked[s] = seat_fail_global_unchecked.get(s, 0) + 1
 
             # Fire per-attempt debug hook (copies to prevent mutation).
             if _dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION is not None:
@@ -1181,7 +1159,9 @@ def _build_single_constrained_deal_v2(
                         dict(seat_fail_shape),
                     )
                 except Exception as exc:
-                    import sys; print(f"WARNING: debug hook failed: {exc}", file=sys.stderr)
+                    import sys
+
+                    print(f"WARNING: debug hook failed: {exc}", file=sys.stderr)
 
         if all_matched:
             # Fire debug_board_stats callback on success.
@@ -1213,9 +1193,10 @@ def _build_single_constrained_deal_v2(
                 viability_summary,
             )
         except Exception as exc:
-            import sys; print(f"WARNING: debug hook failed: {exc}", file=sys.stderr)
+            import sys
+
+            print(f"WARNING: debug hook failed: {exc}", file=sys.stderr)
 
     raise DealGenerationError(
-        f"v2: Failed to construct constrained deal for board {board_number} "
-        f"after {_max_attempts} attempts."
+        f"v2: Failed to construct constrained deal for board {board_number} after {_max_attempts} attempts."
     )

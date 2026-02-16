@@ -27,6 +27,7 @@ Seat = str
 # Hand display helpers
 # ---------------------------------------------------------------------------
 
+
 def _hand_hcp(hand: list) -> int:
     """Sum HCP for a hand (list of card strings like 'AS', '2H')."""
     return sum(_card_hcp(c) for c in hand)
@@ -57,6 +58,7 @@ def _fmt_row(label: str, counts: Dict[Seat, int]) -> str:
 # ---------------------------------------------------------------------------
 # Main diagnostic runner
 # ---------------------------------------------------------------------------
+
 
 def run_profile_diagnostic(
     profile,
@@ -113,10 +115,10 @@ def run_profile_diagnostic(
     try:
         dg._DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION = hook
 
-        print(f"\n{'='*75}")
+        print(f"\n{'=' * 75}")
         print(f"Profile Diagnostic: {profile_name}")
         print(f"Boards: {num_boards}  |  Seed base: {seed_base}")
-        print(f"{'='*75}")
+        print(f"{'=' * 75}")
 
         wall_start = time.monotonic()
 
@@ -148,14 +150,8 @@ def run_profile_diagnostic(
                 parts = []
                 for seat in ("W", "N", "S", "E"):
                     hand = deal.hands.get(seat, [])
-                    parts.append(
-                        f"{seat}:{_hand_shape(hand)} {_hand_hcp(hand):2d}hcp"
-                    )
-                print(
-                    f"  Board {board_number:3d}: {status}  "
-                    f"attempts={attempts:5d}  "
-                    + "  ".join(parts)
-                )
+                    parts.append(f"{seat}:{_hand_shape(hand)} {_hand_hcp(hand):2d}hcp")
+                print(f"  Board {board_number:3d}: {status}  attempts={attempts:5d}  " + "  ".join(parts))
             else:
                 print(
                     f"  Board {board_number:3d}: {status}  "
@@ -188,23 +184,15 @@ def run_profile_diagnostic(
     max_attempts = max(attempt_list) if attempt_list else 0
     min_attempts = min(attempt_list) if attempt_list else 0
 
-    print(f"\n{'─'*75}")
+    print(f"\n{'─' * 75}")
     print(f"SUMMARY: {successes}/{num_boards} boards succeeded, {failures} failed")
-    print(
-        f"Attempts: total={total_attempts}  mean={mean_attempts:.1f}  "
-        f"min={min_attempts}  max={max_attempts}"
-    )
+    print(f"Attempts: total={total_attempts}  mean={mean_attempts:.1f}  min={min_attempts}  max={max_attempts}")
     print(f"Wall time: {wall_elapsed:.1f}s")
 
     # Column widths: label=26, each seat=13 "NNNNNN (NN.N%)", total=8
     col = 13  # width per seat column
-    print(
-        f"\n  {'Failure Attribution':<26} "
-        f"{'W':>{col}} {'N':>{col}} {'S':>{col}} {'E':>{col}} {'TOTAL':>8}"
-    )
-    print(
-        f"  {'─'*26} {'─'*col} {'─'*col} {'─'*col} {'─'*col} {'─'*8}"
-    )
+    print(f"\n  {'Failure Attribution':<26} {'W':>{col}} {'N':>{col}} {'S':>{col}} {'E':>{col}} {'TOTAL':>8}")
+    print(f"  {'─' * 26} {'─' * col} {'─' * col} {'─' * col} {'─' * col} {'─' * 8}")
     print(_fmt_row("seat_fail_as_seat", total_as_seat))
     print(_fmt_row("seat_fail_global_other", total_global_other))
     print(_fmt_row("seat_fail_global_unchecked", total_global_unchecked))
@@ -215,12 +203,10 @@ def run_profile_diagnostic(
     # Rank seats from most to least failures, showing count and % of total.
     as_seat_total = sum(total_as_seat.values())
     if as_seat_total > 0:
-        ranked = sorted(
-            total_as_seat.items(), key=lambda x: x[1], reverse=True
-        )
-        print(f"\n  Seat ranking (by primary failures):")
+        ranked = sorted(total_as_seat.items(), key=lambda x: x[1], reverse=True)
+        print("\n  Seat ranking (by primary failures):")
         for rank, (seat, cnt) in enumerate(ranked, 1):
             pct = cnt / as_seat_total * 100
             print(f"    {rank}. {seat}  {cnt:6d}  ({pct:.1f}%)")
 
-    print(f"\n{'='*75}\n")
+    print(f"\n{'=' * 75}\n")

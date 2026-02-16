@@ -13,12 +13,19 @@ import random
 from typing import Dict, List, Sequence, Tuple
 
 from .deal_generator_types import (
-    Seat, Card, SeatFailCounts, SeatSeenCounts,
+    Seat,
+    Card,
+    SeatFailCounts,
+    SeatSeenCounts,
     Deal,
-    VULNERABILITY_SEQUENCE, ROTATE_MAP, ROTATE_PROBABILITY,
-    PRE_ALLOCATE_FRACTION, HCP_FEASIBILITY_NUM_SD,
-    UNVIABLE_MIN_FAILS, UNVIABLE_MIN_RATE,
-    _MASTER_DECK, _CARD_HCP,
+    VULNERABILITY_SEQUENCE,
+    ROTATE_MAP,
+    ROTATE_PROBABILITY,
+    HCP_FEASIBILITY_NUM_SD,
+    UNVIABLE_MIN_FAILS,
+    UNVIABLE_MIN_RATE,
+    _MASTER_DECK,
+    _CARD_HCP,
 )
 from .hand_profile import (
     HandProfile,
@@ -29,6 +36,7 @@ from .hand_profile import (
 # ---------------------------------------------------------------------------
 # Viability helpers
 # ---------------------------------------------------------------------------
+
 
 def _compute_viability_summary(
     seat_fail_counts: SeatFailCounts,
@@ -178,6 +186,7 @@ def classify_viability(successes: int, attempts: int) -> str:
 # Subprofile helpers
 # ---------------------------------------------------------------------------
 
+
 def _weights_for_seat_profile(seat_profile: SeatProfile) -> List[float]:
     """
     Extract weight_percent for each subprofile, with safe defaults.
@@ -227,6 +236,7 @@ def _choose_index_for_seat(
 # ---------------------------------------------------------------------------
 # Deck helpers
 # ---------------------------------------------------------------------------
+
 
 def _build_deck() -> List[Card]:
     """Return a fresh copy of the 52-card master deck."""
@@ -348,15 +358,16 @@ def _check_hcp_feasibility(
     # ---- Feasibility test ----
     # Reject if even the favourable end of the prediction can't reach the target.
     if exp_down > target_max:
-        return False   # Already too high — even low-side can't stay under max.
+        return False  # Already too high — even low-side can't stay under max.
     if exp_up < target_min:
-        return False   # Too low — even high-side can't reach min.
+        return False  # Too low — even high-side can't reach min.
     return True
 
 
 # ---------------------------------------------------------------------------
 # Simple board generator (fallback for tests / dummy profiles)
 # ---------------------------------------------------------------------------
+
 
 def _deal_single_board_simple(
     rng: random.Random,
@@ -394,6 +405,7 @@ def _vulnerability_for_board(board_number: int) -> str:
 # ---------------------------------------------------------------------------
 # C2: vulnerability & rotation
 # ---------------------------------------------------------------------------
+
 
 def _apply_vulnerability_and_rotation(
     rng: random.Random,

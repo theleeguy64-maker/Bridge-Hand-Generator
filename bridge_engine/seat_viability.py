@@ -72,9 +72,8 @@ def _compute_suit_analysis(hand: List[Card]) -> SuitAnalysis:
 # Standard / Random Suit / Partner Contingent matching
 # ---------------------------------------------------------------------------
 
-def _match_standard(
-    analysis: SuitAnalysis, std: StandardSuitConstraints
-) -> Tuple[bool, Optional[str]]:
+
+def _match_standard(analysis: SuitAnalysis, std: StandardSuitConstraints) -> Tuple[bool, Optional[str]]:
     """
     Match a hand's SuitAnalysis against StandardSuitConstraints.
 
@@ -120,8 +119,8 @@ def _match_standard(
         return False, "hcp"
 
     return True, None
-    
-    
+
+
 def _match_random_suit_with_attempt(
     analysis: SuitAnalysis,
     rs: RandomSuitConstraintData,
@@ -180,7 +179,7 @@ def _match_random_suit_with_attempt(
         hcp = analysis.hcp_by_suit[suit]
         if not (sr.min_cards <= count <= sr.max_cards):  # type: ignore[attr-defined]
             return False, chosen_suits
-        if not (sr.min_hcp <= hcp <= sr.max_hcp):        # type: ignore[attr-defined]
+        if not (sr.min_hcp <= hcp <= sr.max_hcp):  # type: ignore[attr-defined]
             return False, chosen_suits
 
     return True, chosen_suits
@@ -211,6 +210,7 @@ def _match_partner_contingent(
     if not partner_suits:
         return False
     return _check_suit_range(analysis, partner_suits[0], pc.suit_range)
+
 
 def _match_subprofile(
     analysis: SuitAnalysis,
@@ -248,7 +248,9 @@ def _match_subprofile(
         and sub.opponents_contingent_suit_constraint is None
     ):
         matched, chosen = _match_random_suit_with_attempt(
-            analysis, sub.random_suit_constraint, rng,
+            analysis,
+            sub.random_suit_constraint,
+            rng,
             pre_selected_suits=pre_selected_suits,
         )
         if not matched:
@@ -308,6 +310,7 @@ def _match_subprofile(
     # Any other combination is invalid by design; treat as not matching.
     return False, None, "other"
 
+
 def _is_excluded_for_seat_subprofile(
     profile: HandProfile,
     seat: Seat,
@@ -365,6 +368,7 @@ def _is_excluded_for_seat_subprofile(
                 return True
 
     return False
+
 
 def _match_seat(
     profile: HandProfile,
@@ -472,18 +476,8 @@ def _subprofile_is_viable_light(sub: SubProfile, *, return_reason: bool = False)
         return (ok, reason) if return_reason else ok
 
     # Suit-card feasibility: sum(min) <= 13 and sum(max) >= 13
-    mins = (
-        std.spades.min_cards
-        + std.hearts.min_cards
-        + std.diamonds.min_cards
-        + std.clubs.min_cards
-    )
-    maxs = (
-        std.spades.max_cards
-        + std.hearts.max_cards
-        + std.diamonds.max_cards
-        + std.clubs.max_cards
-    )
+    mins = std.spades.min_cards + std.hearts.min_cards + std.diamonds.min_cards + std.clubs.min_cards
+    maxs = std.spades.max_cards + std.hearts.max_cards + std.diamonds.max_cards + std.clubs.max_cards
     if mins > 13:
         ok, reason = False, f"Standard mins sum to {mins} > 13"
         return (ok, reason) if return_reason else ok
@@ -501,8 +495,8 @@ def _subprofile_is_viable_light(sub: SubProfile, *, return_reason: bool = False)
 
     ok, reason = True, "ok"
     return (ok, reason) if return_reason else ok
-    
-    
+
+
 def _subprofile_is_viable(
     profile: HandProfile,
     seat: str,
@@ -545,8 +539,8 @@ def _subprofile_is_viable(
     finally:
         # Restore the original configuration.
         object.__setattr__(seat_profile, "subprofiles", original_subprofiles)
-        
-        
+
+
 def validate_profile_viability_light(profile: HandProfile) -> None:
     """
     Lightweight feasibility validation:
@@ -568,6 +562,4 @@ def validate_profile_viability_light(profile: HandProfile) -> None:
             last_reason = reason
 
         if not any_ok:
-            raise ProfileError(
-                f"Seat {seat} has no viable subprofiles (light): {last_reason}"
-            )
+            raise ProfileError(f"Seat {seat} has no viable subprofiles (light): {last_reason}")

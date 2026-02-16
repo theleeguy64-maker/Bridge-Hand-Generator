@@ -29,9 +29,19 @@ from bridge_engine.hand_profile_model import (
 # Test fixtures - minimal objects for testing
 # ---------------------------------------------------------------------------
 
-def _make_standard(spade_min=0, spade_max=13, heart_min=0, heart_max=13,
-                   diamond_min=0, diamond_max=13, club_min=0, club_max=13,
-                   min_hcp=0, max_hcp=37) -> StandardSuitConstraints:
+
+def _make_standard(
+    spade_min=0,
+    spade_max=13,
+    heart_min=0,
+    heart_max=13,
+    diamond_min=0,
+    diamond_max=13,
+    club_min=0,
+    club_max=13,
+    min_hcp=0,
+    max_hcp=37,
+) -> StandardSuitConstraints:
     """Helper to create StandardSuitConstraints."""
     return StandardSuitConstraints(
         spades=SuitRange(min_cards=spade_min, max_cards=spade_max),
@@ -43,14 +53,16 @@ def _make_standard(spade_min=0, spade_max=13, heart_min=0, heart_max=13,
     )
 
 
-def _make_subprofile(spade_min=0, heart_min=0, diamond_min=0, club_min=0,
-                     min_hcp=0, max_hcp=37) -> SubProfile:
+def _make_subprofile(spade_min=0, heart_min=0, diamond_min=0, club_min=0, min_hcp=0, max_hcp=37) -> SubProfile:
     """Helper to create SubProfile with specified suit minima."""
     return SubProfile(
         standard=_make_standard(
-            spade_min=spade_min, heart_min=heart_min,
-            diamond_min=diamond_min, club_min=club_min,
-            min_hcp=min_hcp, max_hcp=max_hcp,
+            spade_min=spade_min,
+            heart_min=heart_min,
+            diamond_min=diamond_min,
+            club_min=club_min,
+            min_hcp=min_hcp,
+            max_hcp=max_hcp,
         ),
     )
 
@@ -62,6 +74,7 @@ class MockSubProfileForNsPair:
 
     The function accesses min_suit_counts via getattr() with default.
     """
+
     min_suit_counts: Dict[str, int] = field(default_factory=dict)
 
 
@@ -74,6 +87,7 @@ class MockHandProfile:
       - seat_profiles (dict of seat -> SeatProfile)
       - ns_role_mode (str) — coupling enabled when not "no_driver_no_index"
     """
+
     seat_profiles: Dict[str, SeatProfile] = field(default_factory=dict)
     # "north_drives" enables coupling; "no_driver_no_index" disables it.
     ns_role_mode: str = "north_drives"
@@ -82,6 +96,7 @@ class MockHandProfile:
 # ---------------------------------------------------------------------------
 # Tests for _ns_pair_jointly_viable
 # ---------------------------------------------------------------------------
+
 
 def test_ns_pair_jointly_viable_passes_when_ok() -> None:
     """Valid NS pair with combined suit minima <= 13 should return True."""
@@ -122,6 +137,7 @@ def test_ns_pair_jointly_viable_missing_suit_counts() -> None:
 # ---------------------------------------------------------------------------
 # Tests for validate_profile_viability
 # ---------------------------------------------------------------------------
+
 
 def test_validate_profile_viability_respects_coupling_disabled() -> None:
     """

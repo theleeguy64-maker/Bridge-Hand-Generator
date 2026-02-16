@@ -44,20 +44,25 @@ from .profile_viability import _cross_seat_feasible
 # Non-underscore names (Deal, MAX_BOARD_ATTEMPTS, etc.) come through the
 # wildcard and don't need explicit listing.
 # ---------------------------------------------------------------------------
-from .deal_generator_types import *   # noqa: F401,F403
-from .deal_generator_types import (   # _-prefixed names for v1/v2 late imports
+from .deal_generator_types import *  # noqa: F401,F403
+from .deal_generator_types import (  # _-prefixed names for v1/v2 late imports
     _DEBUG_ON_MAX_ATTEMPTS,
     _DEBUG_STANDARD_CONSTRUCTIVE_USED,
     _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION,
 )
 
-from .deal_generator_helpers import *   # noqa: F401,F403
-from .deal_generator_helpers import (   # _-prefixed names for this module + tests
+from .deal_generator_helpers import *  # noqa: F401,F403
+from .deal_generator_helpers import (  # _-prefixed names for this module + tests
     _choose_index_for_seat,
-    _card_hcp, _deck_hcp_stats, _check_hcp_feasibility,
-    _build_deck, _weighted_choice_index,
-    _compute_viability_summary, _summarize_profile_viability,
-    _deal_single_board_simple, _apply_vulnerability_and_rotation,
+    _card_hcp,
+    _deck_hcp_stats,
+    _check_hcp_feasibility,
+    _build_deck,
+    _weighted_choice_index,
+    _compute_viability_summary,
+    _summarize_profile_viability,
+    _deal_single_board_simple,
+    _apply_vulnerability_and_rotation,
 )
 
 # v1 builder + helpers — extracted to deal_generator_v1.py (#7 Batch 4B)
@@ -73,12 +78,17 @@ from .deal_generator_v1 import (
 
 # v2 shape-based help system — extracted to deal_generator_v2.py (#7)
 from .deal_generator_v2 import (
-    _dispersion_check, _pre_select_rs_suits, _random_deal,
-    _get_suit_maxima, _constrained_fill,
-    _pre_allocate, _pre_allocate_rs,
+    _dispersion_check,
+    _pre_select_rs_suits,
+    _random_deal,
+    _get_suit_maxima,
+    _constrained_fill,
+    _pre_allocate,
+    _pre_allocate_rs,
     _deal_with_help,
     _build_single_constrained_deal_v2,
-    _compute_dealing_order, _subprofile_constraint_type,
+    _compute_dealing_order,
+    _subprofile_constraint_type,
 )
 
 # ---------------------------------------------------------------------------
@@ -123,9 +133,7 @@ def _try_pair_coupling(
     driver_sp = seat_profiles.get(driver_seat)
     follower_sp = seat_profiles.get(follower_seat)
 
-    if isinstance(driver_sp, SeatProfile) and isinstance(
-        follower_sp, SeatProfile
-    ):
+    if isinstance(driver_sp, SeatProfile) and isinstance(follower_sp, SeatProfile):
         idx = _choose_index_for_seat(rng, driver_sp)
         chosen_indices[driver_seat] = idx
         chosen_indices[follower_seat] = idx
@@ -174,21 +182,27 @@ def _select_subprofiles_for_board(
         if _ns_mode != "no_driver_no_index":
             ns_driver: Optional[Seat] = profile.ns_driver_seat(rng)
             if ns_driver not in ("N", "S"):
-                ns_driver = next(
-                    (s for s in dealing_order if s in ("N", "S")), "N"
-                )
+                ns_driver = next((s for s in dealing_order if s in ("N", "S")), "N")
             _try_pair_coupling(
-                rng, profile.seat_profiles, "N", "S", ns_driver,
-                chosen_subprofiles, chosen_indices,
+                rng,
+                profile.seat_profiles,
+                "N",
+                "S",
+                ns_driver,
+                chosen_subprofiles,
+                chosen_indices,
             )
 
         # --- EW coupling (always attempted) ---
-        ew_driver: Seat = next(
-            (s for s in dealing_order if s in ("E", "W")), "E"
-        )
+        ew_driver: Seat = next((s for s in dealing_order if s in ("E", "W")), "E")
         _try_pair_coupling(
-            rng, profile.seat_profiles, "E", "W", ew_driver,
-            chosen_subprofiles, chosen_indices,
+            rng,
+            profile.seat_profiles,
+            "E",
+            "W",
+            ew_driver,
+            chosen_subprofiles,
+            chosen_indices,
         )
 
         # --- Remaining seats (incl. unconstrained or single-subprofile) ----
@@ -312,8 +326,8 @@ def generate_deals(
     # success rate), 50 retries gives ~99.5% per-board success.
     try:
         deals: List[Deal] = []  # type: ignore[no-redef]
-        board_times: List[float] = []   # Per-board elapsed seconds
-        reseed_count: int = 0           # Number of adaptive re-seeds
+        board_times: List[float] = []  # Per-board elapsed seconds
+        reseed_count: int = 0  # Number of adaptive re-seeds
 
         for board_number in range(1, num_deals + 1):
             board_start = time.monotonic()
@@ -338,9 +352,7 @@ def generate_deals(
                     if RESEED_TIME_THRESHOLD_SECONDS > 0.0:
                         elapsed = time.monotonic() - board_start
                         if elapsed >= RESEED_TIME_THRESHOLD_SECONDS:
-                            new_seed = random.SystemRandom().randint(
-                                1, 2**31 - 1
-                            )
+                            new_seed = random.SystemRandom().randint(1, 2**31 - 1)
                             rng = random.Random(new_seed)
                             reseed_count += 1
                             board_start = time.monotonic()

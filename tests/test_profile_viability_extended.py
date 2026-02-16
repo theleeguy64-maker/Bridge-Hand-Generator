@@ -175,8 +175,8 @@ def validate_profile_viability(profile: HandProfile) -> None:
     if not jointly_viable_found:
         # No index with both individually-viable and jointly-viable subprofiles.
         raise ValueError("No NS index-coupled subprofile pair is jointly viable")
- 
- 
+
+
 # ---------------------------------------------------------------------------
 # Unit tests – seat-level viability
 # ---------------------------------------------------------------------------

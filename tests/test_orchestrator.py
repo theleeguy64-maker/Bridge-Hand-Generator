@@ -71,9 +71,7 @@ def test_choose_profile_for_session_returns_none_when_no_profiles(monkeypatch, c
     def fake_discover() -> List[tuple[Path, Any]]:
         return []
 
-    monkeypatch.setattr(
-        orchestrator, "_discover_profiles", fake_discover, raising=True
-    )
+    monkeypatch.setattr(orchestrator, "_discover_profiles", fake_discover, raising=True)
 
     result = orchestrator._choose_profile_for_session()  # type: ignore[attr-defined]
     captured = capsys.readouterr()
@@ -101,9 +99,7 @@ def test_choose_profile_for_session_allows_cancel(monkeypatch, capsys) -> None:
     def fake_discover() -> List[tuple[Path, DummyProfile]]:
         return [(dummy_path, dummy_profile)]
 
-    monkeypatch.setattr(
-        orchestrator, "_discover_profiles", fake_discover, raising=True
-    )
+    monkeypatch.setattr(orchestrator, "_discover_profiles", fake_discover, raising=True)
 
     # First (and only) call to input() returns empty string → cancel.
     inputs = iter([""])
@@ -133,9 +129,7 @@ def test_main_menu_exit_on_zero(monkeypatch, capsys) -> None:
     def fake_deal_generation_session() -> None:
         called["deal_generation"] += 1
 
-    monkeypatch.setattr(
-        profile_cli, "run_profile_manager", fake_profile_management, raising=True
-    )
+    monkeypatch.setattr(profile_cli, "run_profile_manager", fake_profile_management, raising=True)
     monkeypatch.setattr(
         orchestrator,
         "_run_deal_generation_session",
@@ -186,9 +180,7 @@ def test_run_deal_generation_session_happy_path(monkeypatch, tmp_path: Path, cap
         chosen["called"] = True
         return dummy_profile
 
-    monkeypatch.setattr(
-        orchestrator, "_choose_profile_for_session", fake_choose, raising=True
-    )
+    monkeypatch.setattr(orchestrator, "_choose_profile_for_session", fake_choose, raising=True)
 
     # --- validate_profile stub: just echo the profile back ---
     validated = {"called": False}
@@ -209,9 +201,7 @@ def test_run_deal_generation_session_happy_path(monkeypatch, tmp_path: Path, cap
 
     setup_called: Dict[str, Any] = {}
 
-    def fake_run_setup(
-        *, base_dir: Path, owner: str, profile_name: str, ask_seed_choice: bool
-    ) -> SetupStub:
+    def fake_run_setup(*, base_dir: Path, owner: str, profile_name: str, ask_seed_choice: bool) -> SetupStub:
         setup_called["base_dir"] = base_dir
         setup_called["owner"] = owner
         setup_called["profile_name"] = profile_name

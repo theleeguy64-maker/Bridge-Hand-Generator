@@ -26,7 +26,12 @@
 - Prefer early returns and guard statements for error handling
 - Put lots of remarks/comments in code for the benefit of all of us (future developers, Claude, and you)
 
-## Type Checking
+## Linting & Formatting (ruff)
+- Run ruff after code changes: `.venv/bin/ruff check bridge_engine/ tests/` + `.venv/bin/ruff format bridge_engine/ tests/`
+- Config in `ruff.toml` — per-file ignores for facades, late imports, and test patterns
+- Keep ruff at 0 errors before committing
+
+## Type Checking (mypy)
 - Run mypy after code changes: `.venv/bin/mypy bridge_engine/ --ignore-missing-imports`
 - Keep mypy at 0 errors — fix any new type errors before committing
 

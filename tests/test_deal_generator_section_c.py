@@ -66,7 +66,7 @@ def _simple_standard_only_profile() -> HandProfile:
         description="Simple standard-only test profile",
         dealer="N",
         hand_dealing_order=["N", "E", "S", "W"],
-        tag="Opener",          # must be 'Opener' or 'Overcaller'
+        tag="Opener",  # must be 'Opener' or 'Overcaller'
         author="Test",
         version="0.1",
         seat_profiles=seat_profiles,
@@ -136,7 +136,7 @@ def _random_suit_w_partner_contingent_e_profile() -> HandProfile:
         description="Random Suit for W, Partner Contingent for E",
         dealer="W",
         hand_dealing_order=["W", "N", "S", "E"],
-        tag="Overcaller",      # must be 'Opener' or 'Overcaller'
+        tag="Overcaller",  # must be 'Opener' or 'Overcaller'
         author="Test",
         version="0.1",
         seat_profiles=seat_profiles,
@@ -215,7 +215,7 @@ def test_random_suit_w_has_long_suit(tmp_path) -> None:
 
     for deal in deal_set.deals:
         # Original dealer is W. After rotation, dealer becomes E.
-        rotated = (deal.dealer == "E")
+        rotated = deal.dealer == "E"
 
         if rotated:
             # West's original hand ended up at East after rotation.
@@ -225,7 +225,4 @@ def test_random_suit_w_has_long_suit(tmp_path) -> None:
 
         suits = _suits_of(west_original_hand)
         long_suits = [s for s in ("S", "H") if len(suits[s]) >= 5]
-        assert long_suits, (
-            f"Original West hand has no long S/H suit in deal {deal.board_number}"
-        )
-        
+        assert long_suits, f"Original West hand has no long S/H suit in deal {deal.board_number}"

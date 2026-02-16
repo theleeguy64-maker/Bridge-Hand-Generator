@@ -258,4 +258,3 @@ def test_hardest_seat_none_for_invariants_safety_profile() -> None:
         cfg=cfg,
     )
     assert seat is None
-   

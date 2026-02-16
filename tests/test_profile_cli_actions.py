@@ -14,9 +14,9 @@ def _make_dummy_profile(name: str = "Dummy") -> HandProfile:
         description="Test profile",
         dealer="N",
         hand_dealing_order=["N", "E", "S", "W"],
-        tag="Opener",          # must be "Opener" or "Overcaller"
-        seat_profiles={},      # we don't care for CLI tests
-        author="Test",         # optional, but nice to keep realistic
+        tag="Opener",  # must be "Opener" or "Overcaller"
+        seat_profiles={},  # we don't care for CLI tests
+        author="Test",  # optional, but nice to keep realistic
         version="0.1",
     )
 

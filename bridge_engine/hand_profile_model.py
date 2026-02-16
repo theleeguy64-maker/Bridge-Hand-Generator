@@ -7,17 +7,21 @@ from typing import Any, Dict, List, Optional, Set
 # Type alias used in annotations throughout this file.
 Seat = str
 
+
 class ProfileError(Exception):
     """Raised when a hand profile or its constraints are invalid."""
+
 
 # ---------------------------------------------------------------------------
 # Low-level constraint building blocks
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class SubprofileExclusionClause:
     """A single clause in a subprofile exclusion rule."""
-    group: str      # "ANY", "MAJOR", "MINOR"
+
+    group: str  # "ANY", "MAJOR", "MINOR"
     length_eq: int
     count: int
 
@@ -32,10 +36,11 @@ class SubprofileExclusionClause:
             count=int(data["count"]),
         )
 
+
 @dataclass
 class SubprofileExclusionData:
-    seat: str                          # "N", "E", "S", "W"
-    subprofile_index: int              # 1-based
+    seat: str  # "N", "E", "S", "W"
+    subprofile_index: int  # 1-based
     excluded_shapes: Optional[List[str]] = None
     clauses: Optional[List[SubprofileExclusionClause]] = None
 
@@ -53,10 +58,7 @@ class SubprofileExclusionData:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SubprofileExclusionData":
         clauses_raw = data.get("clauses")
-        clauses = (
-            [SubprofileExclusionClause.from_dict(c) for c in clauses_raw]
-            if clauses_raw is not None else None
-        )
+        clauses = [SubprofileExclusionClause.from_dict(c) for c in clauses_raw] if clauses_raw is not None else None
         return cls(
             seat=str(data["seat"]),
             subprofile_index=int(data["subprofile_index"]),
@@ -73,20 +75,13 @@ class SubprofileExclusionData:
             raise ProfileError(f"Seat {self.seat} not present in profile")
 
         if not (1 <= self.subprofile_index <= len(seat_profile.subprofiles)):
-            raise ProfileError(
-                f"Invalid subprofile index {self.subprofile_index} "
-                f"for seat {self.seat}"
-            )
+            raise ProfileError(f"Invalid subprofile index {self.subprofile_index} for seat {self.seat}")
 
         if self.excluded_shapes and self.clauses:
-            raise ProfileError(
-                "Exclusion may specify either excluded_shapes or clauses, not both"
-            )
+            raise ProfileError("Exclusion may specify either excluded_shapes or clauses, not both")
 
         if not self.excluded_shapes and not self.clauses:
-            raise ProfileError(
-                "Exclusion must specify excluded_shapes or clauses"
-            )
+            raise ProfileError("Exclusion must specify excluded_shapes or clauses")
 
         if self.excluded_shapes:
             seen: Set[str] = set()
@@ -113,9 +108,8 @@ class SubprofileExclusionData:
 
                 max_count = 4 if c.group == "ANY" else 2
                 if not (0 <= c.count <= max_count):
-                    raise ProfileError(
-                        f"Invalid count {c.count} for group {c.group}"
-                    )
+                    raise ProfileError(f"Invalid count {c.count} for group {c.group}")
+
 
 @dataclass(frozen=True)
 class SuitRange:
@@ -132,25 +126,13 @@ class SuitRange:
 
     def __post_init__(self) -> None:
         if not (0 <= self.min_cards <= 13 and 0 <= self.max_cards <= 13):
-            raise ProfileError(
-                f"SuitRange card bounds must be within 0–13, got "
-                f"{self.min_cards}–{self.max_cards}."
-            )
+            raise ProfileError(f"SuitRange card bounds must be within 0–13, got {self.min_cards}–{self.max_cards}.")
         if self.min_cards > self.max_cards:
-            raise ProfileError(
-                f"SuitRange min_cards cannot exceed max_cards "
-                f"({self.min_cards}>{self.max_cards})."
-            )
+            raise ProfileError(f"SuitRange min_cards cannot exceed max_cards ({self.min_cards}>{self.max_cards}).")
         if not (0 <= self.min_hcp <= 37 and 0 <= self.max_hcp <= 37):
-            raise ProfileError(
-                f"SuitRange HCP bounds must be within 0–37, got "
-                f"{self.min_hcp}–{self.max_hcp}."
-            )
+            raise ProfileError(f"SuitRange HCP bounds must be within 0–37, got {self.min_hcp}–{self.max_hcp}.")
         if self.min_hcp > self.max_hcp:
-            raise ProfileError(
-                f"SuitRange min_hcp cannot exceed max_hcp "
-                f"({self.min_hcp}>{self.max_hcp})."
-            )
+            raise ProfileError(f"SuitRange min_hcp cannot exceed max_hcp ({self.min_hcp}>{self.max_hcp}).")
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -193,13 +175,11 @@ class StandardSuitConstraints:
     def __post_init__(self) -> None:
         if not (0 <= self.total_min_hcp <= 37 and 0 <= self.total_max_hcp <= 37):
             raise ProfileError(
-                "total_min_hcp / total_max_hcp must be within 0–37 "
-                f"(got {self.total_min_hcp}–{self.total_max_hcp})."
+                f"total_min_hcp / total_max_hcp must be within 0–37 (got {self.total_min_hcp}–{self.total_max_hcp})."
             )
         if self.total_min_hcp > self.total_max_hcp:
             raise ProfileError(
-                "total_min_hcp cannot exceed total_max_hcp "
-                f"({self.total_min_hcp}>{self.total_max_hcp})."
+                f"total_min_hcp cannot exceed total_max_hcp ({self.total_min_hcp}>{self.total_max_hcp})."
             )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -222,7 +202,8 @@ class StandardSuitConstraints:
             total_min_hcp=int(data.get("total_min_hcp", 0)),
             total_max_hcp=int(data.get("total_max_hcp", 37)),
         )
-       
+
+
 # ---------------------------------------------------------------------------
 # Random Suit & Partner Contingent
 # ---------------------------------------------------------------------------
@@ -246,10 +227,7 @@ class SuitPairOverride:
 
     def __post_init__(self) -> None:
         if len(self.suits) != 2:
-            raise ProfileError(
-                f"SuitPairOverride.suits must contain exactly 2 suits, "
-                f"got {len(self.suits)}."
-            )
+            raise ProfileError(f"SuitPairOverride.suits must contain exactly 2 suits, got {len(self.suits)}.")
         for s in self.suits:
             if s not in ("S", "H", "D", "C"):
                 raise ProfileError(f"Invalid suit in pair override: {s}")
@@ -300,29 +278,21 @@ class RandomSuitConstraintData:
 
     def __post_init__(self) -> None:
         if self.required_suits_count <= 0:
-            raise ProfileError(
-                f"required_suits_count must be positive, got {self.required_suits_count}."
-            )
+            raise ProfileError(f"required_suits_count must be positive, got {self.required_suits_count}.")
         if not self.allowed_suits:
             raise ProfileError("allowed_suits must not be empty.")
         allowed_set = set(self.allowed_suits)
         if not allowed_set.issubset({"S", "H", "D", "C"}):
-            raise ProfileError(
-                f"allowed_suits must be subset of {{S,H,D,C}}, got {self.allowed_suits}."
-            )
+            raise ProfileError(f"allowed_suits must be subset of {{S,H,D,C}}, got {self.allowed_suits}.")
         if self.required_suits_count > len(allowed_set):
             raise ProfileError(
                 "required_suits_count cannot exceed number of distinct allowed_suits "
                 f"({self.required_suits_count}>{len(allowed_set)})."
             )
         if len(self.suit_ranges) < self.required_suits_count:
-            raise ProfileError(
-                "suit_ranges must contain at least required_suits_count entries."
-            )
+            raise ProfileError("suit_ranges must contain at least required_suits_count entries.")
         if self.required_suits_count != 2 and self.pair_overrides:
-            raise ProfileError(
-                "pair_overrides must be empty unless required_suits_count == 2."
-            )
+            raise ProfileError("pair_overrides must be empty unless required_suits_count == 2.")
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -338,10 +308,7 @@ class RandomSuitConstraintData:
             required_suits_count=int(data["required_suits_count"]),
             allowed_suits=list(data["allowed_suits"]),
             suit_ranges=[SuitRange.from_dict(d) for d in data["suit_ranges"]],
-            pair_overrides=[
-                SuitPairOverride.from_dict(d)
-                for d in data.get("pair_overrides", [])
-            ],
+            pair_overrides=[SuitPairOverride.from_dict(d) for d in data.get("pair_overrides", [])],
         )
 
 
@@ -381,6 +348,7 @@ class PartnerContingentData:
             suit_range=SuitRange.from_dict(data["suit_range"]),
         )
 
+
 @dataclass(frozen=True)
 class OpponentContingentSuitData:
     """
@@ -413,6 +381,7 @@ class OpponentContingentSuitData:
             opponent_seat=str(data["opponent_seat"]),
             suit_range=SuitRange.from_dict(data["suit_range"]),
         )
+
 
 # ---------------------------------------------------------------------------
 # SubProfile & SeatProfile
@@ -455,14 +424,10 @@ class SubProfile:
         return {
             "standard": self.standard.to_dict(),
             "random_suit_constraint": (
-                self.random_suit_constraint.to_dict()
-                if self.random_suit_constraint is not None
-                else None
+                self.random_suit_constraint.to_dict() if self.random_suit_constraint is not None else None
             ),
             "partner_contingent_constraint": (
-                self.partner_contingent_constraint.to_dict()
-                if self.partner_contingent_constraint is not None
-                else None
+                self.partner_contingent_constraint.to_dict() if self.partner_contingent_constraint is not None else None
             ),
             "opponents_contingent_suit_constraint": (
                 self.opponents_contingent_suit_constraint.to_dict()
@@ -504,25 +469,16 @@ class SubProfile:
 
         return cls(
             standard=StandardSuitConstraints.from_dict(data["standard"]),
-            random_suit_constraint=(
-                RandomSuitConstraintData.from_dict(rsc_data)
-                if rsc_data is not None
-                else None
-            ),
-            partner_contingent_constraint=(
-                PartnerContingentData.from_dict(pc_data)
-                if pc_data is not None
-                else None
-            ),
+            random_suit_constraint=(RandomSuitConstraintData.from_dict(rsc_data) if rsc_data is not None else None),
+            partner_contingent_constraint=(PartnerContingentData.from_dict(pc_data) if pc_data is not None else None),
             opponents_contingent_suit_constraint=(
-                OpponentContingentSuitData.from_dict(oc_data)
-                if oc_data is not None
-                else None
+                OpponentContingentSuitData.from_dict(oc_data) if oc_data is not None else None
             ),
             weight_percent=float(data.get("weight_percent", 0.0)),
             ns_role_usage=ns_role_usage,
         )
-        
+
+
 @dataclass(frozen=True)
 class SeatProfile:
     """
@@ -545,9 +501,7 @@ class SeatProfile:
         if self.seat not in ("N", "E", "S", "W"):
             raise ProfileError(f"Invalid seat in SeatProfile: {self.seat}")
         if not self.subprofiles:
-            raise ProfileError(
-                f"SeatProfile for seat {self.seat} must have at least one SubProfile."
-            )
+            raise ProfileError(f"SeatProfile for seat {self.seat} must have at least one SubProfile.")
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -585,7 +539,6 @@ def _default_dealing_order(dealer: str) -> List[str]:
 
 @dataclass
 class HandProfile:
-
     """
     Complete profile definition for Section B.
 
@@ -609,14 +562,14 @@ class HandProfile:
         Free text author (optional, default empty).
     version
         Free text version string (e.g. "0.2", optional, default empty).
-   
+
     Full hand profile for one scenario.
 
     NOTE: ns_role_mode is a Phase-3 field controlling who “drives” the
     N-S partnership. For now it is metadata-only; generator logic still
     behaves as in Phase 2 when this is left at the default.
     """
-    
+
     profile_name: str
     description: str
     dealer: str
@@ -652,9 +605,7 @@ class HandProfile:
         if len(self.hand_dealing_order) != 4:
             raise ProfileError("hand_dealing_order must contain exactly 4 seats.")
         if set(self.hand_dealing_order) != {"N", "E", "S", "W"}:
-            raise ProfileError(
-                "hand_dealing_order must be a permutation of N,E,S,W."
-            )
+            raise ProfileError("hand_dealing_order must be a permutation of N,E,S,W.")
         # NOTE: dealer-first in hand_dealing_order is no longer enforced.
         # Dealing order is auto-computed at runtime by the v2 builder
         # (_compute_dealing_order in deal_generator_v2.py).  The stored
@@ -679,9 +630,7 @@ class HandProfile:
 
         # Subprofile exclusions (optional for legacy profiles).
         exclusions_raw = data.get("subprofile_exclusions", [])
-        exclusions: List[SubprofileExclusionData] = [
-            SubprofileExclusionData.from_dict(e) for e in exclusions_raw
-        ]
+        exclusions: List[SubprofileExclusionData] = [SubprofileExclusionData.from_dict(e) for e in exclusions_raw]
 
         # Use provided dealing order, or generate default (dealer + clockwise).
         dealer = str(data["dealer"])
@@ -700,24 +649,15 @@ class HandProfile:
             author=str(data.get("author", "")),
             version=str(data.get("version", "")),
             # Legacy profiles may omit this – default to True.
-            rotate_deals_by_default=bool(
-                data.get("rotate_deals_by_default", True)
-            ),
+            rotate_deals_by_default=bool(data.get("rotate_deals_by_default", True)),
             # Missing ns_role_mode in raw dict ⇒ treat as "no driver, no index".
             # validate_profile is responsible for rejecting unsupported values
             # when loading from arbitrary JSON.
-            ns_role_mode=str(
-                data.get("ns_role_mode", "no_driver_no_index")
-                or "no_driver_no_index"
-            ),
+            ns_role_mode=str(data.get("ns_role_mode", "no_driver_no_index") or "no_driver_no_index"),
             subprofile_exclusions=exclusions,
             # P1.1 refactor: explicit flags (default False for production profiles)
-            is_invariants_safety_profile=bool(
-                data.get("is_invariants_safety_profile", False)
-            ),
-            use_rs_w_only_path=bool(
-                data.get("use_rs_w_only_path", False)
-            ),
+            is_invariants_safety_profile=bool(data.get("is_invariants_safety_profile", False)),
+            use_rs_w_only_path=bool(data.get("use_rs_w_only_path", False)),
             # Optional display ordering (None = sequential position)
             sort_order=data.get("sort_order", None),
         )
@@ -815,8 +755,8 @@ class HandProfile:
             if seat not in buckets:
                 buckets[seat] = {"driver": [], "follower": [], "neutral": []}
 
-        return buckets    
-        
+        return buckets
+
     # ------------------------------------------------------------------
     # Persistence helpers (JSON-friendly dicts)
     # ------------------------------------------------------------------
@@ -832,9 +772,7 @@ class HandProfile:
             "version": self.version,
             "rotate_deals_by_default": self.rotate_deals_by_default,
             "ns_role_mode": self.ns_role_mode,
-            "seat_profiles": {
-                seat: sp.to_dict() for seat, sp in self.seat_profiles.items()
-            },
+            "seat_profiles": {seat: sp.to_dict() for seat, sp in self.seat_profiles.items()},
             "subprofile_exclusions": [e.to_dict() for e in self.subprofile_exclusions],
             "is_invariants_safety_profile": self.is_invariants_safety_profile,
             "use_rs_w_only_path": self.use_rs_w_only_path,

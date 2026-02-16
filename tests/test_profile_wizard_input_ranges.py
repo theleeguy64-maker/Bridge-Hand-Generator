@@ -110,8 +110,8 @@ def test_build_suit_range_for_prompt_uses_0_6_cards_and_0_10_hcp(monkeypatch) ->
     # Unpack calls in order for clarity
     (p_min_cards, d_min_cards, min_cards_min, min_cards_max, s_min_cards) = calls[0]
     (p_max_cards, d_max_cards, max_cards_min, max_cards_max, s_max_cards) = calls[1]
-    (p_min_hcp,   d_min_hcp,   min_hcp_min,   min_hcp_max,   s_min_hcp)   = calls[2]
-    (p_max_hcp,   d_max_hcp,   max_hcp_min,   max_hcp_max,   s_max_hcp)   = calls[3]
+    (p_min_hcp, d_min_hcp, min_hcp_min, min_hcp_max, s_min_hcp) = calls[2]
+    (p_max_hcp, d_max_hcp, max_hcp_min, max_hcp_max, s_max_hcp) = calls[3]
 
     # Defaults
     assert d_min_cards == 0
@@ -122,8 +122,8 @@ def test_build_suit_range_for_prompt_uses_0_6_cards_and_0_10_hcp(monkeypatch) ->
     # Ranges
     assert (min_cards_min, min_cards_max) == (0, 13)
     assert (max_cards_min, max_cards_max) == (0, 13)
-    assert (min_hcp_min,   min_hcp_max)   == (0, 10)
-    assert (max_hcp_min,   max_hcp_max)   == (0, 10)
+    assert (min_hcp_min, min_hcp_max) == (0, 10)
+    assert (max_hcp_min, max_hcp_max) == (0, 10)
 
     # Prompts
     assert "Min cards (0–13)" in p_min_cards
@@ -168,6 +168,7 @@ def test_build_standard_constraints_hides_range_suffix_for_totals(monkeypatch) -
     sc = profile_wizard._build_standard_constraints(existing=None)
     # sanity check: we got a StandardSuitConstraints back
     from bridge_engine.hand_profile import StandardSuitConstraints as SSC
+
     assert isinstance(sc, SSC)
 
     # The first two calls should be total_min_hcp and total_max_hcp

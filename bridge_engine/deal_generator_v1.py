@@ -16,16 +16,26 @@ import random
 from typing import Any, Callable, Dict, List, Optional
 
 from .deal_generator_types import (
-    Seat, Card, SeatFailCounts, SeatSeenCounts,
-    Deal, DealGenerationError,
-    HardestSeatConfig, _HARDEST_SEAT_CONFIG,
+    Seat,
+    Card,
+    SeatFailCounts,
+    SeatSeenCounts,
+    Deal,
+    DealGenerationError,
+    HardestSeatConfig,
+    _HARDEST_SEAT_CONFIG,
     MAX_BOARD_ATTEMPTS,
-    CONSTRUCTIVE_MAX_SUM_MIN_CARDS, MIN_ATTEMPTS_FOR_UNVIABLE_CHECK,
+    CONSTRUCTIVE_MAX_SUM_MIN_CARDS,
+    MIN_ATTEMPTS_FOR_UNVIABLE_CHECK,
 )
 from .deal_generator_helpers import (
-    _build_deck, _choose_index_for_seat, _vulnerability_for_board,
-    _get_constructive_mode, _summarize_profile_viability,
-    _is_unviable_bucket, _compute_viability_summary,
+    _build_deck,
+    _choose_index_for_seat,
+    _vulnerability_for_board,
+    _get_constructive_mode,
+    _summarize_profile_viability,
+    _is_unviable_bucket,
+    _compute_viability_summary,
 )
 from .hand_profile import HandProfile
 
@@ -126,8 +136,7 @@ def _choose_hardest_seat_for_board(
     candidates: List[Seat] = [
         seat
         for seat, fails in seat_fail_counts.items()
-        if fails >= cfg.min_fail_count_for_help
-        and seat_seen_counts.get(seat, 0) > 0
+        if fails >= cfg.min_fail_count_for_help and seat_seen_counts.get(seat, 0) > 0
     ]
     if not candidates:
         return None
@@ -206,9 +215,7 @@ def _extract_standard_suit_minima(
             if isinstance(suit_key, str):
                 suit = suit_key
             if not suit:
-                suit = getattr(entry, "suit", None) or getattr(
-                    entry, "suit_name", None
-                )
+                suit = getattr(entry, "suit", None) or getattr(entry, "suit_name", None)
             if isinstance(suit, str):
                 s = suit[0].upper()
                 if s in ("S", "H", "D", "C"):
@@ -408,8 +415,7 @@ def _build_single_board_random_suit_w_only(
             )
 
     raise DealGenerationError(
-        "Failed to construct Random-Suit-W-only board for "
-        f"board {board_number} after {MAX_BOARD_ATTEMPTS} attempts."
+        f"Failed to construct Random-Suit-W-only board for board {board_number} after {MAX_BOARD_ATTEMPTS} attempts."
     )
 
 
@@ -423,9 +429,7 @@ def _build_single_constrained_deal(
     profile: HandProfile,
     board_number: int,
     *,
-    debug_board_stats: Optional[
-        Callable[[SeatFailCounts, SeatSeenCounts], None]
-    ] = None,
+    debug_board_stats: Optional[Callable[[SeatFailCounts, SeatSeenCounts], None]] = None,
 ) -> "Deal":
     """
     Build a single constrained deal (Stage C1).
@@ -517,9 +521,7 @@ def _build_single_constrained_deal(
                 cfg=_HARDEST_SEAT_CONFIG,
             )
         # Choose subprofiles for this board (index-coupled where applicable).
-        chosen_subprofiles, chosen_indices = _dg._select_subprofiles_for_board(
-            rng, profile, dealing_order
-        )
+        chosen_subprofiles, chosen_indices = _dg._select_subprofiles_for_board(rng, profile, dealing_order)
 
         # Keep a snapshot of indices from this attempt for debug reporting.
         last_chosen_indices = dict(chosen_indices)
@@ -546,10 +548,7 @@ def _build_single_constrained_deal(
         # P1.3: Early termination if any seat is unviable and we have enough data.
         # This prevents grinding to 10,000 attempts on hopeless profiles.
         if board_attempts >= MIN_ATTEMPTS_FOR_UNVIABLE_CHECK:
-            unviable_seats = [
-                seat for seat, bucket in viability_summary.items()
-                if _is_unviable_bucket(bucket)
-            ]
+            unviable_seats = [seat for seat, bucket in viability_summary.items() if _is_unviable_bucket(bucket)]
             if unviable_seats:
                 raise DealGenerationError(
                     f"Profile declared unviable for board {board_number} after "
@@ -637,10 +636,7 @@ def _build_single_constrained_deal(
                 continue
 
             chosen_sub = chosen_subprofiles.get(seat)
-            if (
-                chosen_sub is not None
-                and getattr(chosen_sub, "random_suit_constraint", None) is not None
-            ):
+            if chosen_sub is not None and getattr(chosen_sub, "random_suit_constraint", None) is not None:
                 rs_seats.append(seat)
             else:
                 other_seats.append(seat)
@@ -735,8 +731,8 @@ def _build_single_constrained_deal(
                         dict(seat_fail_as_seat),
                         dict(seat_fail_global_other),
                         dict(seat_fail_global_unchecked),
-                        dict(seat_fail_hcp),       # NEW
-                        dict(seat_fail_shape),     # NEW
+                        dict(seat_fail_hcp),  # NEW
+                        dict(seat_fail_shape),  # NEW
                     )
                 except Exception:
                     pass
@@ -782,6 +778,5 @@ def _build_single_constrained_deal(
             pass
 
     raise DealGenerationError(
-        f"Failed to construct constrained deal for board {board_number} "
-        f"after {_dg.MAX_BOARD_ATTEMPTS} attempts."
+        f"Failed to construct constrained deal for board {board_number} after {_dg.MAX_BOARD_ATTEMPTS} attempts."
     )
