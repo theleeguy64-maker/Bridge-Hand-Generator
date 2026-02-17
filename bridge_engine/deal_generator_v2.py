@@ -223,6 +223,27 @@ def _pre_select_rs_suits(
     return rs_pre
 
 
+def _compute_rs_allowed_suits(
+    chosen_subprofiles: Dict[Seat, "SubProfile"],
+) -> Dict[Seat, List[str]]:
+    """
+    For each RS seat, extract the allowed_suits list from its RS constraint.
+
+    Used by OC non-chosen-suit matching to compute which suits the opponent
+    did NOT choose: non_chosen = allowed_suits - chosen_suits.
+
+    Returns:
+        Dict mapping seat -> allowed suit letters (e.g. {"W": ["S", "H"]}).
+        Empty dict if no seats have RS constraints.
+    """
+    result: Dict[Seat, List[str]] = {}
+    for seat, sub in chosen_subprofiles.items():
+        rs = getattr(sub, "random_suit_constraint", None)
+        if rs is not None and rs.allowed_suits:
+            result[seat] = list(rs.allowed_suits)
+    return result
+
+
 def _random_deal(
     rng: random.Random,
     deck: List[Card],
@@ -936,6 +957,9 @@ def _build_single_constrained_deal_v2(
     #   (b) pre-allocate cards for the RS suit(s),
     #   (c) use the pre-committed suits during matching.
     rs_pre_selections = _pre_select_rs_suits(rng, chosen_subprofiles)
+    # Track each RS seat's allowed_suits so OC non-chosen-suit matching
+    # can compute which suits the opponent did NOT choose.
+    rs_allowed_suits = _compute_rs_allowed_suits(chosen_subprofiles)
 
     # Identify tight seats that need shape help (RS-aware).
     tight_seats = _dispersion_check(chosen_subprofiles, rs_pre_selections=rs_pre_selections)
@@ -981,6 +1005,7 @@ def _build_single_constrained_deal_v2(
             # Recompute dealing order for new subprofile combination.
             dealing_order = _compute_dealing_order(chosen_subprofiles, profile.dealer)
             rs_pre_selections = _pre_select_rs_suits(rng, chosen_subprofiles)
+            rs_allowed_suits = _compute_rs_allowed_suits(chosen_subprofiles)
             tight_seats = _dispersion_check(chosen_subprofiles, rs_pre_selections=rs_pre_selections)
             # Rebuild processing order since RS seats may have changed.
             processing_order = _build_processing_order(profile, dealing_order, chosen_subprofiles)
@@ -989,6 +1014,7 @@ def _build_single_constrained_deal_v2(
         # combinations within the same subprofile selection.
         elif board_attempts > 1 and RS_REROLL_INTERVAL > 0 and (board_attempts - 1) % RS_REROLL_INTERVAL == 0:
             rs_pre_selections = _pre_select_rs_suits(rng, chosen_subprofiles)
+            # rs_allowed_suits unchanged — same subprofiles, same allowed_suits.
             tight_seats = _dispersion_check(chosen_subprofiles, rs_pre_selections=rs_pre_selections)
 
         # Build and shuffle a full deck.
@@ -1103,6 +1129,7 @@ def _build_single_constrained_deal_v2(
                 random_suit_choices=random_suit_choices,
                 rng=rng,
                 rs_pre_selections=rs_pre_selections,
+                rs_allowed_suits=rs_allowed_suits,
             )
 
             if matched and chosen_rs is not None:

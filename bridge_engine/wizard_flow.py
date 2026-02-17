@@ -676,9 +676,19 @@ def _build_opponent_contingent_constraint(
         existing.suit_range if existing is not None else None,
     )
 
+    # Non-chosen suit mode: target the suit the opponent did NOT choose
+    # instead of the suit they chose.  E.g., if opponent RS picks H from
+    # [S, H], this seat's OC constraint applies to S (the inverse).
+    default_non_chosen = existing.use_non_chosen_suit if existing is not None else False
+    use_non_chosen = _yes_no(
+        "Target opponent's NON-CHOSEN suit (inverse)? ",
+        default=default_non_chosen,
+    )
+
     return OpponentContingentSuitData(
         opponent_seat=opponent_seat,
         suit_range=suit_range,
+        use_non_chosen_suit=use_non_chosen,
     )
 
 

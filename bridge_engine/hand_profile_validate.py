@@ -400,6 +400,26 @@ def _validate_opponent_contingent(profile: HandProfile) -> None:
                         f"Opponent seat {opp} must be dealt before {seat} for opponents-contingent constraints."
                     )
 
+            # When use_non_chosen_suit is True, the opponent must have an
+            # RS constraint with more allowed_suits than required_suits_count,
+            # otherwise the "non-chosen" set is always empty.
+            if constraint.use_non_chosen_suit:
+                opp_seat_key = opp_seats[0] if opp_seats else None
+                if opp_seat_key and opp_seat_key in profile.seat_profiles:
+                    opp_sp = profile.seat_profiles[opp_seat_key]
+                    has_surplus_rs = False
+                    for opp_sub in opp_sp.subprofiles:
+                        rs = opp_sub.random_suit_constraint
+                        if rs is not None and len(rs.allowed_suits) > rs.required_suits_count:
+                            has_surplus_rs = True
+                            break
+                    if not has_surplus_rs:
+                        raise ProfileError(
+                            f"Seat {seat!r} uses non-chosen-suit OC, but opponent "
+                            f"{opp_seat_key!r} has no RS constraint with surplus "
+                            f"allowed suits (allowed > required)."
+                        )
+
 
 def validate_profile(data: Any) -> HandProfile:
     """

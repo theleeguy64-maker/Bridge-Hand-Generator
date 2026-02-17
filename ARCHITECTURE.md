@@ -6,18 +6,18 @@
 bridge_engine/
 ├── deal_generator.py        (384 lines) - Facade: subprofile selection + generate_deals() + re-exports
 ├── deal_generator_v1.py     (782 lines) - v1 builder + hardest-seat + constructive help (legacy)
-├── deal_generator_v2.py   (1,202 lines) - v2 shape-help helpers + v2 builder (active path)
+├── deal_generator_v2.py   (1,229 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py  (285 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (462 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
-├── hand_profile_model.py    (766 lines) - Data models
-├── seat_viability.py        (565 lines) - Constraint matching + RS pre-selection threading
-├── hand_profile_validate.py (492 lines) - Validation
+├── hand_profile_model.py    (775 lines) - Data models
+├── seat_viability.py        (589 lines) - Constraint matching + RS pre-selection threading
+├── hand_profile_validate.py (512 lines) - Validation
 ├── profile_diagnostic.py     (212 lines) - Generic profile diagnostic runner (Admin menu)
 ├── orchestrator.py          (485 lines) - CLI/session management + generic menu loop
 ├── profile_cli.py           (867 lines) - Profile commands
 ├── profile_wizard.py        (158 lines) - Profile creation UI
 ├── profile_convert.py        (40 lines) - Profile format conversion
-├── wizard_flow.py         (1,330 lines) - Wizard steps, seat editing, RS/PC/OC prompts
+├── wizard_flow.py         (1,340 lines) - Wizard steps, seat editing, RS/PC/OC prompts
 ├── wizard_io.py             (131 lines) - Wizard I/O helpers
 ├── profile_viability.py     (371 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py         (302 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
@@ -51,6 +51,7 @@ HandProfile (frozen dataclass)
 │               │   └── pair_overrides: Dict
 │               ├── partner_contingent_constraint: Optional[PartnerContingentData]
 │               ├── opponents_contingent_suit_constraint: Optional[OpponentContingentSuitData]
+│               │   └── use_non_chosen_suit: bool  (target inverse of opponent's RS choice)
 │               ├── weight_percent: float
 │               └── ns_role_usage: str ("any", "driver_only", "follower_only")
 ├── hand_dealing_order: List[Seat]
@@ -513,7 +514,7 @@ _build_single_board_random_suit_w_only(rng, profile, board_number) -> Deal
 # at call time for monkeypatch compatibility.
 ```
 
-### deal_generator_v2.py (v2 shape-help — 1,202 lines)
+### deal_generator_v2.py (v2 shape-help — 1,229 lines)
 ```python
 # v2 shape help helpers
 _dispersion_check(chosen_subs, threshold, rs_pre_selections) -> set[Seat]
@@ -564,7 +565,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**425 passed** organized by:
+**444 passed** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`
@@ -578,6 +579,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 - **Defense to Weak 2s**: `test_defense_weak2s_diagnostic.py` (2 tests — diagnostic + pipeline)
 - **Cross-seat feasibility**: `test_cross_seat_feasibility.py` (39 tests — accessors, core, dead sub detection, runtime retry, integration)
 - **v2 comparison**: `test_v2_comparison.py` (6 gated — `RUN_V2_BENCHMARKS=1`)
+- **OC non-chosen suit**: `test_oc_non_chosen_suit.py` (19 tests — data model, helper, matching, regression, graceful fail, validation, integration)
 
 - **Profile mgmt actions**: `test_profile_mgmt_actions.py` (9 tests — edit/delete/save-as/draft-tools)
 - **Menu dispatch**: `test_profile_mgmt_menus.py` (4 tests — profile manager + admin menu loops)

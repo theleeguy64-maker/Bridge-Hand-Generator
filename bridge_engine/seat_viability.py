@@ -219,6 +219,7 @@ def _match_subprofile(
     random_suit_choices: Dict[Seat, List[str]],
     rng: random.Random,
     pre_selected_suits: Optional[List[str]] = None,
+    rs_allowed_suits: Optional[Dict[Seat, List[str]]] = None,
 ) -> Tuple[bool, Optional[List[str]], Optional[str]]:
     """
     Attempt to match a single SubProfile to this 13-card hand.
@@ -226,6 +227,9 @@ def _match_subprofile(
     When pre_selected_suits is provided (from RS pre-selection in the v2
     builder), those suits are passed to the RS matcher so it uses the
     pre-committed suits instead of randomly choosing.
+
+    When rs_allowed_suits is provided, OC non-chosen-suit matching can
+    compute which suits the opponent did NOT choose (allowed - chosen).
 
     Returns:
       (matched, chosen_random_suits_for_this_seat_or_None, fail_reason)
@@ -292,8 +296,23 @@ def _match_subprofile(
             # OC failure is "other" (not standard HCP/shape)
             return False, None, "other"
 
-        # Opponent's Contingent Suit = first chosen suit
-        if _check_suit_range(analysis, opp_suits[0], oc.suit_range):
+        if oc.use_non_chosen_suit:
+            # Non-chosen mode: target the suit(s) the opponent did NOT pick.
+            # Requires the opponent's allowed_suits to compute the inverse.
+            allowed = (rs_allowed_suits or {}).get(opponent)
+            if not allowed:
+                # Cannot determine non-chosen suits without allowed_suits info.
+                return False, None, "other"
+            non_chosen = [s for s in allowed if s not in opp_suits]
+            if not non_chosen:
+                # All allowed suits were chosen — no inverse possible.
+                return False, None, "other"
+            target_suit = non_chosen[0]
+        else:
+            # Standard OC: target the first chosen suit.
+            target_suit = opp_suits[0]
+
+        if _check_suit_range(analysis, target_suit, oc.suit_range):
             return True, None, None
         # OC constraint failed - "other" (not standard HCP/shape)
         return False, None, "other"
@@ -380,6 +399,7 @@ def _match_seat(
     random_suit_choices: Dict[Seat, List[str]],
     rng: random.Random,
     rs_pre_selections: Optional[Dict[Seat, List[str]]] = None,
+    rs_allowed_suits: Optional[Dict[Seat, List[str]]] = None,
 ) -> Tuple[bool, Optional[List[str]], Optional[str]]:
     """
     Match a 13-card hand against the chosen SubProfile for a given seat.
@@ -393,6 +413,9 @@ def _match_seat(
     When rs_pre_selections is provided (from RS pre-selection in the v2
     builder), this seat's pre-selected RS suits are threaded down to the
     RS matcher so it uses the pre-committed suits instead of random sampling.
+
+    When rs_allowed_suits is provided, OC non-chosen-suit matching can
+    compute which suits the opponent did NOT choose (allowed - chosen).
 
     Returns:
       (matched, chosen_random_suits_for_this_seat_or_None, fail_reason)
@@ -433,6 +456,7 @@ def _match_seat(
             random_suit_choices=random_suit_choices,
             rng=rng,
             pre_selected_suits=seat_pre,
+            rs_allowed_suits=rs_allowed_suits,
         )
         if chosen:
             last_chosen = chosen

@@ -384,12 +384,22 @@
 | Defense Weak 2s | 0.298 | 14.9 | 2.8 | 77.1 | 77.1 |
 | **TOTAL** | **0.348** | | | | |
 
+### 45. [x] OC Non-Chosen Suit Support
+- ✅ Added `use_non_chosen_suit: bool = False` to `OpponentContingentSuitData` (model + serialization + backward compat)
+- ✅ `_compute_rs_allowed_suits()` helper extracts allowed_suits per RS seat
+- ✅ `rs_allowed_suits` threaded through `_match_seat` → `_match_subprofile` (optional param, zero overhead when unused)
+- ✅ OC matching branch extended: when flag is True, computes `non_chosen = allowed - chosen` and targets inverse suit
+- ✅ Wizard prompt: "Target opponent's NON-CHOSEN suit (inverse)?"
+- ✅ Validation: rejects profiles where opponent RS has no surplus allowed suits
+- ✅ 19 tests in `test_oc_non_chosen_suit.py` (data model, helper, matching, regression, graceful fail, validation, integration)
+- **Use case**: West RS picks 1 from [S, H]; North OC non-chosen gets the other suit (5-6 cards, 2-7 HCP)
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 25 (25 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 26 (26 done) | **All complete**
 
-**Tests**: 425 passed | **mypy**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
+**Tests**: 444 passed | **mypy**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 

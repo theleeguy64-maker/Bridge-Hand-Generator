@@ -360,10 +360,17 @@ class OpponentContingentSuitData:
         SuitRange to be satisfied in that opponent's Contingent Suit
         (the single canonical suit derived from their Random Suit
         constraint).
+    use_non_chosen_suit:
+        When True, target the suit the opponent did NOT choose instead
+        of the suit they chose. E.g., if opponent RS picks H from [S, H],
+        OC targets S (the non-chosen suit).
     """
 
     opponent_seat: str  # 'N', 'E', 'S', or 'W'
     suit_range: SuitRange
+    # When True, target the suit the opponent did NOT choose (the inverse).
+    # E.g., if opponent RS picks H from [S, H], OC targets S instead of H.
+    use_non_chosen_suit: bool = False
 
     def __post_init__(self) -> None:
         if self.opponent_seat not in ("N", "E", "S", "W"):
@@ -373,6 +380,7 @@ class OpponentContingentSuitData:
         return {
             "opponent_seat": self.opponent_seat,
             "suit_range": self.suit_range.to_dict(),
+            "use_non_chosen_suit": self.use_non_chosen_suit,
         }
 
     @classmethod
@@ -380,6 +388,7 @@ class OpponentContingentSuitData:
         return cls(
             opponent_seat=str(data["opponent_seat"]),
             suit_range=SuitRange.from_dict(data["suit_range"]),
+            use_non_chosen_suit=bool(data.get("use_non_chosen_suit", False)),
         )
 
 
