@@ -639,9 +639,17 @@ def _build_partner_contingent_constraint(
 
     suit_range = _prompt_suit_range("Partner suit", existing_suit_range)
 
+    # Ask whether to target the non-chosen suit (inverse).
+    default_non_chosen = existing.use_non_chosen_suit if existing is not None else False
+    use_non_chosen = _yes_no(
+        "Target partner's NON-CHOSEN suit (inverse)? ",
+        default=default_non_chosen,
+    )
+
     return PartnerContingentData(
         partner_seat=partner_seat,
         suit_range=suit_range,
+        use_non_chosen_suit=use_non_chosen,
     )
 
 
@@ -777,8 +785,8 @@ def _build_subprofile(
     print("\nExtra constraint for this sub-profile:")
     print("  1) None (Standard-only)")
     print("  2) Random Suit constraint")
-    print("  3) Partner Contingent constraint")
-    print("  4) Opponent Contingent-Suit constraint")
+    print("  3) Partner Contingent constraint (chosen or inverse)")
+    print("  4) Opponent Contingent-Suit constraint (chosen or inverse)")
 
     # Default: 2 if existing had a random-suit, 3 for partner-contingent,
     # 4 for opp-contingent, otherwise 1.

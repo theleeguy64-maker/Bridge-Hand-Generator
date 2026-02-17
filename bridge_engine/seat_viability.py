@@ -198,18 +198,36 @@ def _match_partner_contingent(
     analysis: SuitAnalysis,
     pc: PartnerContingentData,
     partner_suits: List[str],
+    rs_allowed_suits: Optional[Dict[Seat, List[str]]] = None,
 ) -> bool:
     """
     Apply Partner Contingent-Suit constraint.
 
     Rule:
       • Partner has Random Suit constraint and has chosen N suits.
-      • The partner's Contingent Suit is defined as the first chosen suit.
-      • This hand must satisfy suit_range in that single suit.
+      • If use_non_chosen_suit is False (default):
+          The partner's Contingent Suit is defined as the first chosen suit.
+          This hand must satisfy suit_range in that single suit.
+      • If use_non_chosen_suit is True:
+          Compute non_chosen = allowed_suits - partner_suits and target
+          non_chosen[0]. Requires exactly 1 non-chosen suit.
     """
     if not partner_suits:
         return False
-    return _check_suit_range(analysis, partner_suits[0], pc.suit_range)
+
+    if pc.use_non_chosen_suit:
+        # Inverse: target the suit partner did NOT choose
+        allowed = (rs_allowed_suits or {}).get(pc.partner_seat)
+        if not allowed:
+            return False
+        non_chosen = [s for s in allowed if s not in partner_suits]
+        if not non_chosen:
+            return False
+        target_suit = non_chosen[0]
+    else:
+        target_suit = partner_suits[0]
+
+    return _check_suit_range(analysis, target_suit, pc.suit_range)
 
 
 def _match_subprofile(
@@ -277,7 +295,7 @@ def _match_subprofile(
             # PC failure is "other" (not standard HCP/shape)
             return False, None, "other"
 
-        if _match_partner_contingent(analysis, pc, partner_suits):
+        if _match_partner_contingent(analysis, pc, partner_suits, rs_allowed_suits):
             return True, None, None
         # PC constraint failed - "other" (not standard HCP/shape)
         return False, None, "other"

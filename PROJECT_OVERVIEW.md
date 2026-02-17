@@ -90,7 +90,7 @@ Per-attempt tracking for diagnostics:
 - Constrained fill (#11): suit max + HCP max enforcement during dealing, PRE_ALLOCATE_FRACTION 0.75 — W shape failures eliminated, HCP failures -81%
 - Full RS pre-allocation (#14): RS_PRE_ALLOCATE_FRACTION=1.0 — RS suits fully populated at pre-allocation time with HCP targeting. "Defense to Weak 2s" 5-20x faster
 - Adaptive re-seeding (#12): per-board timing + auto re-seed on slow boards (1.75s threshold) — eliminates seed-dependent variance
-- 444 tests passing
+- 468 tests passing
 
 ### Remaining Work
 - **Benchmark suite** — establish baseline performance metrics across test profiles (A-E + production profiles) to track v2 optimization impact

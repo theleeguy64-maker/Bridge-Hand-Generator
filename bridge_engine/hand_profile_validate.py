@@ -358,6 +358,27 @@ def _validate_partner_contingent(profile: HandProfile) -> None:
                     f"Partner seat {partner_seat} must be dealt before {seat} for partner-contingent constraints."
                 )
 
+            # When use_non_chosen_suit is True, the partner must have an
+            # RS constraint with exactly 1 non-chosen suit
+            # (allowed_suits - required_suits_count == 1).
+            if constraint.use_non_chosen_suit:
+                if partner_seat in profile.seat_profiles:
+                    partner_sp = profile.seat_profiles[partner_seat]
+                    has_exactly_one_non_chosen = False
+                    for partner_sub in partner_sp.subprofiles:
+                        rs = partner_sub.random_suit_constraint
+                        if rs is not None:
+                            surplus = len(rs.allowed_suits) - rs.required_suits_count
+                            if surplus == 1:
+                                has_exactly_one_non_chosen = True
+                                break
+                    if not has_exactly_one_non_chosen:
+                        raise ProfileError(
+                            f"Seat {seat!r} uses non-chosen-suit PC, but partner "
+                            f"{partner_seat!r} does not have an RS constraint with "
+                            f"exactly 1 non-chosen suit (allowed - required must be 1)."
+                        )
+
 
 def _validate_opponent_contingent(profile: HandProfile) -> None:
     """
@@ -401,23 +422,26 @@ def _validate_opponent_contingent(profile: HandProfile) -> None:
                     )
 
             # When use_non_chosen_suit is True, the opponent must have an
-            # RS constraint with more allowed_suits than required_suits_count,
-            # otherwise the "non-chosen" set is always empty.
+            # RS constraint with exactly 1 non-chosen suit
+            # (allowed_suits - required_suits_count == 1).
+            # Multi-suit non-chosen is not yet supported.
             if constraint.use_non_chosen_suit:
                 opp_seat_key = opp_seats[0] if opp_seats else None
                 if opp_seat_key and opp_seat_key in profile.seat_profiles:
                     opp_sp = profile.seat_profiles[opp_seat_key]
-                    has_surplus_rs = False
+                    has_exactly_one_non_chosen = False
                     for opp_sub in opp_sp.subprofiles:
                         rs = opp_sub.random_suit_constraint
-                        if rs is not None and len(rs.allowed_suits) > rs.required_suits_count:
-                            has_surplus_rs = True
-                            break
-                    if not has_surplus_rs:
+                        if rs is not None:
+                            surplus = len(rs.allowed_suits) - rs.required_suits_count
+                            if surplus == 1:
+                                has_exactly_one_non_chosen = True
+                                break
+                    if not has_exactly_one_non_chosen:
                         raise ProfileError(
                             f"Seat {seat!r} uses non-chosen-suit OC, but opponent "
-                            f"{opp_seat_key!r} has no RS constraint with surplus "
-                            f"allowed suits (allowed > required)."
+                            f"{opp_seat_key!r} does not have an RS constraint with "
+                            f"exactly 1 non-chosen suit (allowed - required must be 1)."
                         )
 
 

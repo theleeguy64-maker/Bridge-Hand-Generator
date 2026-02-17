@@ -50,6 +50,7 @@ HandProfile (frozen dataclass)
 │               │   ├── per_suit_range: SuitRange
 │               │   └── pair_overrides: Dict
 │               ├── partner_contingent_constraint: Optional[PartnerContingentData]
+│               │   └── use_non_chosen_suit: bool  (target inverse of partner's RS choice)
 │               ├── opponents_contingent_suit_constraint: Optional[OpponentContingentSuitData]
 │               │   └── use_non_chosen_suit: bool  (target inverse of opponent's RS choice)
 │               ├── weight_percent: float
@@ -565,7 +566,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Test Coverage
 
-**444 passed** organized by:
+**468 passed** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`
@@ -579,7 +580,8 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 - **Defense to Weak 2s**: `test_defense_weak2s_diagnostic.py` (2 tests — diagnostic + pipeline)
 - **Cross-seat feasibility**: `test_cross_seat_feasibility.py` (39 tests — accessors, core, dead sub detection, runtime retry, integration)
 - **v2 comparison**: `test_v2_comparison.py` (6 gated — `RUN_V2_BENCHMARKS=1`)
-- **OC non-chosen suit**: `test_oc_non_chosen_suit.py` (19 tests — data model, helper, matching, regression, graceful fail, validation, integration)
+- **OC non-chosen suit**: `test_oc_non_chosen_suit.py` (25 tests — data model, helper, matching, regression, graceful fail, validation, integration, edge cases)
+- **PC non-chosen suit**: `test_pc_non_chosen_suit.py` (18 tests — data model, matching, regression, graceful fail, validation, integration)
 
 - **Profile mgmt actions**: `test_profile_mgmt_actions.py` (9 tests — edit/delete/save-as/draft-tools)
 - **Menu dispatch**: `test_profile_mgmt_menus.py` (4 tests — profile manager + admin menu loops)

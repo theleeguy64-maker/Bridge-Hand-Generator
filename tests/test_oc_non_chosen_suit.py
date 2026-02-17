@@ -484,6 +484,53 @@ class TestOcNonChosenValidation:
         with pytest.raises(ProfileError, match="non-chosen-suit OC"):
             validate_profile(profile.to_dict())
 
+    def test_validation_fails_multiple_non_chosen(self) -> None:
+        """Error when opponent RS has 2+ non-chosen suits (not yet supported)."""
+        from bridge_engine.hand_profile_model import (
+            HandProfile,
+            SeatProfile,
+            SubProfile,
+        )
+        from bridge_engine.hand_profile_validate import validate_profile
+        from bridge_engine.hand_profile_model import ProfileError
+
+        # W has RS: pick 1 from [S, H, D] — 2 non-chosen suits (not exactly 1)
+        w_sub = SubProfile(
+            standard=_make_standard(),
+            random_suit_constraint=RandomSuitConstraintData(
+                required_suits_count=1,
+                allowed_suits=["S", "H", "D"],
+                suit_ranges=[SuitRange(min_cards=6, max_cards=6)],
+                pair_overrides=[],
+            ),
+        )
+        n_sub = SubProfile(
+            standard=_make_standard(),
+            opponents_contingent_suit_constraint=OpponentContingentSuitData(
+                opponent_seat="W",
+                suit_range=SuitRange(min_cards=5, max_cards=6),
+                use_non_chosen_suit=True,
+            ),
+        )
+        e_sub = SubProfile(standard=_make_standard())
+        s_sub = SubProfile(standard=_make_standard())
+
+        profile = HandProfile(
+            profile_name="Test_OC_MultiNonChosen",
+            description="Test",
+            tag="Overcaller",
+            seat_profiles={
+                "N": SeatProfile(seat="N", subprofiles=[n_sub]),
+                "E": SeatProfile(seat="E", subprofiles=[e_sub]),
+                "S": SeatProfile(seat="S", subprofiles=[s_sub]),
+                "W": SeatProfile(seat="W", subprofiles=[w_sub]),
+            },
+            hand_dealing_order=["W", "N", "E", "S"],
+            dealer="N",
+        )
+        with pytest.raises(ProfileError, match="exactly 1 non-chosen suit"):
+            validate_profile(profile.to_dict())
+
 
 # ---------------------------------------------------------------------------
 # 8. Integration — full deal generation

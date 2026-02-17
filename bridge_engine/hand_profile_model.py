@@ -322,14 +322,22 @@ class PartnerContingentData:
       • suit_range:
           single SuitRange to be satisfied on at least one of the suits
           chosen by partner's Random Suit constraint.
+      • use_non_chosen_suit:
+          if True, target the suit partner did NOT choose (inverse).
+          Requires partner RS to have exactly 1 non-chosen suit
+          (allowed_suits - required_suits_count == 1).
 
     Semantics implemented in Section C:
       • Let partner_suits = suits chosen by partner's RandomSuitConstraintData.
-      • This hand must have at least one suit in partner_suits that satisfies suit_range.
+      • If use_non_chosen_suit is False (default):
+          This hand must have at least one suit in partner_suits that satisfies suit_range.
+      • If use_non_chosen_suit is True:
+          Compute non_chosen = allowed_suits - partner_suits; target non_chosen[0].
     """
 
     partner_seat: str  # 'N', 'E', 'S', or 'W'
     suit_range: SuitRange
+    use_non_chosen_suit: bool = False  # target inverse of partner's RS choice
 
     def __post_init__(self) -> None:
         if self.partner_seat not in ("N", "E", "S", "W"):
@@ -339,6 +347,7 @@ class PartnerContingentData:
         return {
             "partner_seat": self.partner_seat,
             "suit_range": self.suit_range.to_dict(),
+            "use_non_chosen_suit": self.use_non_chosen_suit,
         }
 
     @classmethod
@@ -346,6 +355,7 @@ class PartnerContingentData:
         return cls(
             partner_seat=str(data["partner_seat"]),
             suit_range=SuitRange.from_dict(data["suit_range"]),
+            use_non_chosen_suit=data.get("use_non_chosen_suit", False),
         )
 
 

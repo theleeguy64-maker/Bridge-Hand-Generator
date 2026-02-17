@@ -390,8 +390,8 @@
 - ✅ `rs_allowed_suits` threaded through `_match_seat` → `_match_subprofile` (optional param, zero overhead when unused)
 - ✅ OC matching branch extended: when flag is True, computes `non_chosen = allowed - chosen` and targets inverse suit
 - ✅ Wizard prompt: "Target opponent's NON-CHOSEN suit (inverse)?"
-- ✅ Validation: rejects profiles where opponent RS has no surplus allowed suits
-- ✅ 24 tests in `test_oc_non_chosen_suit.py` (data model, helper, matching, regression, graceful fail, validation, integration, edge cases)
+- ✅ Validation: rejects profiles where opponent RS doesn't have exactly 1 non-chosen suit (multi-suit non-chosen not yet supported)
+- ✅ 25 tests in `test_oc_non_chosen_suit.py` (data model, helper, matching, regression, graceful fail, validation incl. multi-non-chosen rejection, integration, edge cases)
 - **Use case**: West RS picks 1 from [S, H]; North OC non-chosen gets the other suit (5-6 cards, 2-7 HCP)
 
 ### 46. [x] Code Review #55 — 5 fixes across 4 files
@@ -401,12 +401,21 @@
 - ✅ **D1**: Simplified `_fmt_suits()` in `profile_cli.py` — removed redundant `isinstance` branch (both branches did `list(suits)`)
 - ✅ **D2**: Narrowed `except Exception` → `except (ImportError, OSError, TypeError, ValueError)` in `wizard_flow.py` `_autosave_profile_draft()`
 
+### 47. [x] PC Non-Chosen Suit Support (inverse PC)
+- ✅ Added `use_non_chosen_suit: bool = False` to `PartnerContingentData` (model + serialization + backward compat)
+- ✅ `_match_partner_contingent()` extended: computes `non_chosen = allowed - chosen` when flag is True
+- ✅ `rs_allowed_suits` passed through to PC matching call site
+- ✅ Wizard prompt: "Target partner's NON-CHOSEN suit (inverse)?" + menu label `(chosen or inverse)`
+- ✅ Validation: rejects profiles where partner RS doesn't have exactly 1 non-chosen suit
+- ✅ 18 tests in `test_pc_non_chosen_suit.py` (data model, matching, regression, graceful fail, validation, integration)
+- **Use case**: N RS picks 1 from [S, H]; S PC non-chosen gets the other suit (3-5 cards)
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 27 (27 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 28 (28 done) | **All complete**
 
-**Tests**: 449 passed | **mypy**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
+**Tests**: 468 passed | **mypy**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 
