@@ -572,3 +572,200 @@ class TestOcNonChosenIntegration:
             assert 5 <= n_count <= 6, (
                 f"Board {deal.board_number}: W chose {w_chosen}, N should have 5-6 {non_chosen} but has {n_count}"
             )
+
+
+# ---------------------------------------------------------------------------
+# 9. Edge cases — 3+ allowed suits, HCP rejection, mixed OC modes
+# ---------------------------------------------------------------------------
+
+
+class TestOcNonChosenEdgeCases:
+    def test_three_allowed_suits_targets_first_non_chosen(self) -> None:
+        """RS pick 1 from [S, H, D] → if H chosen, non-chosen = [S, D], target S (first)."""
+        oc = OpponentContingentSuitData(
+            opponent_seat="W",
+            suit_range=SuitRange(min_cards=4, max_cards=6, min_hcp=0, max_hcp=37),
+            use_non_chosen_suit=True,
+        )
+        sub = FakeSubProfile(opponents_contingent_suit_constraint=oc)
+        # North has 5 spades (first non-chosen suit) → should match
+        hand = _hand_with_suit_lengths(s=5, h=2, d=4, c=2)
+        analysis = _compute_suit_analysis(hand)
+        rng = random.Random(42)
+
+        matched, _, _ = _match_subprofile(
+            analysis=analysis,
+            seat="N",
+            sub=sub,  # type: ignore[arg-type]
+            random_suit_choices={"W": ["H"]},
+            rng=rng,
+            rs_allowed_suits={"W": ["S", "H", "D"]},
+        )
+        assert matched is True
+
+    def test_three_allowed_suits_non_chosen_is_ordered(self) -> None:
+        """RS pick 1 from [S, H, D], S chosen → non-chosen = [H, D], target H."""
+        oc = OpponentContingentSuitData(
+            opponent_seat="W",
+            suit_range=SuitRange(min_cards=5, max_cards=6, min_hcp=0, max_hcp=37),
+            use_non_chosen_suit=True,
+        )
+        sub = FakeSubProfile(opponents_contingent_suit_constraint=oc)
+        # North has 5 hearts (H is first non-chosen after S removed) → should match
+        hand = _hand_with_suit_lengths(s=2, h=5, d=3, c=3)
+        analysis = _compute_suit_analysis(hand)
+        rng = random.Random(42)
+
+        matched, _, _ = _match_subprofile(
+            analysis=analysis,
+            seat="N",
+            sub=sub,  # type: ignore[arg-type]
+            random_suit_choices={"W": ["S"]},
+            rng=rng,
+            rs_allowed_suits={"W": ["S", "H", "D"]},
+        )
+        assert matched is True
+
+    def test_hcp_too_high_on_non_chosen_suit_fails(self) -> None:
+        """Non-chosen suit has enough cards but HCP exceeds max → fail."""
+        oc = OpponentContingentSuitData(
+            opponent_seat="W",
+            suit_range=SuitRange(min_cards=5, max_cards=6, min_hcp=0, max_hcp=3),
+            use_non_chosen_suit=True,
+        )
+        sub = FakeSubProfile(opponents_contingent_suit_constraint=oc)
+        # North has 5 spades: A K Q J 3 → spade HCP = 4+3+2+1 = 10 (way over max 3)
+        hand = ["AS", "KS", "QS", "JS", "3S", "2H", "3H", "4D", "5D", "6C", "7C", "8C", "9C"]
+        analysis = _compute_suit_analysis(hand)
+        rng = random.Random(42)
+
+        matched, _, _ = _match_subprofile(
+            analysis=analysis,
+            seat="N",
+            sub=sub,  # type: ignore[arg-type]
+            random_suit_choices={"W": ["H"]},
+            rng=rng,
+            rs_allowed_suits={"W": ["S", "H"]},
+        )
+        assert matched is False
+
+    def test_hcp_too_low_on_non_chosen_suit_fails(self) -> None:
+        """Non-chosen suit has enough cards but HCP below min → fail."""
+        oc = OpponentContingentSuitData(
+            opponent_seat="W",
+            suit_range=SuitRange(min_cards=5, max_cards=6, min_hcp=8, max_hcp=12),
+            use_non_chosen_suit=True,
+        )
+        sub = FakeSubProfile(opponents_contingent_suit_constraint=oc)
+        # North has 5 spades: 9 8 7 6 5 → spade HCP = 0 (below min 8)
+        hand = ["9S", "8S", "7S", "6S", "5S", "AH", "KH", "QH", "AD", "KD", "AC", "KC", "QC"]
+        analysis = _compute_suit_analysis(hand)
+        rng = random.Random(42)
+
+        matched, _, _ = _match_subprofile(
+            analysis=analysis,
+            seat="N",
+            sub=sub,  # type: ignore[arg-type]
+            random_suit_choices={"W": ["H"]},
+            rng=rng,
+            rs_allowed_suits={"W": ["S", "H"]},
+        )
+        assert matched is False
+
+
+class TestOcMixedModes:
+    def test_standard_and_non_chosen_oc_in_same_generation(self, tmp_path) -> None:
+        """
+        Two OC seats in one profile: North uses standard OC (targets chosen),
+        South uses non-chosen OC (targets inverse). Both should work together.
+        """
+        from bridge_engine.hand_profile_model import (
+            HandProfile,
+            SeatProfile,
+            SubProfile,
+        )
+        from bridge_engine.deal_generator import generate_deals
+        from bridge_engine.setup_env import run_setup
+
+        # W: RS pick 1 from [S, H], 6 cards
+        w_sub = SubProfile(
+            standard=_make_standard(),
+            random_suit_constraint=RandomSuitConstraintData(
+                required_suits_count=1,
+                allowed_suits=["S", "H"],
+                suit_ranges=[SuitRange(min_cards=6, max_cards=6, min_hcp=0, max_hcp=37)],
+                pair_overrides=[],
+            ),
+        )
+        # N: standard OC — targets W's CHOSEN suit, needs 3+ cards
+        n_sub = SubProfile(
+            standard=_make_standard(),
+            opponents_contingent_suit_constraint=OpponentContingentSuitData(
+                opponent_seat="W",
+                suit_range=SuitRange(min_cards=3, max_cards=13, min_hcp=0, max_hcp=37),
+                use_non_chosen_suit=False,
+            ),
+        )
+        # S: non-chosen OC — targets W's NON-CHOSEN suit, needs 4+ cards
+        s_sub = SubProfile(
+            standard=_make_standard(),
+            opponents_contingent_suit_constraint=OpponentContingentSuitData(
+                opponent_seat="W",
+                suit_range=SuitRange(min_cards=4, max_cards=13, min_hcp=0, max_hcp=37),
+                use_non_chosen_suit=True,
+            ),
+        )
+        e_sub = SubProfile(standard=_make_standard())
+
+        profile = HandProfile(
+            profile_name="Test_OC_Mixed_Modes",
+            description="Test",
+            tag="Overcaller",
+            seat_profiles={
+                "N": SeatProfile(seat="N", subprofiles=[n_sub]),
+                "E": SeatProfile(seat="E", subprofiles=[e_sub]),
+                "S": SeatProfile(seat="S", subprofiles=[s_sub]),
+                "W": SeatProfile(seat="W", subprofiles=[w_sub]),
+            },
+            hand_dealing_order=["W", "N", "E", "S"],
+            dealer="N",
+        )
+
+        setup = run_setup(
+            base_dir=tmp_path / "out",
+            owner="TestOwner",
+            profile_name=profile.profile_name,
+            ask_seed_choice=False,
+        )
+        deal_set = generate_deals(setup, profile, num_deals=5, enable_rotation=False)
+        assert len(deal_set.deals) == 5
+
+        for deal in deal_set.deals:
+            w_hand = deal.hands["W"]
+            n_hand = deal.hands["N"]
+            s_hand = deal.hands["S"]
+
+            # Determine W's chosen suit (6 cards in S or H)
+            w_analysis = _compute_suit_analysis(w_hand)
+            w_chosen = None
+            for suit in ["S", "H"]:
+                if suit in w_analysis.cards_by_suit and len(w_analysis.cards_by_suit[suit]) == 6:
+                    w_chosen = suit
+                    break
+            assert w_chosen is not None, f"W should have 6 cards in S or H: {w_hand}"
+
+            non_chosen = "H" if w_chosen == "S" else "S"
+
+            # N (standard OC): 3+ cards in W's CHOSEN suit
+            n_analysis = _compute_suit_analysis(n_hand)
+            n_chosen_count = len(n_analysis.cards_by_suit.get(w_chosen, []))
+            assert n_chosen_count >= 3, (
+                f"Board {deal.board_number}: N should have 3+ {w_chosen} but has {n_chosen_count}"
+            )
+
+            # S (non-chosen OC): 4+ cards in W's NON-CHOSEN suit
+            s_analysis = _compute_suit_analysis(s_hand)
+            s_non_chosen_count = len(s_analysis.cards_by_suit.get(non_chosen, []))
+            assert s_non_chosen_count >= 4, (
+                f"Board {deal.board_number}: S should have 4+ {non_chosen} but has {s_non_chosen_count}"
+            )

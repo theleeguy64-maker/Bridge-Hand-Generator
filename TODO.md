@@ -391,7 +391,7 @@
 - ✅ OC matching branch extended: when flag is True, computes `non_chosen = allowed - chosen` and targets inverse suit
 - ✅ Wizard prompt: "Target opponent's NON-CHOSEN suit (inverse)?"
 - ✅ Validation: rejects profiles where opponent RS has no surplus allowed suits
-- ✅ 19 tests in `test_oc_non_chosen_suit.py` (data model, helper, matching, regression, graceful fail, validation, integration)
+- ✅ 24 tests in `test_oc_non_chosen_suit.py` (data model, helper, matching, regression, graceful fail, validation, integration, edge cases)
 - **Use case**: West RS picks 1 from [S, H]; North OC non-chosen gets the other suit (5-6 cards, 2-7 HCP)
 
 ### 46. [x] Code Review #55 — 5 fixes across 4 files
@@ -406,7 +406,7 @@
 ## Summary
 Architecture: 15 (15 done) | Enhancements: 27 (27 done) | **All complete**
 
-**Tests**: 444 passed | **mypy**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
+**Tests**: 449 passed | **mypy**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 
