@@ -42,6 +42,7 @@ from .setup_env import run_setup, SetupResult
 from .hand_profile import HandProfile, ProfileError, validate_profile
 from .deal_generator import DealSet, DealGenerationError, generate_deals
 from .deal_output import DealOutputSummary, OutputError, render_deals
+from .cli_io import _yes_no
 from .profile_cli import _input_int
 
 from . import profile_cli
@@ -90,29 +91,6 @@ def _input_int_with_default(prompt: str, default: int, minimum: int = 1) -> int:
             print(f"Please enter a value >= {minimum}.")
             continue
         return value
-
-
-def _yes_no(prompt: str, default: bool = True) -> bool:
-    """
-    Simple Yes/No prompt.
-
-    default=True  -> [Y/n]
-    default=False -> [y/N]
-    """
-    if default:
-        suffix = " [Y/n]: "
-    else:
-        suffix = " [y/N]: "
-
-    while True:
-        ans = input(prompt + suffix).strip().lower()
-        if not ans:
-            return default
-        if ans in ("y", "yes"):
-            return True
-        if ans in ("n", "no"):
-            return False
-        print("Please answer 'y' or 'n'.")
 
 
 # ---------------------------------------------------------------------------

@@ -347,10 +347,7 @@ def _fmt_suits(suits) -> str:
     """
     if suits is None:
         return "[]"
-    if isinstance(suits, str):
-        suits_list = list(suits)
-    else:
-        suits_list = list(suits)
+    suits_list = list(suits)
 
     order = ["S", "H", "D", "C"]
     suits_sorted = [s for s in order if s in set(suits_list)]

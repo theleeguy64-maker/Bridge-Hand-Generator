@@ -1047,7 +1047,7 @@ def _autosave_profile_draft(profile: HandProfile, original_path: Path) -> None:
         from . import profile_store
 
         profile_store.autosave_profile_draft(profile, canonical_path=original_path)
-    except Exception:
+    except (ImportError, OSError, TypeError, ValueError):
         # Never let autosave kill the wizard
         return
 

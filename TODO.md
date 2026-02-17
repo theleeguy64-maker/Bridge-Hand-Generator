@@ -394,10 +394,17 @@
 - ✅ 19 tests in `test_oc_non_chosen_suit.py` (data model, helper, matching, regression, graceful fail, validation, integration)
 - **Use case**: West RS picks 1 from [S, H]; North OC non-chosen gets the other suit (5-6 cards, 2-7 HCP)
 
+### 46. [x] Code Review #55 — 5 fixes across 4 files
+- ✅ **B1**: Removed duplicate `_yes_no()` from `orchestrator.py` (22 lines) — already imported from `cli_io`
+- ✅ **C1**: Removed 8 redundant `getattr` calls on typed dataclass fields in `seat_viability.py` `_is_excluded_for_seat_subprofile()`
+- ✅ **C2**: Removed 2 unnecessary `# type: ignore[attr-defined]` comments on `SuitRange` attributes in `seat_viability.py`
+- ✅ **D1**: Simplified `_fmt_suits()` in `profile_cli.py` — removed redundant `isinstance` branch (both branches did `list(suits)`)
+- ✅ **D2**: Narrowed `except Exception` → `except (ImportError, OSError, TypeError, ValueError)` in `wizard_flow.py` `_autosave_profile_draft()`
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 26 (26 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 27 (27 done) | **All complete**
 
 **Tests**: 444 passed | **mypy**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
 

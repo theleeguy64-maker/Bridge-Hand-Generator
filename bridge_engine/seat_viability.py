@@ -177,9 +177,9 @@ def _match_random_suit_with_attempt(
         sr = ranges_by_suit[suit]
         count = len(analysis.cards_by_suit[suit])
         hcp = analysis.hcp_by_suit[suit]
-        if not (sr.min_cards <= count <= sr.max_cards):  # type: ignore[attr-defined]
+        if not (sr.min_cards <= count <= sr.max_cards):
             return False, chosen_suits
-        if not (sr.min_hcp <= hcp <= sr.max_hcp):  # type: ignore[attr-defined]
+        if not (sr.min_hcp <= hcp <= sr.max_hcp):
             return False, chosen_suits
 
     return True, chosen_suits
@@ -348,24 +348,22 @@ def _is_excluded_for_seat_subprofile(
     }
     shape = f"{lengths['S']}{lengths['H']}{lengths['D']}{lengths['C']}"
 
-    for exc in getattr(profile, "subprofile_exclusions", []):
-        if getattr(exc, "seat", None) != seat:
+    for exc in profile.subprofile_exclusions:
+        if exc.seat != seat:
             continue
-        if getattr(exc, "subprofile_index", None) != subprofile_index_1based:
+        if exc.subprofile_index != subprofile_index_1based:
             continue
 
-        excluded_shapes = getattr(exc, "excluded_shapes", None)
-        if excluded_shapes:
-            if shape in excluded_shapes:
+        if exc.excluded_shapes:
+            if shape in exc.excluded_shapes:
                 return True
 
-        clauses = getattr(exc, "clauses", None)
-        if clauses:
+        if exc.clauses:
             ok = True
-            for c in clauses:
-                group = getattr(c, "group", None)
-                length_eq = int(getattr(c, "length_eq", -1))
-                want_count = int(getattr(c, "count", -1))
+            for c in exc.clauses:
+                group = c.group
+                length_eq = c.length_eq
+                want_count = c.count
 
                 suits: Tuple[str, ...]
                 if group == "MAJOR":
