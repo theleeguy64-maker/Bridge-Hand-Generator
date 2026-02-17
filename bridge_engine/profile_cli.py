@@ -830,17 +830,17 @@ def run_profile_manager() -> None:
                 edit_profile_action()
             except (KeyboardInterrupt, SystemExit):
                 raise
-            except Exception as e:
+            except Exception as exc:
                 print("\n⚠️ Wizard error — returning to Profile Manager.")
-                print(f"   {type(e).__name__}: {e}\n")
+                print(f"   {type(exc).__name__}: {exc}\n")
         elif choice == 4:
             try:
                 create_profile_action()
             except (KeyboardInterrupt, SystemExit):
                 raise
-            except Exception as e:
+            except Exception as exc:
                 print("\n⚠️ Wizard error — returning to Profile Manager.")
-                print(f"   {type(e).__name__}: {e}\n")
+                print(f"   {type(exc).__name__}: {exc}\n")
         elif choice == 5:
             delete_profile_action()
         elif choice == 6:

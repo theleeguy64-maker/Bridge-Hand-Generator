@@ -410,10 +410,16 @@
 - ✅ 18 tests in `test_pc_non_chosen_suit.py` (data model, matching, regression, graceful fail, validation, integration)
 - **Use case**: N RS picks 1 from [S, H]; S PC non-chosen gets the other suit (3-5 cards)
 
+### 48. [x] Code Review #56 — 4 fixes across 4 files
+- ✅ **C1**: Removed 2 redundant `getattr` on `total_min_hcp`/`total_max_hcp` in `seat_viability.py`
+- ✅ **C2**: Standardized exception variable `as e` → `as exc` in `profile_cli.py` (2 sites)
+- ✅ **D1**: Replaced 5 old-style `%` format strings with f-strings in `lin_encoder.py`
+- ✅ **D2**: Replaced string `"WNES"` with tuple `("W", "N", "E", "S")` in `profile_diagnostic.py` (5 sites)
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 28 (28 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 29 (29 done) | **All complete**
 
 **Tests**: 468 passed | **mypy**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
 

@@ -108,7 +108,7 @@ def _hand_to_lin_suits(cards: List[str]) -> str:
         parts.append("".join(ranks))
 
     # S<spades>H<hearts>D<diamonds>C<clubs>
-    return "S%sH%sD%sC%s" % tuple(parts)
+    return f"S{parts[0]}H{parts[1]}D{parts[2]}C{parts[3]}"
 
 
 def _dealer_to_bbo_code(dealer: str) -> str:
@@ -167,16 +167,16 @@ def encode_deal_to_lin_line(deal: Deal) -> str:
     north = _hand_to_lin_suits(deal.hands.get("N", []))
     east = _hand_to_lin_suits(deal.hands.get("E", []))
 
-    md_part = "md|%s%s,%s,%s,%s" % (dealer_code, south, west, north, east)
+    md_part = f"md|{dealer_code}{south},{west},{north},{east}"
 
     # Board title and container index use board_number directly
-    board_title = "Board %d" % deal.board_number
-    container = "qx|o%d|" % deal.board_number
+    board_title = f"Board {deal.board_number}"
+    container = f"qx|o{deal.board_number}|"
 
     # Vulnerability mapping
     vul_code = _vul_to_bbo_code(deal.vulnerability)
 
-    return "%s%s|ah|%s|sv|%s|pg||" % (container, md_part, board_title, vul_code)
+    return f"{container}{md_part}|ah|{board_title}|sv|{vul_code}|pg||"
 
 
 def write_lin_file(path: Path, deals: Sequence[Deal]) -> None:

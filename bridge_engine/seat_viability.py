@@ -526,10 +526,10 @@ def _subprofile_is_viable_light(sub: SubProfile, *, return_reason: bool = False)
         return (ok, reason) if return_reason else ok
 
     # HCP feasibility: a 13-card hand maxes at 37 HCP
-    if getattr(std, "total_min_hcp", 0) > 37:
+    if std.total_min_hcp > 37:
         ok, reason = False, f"total_min_hcp {std.total_min_hcp} > 37"
         return (ok, reason) if return_reason else ok
-    if getattr(std, "total_max_hcp", 37) < 0:
+    if std.total_max_hcp < 0:
         ok, reason = False, f"total_max_hcp {std.total_max_hcp} < 0"
         return (ok, reason) if return_reason else ok
 

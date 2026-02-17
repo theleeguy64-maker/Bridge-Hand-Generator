@@ -80,11 +80,11 @@ def run_profile_diagnostic(
     profile_name = profile.profile_name
 
     # ---- Aggregated counters across all boards ----
-    total_as_seat: Dict[Seat, int] = {s: 0 for s in "WNES"}
-    total_global_other: Dict[Seat, int] = {s: 0 for s in "WNES"}
-    total_global_unchecked: Dict[Seat, int] = {s: 0 for s in "WNES"}
-    total_hcp: Dict[Seat, int] = {s: 0 for s in "WNES"}
-    total_shape: Dict[Seat, int] = {s: 0 for s in "WNES"}
+    total_as_seat: Dict[Seat, int] = {s: 0 for s in ("W", "N", "E", "S")}
+    total_global_other: Dict[Seat, int] = {s: 0 for s in ("W", "N", "E", "S")}
+    total_global_unchecked: Dict[Seat, int] = {s: 0 for s in ("W", "N", "E", "S")}
+    total_hcp: Dict[Seat, int] = {s: 0 for s in ("W", "N", "E", "S")}
+    total_shape: Dict[Seat, int] = {s: 0 for s in ("W", "N", "E", "S")}
 
     board_results: List[tuple] = []  # (board_number, success, attempts, deal_or_None)
     total_attempts = 0
