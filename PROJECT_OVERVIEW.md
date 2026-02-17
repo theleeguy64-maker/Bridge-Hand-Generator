@@ -107,20 +107,20 @@ Per-attempt tracking for diagnostics:
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `deal_generator.py` | 374 | Facade: subprofile selection + `generate_deals()` + re-exports |
-| `deal_generator_v2.py` | 1,218 | v2 shape-help helpers + v2 builder (active production path) |
-| `deal_generator_v1.py` | 787 | v1 builder + hardest-seat + constructive help (legacy, rollback only) |
-| `deal_generator_types.py` | 284 | Types, constants, dataclasses, exception, debug hooks (leaf module) |
-| `deal_generator_helpers.py` | 450 | Shared utilities: viability, HCP, deck helpers, vulnerability/rotation |
-| `hand_profile_model.py` | 838 | Data models: SubProfile, SeatProfile, HandProfile |
-| `seat_viability.py` | 580 | Constraint matching: `_match_seat`, `_match_subprofile`, RS pre-selection |
-| `hand_profile_validate.py` | 519 | Profile validation |
-| `profile_viability.py` | 384 | Profile-level viability + cross-seat feasibility checks |
-| `wizard_flow.py` | 1,334 | Wizard steps, seat editing |
-| `profile_cli.py` | 897 | Profile commands (atomic saves) |
-| `orchestrator.py` | 491 | CLI/session management + generic menu loop |
-| `profile_store.py` | 303 | JSON persistence (atomic writes, error-tolerant loading, display ordering) |
-| `failure_report.py` | 266 | Failure attribution diagnostic (uses v2 builder) |
+| `deal_generator.py` | 384 | Facade: subprofile selection + `generate_deals()` + re-exports |
+| `deal_generator_v2.py` | 1,202 | v2 shape-help helpers + v2 builder (active production path) |
+| `deal_generator_v1.py` | 782 | v1 builder + hardest-seat + constructive help (legacy, rollback only) |
+| `deal_generator_types.py` | 285 | Types, constants, dataclasses, exception, debug hooks (leaf module) |
+| `deal_generator_helpers.py` | 462 | Shared utilities: viability, HCP, deck helpers, vulnerability/rotation |
+| `hand_profile_model.py` | 766 | Data models: SubProfile, SeatProfile, HandProfile |
+| `seat_viability.py` | 565 | Constraint matching: `_match_seat`, `_match_subprofile`, RS pre-selection |
+| `hand_profile_validate.py` | 492 | Profile validation |
+| `profile_viability.py` | 371 | Profile-level viability + cross-seat feasibility checks |
+| `wizard_flow.py` | 1,330 | Wizard steps, seat editing |
+| `profile_cli.py` | 867 | Profile commands (atomic saves) |
+| `orchestrator.py` | 485 | CLI/session management + generic menu loop |
+| `profile_store.py` | 302 | JSON persistence (atomic writes, error-tolerant loading, display ordering) |
+| `failure_report.py` | 275 | Failure attribution diagnostic (uses v2 builder) |
 
 ## Terminology
 

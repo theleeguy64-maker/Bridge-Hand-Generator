@@ -4,28 +4,32 @@
 
 ```
 bridge_engine/
-├── deal_generator.py        (372 lines) - Facade: subprofile selection + generate_deals() + re-exports
-├── deal_generator_v1.py     (787 lines) - v1 builder + hardest-seat + constructive help (legacy)
-├── deal_generator_v2.py   (1,218 lines) - v2 shape-help helpers + v2 builder (active path)
-├── deal_generator_types.py  (284 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
-├── deal_generator_helpers.py (450 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
-├── hand_profile_model.py    (842 lines) - Data models
-├── seat_viability.py        (573 lines) - Constraint matching + RS pre-selection threading
-├── hand_profile_validate.py (514 lines) - Validation
-├── profile_diagnostic.py     (226 lines) - Generic profile diagnostic runner (Admin menu)
-├── orchestrator.py          (491 lines) - CLI/session management + generic menu loop
-├── profile_cli.py           (897 lines) - Profile commands
+├── deal_generator.py        (384 lines) - Facade: subprofile selection + generate_deals() + re-exports
+├── deal_generator_v1.py     (782 lines) - v1 builder + hardest-seat + constructive help (legacy)
+├── deal_generator_v2.py   (1,202 lines) - v2 shape-help helpers + v2 builder (active path)
+├── deal_generator_types.py  (285 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
+├── deal_generator_helpers.py (462 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
+├── hand_profile_model.py    (766 lines) - Data models
+├── seat_viability.py        (565 lines) - Constraint matching + RS pre-selection threading
+├── hand_profile_validate.py (492 lines) - Validation
+├── profile_diagnostic.py     (212 lines) - Generic profile diagnostic runner (Admin menu)
+├── orchestrator.py          (485 lines) - CLI/session management + generic menu loop
+├── profile_cli.py           (867 lines) - Profile commands
 ├── profile_wizard.py        (158 lines) - Profile creation UI
-├── wizard_flow.py         (1,332 lines) - Wizard steps, seat editing, RS/PC/OC prompts
-├── profile_viability.py     (381 lines) - Profile-level viability + cross-seat feasibility
-├── profile_store.py         (303 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
-├── lin_tools.py             (458 lines) - LIN file operations
-├── deal_output.py           (333 lines) - Deal rendering
+├── profile_convert.py        (40 lines) - Profile format conversion
+├── wizard_flow.py         (1,330 lines) - Wizard steps, seat editing, RS/PC/OC prompts
+├── wizard_io.py             (131 lines) - Wizard I/O helpers
+├── profile_viability.py     (371 lines) - Profile-level viability + cross-seat feasibility
+├── profile_store.py         (302 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
+├── menu_help.py             (230 lines) - Menu help text
+├── lin_tools.py             (449 lines) - LIN file operations
+├── deal_output.py           (330 lines) - Deal rendering
 ├── lin_encoder.py           (188 lines) - LIN format encoding
-├── setup_env.py             (210 lines) - RNG seed management
-├── cli_io.py                (111 lines) - CLI utilities
+├── setup_env.py             (216 lines) - RNG seed management
+├── cli_io.py                (112 lines) - CLI utilities
 ├── cli_prompts.py            (96 lines) - CLI prompts
-└── hand_profile.py           (34 lines) - Exports
+├── hand_profile.py           (34 lines) - Exports
+└── __main__.py               (14 lines) - Entry point
 ```
 
 ## Data Model Hierarchy
@@ -392,7 +396,7 @@ mechanism in the facade (`_select_subprofiles_for_board()`).
 | — | Opps_Open_&_Our_TO_Dbl_Balancing | `Opps_Open_&_Our_TO_Dbl_Balancing_v0.9.json` |
 | — | Ops interference over our 1NT | `Ops_interference_over_our_1NT_v0.9.json` |
 | — | Our 1 Major & Opponents Interference | `Our_1_Major_&_Opponents_Interference_v0.2.json` |
-| — | Responding with a Major to 1NT Opening | `Responding_with_a_Major_to_1NT_Opening_v0.1.json` |
+| — | Responding with a Major to 1NT Opening | `Responding_with_a_Major_to_1NT_Opening_v0.9.json` |
 
 Profiles with `sort_order` appear first in menus in that order; profiles without `sort_order` appear after, sorted alphabetically.
 
@@ -466,7 +470,7 @@ _deal_single_board_simple(rng, board_number, dealer, dealing_order) -> Deal
 _apply_vulnerability_and_rotation(rng, deals, rotate) -> List[Deal]
 ```
 
-### deal_generator.py (facade — 374 lines)
+### deal_generator.py (facade — 384 lines)
 ```python
 # Public API
 generate_deals(setup, profile, num_deals, enable_rotation) -> DealSet
@@ -487,7 +491,7 @@ _pre_allocate_rs, _deal_with_help,
 _compute_dealing_order, _subprofile_constraint_type
 ```
 
-### deal_generator_v1.py (v1 legacy — 795 lines)
+### deal_generator_v1.py (v1 legacy — 782 lines)
 ```python
 # v1 constrained deal builder
 _build_single_constrained_deal(rng, profile, board_number, debug) -> Deal
@@ -509,7 +513,7 @@ _build_single_board_random_suit_w_only(rng, profile, board_number) -> Deal
 # at call time for monkeypatch compatibility.
 ```
 
-### deal_generator_v2.py (v2 shape-help — 1,218 lines)
+### deal_generator_v2.py (v2 shape-help — 1,202 lines)
 ```python
 # v2 shape help helpers
 _dispersion_check(chosen_subs, threshold, rs_pre_selections) -> set[Seat]
@@ -552,7 +556,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Type Checking
 
-**mypy** installed — 0 errors across 30 source files.
+**mypy** installed — 0 errors across 28 source files.
 
 ```bash
 .venv/bin/mypy bridge_engine/ --ignore-missing-imports
