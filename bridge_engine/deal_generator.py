@@ -226,6 +226,7 @@ def _select_subprofiles_for_board(
     # succeeds on the first try — zero overhead.  For hard profiles like
     # "Defense to Weak 2s" (43.8% of N×E combos infeasible), this eliminates
     # all wasted 1000-attempt chunks on impossible combinations.
+    chosen_subprofiles, chosen_indices = _pick_once()
     for _ in range(MAX_SUBPROFILE_FEASIBILITY_RETRIES):
         chosen_subprofiles, chosen_indices = _pick_once()
         feasible, _reason = _cross_seat_feasible(chosen_subprofiles)

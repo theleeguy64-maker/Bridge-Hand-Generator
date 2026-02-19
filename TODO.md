@@ -416,12 +416,18 @@
 - ✅ **D1**: Replaced 5 old-style `%` format strings with f-strings in `lin_encoder.py`
 - ✅ **D2**: Replaced string `"WNES"` with tuple `("W", "N", "E", "S")` in `profile_diagnostic.py` (5 sites)
 
+### 49. [x] Fix 9 pyright errors — switch type checker from mypy to pyright
+- ✅ `deal_generator.py`: Initialize `chosen_subprofiles`/`chosen_indices` before loop (possibly unbound)
+- ✅ `profile_wizard.py`: Removed dead try/except importing 6 nonexistent `_build_*_range_for_prompt` functions
+- ✅ `seat_viability.py`: Added `@overload` signatures to `_subprofile_is_viable_light()` for return type narrowing
+- ✅ Switched type checker from mypy to pyright in CLAUDE.md
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 29 (29 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 30 (30 done) | **All complete**
 
-**Tests**: 468 passed | **mypy**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
+**Tests**: 468 passed | **pyright**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 

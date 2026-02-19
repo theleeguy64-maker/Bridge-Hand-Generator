@@ -45,19 +45,9 @@ from .wizard_flow import (  # type: ignore
     _build_profile,
 )
 
-# Some repos/tests import additional helpers; re-exporting is harmless.
-try:
-    from .wizard_flow import (  # type: ignore
-        _build_card_range_for_prompt,
-        _build_hcp_range_for_prompt,
-        _build_ace_range_for_prompt,
-        _build_king_range_for_prompt,
-        _build_queen_range_for_prompt,
-        _build_jack_range_for_prompt,
-    )
-except ImportError:
-    # Not all versions have these helpers; ignore if absent.
-    pass
+# Note: _build_card/hcp/ace/king/queen/jack_range_for_prompt helpers were
+# removed in earlier cleanup.  Tests that need range builders should use
+# _build_suit_range_for_prompt (re-exported above) directly.
 
 
 def create_profile_interactive() -> HandProfile:

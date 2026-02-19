@@ -8,7 +8,7 @@
 ## Shortcuts
 - **"Lee Title"** - Change terminal title to "Bridge Hand Generator"
 - **"Lee commit"** - Update CLAUDE.md, TODO.md, and ARCHITECTURE.md, then commit, then git push, then output "/usage" so user can check usage
-- **"Lee code review"** - Run mypy (`.venv/bin/mypy bridge_engine/ --ignore-missing-imports`), then perform a full code review of all `bridge_engine/` files looking for: bugs, dead code, incorrect types, missing imports, unreachable code, narrowable exceptions, inconsistent naming, stale comments/docstrings. Present findings grouped by severity (A=bugs, B=dead code, C=consistency, D=simplification). Use "Lee slow" mode for all fixes.
+- **"Lee code review"** - Run pyright (`npx pyright bridge_engine/`), then perform a full code review of all `bridge_engine/` files looking for: bugs, dead code, incorrect types, missing imports, unreachable code, narrowable exceptions, inconsistent naming, stale comments/docstrings. Present findings grouped by severity (A=bugs, B=dead code, C=consistency, D=simplification). Use "Lee slow" mode for all fixes.
 - **"Lee slow"** - Careful mode. After EACH code change:
   1. Run tests (`.venv/bin/pytest -v`)
   2. If passed: Explicitly state "✅ All X tests passed"
@@ -31,9 +31,9 @@
 - Config in `ruff.toml` — per-file ignores for facades, late imports, and test patterns
 - Keep ruff at 0 errors before committing
 
-## Type Checking (mypy)
-- Run mypy after code changes: `.venv/bin/mypy bridge_engine/ --ignore-missing-imports`
-- Keep mypy at 0 errors — fix any new type errors before committing
+## Type Checking (pyright)
+- Run pyright after code changes: `npx pyright bridge_engine/`
+- Keep pyright at 0 errors — fix any new type errors before committing
 
 ## Testing
 - Run the full test suite after every change to ensure no bugs are introduced
