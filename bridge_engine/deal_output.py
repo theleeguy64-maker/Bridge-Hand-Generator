@@ -325,6 +325,6 @@ def render_deals(
     except OutputError:
         # Already wrapped; just re-raise
         raise
-    except Exception as exc:
-        # Narrow, local wrapping into domain error
+    except (OSError, ValueError, TypeError, KeyError) as exc:
+        # Wrap filesystem / formatting errors into domain error
         raise OutputError(f"Failed while rendering deals: {exc}") from exc

@@ -4,25 +4,25 @@
 
 ```
 bridge_engine/
-├── deal_generator.py        (384 lines) - Facade: subprofile selection + generate_deals() + re-exports
+├── deal_generator.py        (386 lines) - Facade: subprofile selection + generate_deals() + re-exports
 ├── deal_generator_v1.py     (782 lines) - v1 builder + hardest-seat + constructive help (legacy)
-├── deal_generator_v2.py   (1,229 lines) - v2 shape-help helpers + v2 builder (active path)
+├── deal_generator_v2.py   (1,227 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py  (285 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (462 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (775 lines) - Data models
-├── seat_viability.py        (589 lines) - Constraint matching + RS pre-selection threading
+├── seat_viability.py        (603 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (512 lines) - Validation
 ├── profile_diagnostic.py     (212 lines) - Generic profile diagnostic runner (Admin menu)
-├── orchestrator.py          (464 lines) - CLI/session management + generic menu loop
-├── profile_cli.py           (890 lines) - Profile commands
+├── orchestrator.py          (467 lines) - CLI/session management + generic menu loop
+├── profile_cli.py           (896 lines) - Profile commands
 ├── profile_wizard.py        (150 lines) - Profile creation UI
 ├── profile_convert.py        (40 lines) - Profile format conversion
-├── wizard_flow.py         (1,366 lines) - Wizard steps, seat editing, RS/PC/OC prompts
-├── wizard_io.py             (139 lines) - Wizard I/O helpers
+├── wizard_flow.py         (1,274 lines) - Wizard steps, seat editing, RS/PC/OC prompts
+├── wizard_io.py             (130 lines) - Wizard I/O helpers
 ├── profile_viability.py     (371 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py         (302 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
 ├── menu_help.py             (527 lines) - Menu help text
-├── lin_tools.py             (449 lines) - LIN file operations
+├── lin_tools.py             (416 lines) - LIN file operations
 ├── deal_output.py           (330 lines) - Deal rendering
 ├── lin_encoder.py           (188 lines) - LIN format encoding
 ├── setup_env.py             (216 lines) - RNG seed management
@@ -472,7 +472,7 @@ _deal_single_board_simple(rng, board_number, dealer, dealing_order) -> Deal
 _apply_vulnerability_and_rotation(rng, deals, rotate) -> List[Deal]
 ```
 
-### deal_generator.py (facade — 384 lines)
+### deal_generator.py (facade — 386 lines)
 ```python
 # Public API
 generate_deals(setup, profile, num_deals, enable_rotation) -> DealSet
@@ -515,7 +515,7 @@ _build_single_board_random_suit_w_only(rng, profile, board_number) -> Deal
 # at call time for monkeypatch compatibility.
 ```
 
-### deal_generator_v2.py (v2 shape-help — 1,229 lines)
+### deal_generator_v2.py (v2 shape-help — 1,227 lines)
 ```python
 # v2 shape help helpers
 _dispersion_check(chosen_subs, threshold, rs_pre_selections) -> set[Seat]
@@ -566,7 +566,7 @@ npx pyright bridge_engine/
 
 ## Test Coverage
 
-**468 passed** organized by:
+**475 passed** organized by:
 - Core matching: `test_seat_viability*.py`
 - Constructive help: `test_constructive_*.py`, `test_hardest_seat_*.py`
 - Nonstandard: `test_random_suit_*.py`

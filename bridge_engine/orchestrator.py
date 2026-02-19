@@ -38,7 +38,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from .menu_help import get_menu_help
-from .setup_env import run_setup, SetupResult
+from .setup_env import run_setup, SetupError, SetupResult
 from .hand_profile import HandProfile, ProfileError, validate_profile
 from .deal_generator import DealSet, DealGenerationError, generate_deals
 from .deal_output import DealOutputSummary, OutputError, render_deals
@@ -121,12 +121,15 @@ def _discover_profiles(base_dir: Path | None = None) -> List[Tuple[Path, HandPro
         return results
 
     for path in sorted(dir_path.glob("*.json")):
+        # Skip draft *_TEST.json files — they shouldn't appear in session picker
+        if profile_store.is_draft_path(path):
+            continue
         try:
             with path.open("r", encoding="utf-8") as f:
                 data: Dict[str, Any] = json.load(f)
             profile = HandProfile.from_dict(data)
             results.append((path, profile))
-        except Exception as exc:  # pragma: no cover  (used only in CLI)
+        except (json.JSONDecodeError, TypeError, KeyError, ValueError, OSError) as exc:  # pragma: no cover
             print(
                 f"WARNING: Failed to load profile from {path}: {exc}",
                 file=sys.stderr,
@@ -276,7 +279,7 @@ def _run_deal_generation_session() -> None:
             profile_name=profile.profile_name,
             ask_seed_choice=True,
         )
-    except Exception as exc:  # pragma: no cover (interactive failure path)
+    except (SetupError, OSError) as exc:  # pragma: no cover (interactive failure path)
         print(f"\nERROR running setup_env.run_setup: {exc}")
         return
 

@@ -430,10 +430,34 @@
 - ✅ `_yes_no_help` wired through `wizard_io.py` → `profile_wizard.py` → `wizard_flow.py` (_pw_attr monkeypatch seam)
 - ✅ 7 new tests in `test_cli_io.py`; updated monkeypatches in `test_exclusion_menu.py` + `test_wizard_edit_flow.py`
 
+### 51. [x] Code Review #57 — 26 fixes across 16 files
+- ✅ **A1**: Removed wasted initial `_pick_once()` call before feasibility retry loop in `deal_generator.py`
+- ✅ **A2**: Added draft `*_TEST.json` filtering to `orchestrator._discover_profiles()` (was showing drafts in session picker)
+- ✅ **A3**: Added `use_non_chosen_suit` display to PC/OC print functions in `profile_cli.py`
+- ✅ **A4**: Replaced raw `input()` with `wiz_io.prompt_str()` in `wizard_flow.py` `_parse_suit_list()`
+- ✅ **A5**: Added trailing newline + explicit encoding to `profile_convert.py` file I/O
+- ✅ **A6**: Added `qx|oN|` board renumbering in `lin_tools.py` LIN combiner
+- ✅ **A7**: Fixed `re.Match` → `re.Match[str]` type annotation in `lin_tools.py`
+- ✅ **B1**: Removed dead `create_profile_interactive()` from `wizard_flow.py` (85 lines)
+- ✅ **B2**: Removed unused `edit_constraints_interactive` import from `profile_cli.py`
+- ✅ **B3**: Removed dead `_input_bool` from `wizard_io.py` and `profile_wizard.py`
+- ✅ **B4**: Removed unreachable `if not rows` guard in `failure_report.py`
+- ✅ **B5**: Removed unreachable `take <= 0` guard in `deal_generator_v2.py`
+- ✅ **B6-B7**: Removed unused `group_lin_files_by_scenario()` + `latest_lin_file_per_scenario()` from `lin_tools.py` + unused imports
+- ✅ **C1**: Added type annotation to `_DEBUG_STANDARD_CONSTRUCTIVE_USED` in `deal_generator_types.py`
+- ✅ **C2-C3**: Replaced duplicate `Seat`/`Card` aliases with imports from `deal_generator_types` in `seat_viability.py` and `failure_report.py`
+- ✅ **C4-C6**: Removed ~26 redundant `getattr` calls across `wizard_flow.py`, `profile_cli.py`, `deal_generator_v2.py`, `profile_store.py`
+- ✅ **D1**: Narrowed `except Exception` → `(SetupError, OSError)` in `orchestrator.py` run_setup
+- ✅ **D2**: Kept `except Exception` for profile_cli safety nets (correct — top-level wizard catch-all)
+- ✅ **D3**: Narrowed `except Exception` → `(JSONDecodeError, TypeError, KeyError, ValueError, OSError)` in `orchestrator._discover_profiles()`
+- ✅ **D4**: Removed dead `clear_screen()` fallback in `wizard_io.py`
+- ✅ **D5**: Narrowed `except Exception` → `(OSError, ValueError)` in `lin_tools.py` LIN combiner
+- ✅ **D6**: Narrowed `except Exception` → `(OSError, ValueError, TypeError, KeyError)` in `deal_output.py` render_deals
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 31 (31 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 32 (32 done) | **All complete**
 
 **Tests**: 475 passed | **pyright**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
 

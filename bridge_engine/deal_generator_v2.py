@@ -266,8 +266,6 @@ def _random_deal(
     if n <= 0:
         return []
     take = min(n, len(deck))
-    if take <= 0:
-        return []
 
     # The deck is already shuffled, so the first `take` cards are a random
     # sample.  Slicing is much faster than rng.sample + set-filter:
@@ -779,11 +777,11 @@ _CLOCKWISE = ["N", "E", "S", "W"]
 
 def _subprofile_constraint_type(sub: "SubProfile") -> str:
     """Classify a subprofile as 'rs', 'pc', 'oc', or 'standard'."""
-    if getattr(sub, "random_suit_constraint", None) is not None:
+    if sub.random_suit_constraint is not None:
         return "rs"
-    if getattr(sub, "partner_contingent_constraint", None) is not None:
+    if sub.partner_contingent_constraint is not None:
         return "pc"
-    if getattr(sub, "opponents_contingent_suit_constraint", None) is not None:
+    if sub.opponents_contingent_suit_constraint is not None:
         return "oc"
     return "standard"
 
@@ -870,7 +868,7 @@ def _build_processing_order(
         if not isinstance(sp, SeatProfile) or not sp.subprofiles:
             continue
         sub = chosen_subprofiles.get(seat)
-        if sub and getattr(sub, "random_suit_constraint", None) is not None:
+        if sub and sub.random_suit_constraint is not None:
             rs_seats.append(seat)
         else:
             other_seats.append(seat)

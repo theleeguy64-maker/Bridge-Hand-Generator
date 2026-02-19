@@ -14,15 +14,7 @@ from .hand_profile import (
     ProfileError,
     SuitRange,
 )
-from .deal_generator_types import SuitAnalysis, _CARD_HCP
-
-
-# Simple type aliases used throughout generation/viability.
-Seat = str
-Card = str
-
-# HCP lookup: use pre-built _CARD_HCP dict from deal_generator_types
-# (maps full card string e.g. "AS" → 4, "2H" → 0).
+from .deal_generator_types import Seat, Card, SuitAnalysis, _CARD_HCP
 
 
 # ---------------------------------------------------------------------------

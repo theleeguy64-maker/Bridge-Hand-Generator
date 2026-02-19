@@ -92,6 +92,7 @@ def test_choose_profile_for_session_allows_cancel(monkeypatch, capsys) -> None:
             self.version = "0.1"
             self.tag = "Opener"
             self.dealer = "N"
+            self.sort_order = None
 
     dummy_profile = DummyProfile("ProfileOne")
     dummy_path = Path("dummy.json")

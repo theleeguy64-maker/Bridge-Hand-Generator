@@ -55,7 +55,6 @@ from .hand_profile import (
 
 from .profile_wizard import (
     create_profile_interactive,
-    edit_constraints_interactive,
 )
 
 from . import profile_store
@@ -417,12 +416,16 @@ def _print_random_suit_constraint(rs: RandomSuitConstraintData, indent: str = ""
 def _print_partner_contingent_constraint(pc: PartnerContingentData, indent: str = "") -> None:
     print(f"{indent}Partner Contingent constraint:")
     print(f"{indent}  Partner seat: {pc.partner_seat}")
+    if pc.use_non_chosen_suit:
+        print(f"{indent}  Mode: NON-CHOSEN (inverse)")
     _print_suit_range("Suit", pc.suit_range, indent + "  ")
 
 
 def _print_opponent_contingent_constraint(oc: OpponentContingentSuitData, indent: str = "") -> None:
     print(f"{indent}Opponent Contingent-Suit constraint:")
     print(f"{indent}  Opponent seat: {oc.opponent_seat}")
+    if oc.use_non_chosen_suit:
+        print(f"{indent}  Mode: NON-CHOSEN (inverse)")
     _print_suit_range("Suit", oc.suit_range, indent + "  ")
 
 
@@ -436,7 +439,7 @@ def _print_profile_metadata(profile: HandProfile, path: Path) -> None:
     print(f"Version     : {profile.version}")
     print(f"Rotate deals: {profile.rotate_deals_by_default}")
 
-    ns_mode = getattr(profile, "ns_role_mode", "no_driver_no_index")
+    ns_mode = profile.ns_role_mode
     ns_mode_pretty = {
         "north_drives": "North usually drives",
         "south_drives": "South usually drives",
@@ -462,7 +465,7 @@ def _print_profile_constraints(profile: HandProfile) -> None:
         for idx, sub in enumerate(sp.subprofiles, start=1):
             print(f"\n  Sub-profile {idx}:")
             if multi:
-                weight = getattr(sub, "weight_percent", None)
+                weight = sub.weight_percent
                 if weight is not None:
                     print(f"    Weight: {weight:.1f}%")
 
@@ -478,7 +481,7 @@ def _print_profile_constraints(profile: HandProfile) -> None:
                     indent="    ",
                 )
 
-            oc_constraint = getattr(sub, "opponents_contingent_suit_constraint", None)
+            oc_constraint = sub.opponents_contingent_suit_constraint
             if oc_constraint is not None:
                 _print_opponent_contingent_constraint(
                     oc_constraint,
@@ -509,27 +512,27 @@ def _print_subprofile_exclusions(
     indent: str = "",
 ) -> None:
     exclusions = profile.subprofile_exclusions
-    relevant = [e for e in exclusions if getattr(e, "seat", None) == seat]
+    relevant = [e for e in exclusions if e.seat == seat]
     if not relevant:
         return
 
     print(f"{indent}Exclusions:")
     for e in relevant:
-        idx = getattr(e, "subprofile_index", None)
+        idx = e.subprofile_index
 
-        shapes = getattr(e, "excluded_shapes", None)
+        shapes = e.excluded_shapes
         if shapes:
             shapes_txt = ", ".join(str(s) for s in shapes)
             print(f"{indent}  Sub-profile {idx}: exclude shapes: {shapes_txt}")
             continue
 
-        clauses = getattr(e, "clauses", None)
+        clauses = e.clauses
         if clauses:
             parts = []
             for c in clauses:
-                group = getattr(c, "group", "")
-                length_eq = getattr(c, "length_eq", None)
-                count = getattr(c, "count", None)
+                group = c.group
+                length_eq = c.length_eq
+                count = c.count
                 parts.append(f"({group} len={length_eq} count={count})")
             print(f"{indent}  Sub-profile {idx}: exclude if: " + " AND ".join(parts))
             continue
@@ -794,7 +797,7 @@ def save_as_new_version_action() -> None:
         author=profile.author,
         version=new_version,
         rotate_deals_by_default=profile.rotate_deals_by_default,
-        ns_role_mode=getattr(profile, "ns_role_mode", "no_driver_no_index"),
+        ns_role_mode=profile.ns_role_mode,
         subprofile_exclusions=list(profile.subprofile_exclusions),
         is_invariants_safety_profile=profile.is_invariants_safety_profile,
         use_rs_w_only_path=profile.use_rs_w_only_path,
@@ -857,7 +860,9 @@ def run_profile_manager() -> None:
             except (KeyboardInterrupt, SystemExit):
                 raise
             except Exception as exc:
-                print("\n⚠️ Wizard error — returning to Profile Manager.")
+                # Top-level safety net: the wizard calls many subsystems,
+                # so any exception type is possible.  Log and continue.
+                print("\nWARNING: Wizard error — returning to Profile Manager.")
                 print(f"   {type(exc).__name__}: {exc}\n")
         elif choice == 4:
             try:
@@ -865,7 +870,8 @@ def run_profile_manager() -> None:
             except (KeyboardInterrupt, SystemExit):
                 raise
             except Exception as exc:
-                print("\n⚠️ Wizard error — returning to Profile Manager.")
+                # Top-level safety net (same rationale as edit above).
+                print("\nWARNING: Wizard error — returning to Profile Manager.")
                 print(f"   {type(exc).__name__}: {exc}\n")
         elif choice == 5:
             delete_profile_action()

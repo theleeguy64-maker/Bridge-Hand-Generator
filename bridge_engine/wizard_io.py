@@ -11,11 +11,6 @@ from typing import Sequence
 from . import cli_io
 
 
-def _input_bool(prompt: str, default: bool = True) -> bool:
-    # Backwards-compat / façade seam: callers expect _input_bool
-    return _yes_no(prompt, default=default)
-
-
 def _input_with_default(prompt: str, default: str) -> str:
     """
     Backwards-compat: tests monkeypatch profile_wizard._input_with_default.
@@ -132,8 +127,4 @@ def clear_screen() -> None:
     Local wrapper so existing code can call clear_screen()
     without caring where it lives.
     """
-    fn = getattr(cli_io, "clear_screen", None)
-    if callable(fn):
-        fn()
-        return
-    print("\n" * 100)
+    cli_io.clear_screen()

@@ -138,6 +138,9 @@ def _dummy_existing(*, rotate: Optional[bool]) -> Any:
             self.seat_profiles = {s: DummySeatProfile() for s in ["N", "E", "S", "W"]}
             self.author = "Author"
             self.version = "0.1"
+            self.subprofile_exclusions: list = []
+            self.sort_order = None
+            self.ns_role_mode = "no_driver_no_index"
             if rotate is not None:
                 self.rotate_deals_by_default = rotate
 

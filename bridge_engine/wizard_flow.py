@@ -20,7 +20,6 @@ profiles so that both the CLI and tests can rely on a single behaviour.
 # Builder / flow helpers patched by tests:
 #   - _build_seat_profile(seat: str)
 #   - _build_profile(existing: Optional[HandProfile] = None)
-#   - create_profile_interactive()
 #   - edit_constraints_interactive(existing: HandProfile)
 #
 # Injection points:
@@ -294,7 +293,7 @@ def _edit_subprofile_exclusions_for_seat(
     other = [e for e in current_all if e.seat != seat]
 
     sp = seat_profiles.get(seat)
-    if sp is None or not getattr(sp, "subprofiles", None):
+    if sp is None or not sp.subprofiles:
         print(f"(No sub-profiles for seat {seat}; exclusions not applicable.)")
         return current_all
 
@@ -481,8 +480,8 @@ def _parse_suit_list(
     is provided, we return the default.
     """
     default_list: List[str] = list(default) if default is not None else []
-    # Show exactly the prompt we were given – no extra duplicated text.
-    raw = input(prompt).strip().upper()
+    # Route through wiz_io so tests can monkeypatch input.
+    raw = wiz_io.prompt_str(prompt, default="").strip().upper()
 
     if not raw:
         # No input: fall back to default if given, otherwise all suits.
@@ -542,11 +541,11 @@ def _build_standard_constraints(
     # Per-suit details
     print("\nPer-suit constraints (Spades, Hearts, Diamonds, Clubs):")
 
-    # For now we only care about existing when provided; otherwise defaults
-    existing_spades = getattr(existing, "spades", None)
-    existing_hearts = getattr(existing, "hearts", None)
-    existing_diamonds = getattr(existing, "diamonds", None)
-    existing_clubs = getattr(existing, "clubs", None)
+    # Extract per-suit ranges from existing constraints if editing
+    existing_spades = existing.spades if existing is not None else None
+    existing_hearts = existing.hearts if existing is not None else None
+    existing_diamonds = existing.diamonds if existing is not None else None
+    existing_clubs = existing.clubs if existing is not None else None
 
     spades = _build_suit_range_for_prompt("Spades", existing_spades)
     hearts = _build_suit_range_for_prompt("Hearts", existing_hearts)
@@ -766,7 +765,7 @@ def _build_random_suit_constraint(
         suit_ranges.append(sr)
 
     # Keep any existing pair_overrides, or default to empty list
-    pair_overrides = list(getattr(existing, "pair_overrides", [])) if existing else []
+    pair_overrides = list(existing.pair_overrides) if existing else []
 
     return RandomSuitConstraintData(
         allowed_suits=allowed_suits,
@@ -799,7 +798,7 @@ def _build_subprofile(
             default_choice = 2
         elif existing.partner_contingent_constraint is not None:
             default_choice = 3
-        elif getattr(existing, "opponents_contingent_suit_constraint", None) is not None:
+        elif existing.opponents_contingent_suit_constraint is not None:
             default_choice = 4
 
     while True:
@@ -836,7 +835,7 @@ def _build_subprofile(
         )
     elif choice == 4:
         opponents_constraint = _build_opponent_contingent_constraint(
-            getattr(existing, "opponents_contingent_suit_constraint", None) if existing else None
+            existing.opponents_contingent_suit_constraint if existing else None
         )
 
     # Weighting (seat-level weighting edits are handled separately.)
@@ -891,7 +890,7 @@ def _assign_subprofile_weights_interactive(
     existing_weights: List[float] = []
     if existing is not None:
         for sub in existing.subprofiles:
-            existing_weights.append(getattr(sub, "weight_percent", 0.0))
+            existing_weights.append(sub.weight_percent)
 
     # Detect "legacy" case: all zeros
     all_zero = all(w == 0.0 for w in existing_weights) if existing_weights else True
@@ -1019,7 +1018,7 @@ def _assign_ns_role_usage_interactive(
     existing_usage: List[str] = []
     if existing_seat_profile is not None:
         for sp in existing_seat_profile.subprofiles:
-            existing_usage.append(getattr(sp, "ns_role_usage", "any"))
+            existing_usage.append(sp.ns_role_usage)
 
     n = len(subprofiles)
     if not existing_usage:
@@ -1111,7 +1110,8 @@ def _build_profile(
     seat_builder = _pw_attr("_build_seat_profile", _build_seat_profile)
 
     # Rotation is metadata; constraints edit must preserve existing value (default True).
-    rotate_flag = getattr(existing, "rotate_deals_by_default", True)
+    # getattr for back-compat with legacy profile objects missing this field.
+    rotate_flag = getattr(existing, "rotate_deals_by_default", True) if existing is not None else True
 
     # ----- Metadata (and rotation flag) -----
     if existing is not None:
@@ -1121,8 +1121,8 @@ def _build_profile(
         tag = existing.tag
         dealer = existing.dealer
         hand_dealing_order = list(existing.hand_dealing_order)
-        author = getattr(existing, "author", "")
-        version = getattr(existing, "version", "")
+        author = existing.author
+        version = existing.version
 
     else:
         # CREATE FLOW: metadata-only UI
@@ -1180,7 +1180,7 @@ def _build_profile(
     # ------------------------------------------------------------------
     seat_profiles: Dict[str, SeatProfile] = {}  # type: ignore[no-redef]
     subprofile_exclusions: List[SubprofileExclusionData] = list(  # type: ignore[no-redef]
-        getattr(existing, "subprofile_exclusions", []) or []
+        existing.subprofile_exclusions or []
     )
 
     for seat in hand_dealing_order:
@@ -1211,11 +1211,7 @@ def _build_profile(
         # --- Autosave draft after each seat (best-effort) ---
         if original_path is not None:
             try:
-                ns_role_mode = getattr(
-                    existing,
-                    "ns_role_mode",
-                    "no_driver_no_index",
-                )
+                ns_role_mode = existing.ns_role_mode
                 snapshot = HandProfile(
                     profile_name=profile_name,
                     description=description,
@@ -1228,14 +1224,14 @@ def _build_profile(
                     rotate_deals_by_default=rotate_flag,
                     ns_role_mode=ns_role_mode,
                     subprofile_exclusions=list(subprofile_exclusions),
-                    sort_order=getattr(existing, "sort_order", None),
+                    sort_order=existing.sort_order,
                 )
                 _autosave_profile_draft(snapshot, original_path)
             except Exception as exc:  # pragma: no cover – autosave is best-effort
                 print(f"WARNING: Autosave failed after seat {seat}: {exc}")
 
     # ----- Final kwargs dict for HandProfile (edit flow) -----
-    ns_role_mode = getattr(existing, "ns_role_mode", "no_driver_no_index")
+    ns_role_mode = existing.ns_role_mode
 
     return {
         "profile_name": profile_name,
@@ -1249,96 +1245,8 @@ def _build_profile(
         "rotate_deals_by_default": rotate_flag,
         "ns_role_mode": ns_role_mode,
         "subprofile_exclusions": list(subprofile_exclusions),
-        "sort_order": getattr(existing, "sort_order", None),
+        "sort_order": existing.sort_order,
     }
-
-
-def create_profile_interactive() -> HandProfile:
-    """
-    Top-level helper for creating a new profile interactively.
-
-    New behaviour:
-      • Ask ONLY for profile metadata (name, tag, dealer, order, author, version,
-        rotate flag).
-      • Automatically attach standard "open" constraints to all four seats
-        (N, E, S, W) – one sub-profile per seat, weight 100%, ns_role_usage="any".
-      • NS role metadata defaults to "no_driver_no_index".
-      • Users can later refine constraints via edit_constraints_interactive().
-    """
-    clear_screen()
-    print("=== Create New Profile ===")
-    print()
-
-    # ---- Metadata prompts (same feel as before) ---------------------------
-    profile_name = _input_with_default("Profile name: ", "New profile")
-    description = _input_with_default("Description: ", "")
-
-    tag = _input_choice(
-        "Tag [Opener/Overcaller]: ",
-        ["Opener", "Overcaller"],
-        "Opener",
-    )
-
-    dealer = _input_choice(
-        "Dealer seat [N/E/S/W]: ",
-        ["N", "E", "S", "W"],
-        "N",
-    )
-
-    # New default NS role mode for fresh profiles.
-    ns_role_mode = "no_driver_no_index"
-
-    # Dealing order is auto-computed at runtime by v2 builder
-    # (_compute_dealing_order).  Store clockwise from dealer as default.
-    hand_dealing_order = _default_dealing_order(dealer)
-
-    author = _input_with_default("Author: ", "")
-    version = _input_with_default("Version: ", "0.1")
-
-    # ---- Standard constraints for all seats -------------------------------
-    seat_profiles: Dict[str, SeatProfile] = {}
-
-    for seat in ("N", "E", "S", "W"):
-        # Completely open "standard" ranges:
-        _open = SuitRange()
-        std = StandardSuitConstraints(
-            spades=_open,
-            hearts=_open,
-            diamonds=_open,
-            clubs=_open,
-        )
-        sub = SubProfile(
-            standard=std,
-            random_suit_constraint=None,
-            partner_contingent_constraint=None,
-            opponents_contingent_suit_constraint=None,
-            weight_percent=100.0,
-            ns_role_usage="any",
-        )
-        seat_profiles[seat] = SeatProfile(seat=seat, subprofiles=[sub])
-
-    # No exclusions on a fresh standard profile
-    subprofile_exclusions: List[SubprofileExclusionData] = []
-
-    # Build the HandProfile via the same indirection tests use
-    hp_cls = _pw_attr("HandProfile", HandProfile)
-    profile = hp_cls(
-        profile_name=profile_name,
-        description=description,
-        dealer=dealer,
-        hand_dealing_order=hand_dealing_order,
-        tag=tag,
-        seat_profiles=seat_profiles,
-        author=author,
-        version=version,
-        rotate_deals_by_default=True,
-        ns_role_mode=ns_role_mode,
-        subprofile_exclusions=subprofile_exclusions,
-    )
-
-    # Run normal validation so new profiles behave like edited/loaded ones.
-    _validate_profile(profile)
-    return profile
 
 
 def edit_constraints_interactive(

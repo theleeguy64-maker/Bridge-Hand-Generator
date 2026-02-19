@@ -275,7 +275,7 @@ _DEBUG_ON_MAX_ATTEMPTS: Optional[Callable[..., None]] = None
 
 # Debug hook: invoked when standard constructive help (v1) is actually used.
 # Signature: (profile, board_number, attempt_number, help_seat) -> None
-_DEBUG_STANDARD_CONSTRUCTIVE_USED = None
+_DEBUG_STANDARD_CONSTRUCTIVE_USED: Optional[Callable[..., None]] = None
 
 # Debug hook: per-attempt failure attribution
 # Signature:

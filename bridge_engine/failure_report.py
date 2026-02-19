@@ -22,10 +22,8 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from .hand_profile_model import HandProfile
+from .deal_generator_types import Seat
 from . import deal_generator as dg
-
-
-Seat = str  # "N", "E", "S", "W"
 
 
 @dataclass
@@ -129,8 +127,6 @@ class FailureAttributionReport:
                 }
             )
 
-        if not rows:
-            return  # Nothing to write
         with path.open("w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
             writer.writeheader()

@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import random
 import re
-from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Sequence
+from typing import Dict, Iterable, List
 
 # ---------------------------------------------------------------------------
 # Compiled regex patterns (all in one place for easy auditing)
@@ -102,36 +101,6 @@ def select_latest_per_group(paths: Iterable[Path]) -> List[Path]:
     return sorted(groups.values(), key=lambda p: p.name)
 
 
-def group_lin_files_by_scenario(paths: Sequence[Path]) -> Dict[str, List[Path]]:
-    """
-    Group LIN files by their logical 'scenario key'.
-
-    Returns:
-        dict: {scenario_key -> [Path, Path, ...]}
-    """
-    groups: Dict[str, List[Path]] = defaultdict(list)
-    for p in paths:
-        groups[logical_lin_key(p)].append(p)
-    return dict(groups)
-
-
-def latest_lin_file_per_scenario(
-    groups: Mapping[str, Sequence[Path]],
-) -> Dict[str, Path]:
-    """
-    From grouped LIN files, pick the latest (by mtime) for each scenario.
-
-    Returns:
-        dict: {scenario_key -> latest Path}
-    """
-    latest: Dict[str, Path] = {}
-    for key, files in groups.items():
-        if not files:
-            continue
-        latest[key] = max(files, key=lambda p: p.stat().st_mtime)
-    return latest
-
-
 def _split_lin_into_boards(text: str) -> List[str]:
     """
     Split a LIN file into per-board chunks.
@@ -167,15 +136,13 @@ def _renumber_boards(boards: List[str], start_at: int = 1) -> List[str]:
         label = f"Board {num}"
 
         # Replace the first "Board <number>" if present.
-        def repl(_match: re.Match) -> str:  # type: ignore[override]
+        def repl(_match: re.Match[str]) -> str:
             return label
 
         new_board, count = _BOARD_LABEL_RE.subn(repl, board, count=1)
 
-        # If we somehow didn't find a Board label at all, just leave
-        # the board unchanged rather than risking mangling the LIN.
-        if count == 0:
-            new_board = board
+        # Also renumber the qx|oN| container tag to match the new board number.
+        new_board = re.sub(r"qx\|o\d+\|", f"qx|o{num}|", new_board, count=1)
 
         renumbered.append(new_board)
         num += 1
@@ -441,7 +408,7 @@ def run_lin_combiner() -> None:
             seed=seed,
             weights=file_weights,
         )
-    except Exception as exc:
+    except (OSError, ValueError) as exc:
         print(f"\nERROR: failed to combine LIN files: {exc}")
         return
 

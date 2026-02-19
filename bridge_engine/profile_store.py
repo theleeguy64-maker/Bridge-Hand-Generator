@@ -191,7 +191,7 @@ def find_profile_by_name(target_name: str, base_dir: Path | None = None) -> Opti
     """
     want = _strip_test_suffix(target_name or "")
     for path, profile in _load_profiles(base_dir=base_dir):
-        have = _strip_test_suffix(getattr(profile, "profile_name", "") or "")
+        have = _strip_test_suffix(profile.profile_name or "")
         if have == want:
             return (path, profile)
     return None
@@ -254,7 +254,7 @@ def build_profile_display_map(
     unordered: List[Tuple[Path, HandProfile]] = []
 
     for path, profile in profiles:
-        so = getattr(profile, "sort_order", None)
+        so = profile.sort_order
         if so is not None:
             ordered.append((so, path, profile))
         else:
