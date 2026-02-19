@@ -214,6 +214,302 @@ Tips:
   - Each exclusion targets one sub-profile index on one seat.
   - You can add multiple exclusions per seat.
 """,
+    "edit_profile_mode": """\
+=== Edit Profile – Mode Selection ===
+
+Each profile has two parts: metadata and constraints.
+
+METADATA (option 1) — lightweight edits:
+  These are descriptive fields that label and configure the profile:
+    • Profile name, description, tag (Opener/Overcaller)
+    • Author, version
+    • Dealer seat (N/E/S/W)
+    • Dealing order (clockwise / counter-clockwise)
+    • Rotate deals by default (swap N↔S and E↔W randomly)
+    • NS role mode (who drives the auction for North–South)
+
+  Editing metadata does NOT re-run the wizard — you just update the
+  fields and save.
+
+CONSTRAINTS (option 2) — full wizard re-run:
+  Constraints define the actual hand requirements for each seat. Each
+  seat has one or more "sub-profiles", each of which can specify:
+    • HCP range (e.g. 12–14 high-card points)
+    • Per-suit card-count ranges (e.g. Spades 5–7, Hearts 2–4)
+    • Extra constraints:
+        - Random Suit (RS): randomly pick a long suit each deal
+        - Partner Contingent (PC): react to partner's RS choice
+        - Opponent Contingent (OC): react to opponent's RS choice
+    • Exclusions: reject specific shapes after the hand passes
+    • Weights: how often each sub-profile is selected
+    • NS role usage: driver/follower coordination
+
+  Choosing this option runs the full interactive wizard for each seat,
+  using the current constraints as defaults so you only change what
+  you need.
+""",
+    "draft_tools": """\
+=== Draft Tools – *_TEST.json Files ===
+
+During profile editing, the wizard auto-saves a "draft" copy of your
+profile with a *_TEST.json suffix. This is a safety net — if the
+editor crashes or you cancel, your in-progress work is preserved in
+the draft file.
+
+Over time, draft files can accumulate in your profiles/ directory.
+They are NOT used during deal generation (only canonical profiles
+are loaded). Deleting them is safe cleanup.
+
+Options:
+  1) Delete one draft — choose a specific draft file to remove
+  2) Delete ALL drafts — remove every *_TEST.json file at once
+  3) Cancel — return without deleting anything
+  4) Help — show this help text
+""",
+    "extra_constraint": """\
+=== Extra Constraint – Sub-profile Constraint Mode ===
+
+Every sub-profile has standard constraints (HCP range + per-suit
+card-count ranges). Optionally, you can add ONE extra constraint
+that links suit selection across seats or across deals.
+
+The four options:
+
+1) STANDARD-ONLY (None)
+   No extra constraint — just HCP and suit-length ranges.
+   Use this when the seat has fixed, predictable requirements.
+   Example: "12–14 HCP, balanced" — no suit-linking needed.
+
+2) RANDOM SUIT (RS)
+   Each deal, the generator randomly picks N suit(s) from a list
+   you define. The suit-length constraints then apply to whichever
+   suit(s) are chosen.
+
+   You configure:
+     • How many suits to pick (usually 1)
+     • Which suits are allowed (e.g. [S, H] for majors only)
+     • A SuitRange per chosen suit (min/max card count + optional HCP)
+
+   Example: "Pick 1 from [S, H] with 6+ cards" means sometimes the
+   hand has 6+ spades, sometimes 6+ hearts — decided randomly for
+   each board. This models a player who opens 1-of-a-major but you
+   don't care which major.
+
+3) PARTNER CONTINGENT (PC)
+   This seat's extra constraint depends on what the PARTNER's Random
+   Suit chose for the current deal.
+
+   You configure:
+     • Which seat is the partner (must have an RS constraint)
+     • A SuitRange applied to the partner's chosen suit
+     • Optionally: "inverse" mode — target the suit the partner did
+       NOT pick instead of the one they picked
+
+   Example (normal): North RS picks Hearts → South PC requires 3+
+   hearts (showing support for partner's suit).
+
+   Example (inverse): North RS picks Hearts from [S, H] → South PC
+   requires 3+ spades (covering the other major).
+
+4) OPPONENT CONTINGENT-SUIT (OC)
+   Same concept as PC, but reacting to an OPPONENT's RS choice.
+
+   You configure:
+     • Which seat is the opponent (must have an RS constraint)
+     • A SuitRange applied to the opponent's chosen suit
+     • Optionally: "inverse" mode — target the non-chosen suit
+
+   Example (normal): West RS picks Spades → North OC requires 4+
+   spades (modeling an overcall in the opponent's suit).
+
+   Example (inverse): West RS picks Spades from [S, H] → North OC
+   requires 4+ hearts (bidding the other major).
+
+Tips:
+  • Only ONE extra constraint per sub-profile (RS, PC, or OC).
+  • PC and OC require the referenced seat to have an RS constraint.
+  • Inverse mode requires the referenced RS to have exactly 1 suit
+    left over after picking (e.g., pick 1 from 2 allowed suits).
+""",
+    "ns_role_mode": """\
+=== NS Role Mode – Who Drives the Auction? ===
+
+When both North and South have multiple sub-profiles, "NS role mode"
+controls which seat's sub-profile index is chosen first each board.
+The other seat ("follower") then uses the same index, ensuring the
+partnership's sub-profiles stay coordinated.
+
+The five modes:
+
+1) N_DRIVER — North always drives
+   North's sub-profile index is chosen first (by weight), and South
+   follows with the same index.
+   Use when North is always the "opener" and South's hand should
+   match North's hand type.
+
+2) S_DRIVER — South always drives
+   South's sub-profile index is chosen first, North follows.
+   Symmetric opposite of mode 1.
+
+3) RANDOM_DRIVER — Random driver per board
+   Each board, one of N or S is randomly designated as driver.
+   The other follows. Use when either player could be opener and
+   you want variety.
+
+4) NO_DRIVER — No explicit driver, but index matching applies
+   Neither seat is the "driver", but both seats still use the same
+   sub-profile index each board. The index is chosen by combined
+   weight. Use when the sub-profiles are symmetric between N and S.
+
+5) NO_DRIVER_NO_INDEX — No driver, no index matching
+   Each seat's sub-profile is chosen independently. North might use
+   sub-profile 0 while South uses sub-profile 2 on the same board.
+   This is the simplest and most flexible default — use it unless
+   you specifically need coordinated NS sub-profile selection.
+
+Tips:
+  • If North and South have DIFFERENT numbers of sub-profiles,
+    modes 1–4 will pad the shorter list to match.
+  • For most profiles (especially when only one seat has multiple
+    sub-profiles), mode 5 is the safest choice.
+  • You can further refine with per-sub-profile "role usage" tags
+    (any / driver_only / follower_only) when editing constraints.
+""",
+    # --- y/n help entries ---
+    "yn_non_chosen_partner": """\
+=== Partner Contingent – Non-Chosen (Inverse) Suit ===
+
+Normally, a Partner Contingent (PC) constraint targets the suit that
+your partner's Random Suit (RS) CHOSE for the current deal. For
+example, if North's RS picks Hearts, South's PC constraint applies
+to Hearts.
+
+With "non-chosen" (inverse) mode, the constraint targets the suit
+the partner did NOT pick instead.
+
+Example:
+  North's RS picks 1 suit from [Spades, Hearts].
+  If North picks Hearts this board:
+    • Normal PC: South's constraint applies to Hearts
+    • Inverse PC: South's constraint applies to Spades
+
+Use inverse mode when you want the partnership to cover DIFFERENT
+suits — e.g., North opens one major and South has length in the
+OTHER major.
+
+Requirement: The partner's RS must have exactly 1 non-chosen suit
+(e.g., pick 1 from 2 allowed suits). If the partner picks 1 from
+3+ suits, there would be multiple non-chosen suits and the inverse
+mode cannot determine which one to target.
+
+Answer Yes to target the non-chosen suit, No to target the chosen suit.
+""",
+    "yn_non_chosen_opponent": """\
+=== Opponent Contingent – Non-Chosen (Inverse) Suit ===
+
+Normally, an Opponent Contingent (OC) constraint targets the suit
+that the opponent's Random Suit (RS) CHOSE for the current deal.
+For example, if West's RS picks Spades, North's OC constraint
+applies to Spades.
+
+With "non-chosen" (inverse) mode, the constraint targets the suit
+the opponent did NOT pick instead.
+
+Example:
+  West's RS picks 1 suit from [Spades, Hearts].
+  If West picks Hearts this board:
+    • Normal OC: North's constraint applies to Hearts
+    • Inverse OC: North's constraint applies to Spades
+
+Use inverse mode when you want to model a defensive hand that bids
+the suit the opponent did NOT open — e.g., if the opponent opens
+Hearts, your hand has length in Spades instead.
+
+Requirement: The opponent's RS must have exactly 1 non-chosen suit
+(pick 1 from 2 allowed). Multiple non-chosen suits are ambiguous
+and not supported.
+
+Answer Yes to target the non-chosen suit, No to target the chosen suit.
+""",
+    "yn_edit_weights": """\
+=== Sub-profile Weights ===
+
+Each sub-profile has a weight that controls how often it is selected
+when generating deals. By default, all sub-profiles have equal weight.
+
+Example: If a seat has 3 sub-profiles with weights 60%, 20%, 20%:
+  • ~60% of boards will use sub-profile 1
+  • ~20% of boards will use sub-profile 2
+  • ~20% of boards will use sub-profile 3
+
+Weights are percentages and must sum to 100%. Use weights when one
+hand type is more common than another — for example, if you want
+most boards to feature a balanced opener but occasionally include
+a strong 2-club hand.
+
+Answer Yes to edit the weights, No to keep the current/equal weights.
+""",
+    "yn_edit_roles": """\
+=== NS Role Usage (Driver / Follower) ===
+
+When both North and South have multiple sub-profiles AND NS role mode
+uses a driver/follower system (modes 1–4), each sub-profile can be
+tagged with a "role usage":
+
+  • "any" — this sub-profile can be used whether the seat is driving
+    or following (default)
+  • "driver_only" — only used when THIS seat is the driver
+  • "follower_only" — only used when THIS seat is the follower
+
+Example: North has 2 sub-profiles:
+  • Sub-profile 0: "Strong opener" → driver_only
+  • Sub-profile 1: "Responder" → follower_only
+When North drives, sub-profile 0 is used; when South drives, North
+uses sub-profile 1.
+
+Most profiles do not need this level of control. Answer No unless
+you specifically want different sub-profiles for driving vs following.
+""",
+    "yn_exclusions": """\
+=== Sub-profile Exclusions ===
+
+Exclusions let you reject specific hand shapes AFTER a hand has
+passed the standard constraints. If a dealt hand matches an exclusion,
+the generator discards it and retries with a new random deal.
+
+Two types of exclusion:
+  • Exact shapes: reject specific 4-digit patterns (e.g., 4333 = four
+    spades, three of each other suit)
+  • Rules: reject by suit-group clause (e.g., reject if both majors
+    have exactly 4 cards)
+
+Use exclusions when your standard constraints are correct but allow
+some distributions you don't want. For example, you want 12–14 HCP
+with a balanced hand but want to exclude the flattest shapes (4333).
+
+Answer Yes to add or edit exclusions, No to skip.
+""",
+    "yn_rotate_deals": """\
+=== Rotate Deals ===
+
+Rotation randomly swaps North↔South and East↔West positions for each
+board when writing the output. This means the constrained player won't
+always sit in the same seat.
+
+Without rotation, if your profile constrains North as the opener, then
+North will ALWAYS be the opener in every board. This can create
+positional bias — the person sitting North always gets the interesting
+hand.
+
+With rotation enabled, the opener might be North on board 1 but South
+on board 3, and the defenders might swap between East and West. This
+makes practice sessions more realistic and varied.
+
+The profile has a default rotation setting (shown in the prompt). You
+can override it for this specific generation run.
+
+Recommended: Yes for practice sessions where you want variety.
+""",
 }
 
 

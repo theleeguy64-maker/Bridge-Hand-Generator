@@ -422,12 +422,20 @@
 - ✅ `seat_viability.py`: Added `@overload` signatures to `_subprofile_is_viable_light()` for return type narrowing
 - ✅ Switched type checker from mypy to pyright in CLAUDE.md
 
+### 50. [x] Comprehensive Help System — menus + y/n prompts
+- ✅ **Track A: 4 menus** — Added Help option to Edit Profile Mode, Draft Tools, Extra Constraint, NS Role Mode
+- ✅ **Track B: `_yes_no_help()`** — New function in `cli_io.py` accepting "help"/"h"/"?" to print context help and re-prompt
+- ✅ **10 help text entries** in `menu_help.py`: 4 menu help texts (edit_profile_mode, draft_tools, extra_constraint, ns_role_mode) + 6 y/n help texts (yn_non_chosen_partner, yn_non_chosen_opponent, yn_edit_weights, yn_edit_roles, yn_exclusions, yn_rotate_deals)
+- ✅ **6 `_yes_no` → `_yes_no_help` replacements**: PC inverse, OC inverse, weights, roles, exclusions (wizard_flow.py), rotate deals (orchestrator.py)
+- ✅ `_yes_no_help` wired through `wizard_io.py` → `profile_wizard.py` → `wizard_flow.py` (_pw_attr monkeypatch seam)
+- ✅ 7 new tests in `test_cli_io.py`; updated monkeypatches in `test_exclusion_menu.py` + `test_wizard_edit_flow.py`
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 30 (30 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 31 (31 done) | **All complete**
 
-**Tests**: 468 passed | **pyright**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
+**Tests**: 475 passed | **pyright**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 

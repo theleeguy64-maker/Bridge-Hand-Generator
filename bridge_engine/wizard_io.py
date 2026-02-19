@@ -31,6 +31,14 @@ def _yes_no(prompt: str, default: bool = True) -> bool:
     return cli_io._yes_no(prompt, default=default)
 
 
+def _yes_no_help(prompt: str, help_key: str, default: bool = True) -> bool:
+    """
+    Yes/no prompt with inline help support.
+    Delegates to cli_io._yes_no_help.
+    """
+    return cli_io._yes_no_help(prompt, help_key, default=default)
+
+
 def prompt_str(prompt: str, default: str = "") -> str:
     """
     Prompt for a line of text with an optional default.

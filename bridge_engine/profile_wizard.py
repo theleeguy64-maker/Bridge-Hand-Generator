@@ -30,6 +30,7 @@ from .wizard_io import (  # type: ignore
     _input_bool,
     _input_choice,
     _yes_no,
+    _yes_no_help,
 )
 
 # ---- Wizard flow / builders -------------------------------------------------
@@ -138,6 +139,7 @@ __all__ = [
     "_input_bool",
     "_input_choice",
     "_yes_no",
+    "_yes_no_help",
     # entrypoints
     "create_profile_interactive",
     "edit_constraints_interactive",

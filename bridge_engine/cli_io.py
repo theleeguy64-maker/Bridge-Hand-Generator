@@ -110,3 +110,35 @@ def _yes_no(prompt: str, default: bool = True) -> bool:
             return False
 
         print("Please answer y or n.", file=sys.stderr)
+
+
+def _yes_no_help(prompt: str, help_key: str, default: bool = True) -> bool:
+    """
+    Prompt for a yes/no response with inline help support.
+
+    Accepts "help", "h", or "?" to print context-sensitive help text
+    (looked up from menu_help.py via help_key) and re-prompt.
+
+    Returns True for yes, False for no.
+    """
+    from .menu_help import get_menu_help  # local import avoids circular deps
+
+    default_str = "Y/n/help" if default else "y/N/help"
+
+    while True:
+        try:
+            raw = input(f"{prompt} ({default_str}): ").strip().lower()
+        except EOFError:
+            raise RuntimeError("Input aborted (EOF) while prompting user.")
+
+        if not raw:
+            return default
+        if raw in {"y", "yes"}:
+            return True
+        if raw in {"n", "no"}:
+            return False
+        if raw in {"help", "h", "?"}:
+            print(get_menu_help(help_key))
+            continue
+
+        print("Please answer y, n, or help.", file=sys.stderr)

@@ -284,12 +284,21 @@ def draft_tools_action() -> None:
     for i, p in enumerate(drafts, start=1):
         print(f"  {i}) {p.name}")
 
-    print("\nActions:")
-    print("  1) Delete one draft")
-    print("  2) Delete ALL drafts")
-    print("  3) Cancel")
+    while True:
+        print("\nActions:")
+        print("  1) Delete one draft")
+        print("  2) Delete ALL drafts")
+        print("  3) Cancel")
+        print("  4) Help")
 
-    action = _input_int("Choose [1-3]", default=3, minimum=1, maximum=3, show_range_suffix=False)
+        action = _input_int("Choose [1-4]", default=3, minimum=1, maximum=4, show_range_suffix=False)
+
+        if action == 4:
+            print(get_menu_help("draft_tools"))
+            continue
+
+        break
+
     if action == 3:
         return
 
@@ -603,16 +612,21 @@ def edit_profile_action() -> None:
         print("  0) Done (back to Profile Manager)")
         print("  1) Edit metadata only")
         print("  2) Edit constraints only")
+        print("  3) Help")
         mode = _input_int(
-            "Choose [0-2] [0]: ",
+            "Choose [0-3] [0]: ",
             default=0,
             minimum=0,
-            maximum=2,
+            maximum=3,
             show_range_suffix=False,
         )
 
         if mode == 0:
             return
+
+        if mode == 3:
+            print(get_menu_help("edit_profile_mode"))
+            continue
 
         print()
 
@@ -663,22 +677,34 @@ def edit_profile_action() -> None:
                 "No driver / no index matching",
             )
 
-            print("NS role mode (who probably drives the auction for NS?)")
-            for i, (_, label) in enumerate(ns_mode_options, start=1):
-                print(f"  {i}) {label}")
-
             default_idx = next(
                 (i for i, (_, label) in enumerate(ns_mode_options, start=1) if label == ns_default_label),
                 len(ns_mode_options),
             )
 
-            choice = _input_int(
-                f"Choose [1-{len(ns_mode_options)}]",
-                default=default_idx,
-                minimum=1,
-                maximum=len(ns_mode_options),
-                show_range_suffix=False,
-            )
+            # Number of real mode options (help is appended as last item)
+            n_modes = len(ns_mode_options)
+            help_idx = n_modes + 1
+
+            while True:
+                print("NS role mode (who probably drives the auction for NS?)")
+                for i, (_, label) in enumerate(ns_mode_options, start=1):
+                    print(f"  {i}) {label}")
+                print(f"  {help_idx}) Help")
+
+                choice = _input_int(
+                    f"Choose [1-{help_idx}]",
+                    default=default_idx,
+                    minimum=1,
+                    maximum=help_idx,
+                    show_range_suffix=False,
+                )
+
+                if choice == help_idx:
+                    print(get_menu_help("ns_role_mode"))
+                    continue
+
+                break
 
             new_ns_role_mode = ns_mode_options[choice - 1][0]
 

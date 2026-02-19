@@ -42,7 +42,7 @@ from .setup_env import run_setup, SetupResult
 from .hand_profile import HandProfile, ProfileError, validate_profile
 from .deal_generator import DealSet, DealGenerationError, generate_deals
 from .deal_output import DealOutputSummary, OutputError, render_deals
-from .cli_io import _yes_no
+from .cli_io import _yes_no_help
 from .profile_cli import _input_int
 
 from . import profile_cli
@@ -283,8 +283,9 @@ def _run_deal_generation_session() -> None:
     # Ask whether to use random N/S, E/W rotation for this generation.
     # Default comes from profile metadata, falling back to True.
     default_rotate = profile.rotate_deals_by_default
-    rotate_deals = _yes_no(
+    rotate_deals = _yes_no_help(
         "Randomly rotate deals (swap N/S and E/W) for this generation?",
+        "yn_rotate_deals",
         default_rotate,
     )
 

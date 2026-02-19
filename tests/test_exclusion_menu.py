@@ -53,8 +53,9 @@ def test_menu_exit_adds_nothing(monkeypatch):
     """
     seat_profiles = _make_seat_profiles()
 
-    # _yes_no: "Add/edit exclusions for seat N?" → True
+    # _yes_no / _yes_no_help: "Add/edit exclusions for seat N?" → True
     monkeypatch.setattr(profile_wizard, "_yes_no", lambda prompt, default=True: True)
+    monkeypatch.setattr(profile_wizard, "_yes_no_help", lambda prompt, key, default=True: True)
 
     # _input_int calls:
     #   1) sub-profile index → 1
@@ -92,6 +93,7 @@ def test_menu_shapes_adds_exclusion(monkeypatch):
     seat_profiles = _make_seat_profiles()
 
     monkeypatch.setattr(profile_wizard, "_yes_no", lambda prompt, default=True: True)
+    monkeypatch.setattr(profile_wizard, "_yes_no_help", lambda prompt, key, default=True: True)
 
     # _input_int calls:
     #   1) sub-profile index → 1
@@ -143,7 +145,11 @@ def test_menu_rule_adds_exclusion(monkeypatch):
     """
     seat_profiles = _make_seat_profiles()
 
-    monkeypatch.setattr(profile_wizard, "_yes_no", lambda prompt, default=True: True)
+    # _yes_no_help: "Add/edit exclusions for seat S?" → True
+    monkeypatch.setattr(profile_wizard, "_yes_no_help", lambda prompt, key, default=True: True)
+
+    # _yes_no: "Add a second clause?" → False (stop at 1 clause)
+    monkeypatch.setattr(profile_wizard, "_yes_no", lambda prompt, default=True: False)
 
     # _input_int calls:
     #   1) sub-profile index → 1
@@ -167,19 +173,6 @@ def test_menu_rule_adds_exclusion(monkeypatch):
         "_input_choice",
         lambda prompt, options, default=None: "MAJOR",
     )
-
-    # _yes_no sequence:
-    #   1) "Add/edit exclusions for seat S?" → True  (handled by _yes_no above)
-    #   2) "Add a second clause?" → False (stop at 1 clause)
-    yes_no_calls = {"n": 0}
-
-    def fake_yes_no(prompt, default=True):
-        yes_no_calls["n"] += 1
-        if yes_no_calls["n"] == 1:
-            return True  # add/edit exclusions
-        return False  # don't add second clause
-
-    monkeypatch.setattr(profile_wizard, "_yes_no", fake_yes_no)
 
     result = wizard_flow._edit_subprofile_exclusions_for_seat(
         existing=None,
@@ -212,6 +205,7 @@ def test_menu_help_prints_text_and_loops(monkeypatch, capsys):
     seat_profiles = _make_seat_profiles()
 
     monkeypatch.setattr(profile_wizard, "_yes_no", lambda prompt, default=True: True)
+    monkeypatch.setattr(profile_wizard, "_yes_no_help", lambda prompt, key, default=True: True)
 
     # _input_int calls:
     #   1) sub-profile index → 1
@@ -257,16 +251,10 @@ def test_menu_multiple_additions(monkeypatch):
     """
     seat_profiles = _make_seat_profiles()
 
-    # _yes_no: first call = add/edit → True; second call = no second clause
-    yes_no_calls = {"n": 0}
-
-    def fake_yes_no(prompt, default=True):
-        yes_no_calls["n"] += 1
-        if yes_no_calls["n"] == 1:
-            return True  # add/edit exclusions
-        return False  # don't add second clause
-
-    monkeypatch.setattr(profile_wizard, "_yes_no", fake_yes_no)
+    # _yes_no_help: "Add/edit exclusions for seat N?" → True
+    monkeypatch.setattr(profile_wizard, "_yes_no_help", lambda prompt, key, default=True: True)
+    # _yes_no: "Add a second clause?" → False
+    monkeypatch.setattr(profile_wizard, "_yes_no", lambda prompt, default=True: False)
 
     # _input_int calls:
     #   1) sub-profile index → 1

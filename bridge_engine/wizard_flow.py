@@ -14,6 +14,7 @@ profiles so that both the CLI and tests can rely on a single behaviour.
 #   - _input_with_default(prompt: str, default: str) -> str
 #   - _input_int(prompt, default, minimum, maximum, show_range_suffix=True) -> int
 #   - _yes_no(prompt: str, default: bool = True) -> bool
+#   - _yes_no_help(prompt: str, help_key: str, default: bool = True) -> bool
 #   - clear_screen()
 #
 # Builder / flow helpers patched by tests:
@@ -87,6 +88,11 @@ def _pw_attr(name: str, fallback: Any) -> Any:
 
 def _yes_no(prompt: str, default: bool = True) -> bool:
     return _pw_attr("_yes_no", wiz_io._yes_no)(prompt, default=default)
+
+
+def _yes_no_help(prompt: str, help_key: str, default: bool = True) -> bool:
+    """Yes/no with inline help — routes through _pw_attr for monkeypatch seam."""
+    return _pw_attr("_yes_no_help", wiz_io._yes_no_help)(prompt, help_key, default=default)
 
 
 def _input_with_default(prompt: str, default: str) -> str:
@@ -294,8 +300,9 @@ def _edit_subprofile_exclusions_for_seat(
 
     # If no existing for this seat, optionally skip
     default_edit = True if this_seat else False
-    if not _yes_no(
-        f"Add/edit sub-profile exclusions for seat {seat}? ",
+    if not _yes_no_help(
+        f"Add/edit sub-profile exclusions for seat {seat}?",
+        "yn_exclusions",
         default=default_edit,
     ):
         return current_all
@@ -641,8 +648,9 @@ def _build_partner_contingent_constraint(
 
     # Ask whether to target the non-chosen suit (inverse).
     default_non_chosen = existing.use_non_chosen_suit if existing is not None else False
-    use_non_chosen = _yes_no(
-        "Target partner's NON-CHOSEN suit (inverse)? ",
+    use_non_chosen = _yes_no_help(
+        "Target partner's NON-CHOSEN suit (inverse)?",
+        "yn_non_chosen_partner",
         default=default_non_chosen,
     )
 
@@ -688,8 +696,9 @@ def _build_opponent_contingent_constraint(
     # instead of the suit they chose.  E.g., if opponent RS picks H from
     # [S, H], this seat's OC constraint applies to S (the inverse).
     default_non_chosen = existing.use_non_chosen_suit if existing is not None else False
-    use_non_chosen = _yes_no(
-        "Target opponent's NON-CHOSEN suit (inverse)? ",
+    use_non_chosen = _yes_no_help(
+        "Target opponent's NON-CHOSEN suit (inverse)?",
+        "yn_non_chosen_opponent",
         default=default_non_chosen,
     )
 
@@ -782,12 +791,6 @@ def _build_subprofile(
     std_existing = existing.standard if existing is not None else None
     standard = _prompt_standard_constraints(std_existing)
 
-    print("\nExtra constraint for this sub-profile:")
-    print("  1) None (Standard-only)")
-    print("  2) Random Suit constraint")
-    print("  3) Partner Contingent constraint (chosen or inverse)")
-    print("  4) Opponent Contingent-Suit constraint (chosen or inverse)")
-
     # Default: 2 if existing had a random-suit, 3 for partner-contingent,
     # 4 for opp-contingent, otherwise 1.
     default_choice = 1
@@ -799,13 +802,27 @@ def _build_subprofile(
         elif getattr(existing, "opponents_contingent_suit_constraint", None) is not None:
             default_choice = 4
 
-    choice = _input_int(
-        "  Choose [1-4]",
-        default=default_choice,
-        minimum=1,
-        maximum=4,
-        show_range_suffix=False,
-    )
+    while True:
+        print("\nExtra constraint for this sub-profile:")
+        print("  1) None (Standard-only)")
+        print("  2) Random Suit constraint")
+        print("  3) Partner Contingent constraint (chosen or inverse)")
+        print("  4) Opponent Contingent-Suit constraint (chosen or inverse)")
+        print("  5) Help")
+
+        choice = _input_int(
+            "  Choose [1-5]",
+            default=default_choice,
+            minimum=1,
+            maximum=5,
+            show_range_suffix=False,
+        )
+
+        if choice == 5:
+            print(get_menu_help("extra_constraint"))
+            continue
+
+        break
 
     random_constraint = None
     partner_constraint = None
@@ -891,7 +908,7 @@ def _assign_subprofile_weights_interactive(
         suffix = " (default)" if all_zero else ""
         print(f"  Sub-profile {idx}: {w:.1f}% of deals{suffix}")
 
-    if not _yes_no("Do you want to edit these weights?", default=False):
+    if not _yes_no_help("Do you want to edit these weights?", "yn_edit_weights", default=False):
         # User kept defaults; normalise them to sum exactly 100 in case of rounding.
         total_default = sum(default_weights)
         if total_default <= 0:
@@ -1016,8 +1033,9 @@ def _assign_ns_role_usage_interactive(
         print(f"  Sub-profile {idx}: {role}")
 
     # Let the user opt in; default is 'no' so beginners aren't bothered.
-    if not _yes_no(
-        "Do you want to edit driver/follower roles for these sub-profiles? ",
+    if not _yes_no_help(
+        "Do you want to edit driver/follower roles for these sub-profiles?",
+        "yn_edit_roles",
         default=False,
     ):
         # Just write defaults back into the new objects.

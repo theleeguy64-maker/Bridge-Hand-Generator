@@ -108,12 +108,17 @@ def test_edit_one_seat_updates_only_that_seat(monkeypatch, capsys):
     new_n_seat = SeatProfile(seat="N", subprofiles=[new_sub])
 
     # _yes_no: True for N (first call), False for E/S/W (next 3 calls)
-    # Also False for exclusion editing prompt after N
-    yes_no_calls = iter([True, False, False, False, False])
+    yes_no_calls = iter([True, False, False, False])
     monkeypatch.setattr(
         profile_wizard,
         "_yes_no",
         lambda prompt, default=True: next(yes_no_calls),
+    )
+    # _yes_no_help: exclusion editing prompt after N → False (skip)
+    monkeypatch.setattr(
+        profile_wizard,
+        "_yes_no_help",
+        lambda prompt, key, default=True: False,
     )
 
     # _build_seat_profile: return our modified seat profile for N
@@ -148,11 +153,17 @@ def test_edit_triggers_autosave(monkeypatch, tmp_path, capsys):
     original_path = tmp_path / "EditTest.json"
 
     # Edit N, skip E/S/W
-    yes_no_calls = iter([True, False, False, False, False])
+    yes_no_calls = iter([True, False, False, False])
     monkeypatch.setattr(
         profile_wizard,
         "_yes_no",
         lambda prompt, default=True: next(yes_no_calls),
+    )
+    # _yes_no_help: exclusion editing prompt after N → False (skip)
+    monkeypatch.setattr(
+        profile_wizard,
+        "_yes_no_help",
+        lambda prompt, key, default=True: False,
     )
 
     # Return existing seat unchanged

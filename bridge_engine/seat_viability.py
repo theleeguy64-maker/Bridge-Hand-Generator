@@ -506,9 +506,8 @@ def _subprofile_is_viable_light(sub: SubProfile, *, return_reason: Literal[True]
 @overload
 def _subprofile_is_viable_light(sub: SubProfile, *, return_reason: Literal[False] = ...) -> bool: ...
 
-def _subprofile_is_viable_light(
-    sub: SubProfile, *, return_reason: bool = False
-) -> Union[bool, Tuple[bool, str]]:
+
+def _subprofile_is_viable_light(sub: SubProfile, *, return_reason: bool = False) -> Union[bool, Tuple[bool, str]]:
     """
     Cheap feasibility checks that do NOT require dealing cards.
     Intended for fast 'this can never work' rejection.

@@ -13,20 +13,20 @@ bridge_engine/
 ├── seat_viability.py        (589 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (512 lines) - Validation
 ├── profile_diagnostic.py     (212 lines) - Generic profile diagnostic runner (Admin menu)
-├── orchestrator.py          (485 lines) - CLI/session management + generic menu loop
-├── profile_cli.py           (867 lines) - Profile commands
-├── profile_wizard.py        (158 lines) - Profile creation UI
+├── orchestrator.py          (464 lines) - CLI/session management + generic menu loop
+├── profile_cli.py           (890 lines) - Profile commands
+├── profile_wizard.py        (150 lines) - Profile creation UI
 ├── profile_convert.py        (40 lines) - Profile format conversion
-├── wizard_flow.py         (1,340 lines) - Wizard steps, seat editing, RS/PC/OC prompts
-├── wizard_io.py             (131 lines) - Wizard I/O helpers
+├── wizard_flow.py         (1,366 lines) - Wizard steps, seat editing, RS/PC/OC prompts
+├── wizard_io.py             (139 lines) - Wizard I/O helpers
 ├── profile_viability.py     (371 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py         (302 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
-├── menu_help.py             (230 lines) - Menu help text
+├── menu_help.py             (527 lines) - Menu help text
 ├── lin_tools.py             (449 lines) - LIN file operations
 ├── deal_output.py           (330 lines) - Deal rendering
 ├── lin_encoder.py           (188 lines) - LIN format encoding
 ├── setup_env.py             (216 lines) - RNG seed management
-├── cli_io.py                (112 lines) - CLI utilities
+├── cli_io.py                (144 lines) - CLI utilities
 ├── cli_prompts.py            (96 lines) - CLI prompts
 ├── hand_profile.py           (34 lines) - Exports
 └── __main__.py               (14 lines) - Entry point
