@@ -415,7 +415,7 @@ def _print_partner_contingent_constraint(pc: PartnerContingentData, indent: str 
     print(f"{indent}Partner Contingent constraint:")
     print(f"{indent}  Partner seat: {pc.partner_seat}")
     if pc.use_non_chosen_suit:
-        print(f"{indent}  Target: partner's NON-CHOSEN suit (inverse)")
+        print(f"{indent}  Target: partner's UNCHOSEN suit")
     else:
         print(f"{indent}  Target: partner's CHOSEN suit")
     _print_suit_range("Suit", pc.suit_range, indent + "  ")
@@ -425,7 +425,7 @@ def _print_opponent_contingent_constraint(oc: OpponentContingentSuitData, indent
     print(f"{indent}Opponent Contingent-Suit constraint:")
     print(f"{indent}  Opponent seat: {oc.opponent_seat}")
     if oc.use_non_chosen_suit:
-        print(f"{indent}  Target: opponent's NON-CHOSEN suit (inverse)")
+        print(f"{indent}  Target: opponent's UNCHOSEN suit")
     else:
         print(f"{indent}  Target: opponent's CHOSEN suit")
     _print_suit_range("Suit", oc.suit_range, indent + "  ")
@@ -784,10 +784,21 @@ def edit_profile_action() -> None:
                 print(f"\n--- Seat {seat} ({len(sp.subprofiles)} sub-profile(s)) ---")
                 new_subs = list(sp.subprofiles)
                 for idx, sub in enumerate(sp.subprofiles, start=1):
+                    # Show subprofile constraints so user knows what they're naming.
+                    print(f"\n  {sub_label(idx, sub)}:")
+                    print("    Standard constraints:")
+                    _print_standard_constraints(sub.standard, indent="      ")
+                    if sub.random_suit_constraint is not None:
+                        _print_random_suit_constraint(sub.random_suit_constraint, indent="    ")
+                    if sub.partner_contingent_constraint is not None:
+                        _print_partner_contingent_constraint(sub.partner_contingent_constraint, indent="    ")
+                    if sub.opponents_contingent_suit_constraint is not None:
+                        _print_opponent_contingent_constraint(sub.opponents_contingent_suit_constraint, indent="    ")
+
                     current = sub.name or ""
                     hint = f" [{current}]" if current else ""
                     raw = _input_with_default(
-                        f"  {sub_label(idx, sub)} name{hint}",
+                        f"  Name for {sub_label(idx, sub)}{hint}",
                         current,
                     )
                     new_name_val = raw.strip() or None

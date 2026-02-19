@@ -377,59 +377,55 @@ Tips:
 """,
     # --- y/n help entries ---
     "yn_non_chosen_partner": """\
-=== Partner Contingent – Non-Chosen (Inverse) Suit ===
+=== Partner Contingent – Chosen or Unchosen Suit ===
 
-Normally, a Partner Contingent (PC) constraint targets the suit that
-your partner's Random Suit (RS) CHOSE for the current deal. For
-example, if North's RS picks Hearts, South's PC constraint applies
-to Hearts.
+A Partner Contingent (PC) constraint targets one of the suits from
+your partner's Random Suit (RS).
 
-With "non-chosen" (inverse) mode, the constraint targets the suit
-the partner did NOT pick instead.
+  C = Chosen suit — the suit the partner's RS picked this deal.
+  U = Unchosen suit — the suit the partner's RS did NOT pick.
 
 Example:
   North's RS picks 1 suit from [Spades, Hearts].
   If North picks Hearts this board:
-    • Normal PC: South's constraint applies to Hearts
-    • Inverse PC: South's constraint applies to Spades
+    • Chosen (C):   South's PC constraint applies to Hearts
+    • Unchosen (U): South's PC constraint applies to Spades
 
-Use inverse mode when you want the partnership to cover DIFFERENT
+Use unchosen mode when you want the partnership to cover DIFFERENT
 suits — e.g., North opens one major and South has length in the
 OTHER major.
 
-Requirement: The partner's RS must have exactly 1 non-chosen suit
+Requirement: The partner's RS must have exactly 1 unchosen suit
 (e.g., pick 1 from 2 allowed suits). If the partner picks 1 from
-3+ suits, there would be multiple non-chosen suits and the inverse
-mode cannot determine which one to target.
+3+ suits, there would be multiple unchosen suits and unchosen mode
+cannot determine which one to target.
 
-Answer Yes to target the non-chosen suit, No to target the chosen suit.
+Enter C for chosen suit, U for unchosen suit.
 """,
     "yn_non_chosen_opponent": """\
-=== Opponent Contingent – Non-Chosen (Inverse) Suit ===
+=== Opponent Contingent – Chosen or Unchosen Suit ===
 
-Normally, an Opponent Contingent (OC) constraint targets the suit
-that the opponent's Random Suit (RS) CHOSE for the current deal.
-For example, if West's RS picks Spades, North's OC constraint
-applies to Spades.
+An Opponent Contingent (OC) constraint targets one of the suits from
+the opponent's Random Suit (RS).
 
-With "non-chosen" (inverse) mode, the constraint targets the suit
-the opponent did NOT pick instead.
+  C = Chosen suit — the suit the opponent's RS picked this deal.
+  U = Unchosen suit — the suit the opponent's RS did NOT pick.
 
 Example:
   West's RS picks 1 suit from [Spades, Hearts].
   If West picks Hearts this board:
-    • Normal OC: North's constraint applies to Hearts
-    • Inverse OC: North's constraint applies to Spades
+    • Chosen (C):   North's OC constraint applies to Hearts
+    • Unchosen (U): North's OC constraint applies to Spades
 
-Use inverse mode when you want to model a defensive hand that bids
+Use unchosen mode when you want to model a defensive hand that bids
 the suit the opponent did NOT open — e.g., if the opponent opens
 Hearts, your hand has length in Spades instead.
 
-Requirement: The opponent's RS must have exactly 1 non-chosen suit
-(pick 1 from 2 allowed). Multiple non-chosen suits are ambiguous
+Requirement: The opponent's RS must have exactly 1 unchosen suit
+(pick 1 from 2 allowed). Multiple unchosen suits are ambiguous
 and not supported.
 
-Answer Yes to target the non-chosen suit, No to target the chosen suit.
+Enter C for chosen suit, U for unchosen suit.
 """,
     "yn_edit_weights": """\
 === Sub-profile Weights ===

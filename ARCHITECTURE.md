@@ -14,14 +14,14 @@ bridge_engine/
 ├── hand_profile_validate.py (512 lines) - Validation
 ├── profile_diagnostic.py     (212 lines) - Generic profile diagnostic runner (Admin menu)
 ├── orchestrator.py          (467 lines) - CLI/session management + generic menu loop
-├── profile_cli.py           (959 lines) - Profile commands
+├── profile_cli.py           (970 lines) - Profile commands
 ├── profile_wizard.py        (150 lines) - Profile creation UI
 ├── profile_convert.py        (40 lines) - Profile format conversion
-├── wizard_flow.py         (1,285 lines) - Wizard steps, seat editing, RS/PC/OC prompts
+├── wizard_flow.py         (1,313 lines) - Wizard steps, seat editing, RS/PC/OC prompts
 ├── wizard_io.py             (130 lines) - Wizard I/O helpers
 ├── profile_viability.py     (371 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py         (302 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
-├── menu_help.py             (527 lines) - Menu help text
+├── menu_help.py             (522 lines) - Menu help text
 ├── lin_tools.py             (416 lines) - LIN file operations
 ├── deal_output.py           (328 lines) - Deal rendering
 ├── lin_encoder.py           (188 lines) - LIN format encoding

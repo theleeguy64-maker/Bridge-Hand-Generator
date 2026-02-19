@@ -648,13 +648,27 @@ def _build_partner_contingent_constraint(
 
     suit_range = _prompt_suit_range("Partner suit", existing_suit_range)
 
-    # Ask whether to target the non-chosen suit (inverse).
-    default_non_chosen = existing.use_non_chosen_suit if existing is not None else False
-    use_non_chosen = _yes_no_help(
-        "Target partner's NON-CHOSEN suit (inverse)?",
-        "yn_non_chosen_partner",
-        default=default_non_chosen,
-    )
+    # Ask whether to target the partner's chosen or unchosen RS suit.
+    default_choice = "U" if (existing is not None and existing.use_non_chosen_suit) else "C"
+    while True:
+        raw = (
+            _input_with_default(
+                "  Target partner's CHOSEN or UNCHOSEN RS suit? (C/U)",
+                default_choice,
+            )
+            .strip()
+            .upper()
+        )
+        if raw == "?":
+            print(get_menu_help("yn_non_chosen_partner"))
+            continue
+        if raw.startswith("U"):
+            use_non_chosen = True
+            break
+        if raw.startswith("C"):
+            use_non_chosen = False
+            break
+        print("  Please enter C (chosen) or U (unchosen).")
 
     return PartnerContingentData(
         partner_seat=partner_seat,
@@ -694,15 +708,29 @@ def _build_opponent_contingent_constraint(
         existing.suit_range if existing is not None else None,
     )
 
-    # Non-chosen suit mode: target the suit the opponent did NOT choose
-    # instead of the suit they chose.  E.g., if opponent RS picks H from
-    # [S, H], this seat's OC constraint applies to S (the inverse).
-    default_non_chosen = existing.use_non_chosen_suit if existing is not None else False
-    use_non_chosen = _yes_no_help(
-        "Target opponent's NON-CHOSEN suit (inverse)?",
-        "yn_non_chosen_opponent",
-        default=default_non_chosen,
-    )
+    # Ask whether to target the opponent's chosen or unchosen RS suit.
+    # E.g., if opponent RS picks H from [S, H], unchosen mode means
+    # this seat's OC constraint applies to S instead of H.
+    default_choice = "U" if (existing is not None and existing.use_non_chosen_suit) else "C"
+    while True:
+        raw = (
+            _input_with_default(
+                "  Target opponent's CHOSEN or UNCHOSEN RS suit? (C/U)",
+                default_choice,
+            )
+            .strip()
+            .upper()
+        )
+        if raw == "?":
+            print(get_menu_help("yn_non_chosen_opponent"))
+            continue
+        if raw.startswith("U"):
+            use_non_chosen = True
+            break
+        if raw.startswith("C"):
+            use_non_chosen = False
+            break
+        print("  Please enter C (chosen) or U (unchosen).")
 
     return OpponentContingentSuitData(
         opponent_seat=opponent_seat,
@@ -814,8 +842,8 @@ def _build_subprofile(
         print("\nExtra constraint for this sub-profile:")
         print("  1) None (Standard-only)")
         print("  2) Random Suit constraint")
-        print("  3) Partner Contingent constraint (chosen or inverse)")
-        print("  4) Opponent Contingent-Suit constraint (chosen or inverse)")
+        print("  3) Partner Contingent constraint (chosen or unchosen suit)")
+        print("  4) Opponent Contingent-Suit constraint (chosen or unchosen suit)")
         print("  5) Help")
 
         choice = _input_int(

@@ -464,6 +464,14 @@
 - ✅ Backwards compatible — old profiles load fine with name=None
 - ✅ 6 new tests in `test_hand_profile.py` (round-trip, omission, missing defaults, empty→None, sub_label)
 
+### 54. [x] PC/OC Chosen vs Unchosen Prompt
+- ✅ Replaced confusing y/n "Target partner's NON-CHOSEN suit (inverse)?" with direct C/U choice
+- ✅ PC prompt: "Target partner's CHOSEN or UNCHOSEN RS suit? (C/U)"
+- ✅ OC prompt: "Target opponent's CHOSEN or UNCHOSEN RS suit? (C/U)"
+- ✅ Updated menu labels: "chosen or inverse" → "chosen or unchosen suit"
+- ✅ Updated help text in `menu_help.py`: renamed "Non-Chosen (Inverse)" → "Chosen or Unchosen" throughout
+- ✅ Updated display text in `profile_cli.py`: "NON-CHOSEN suit (inverse)" → "UNCHOSEN suit"
+
 ### 53. [x] Code Review #58 — 7 fixes across 6 files
 - ✅ **B1**: Removed always-true `if chosen_files:` guard in `lin_tools.py` (guaranteed >= 2 by loop above)
 - ✅ **B2**: Removed dead dict fallback + redundant `getattr` on `PairOverrideData` in `profile_cli.py`
@@ -475,7 +483,7 @@
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 34 (34 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 35 (35 done) | **All complete**
 
 **Tests**: 481 passed | **pyright**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
 
