@@ -20,7 +20,7 @@ bridge_engine/
 ├── wizard_io.py             (130 lines) - Wizard I/O helpers
 ├── profile_viability.py     (426 lines) - Profile-level viability + cross-seat feasibility + EW coupling
 ├── profile_store.py         (302 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
-├── menu_help.py             (587 lines) - Menu help text (incl. EW role mode)
+├── menu_help.py             (601 lines) - Menu help text (incl. EW role mode)
 ├── lin_tools.py             (416 lines) - LIN file operations
 ├── deal_output.py           (328 lines) - Deal rendering
 ├── lin_encoder.py           (188 lines) - LIN format encoding

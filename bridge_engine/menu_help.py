@@ -22,8 +22,8 @@ Options:
         • Create new profiles (metadata-only wizard with standard constraints
           pre-attached)
         • View / print full profile details
-        • Edit metadata only (name, description, tag, dealer, order, author,
-          version, rotate flag, NS role / index settings)
+        • Edit metadata only (name, description, tag, dealer, author,
+          version, sort order, rotate flag, NS/EW role / index settings)
         • Edit constraints only (keep metadata, change seat constraints)
         • Delete profiles
         • Save a profile as a new version
@@ -158,10 +158,13 @@ Typical steps:
   6) Generation + output
       The engine:
         – Validates the profile
-        – Attempts to build each board respecting constraints
+        – Attempts to build each board respecting constraints, using shape-based
+          pre-allocation for tight seats (seats with narrow suit requirements)
+        – Retries each board up to 50 times; adaptively re-seeds the RNG if a
+          board takes too long (handles difficult constraint combinations)
         – Writes TXT and LIN outputs
-        – Prints a summary, and, if enabled, run diagnostics (per-seat success
-          rates, RS usage, etc.).
+        – Prints a session summary with per-board timing, re-seed counts, and,
+          if enabled, diagnostics (per-seat success rates, RS usage, etc.).
 
 If generation is interrupted (Ctrl-C), partial diagnostics may still be printed
 to help you diagnose constraint tightness or RS behaviour.
@@ -224,9 +227,13 @@ METADATA (option 1) — lightweight edits:
     • Profile name, description, tag (Opener/Overcaller)
     • Author, version
     • Dealer seat (N/E/S/W)
-    • Dealing order (clockwise / counter-clockwise)
+    • Sort order (custom display numbering in menus)
     • Rotate deals by default (swap N↔S and E↔W randomly)
     • NS role mode (who drives the auction for North–South)
+    • EW role mode (who drives the auction for East–West)
+
+  Note: Dealing order is auto-computed at runtime based on constraint
+  difficulty — it is not user-editable.
 
   Editing metadata does NOT re-run the wizard — you just update the
   fields and save.
@@ -242,11 +249,16 @@ CONSTRAINTS (option 2) — full wizard re-run:
         - Opponent Contingent (OC): react to opponent's RS choice
     • Exclusions: reject specific shapes after the hand passes
     • Weights: how often each sub-profile is selected
-    • NS role usage: driver/follower coordination
+    • NS/EW role usage: driver/follower coordination
 
   Choosing this option runs the full interactive wizard for each seat,
   using the current constraints as defaults so you only change what
   you need.
+
+SUB-PROFILE NAMES (option 3) — quick name edit:
+  Give each sub-profile an optional display label (e.g. "Strong opener",
+  "Weak variant"). Names appear in menus, viability warnings, and
+  diagnostic output. Enter a blank name to clear it.
 """,
     "draft_tools": """\
 === Draft Tools – *_TEST.json Files ===
@@ -341,13 +353,13 @@ partnership's sub-profiles stay coordinated.
 
 The five modes:
 
-1) N_DRIVER — North always drives
+1) NORTH DRIVES — North always drives
    North's sub-profile index is chosen first (by weight), and South
    follows with the same index.
    Use when North is always the "opener" and South's hand should
    match North's hand type.
 
-2) S_DRIVER — South always drives
+2) SOUTH DRIVES — South always drives
    South's sub-profile index is chosen first, North follows.
    Symmetric opposite of mode 1.
 
@@ -385,13 +397,13 @@ partnership's sub-profiles stay coordinated.
 
 The five modes:
 
-1) E_DRIVER — East always drives
+1) EAST DRIVES — East always drives
    East's sub-profile index is chosen first (by weight), and West
    follows with the same index.
    Use when East is always the "opener" and West's hand should
    match East's hand type.
 
-2) W_DRIVER — West always drives
+2) WEST DRIVES — West always drives
    West's sub-profile index is chosen first, East follows.
    Symmetric opposite of mode 1.
 
@@ -509,6 +521,8 @@ uses Sub-profile 2.
 
 Most profiles do not need this level of control. Answer No unless
 you specifically want different sub-profiles for driving vs following.
+
+Note: A parallel EW Role Usage prompt appears when EW role mode is active.
 """,
     "yn_edit_ew_roles": """\
 === EW Role Usage (Driver / Follower) ===

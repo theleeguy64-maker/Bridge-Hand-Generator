@@ -502,6 +502,14 @@
 - ✅ Deleted 12 v1-only test files (33 tests removed)
 - ✅ Updated remaining tests to use v2 imports
 
+### 60. [x] Update help text for new functionality
+- ✅ `main_menu`: Added EW role, sort order; removed "order" (auto-computed)
+- ✅ `edit_profile_mode`: Added Mode 3 (sub-profile names), EW role mode, sort order, auto-computed dealing order note
+- ✅ `deal_generation_menu`: Added shape-based help, board-level retry, adaptive re-seeding, per-board timing
+- ✅ `ns_role_mode`: "N_DRIVER" → "NORTH DRIVES", "S_DRIVER" → "SOUTH DRIVES"
+- ✅ `ew_role_mode`: "E_DRIVER" → "EAST DRIVES", "W_DRIVER" → "WEST DRIVES"
+- ✅ `yn_edit_roles`: Added note about parallel EW role usage prompt
+
 ### 59. [x] Dead code sweep (post-v1 removal)
 - ✅ Removed dead `_summarize_profile_viability()` (~44 lines) from `deal_generator_helpers.py`
 - ✅ Removed dead `_is_unviable_bucket()` (~11 lines) from `deal_generator_helpers.py`
@@ -520,7 +528,7 @@
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 40 (40 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 41 (41 done) | **All complete**
 
 **Tests**: 461 passed | **pyright**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
 
