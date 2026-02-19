@@ -58,7 +58,6 @@ from .deal_generator_helpers import (  # _-prefixed names for this module + test
     _build_deck,
     _weighted_choice_index,
     _compute_viability_summary,
-    _summarize_profile_viability,
     _deal_single_board_simple,
     _apply_vulnerability_and_rotation,
 )

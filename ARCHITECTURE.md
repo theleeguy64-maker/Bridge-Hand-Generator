@@ -4,10 +4,10 @@
 
 ```
 bridge_engine/
-├── deal_generator.py        (359 lines) - Facade: subprofile selection + generate_deals() + re-exports
+├── deal_generator.py        (358 lines) - Facade: subprofile selection + generate_deals() + re-exports
 ├── deal_generator_v2.py   (1,222 lines) - v2 shape-help helpers + v2 builder (active path)
-├── deal_generator_types.py  (237 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
-├── deal_generator_helpers.py (446 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
+├── deal_generator_types.py  (227 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
+├── deal_generator_helpers.py (385 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (905 lines) - Data models (incl. EW role mode)
 ├── seat_viability.py        (603 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (614 lines) - Validation (incl. EW role usage coverage)
@@ -174,8 +174,6 @@ Adaptive re-seed: replace RNG with fresh SystemRandom seed
 | `FULL_DECK_HCP_SUM` | 40 | Total HCP across all 52 cards |
 | `FULL_DECK_HCP_SUM_SQ` | 120 | Sum of squared HCP values across all 52 cards |
 | `MAX_HAND_HCP` | 37 | Maximum HCP in a 13-card hand; "no real cap" sentinel |
-| `UNVIABLE_MIN_FAILS` | 5 | Minimum failures before seat classified as unviable |
-| `UNVIABLE_MIN_RATE` | 0.9 | Minimum failure rate for unviable classification |
 
 **Functions** (in `deal_generator_v2.py` + `deal_generator_helpers.py`):
 - `_pre_select_rs_suits(rng, chosen_subs)` → Dict[Seat, List[str]] — pre-select RS suits before dealing
@@ -374,8 +372,6 @@ _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION(...) # Called on each failed attempt
 # Viability
 classify_viability(successes, attempts) -> str
 _compute_viability_summary(fail_counts, seen_counts) -> Dict
-_summarize_profile_viability(fail_counts, seen_counts) -> Dict[Seat, str]
-_is_unviable_bucket(bucket) -> bool
 
 # Subprofile weights
 _weighted_choice_index(rng, weights) -> int
@@ -395,7 +391,7 @@ _deal_single_board_simple(rng, board_number, dealer, dealing_order) -> Deal
 _apply_vulnerability_and_rotation(rng, deals, rotate) -> List[Deal]
 ```
 
-### deal_generator.py (facade — 359 lines)
+### deal_generator.py (facade — 358 lines)
 ```python
 # Public API
 generate_deals(setup, profile, num_deals, enable_rotation) -> DealSet

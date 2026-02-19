@@ -57,7 +57,7 @@ class _SandboxProfile:
 
 def make_rs_pc_sandbox_profile() -> _SandboxProfile:
     """
-    Build a minimal RS+PC sandbox profile for future constructive-help v2 tests.
+    Build a minimal RS+PC sandbox profile for deal generation tests.
 
     Shape:
       - West ("W"): Random Suit seat        -> random_suit_constraint present.

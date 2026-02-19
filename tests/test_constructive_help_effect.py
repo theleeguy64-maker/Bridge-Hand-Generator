@@ -14,7 +14,7 @@ class _DummyProfile:
     We deliberately avoid HandProfile here so that:
 
       - generate_deals(...) uses the simple random-deal path,
-      - constructive-help toggling cannot accidentally break anything,
+      - profile evolution cannot accidentally break anything,
       - these tests stay stable even as HandProfile evolves.
 
     The fallback path only needs:
@@ -43,9 +43,9 @@ def _make_setup(tmp_path) -> deal_generator.SetupResult:
 
 def test_constructive_help_harness_builds_deals(tmp_path: pytest.TempPathFactory) -> None:
     """
-    Basic sanity: with constructive help *disabled*, generate_deals(...)
+    Basic sanity: generate_deals(...) with a non-HandProfile object
     should successfully produce a small set of deals using the fallback
-    (non-HandProfile) path.
+    (simple random-deal) path.
     """
     setup = _make_setup(tmp_path)
     profile = _DummyProfile()

@@ -4,7 +4,7 @@
 # the #7 refactor.
 #
 # Contains: viability helpers, subprofile selection, deck helpers,
-# constructive mode, HCP utilities, simple board generator, and
+# HCP utilities, simple board generator, and
 # vulnerability/rotation enrichment.
 from __future__ import annotations
 
@@ -22,8 +22,6 @@ from .deal_generator_types import (
     ROTATE_MAP,
     ROTATE_PROBABILITY,
     HCP_FEASIBILITY_NUM_SD,
-    UNVIABLE_MIN_FAILS,
-    UNVIABLE_MIN_RATE,
     _MASTER_DECK,
     _CARD_HCP,
 )
@@ -63,65 +61,6 @@ def _compute_viability_summary(
         }
 
     return summary
-
-
-def _summarize_profile_viability(
-    seat_fail_counts: SeatFailCounts,
-    seat_seen_counts: SeatSeenCounts,
-) -> Dict[Seat, str]:
-    """
-    Summarise how 'viable' each seat looks based on observed failures vs attempts.
-
-    This is a *runtime* heuristic used only for:
-      - constructive-help gating, and
-      - debug hooks / diagnostics.
-
-    Buckets (purely heuristic, not user-facing API):
-
-      - "unknown": no attempts yet.
-      - "likely": fail rate is modest (< 0.5) or very few failures.
-      - "borderline": noticeably high fail rate (>= 0.5) but not hopeless.
-      - "unviable": consistently failing (very high fail rate with enough data).
-    """
-    summary: Dict[Seat, str] = {}
-
-    # Consider any seat that has ever been seen or failed.
-    seats = set(seat_fail_counts.keys()) | set(seat_seen_counts.keys())
-
-    for seat in seats:
-        seen = seat_seen_counts.get(seat, 0)
-        fails = seat_fail_counts.get(seat, 0)
-
-        if seen == 0:
-            bucket = "unknown"
-        else:
-            rate = fails / float(seen)
-
-            # Heuristic thresholds; these are intentionally conservative so that
-            # we only mark a seat as "unviable" when it's clearly struggling.
-            if fails >= UNVIABLE_MIN_FAILS and rate >= UNVIABLE_MIN_RATE:
-                bucket = "unviable"
-            elif rate >= 0.5:
-                bucket = "borderline"
-            else:
-                bucket = "likely"
-
-        summary[seat] = bucket
-
-    return summary
-
-
-def _is_unviable_bucket(bucket: object) -> bool:
-    """
-    Helper for defensive viability checks.
-
-    Accepts either the literal string "unviable" or an Enum / object whose
-    string representation contains "unviable" (case-insensitive).
-    """
-    if bucket is None:
-        return False
-    text = str(bucket).lower()
-    return "unviable" in text
 
 
 def _weighted_choice_index(rng: random.Random, weights: Sequence[float]) -> int:

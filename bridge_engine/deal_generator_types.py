@@ -176,16 +176,6 @@ FULL_DECK_HCP_SUM_SQ: int = 120
 MAX_HAND_HCP: int = 37
 
 # ---------------------------------------------------------------------------
-# Viability classification thresholds
-# ---------------------------------------------------------------------------
-
-# Minimum failure count before a seat can be classified as "unviable".
-UNVIABLE_MIN_FAILS: int = 5
-
-# Minimum failure rate (fails/seen) to classify as "unviable".
-UNVIABLE_MIN_RATE: float = 0.9
-
-# ---------------------------------------------------------------------------
 # HCP feasibility check constants
 # ---------------------------------------------------------------------------
 

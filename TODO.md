@@ -502,6 +502,12 @@
 - ✅ Deleted 12 v1-only test files (33 tests removed)
 - ✅ Updated remaining tests to use v2 imports
 
+### 59. [x] Dead code sweep (post-v1 removal)
+- ✅ Removed dead `_summarize_profile_viability()` (~44 lines) from `deal_generator_helpers.py`
+- ✅ Removed dead `_is_unviable_bucket()` (~11 lines) from `deal_generator_helpers.py`
+- ✅ Removed dead `UNVIABLE_MIN_FAILS` / `UNVIABLE_MIN_RATE` constants from `deal_generator_types.py`
+- ✅ Updated 4 stale "constructive" comments in test files
+
 ### 58. [x] Code Review #60 — 7 fixes across 7 files
 - ✅ **B1**: Removed dead `MAX_ATTEMPTS_HAND_2_3` constant from `deal_generator_types.py`
 - ✅ **B2**: Consolidated duplicate imports in `wizard_flow.py`
@@ -514,7 +520,7 @@
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 39 (39 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 40 (40 done) | **All complete**
 
 **Tests**: 461 passed | **pyright**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
 

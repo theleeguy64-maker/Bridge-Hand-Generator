@@ -3,8 +3,7 @@
 Tests for HCP vs shape failure classification in _match_standard().
 
 Item 1 of Priority 1: Verify that _match_standard() correctly classifies
-failures as "hcp" or "shape" so the constructive helper system can make
-informed decisions.
+failures as "hcp" or "shape" for failure attribution and diagnostics.
 """
 
 from types import SimpleNamespace
