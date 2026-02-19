@@ -240,7 +240,8 @@
               "max_hcp": 5,
               "min_cards": 0,
               "min_hcp": 0
-            }
+            },
+            "use_non_chosen_suit": false
           },
           "random_suit_constraint": null,
           "standard": {
@@ -292,9 +293,35 @@
       ],
       "seat": "E",
       "subprofile_index": 1
+    },
+    {
+      "clauses": [
+        {
+          "count": 2,
+          "group": "MAJOR",
+          "length_eq": 5
+        }
+      ],
+      "seat": "N",
+      "subprofile_index": 1
+    },
+    {
+      "clauses": [
+        {
+          "count": 1,
+          "group": "MAJOR",
+          "length_eq": 5
+        },
+        {
+          "count": 1,
+          "group": "MAJOR",
+          "length_eq": 4
+        }
+      ],
+      "seat": "N",
+      "subprofile_index": 1
     }
   ],
   "tag": "Opener",
-  "use_rs_w_only_path": false,
   "version": "0.9"
 }

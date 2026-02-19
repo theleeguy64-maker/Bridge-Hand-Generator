@@ -444,6 +444,16 @@ class SubProfile:
     # For legacy profiles and for EW seats, this defaults to "any".
     ns_role_usage: str = "any"
 
+    # EW role classification (parallel to ns_role_usage, for E/W seats).
+    #
+    # Allowed values:
+    #   - "any"           – usable whether the seat is EW driver or follower
+    #   - "driver_only"   – only usable when this seat is the EW driver
+    #   - "follower_only" – only usable when this seat is the EW follower
+    #
+    # For legacy profiles and for NS seats, this defaults to "any".
+    ew_role_usage: str = "any"
+
     def to_dict(self) -> Dict[str, Any]:
         d: Dict[str, Any] = {
             "standard": self.standard.to_dict(),
@@ -459,8 +469,9 @@ class SubProfile:
                 else None
             ),
             "weight_percent": self.weight_percent,
-            # JSON field name for Phase 3 metadata.
+            # JSON field names for NS/EW role metadata.
             "ns_role_usage": self.ns_role_usage,
+            "ew_role_usage": self.ew_role_usage,
         }
         # Only include name when set (keeps JSON clean for unnamed sub-profiles).
         if self.name is not None:
@@ -499,6 +510,9 @@ class SubProfile:
         else:
             ns_role_usage = "any"
 
+        # EW role usage (no legacy key support needed — new field).
+        ew_role_usage = str(data.get("ew_role_usage", "any"))
+
         return cls(
             standard=StandardSuitConstraints.from_dict(data["standard"]),
             name=name,
@@ -509,6 +523,7 @@ class SubProfile:
             ),
             weight_percent=float(data.get("weight_percent", 0.0)),
             ns_role_usage=ns_role_usage,
+            ew_role_usage=ew_role_usage,
         )
 
 
@@ -626,13 +641,14 @@ class HandProfile:
     rotate_deals_by_default: bool = True
     # "no_driver_no_index" (default), "north_drives", "south_drives", or "random_driver".
     ns_role_mode: str = "no_driver_no_index"
+    # EW role mode (parallel to ns_role_mode for E/W partnership).
+    # "no_driver_no_index" (default), "east_drives", "west_drives", or "random_driver".
+    ew_role_mode: str = "no_driver_no_index"
     subprofile_exclusions: List["SubprofileExclusionData"] = field(default_factory=list)
 
-    # Explicit flags replacing magic profile name checks (P1.1 refactor)
+    # Explicit flag replacing magic profile name check (P1.1 refactor)
     # - is_invariants_safety_profile: bypass constraints for invariant tests
-    # - use_rs_w_only_path: route to lightweight RS-W-only generator path
     is_invariants_safety_profile: bool = False
-    use_rs_w_only_path: bool = False
 
     # Optional display ordering — profiles with sort_order are listed at
     # that number (e.g. 20) instead of sequential position.  Profiles
@@ -699,10 +715,10 @@ class HandProfile:
             # validate_profile is responsible for rejecting unsupported values
             # when loading from arbitrary JSON.
             ns_role_mode=str(data.get("ns_role_mode", "no_driver_no_index") or "no_driver_no_index"),
+            ew_role_mode=str(data.get("ew_role_mode", "no_driver_no_index") or "no_driver_no_index"),
             subprofile_exclusions=exclusions,
             # P1.1 refactor: explicit flags (default False for production profiles)
             is_invariants_safety_profile=bool(data.get("is_invariants_safety_profile", False)),
-            use_rs_w_only_path=bool(data.get("use_rs_w_only_path", False)),
             # Optional display ordering (None = sequential position)
             sort_order=data.get("sort_order", None),
         )
@@ -739,6 +755,42 @@ class HandProfile:
                 # Metadata-only usage without RNG: just pick N deterministically.
                 return "N"
             return rng.choice(["N", "S"])
+        if mode in ("no_driver", "no_driver_no_index"):
+            return None
+
+        # Unknown / future values: treat as "no driver"
+        return None
+
+    def ew_driver_seat(
+        self,
+        rng: Optional[random.Random] = None,
+    ) -> Optional[Seat]:
+        """
+        Return a *metadata-level* preferred EW driver seat implied by ew_role_mode.
+
+        Parallel to ns_driver_seat() but for the E-W partnership.
+
+        Semantics:
+
+        - "east_drives"        -> "E"
+        - "west_drives"        -> "W"
+        - "random_driver":
+            * if rng is provided, return rng.choice(["E", "W"])
+            * if rng is None, return "E" (stable deterministic default)
+        - "no_driver_no_index" -> None (default)
+        - "no_driver"          -> None
+        - anything else        -> None (defensive fallback)
+        """
+        mode = (self.ew_role_mode or "no_driver_no_index").lower()
+
+        if mode == "east_drives":
+            return "E"
+        if mode == "west_drives":
+            return "W"
+        if mode == "random_driver":
+            if rng is None:
+                return "E"
+            return rng.choice(["E", "W"])
         if mode in ("no_driver", "no_driver_no_index"):
             return None
 
@@ -788,6 +840,48 @@ class HandProfile:
 
         return buckets
 
+    def ew_role_buckets(self) -> Dict[Seat, Dict[str, List[SubProfile]]]:
+        """
+        For EW seats only, group subprofiles into three buckets by ew_role_usage:
+
+          - "driver":   subprofiles usable when the seat is the EW driver
+          - "follower": subprofiles usable when the seat is the EW follower
+          - "neutral":  subprofiles usable in either role (or with no metadata)
+
+        NS seats get empty bucket dicts for completeness.
+        """
+        buckets: Dict[Seat, Dict[str, List[SubProfile]]] = {}
+
+        for seat in ("E", "W"):
+            sp = self.seat_profiles.get(seat)
+            seat_buckets: Dict[str, List[SubProfile]] = {
+                "driver": [],
+                "follower": [],
+                "neutral": [],
+            }
+
+            if sp is not None:
+                for sub in sp.subprofiles:
+                    # ew_role_usage is a declared field (default "any") — always present.
+                    usage_lc = sub.ew_role_usage.lower()
+                    if usage_lc == "driver_only":
+                        seat_buckets["driver"].append(sub)
+                    elif usage_lc == "follower_only":
+                        seat_buckets["follower"].append(sub)
+                    else:
+                        # "any" or anything else we treat as neutral.
+                        seat_buckets["neutral"].append(sub)
+
+            buckets[seat] = seat_buckets
+
+        # Ensure NS are present with empty buckets so callers don't need
+        # special cases.
+        for seat in ("N", "S"):
+            if seat not in buckets:
+                buckets[seat] = {"driver": [], "follower": [], "neutral": []}
+
+        return buckets
+
     # ------------------------------------------------------------------
     # Persistence helpers (JSON-friendly dicts)
     # ------------------------------------------------------------------
@@ -803,9 +897,9 @@ class HandProfile:
             "version": self.version,
             "rotate_deals_by_default": self.rotate_deals_by_default,
             "ns_role_mode": self.ns_role_mode,
+            "ew_role_mode": self.ew_role_mode,
             "seat_profiles": {seat: sp.to_dict() for seat, sp in self.seat_profiles.items()},
             "subprofile_exclusions": [e.to_dict() for e in self.subprofile_exclusions],
             "is_invariants_safety_profile": self.is_invariants_safety_profile,
-            "use_rs_w_only_path": self.use_rs_w_only_path,
             **({"sort_order": self.sort_order} if self.sort_order is not None else {}),
         }

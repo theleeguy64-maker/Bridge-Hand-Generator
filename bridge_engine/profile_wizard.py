@@ -73,6 +73,7 @@ def create_profile_interactive() -> HandProfile:
     # Force backwards-compatible NS default for brand-new profiles:
     # treat them as "no driver / no index" unless explicitly changed later.
     kwargs["ns_role_mode"] = "no_driver_no_index"
+    kwargs["ew_role_mode"] = "no_driver_no_index"
 
     # Construct profile object from kwargs
     profile = HandProfile(**kwargs)
@@ -108,6 +109,7 @@ def create_profile_from_existing_constraints(existing: HandProfile) -> HandProfi
     kwargs["seat_profiles"] = dict(existing.seat_profiles)
     kwargs["subprofile_exclusions"] = list(getattr(existing, "subprofile_exclusions", []))
     kwargs["ns_role_mode"] = getattr(existing, "ns_role_mode", "no_driver_no_index")
+    kwargs["ew_role_mode"] = getattr(existing, "ew_role_mode", "no_driver_no_index")
 
     profile = HandProfile(**kwargs)
     validate_profile(profile)

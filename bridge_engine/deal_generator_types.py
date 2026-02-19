@@ -57,51 +57,11 @@ class SuitAnalysis:
     total_hcp: int
 
 
-@dataclass(frozen=True)
-class HardestSeatConfig:
-    """
-    Configuration for deciding when and for which seat we should try
-    "helping" via constructive sampling.
-
-    These names and semantics are chosen to match test_hardest_seat_selection.
-    """
-
-    # Do not even consider help until we've seen at least this many
-    # seat-match attempts on the current board (sum over all seats).
-    min_attempts_before_help: int = 50
-
-    # A seat must have failed at least this many times to be eligible.
-    min_fail_count_for_help: int = 3
-
-    # And its failure rate (failures / attempts) must be at least this high.
-    min_fail_rate_for_help: float = 0.7
-
-    # When multiple candidates are tied on stats, optionally prefer seats
-    # that have non-standard constraints (Random Suit / PC / OC).
-    prefer_nonstandard_seats: bool = True
-
-    # Minimum ratio of shape failures to total (hcp+shape) for constructive
-    # to be considered useful. Below this threshold, the seat is "HCP-dominant"
-    # and constructive help won't be effective. Set to 0.0 to disable this check.
-    min_shape_ratio_for_constructive: float = 0.5
-
-
-# Default thresholds used by _build_single_constrained_deal.
-_HARDEST_SEAT_CONFIG: HardestSeatConfig = HardestSeatConfig()
-
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
 MAX_BOARD_ATTEMPTS: int = 10000
-MAX_ATTEMPTS_HAND_2_3: int = 1000
-
-# P1.3: Minimum attempts before early termination for unviable profiles.
-# Must have enough data for reliable viability classification before
-# declaring a profile "too hard". The viability threshold is 90% failure
-# rate with at least 5 failures (see _is_unviable_bucket).
-MIN_ATTEMPTS_FOR_UNVIABLE_CHECK: int = 100
 
 ROTATE_PROBABILITY: float = 0.5
 
@@ -201,10 +161,6 @@ MAX_BOARD_RETRIES: int = 50
 # a board still running at 1.75s is likely on an unfavorable trajectory.
 RESEED_TIME_THRESHOLD_SECONDS: float = 1.75
 
-# For v1 constructive sampling, only use suit minima when the total is
-# "reasonable" – we don't want to pre-commit too many cards.
-CONSTRUCTIVE_MAX_SUM_MIN_CARDS: int = 11
-
 # ---------------------------------------------------------------------------
 # Full-deck HCP constants (52-card deck)
 # ---------------------------------------------------------------------------
@@ -268,14 +224,10 @@ _CARD_HCP: Dict[str, int] = {card: {"A": 4, "K": 3, "Q": 2, "J": 1}.get(card[0],
 # ---------------------------------------------------------------------------
 
 # Optional debug hook invoked when MAX_BOARD_ATTEMPTS is exhausted in
-# _build_single_constrained_deal.
+# _build_single_constrained_deal_v2.
 # Tests (and power users) can monkeypatch this with a callable that accepts:
 #   (profile, board_number, attempts, chosen_indices, seat_fail_counts)
 _DEBUG_ON_MAX_ATTEMPTS: Optional[Callable[..., None]] = None
-
-# Debug hook: invoked when standard constructive help (v1) is actually used.
-# Signature: (profile, board_number, attempt_number, help_seat) -> None
-_DEBUG_STANDARD_CONSTRUCTIVE_USED: Optional[Callable[..., None]] = None
 
 # Debug hook: per-attempt failure attribution
 # Signature:

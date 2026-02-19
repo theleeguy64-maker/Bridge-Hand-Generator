@@ -46,6 +46,11 @@ def _install_common_patches(monkeypatch, dummy_profile):
     )
     monkeypatch.setattr(
         hand_profile_validate,
+        "_validate_ew_role_usage_coverage",
+        lambda profile: None,
+    )
+    monkeypatch.setattr(
+        hand_profile_validate,
         "_validate_random_suit_vs_standard",
         lambda profile: None,
     )

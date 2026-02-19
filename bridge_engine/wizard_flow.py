@@ -5,7 +5,7 @@ This module centralises the interactive, prompt-driven construction of
 profiles so that both the CLI and tests can rely on a single behaviour.
 """
 
-# TEST CONTRACT — profile_wizard.py
+# TEST CONTRACT — wizard_flow.py (tests monkeypatch via profile_wizard facade)
 #
 # The following symbols are intentionally monkeypatched by tests and must remain
 # defined at module scope. Do not rename or remove without updating tests.
@@ -32,7 +32,7 @@ profiles so that both the CLI and tests can rely on a single behaviour.
 #
 # If you refactor internals, preserve these names or update tests accordingly.
 
-# file: bridge_engine/profile_wizard.py
+# file: bridge_engine/wizard_flow.py
 
 from __future__ import annotations
 
@@ -50,17 +50,7 @@ from .cli_prompts import (
     prompt_int,
 )
 
-from .hand_profile_model import (
-    HandProfile,
-    SeatProfile,
-    SubProfile,
-    sub_label,
-    SubprofileExclusionData,
-    StandardSuitConstraints,
-    SuitRange,
-    OpponentContingentSuitData,
-    _default_dealing_order,
-)
+from .hand_profile_model import _default_dealing_order
 
 
 def _validate_profile(profile) -> None:
@@ -188,6 +178,7 @@ def clear_screen() -> None:
 
 from .hand_profile import (
     HandProfile,
+    OpponentContingentSuitData,
     PartnerContingentData,
     RandomSuitConstraintData,
     SeatProfile,
@@ -196,7 +187,7 @@ from .hand_profile import (
     SubprofileExclusionClause,
     SubprofileExclusionData,
     SuitRange,
-    OpponentContingentSuitData,
+    sub_label,
     validate_profile,
 )
 
@@ -1031,6 +1022,13 @@ def _build_seat_profile(
         existing,
     )
 
+    # For E/W seats, mark ew_role_usage on each subprofile.
+    _assign_ew_role_usage_interactive(
+        seat,
+        subprofiles,
+        existing,
+    )
+
     return SeatProfile(seat=seat, subprofiles=subprofiles)
 
 
@@ -1099,6 +1097,66 @@ def _assign_ns_role_usage_interactive(
         subprofiles[idx - 1] = replace(subprofiles[idx - 1], ns_role_usage=value)
 
 
+def _assign_ew_role_usage_interactive(
+    seat: str,
+    subprofiles: List[SubProfile],
+    existing_seat_profile: Optional[SeatProfile],
+) -> None:
+    """
+    Optional UI to tag E/W sub-profiles as:
+      - 'any'           (default)
+      - 'driver_only'
+      - 'follower_only'
+
+    Only applies to E/W. N/S are handled by _assign_ns_role_usage_interactive.
+    """
+    if seat not in ("E", "W"):
+        return
+
+    if not subprofiles:
+        return
+
+    # Start from existing values if we have them, else default to "any".
+    existing_usage: List[str] = []
+    if existing_seat_profile is not None:
+        for sp in existing_seat_profile.subprofiles:
+            existing_usage.append(sp.ew_role_usage)
+
+    n = len(subprofiles)
+    if not existing_usage:
+        defaults = ["any"] * n
+    else:
+        defaults = (existing_usage + ["any"] * n)[:n]
+
+    print(f"\nEW role usage for seat {seat}:")
+    for idx, role in enumerate(defaults, start=1):
+        print(f"  {sub_label(idx, subprofiles[idx - 1])}: {role}")
+
+    if not _yes_no_help(
+        "Do you want to edit driver/follower roles for these sub-profiles?",
+        "yn_edit_ew_roles",
+        default=False,
+    ):
+        for i, (sub, usage) in enumerate(zip(subprofiles, defaults)):
+            subprofiles[i] = replace(sub, ew_role_usage=usage)
+        return
+
+    valid_options = {"any", "driver_only", "follower_only"}
+
+    for idx, default_usage in enumerate(defaults, start=1):
+        prompt = f"  EW role usage for {sub_label(idx, subprofiles[idx - 1])} (any/driver_only/follower_only)"
+        while True:
+            raw = _input_with_default(
+                prompt + f" [{default_usage}]: ",
+                default_usage,
+            )
+            value = raw.strip().lower()
+            if value in valid_options:
+                break
+            print("Please enter one of: any, driver_only, follower_only")
+        subprofiles[idx - 1] = replace(subprofiles[idx - 1], ew_role_usage=value)
+
+
 def _autosave_profile_draft(profile: HandProfile, original_path: Path) -> None:
     """
     Best-effort autosave of an in-progress profile edit.
@@ -1136,10 +1194,11 @@ def _build_profile(
               - Standard 'all-open' ranges
               - No non-standard constraints or exclusions
               - N/S ns_role_usage = 'no_driver_no_index'
+              - E/W ew_role_usage = 'no_driver_no_index'
           * No constraints wizard prompts.
       - For edits (existing is not None):
           * Preserve the full constraints wizard behaviour, including
-            seat-by-seat editing, subprofile weights, NS role usage, and
+            seat-by-seat editing, subprofile weights, NS/EW role usage, and
             autosave of _TEST.json drafts.
     """
 
@@ -1195,8 +1254,9 @@ def _build_profile(
         # Brand-new profile: no exclusions yet
         subprofile_exclusions: List[SubprofileExclusionData] = []
 
-        # Default ns_role_mode for new profiles
+        # Default ns/ew_role_mode for new profiles
         ns_role_mode = "no_driver_no_index"
+        ew_role_mode = "no_driver_no_index"
 
         # We do NOT autosave draft files for brand-new profiles here; the
         # profile will be validated and saved via profile_cli.
@@ -1211,6 +1271,7 @@ def _build_profile(
             "version": version,
             "rotate_deals_by_default": rotate_flag,
             "ns_role_mode": ns_role_mode,
+            "ew_role_mode": ew_role_mode,
             "subprofile_exclusions": subprofile_exclusions,
         }
 
@@ -1251,6 +1312,7 @@ def _build_profile(
         if original_path is not None:
             try:
                 ns_role_mode = existing.ns_role_mode
+                ew_role_mode = existing.ew_role_mode
                 snapshot = HandProfile(
                     profile_name=profile_name,
                     description=description,
@@ -1262,6 +1324,7 @@ def _build_profile(
                     version=version,
                     rotate_deals_by_default=rotate_flag,
                     ns_role_mode=ns_role_mode,
+                    ew_role_mode=ew_role_mode,
                     subprofile_exclusions=list(subprofile_exclusions),
                     sort_order=existing.sort_order,
                 )
@@ -1271,6 +1334,7 @@ def _build_profile(
 
     # ----- Final kwargs dict for HandProfile (edit flow) -----
     ns_role_mode = existing.ns_role_mode
+    ew_role_mode = existing.ew_role_mode
 
     return {
         "profile_name": profile_name,
@@ -1283,6 +1347,7 @@ def _build_profile(
         "version": version,
         "rotate_deals_by_default": rotate_flag,
         "ns_role_mode": ns_role_mode,
+        "ew_role_mode": ew_role_mode,
         "subprofile_exclusions": list(subprofile_exclusions),
         "sort_order": existing.sort_order,
     }

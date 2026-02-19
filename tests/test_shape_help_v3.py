@@ -811,16 +811,6 @@ class TestBuildSingleConstrainedDealV2:
         d2 = dg._build_single_constrained_deal_v2(random.Random(99), profile, 1)
         assert d1.hands == d2.hands
 
-    def test_v1_still_works(self):
-        """Old v1 function should still produce valid deals (untouched)."""
-        rng = random.Random(42)
-        profile = _loose_profile()
-        deal = dg._build_single_constrained_deal(rng, profile, 1)
-        all_cards = []
-        for h in deal.hands.values():
-            all_cards.extend(h)
-        assert len(set(all_cards)) == 52
-
     def test_dealer_preserved(self):
         """Deal.dealer should match the profile's dealer."""
         rng = random.Random(42)

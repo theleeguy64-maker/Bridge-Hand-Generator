@@ -480,12 +480,43 @@
 - ✅ **C3**: Replaced 12 redundant `getattr` calls with direct field access on `SubProfile`/`StandardSuitConstraints`/`SuitRange` in `deal_generator_v2.py`
 - ✅ **D1**: Converted `_convert_to_lin_deals()` loop-append to list comprehension in `deal_output.py`
 
+### 55. [x] EW Role Mode
+- ✅ Added `ew_role_mode` + `ew_driver_seat` to HandProfile (model + serialization)
+- ✅ EW coupling in `_select_subprofiles_for_board()` now respects `ew_role_mode` (was always-coupled)
+- ✅ EW role usage filtering on SubProfile (`ew_role_usage` field)
+- ✅ Wizard prompts for EW role mode editing
+- ✅ Validation: `_validate_ew_role_usage_coverage()` in `hand_profile_validate.py`
+- ✅ EW coupling viability check in `profile_viability.py`
+- ✅ 10 new tests in `test_hand_profile.py`
+
+### 56. [x] Code Review #59 — 3 fixes
+- ✅ **C1**: Removed redundant `getattr` for `ew_role_mode` in `profile_viability.py`
+- ✅ **C3**: Updated stale EW docstring in `deal_generator.py`
+- ✅ **C4**: Updated `wizard_flow.py` docstring to mention EW role usage
+
+### 57. [x] Remove V1 Deal Generator
+- ✅ Deleted `deal_generator_v1.py` (783 lines)
+- ✅ Removed v1 imports + RS-W-only early-return from `deal_generator.py`
+- ✅ Removed `use_rs_w_only_path` from data model, CLI, tests, profile JSONs
+- ✅ Removed dead v1-only code: `HardestSeatConfig`, `_DEBUG_STANDARD_CONSTRUCTIVE_USED`, `_get_constructive_mode()`, `MIN_ATTEMPTS_FOR_UNVIABLE_CHECK`, `CONSTRUCTIVE_MAX_SUM_MIN_CARDS`, `MAX_ATTEMPTS_HAND_2_3`
+- ✅ Deleted 12 v1-only test files (33 tests removed)
+- ✅ Updated remaining tests to use v2 imports
+
+### 58. [x] Code Review #60 — 7 fixes across 7 files
+- ✅ **B1**: Removed dead `MAX_ATTEMPTS_HAND_2_3` constant from `deal_generator_types.py`
+- ✅ **B2**: Consolidated duplicate imports in `wizard_flow.py`
+- ✅ **C1**: Removed 4 redundant `getattr` in `hand_profile_validate.py`
+- ✅ **C2**: Added `ProfileError` to exception handler in `profile_store.py`
+- ✅ **C3**: Updated misleading getattr comments in `deal_generator.py`
+- ✅ **C4**: Fixed stale "profile_wizard.py" references in `wizard_flow.py`
+- ✅ **D2**: Replaced `object.__setattr__` with `replace()` + dict swap in `seat_viability.py`
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 35 (35 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 39 (39 done) | **All complete**
 
-**Tests**: 481 passed | **pyright**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
+**Tests**: 461 passed | **pyright**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 

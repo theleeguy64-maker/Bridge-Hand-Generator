@@ -336,7 +336,7 @@ def create_profile_action() -> None:
     profile = create_profile_interactive()
 
     print()
-    print("Rotate set to Yes and NS role mode set to no_driver_no_index")
+    print("Rotate set to Yes, NS and EW role modes set to no_driver_no_index")
     print()
     print("Metadata can be changed in 'Edit Profile'")
 
@@ -448,6 +448,14 @@ def _print_profile_metadata(profile: HandProfile, path: Path) -> None:
         "random_driver": "Random between N/S",
     }.get(ns_mode, ns_mode)
     print(f"NS mode     : {ns_mode_pretty}")
+
+    ew_mode = profile.ew_role_mode
+    ew_mode_pretty = {
+        "east_drives": "East usually drives",
+        "west_drives": "West usually drives",
+        "random_driver": "Random between E/W",
+    }.get(ew_mode, ew_mode)
+    print(f"EW mode     : {ew_mode_pretty}")
     print(f"File name   : {path.name}")
 
 
@@ -722,6 +730,57 @@ def edit_profile_action() -> None:
 
             new_ns_role_mode = ns_mode_options[choice - 1][0]
 
+            # EW role mode (5 options, parallel to NS)
+            existing_ew_mode = profile.ew_role_mode or "no_driver_no_index"
+            ew_mode_options = [
+                ("east_drives", "East almost always drives"),
+                ("west_drives", "West almost always drives"),
+                (
+                    "random_driver",
+                    "Random driver (per board) – E or W is randomly assigned to drive the hand",
+                ),
+                (
+                    "no_driver",
+                    "No Driver – neither E or W explicitly drives, but SubProfile [index] matching applies",
+                ),
+                ("no_driver_no_index", "No driver / no index matching"),
+            ]
+
+            ew_default_label = next(
+                (label for m, label in ew_mode_options if m == existing_ew_mode),
+                "No driver / no index matching",
+            )
+
+            ew_default_idx = next(
+                (i for i, (_, label) in enumerate(ew_mode_options, start=1) if label == ew_default_label),
+                len(ew_mode_options),
+            )
+
+            ew_n_modes = len(ew_mode_options)
+            ew_help_idx = ew_n_modes + 1
+
+            while True:
+                print("EW role mode (who probably drives the auction for EW?)")
+                for i, (_, label) in enumerate(ew_mode_options, start=1):
+                    print(f"  {i}) {label}")
+                print(f"  {ew_help_idx}) Help")
+
+                ew_choice = _input_int(
+                    f"Choose [1-{ew_help_idx}]",
+                    default=ew_default_idx,
+                    minimum=1,
+                    maximum=ew_help_idx,
+                    show_range_suffix=False,
+                )
+
+                if ew_choice == ew_help_idx:
+                    print(get_menu_help("ew_role_mode"))
+                    continue
+
+                break
+
+            new_ew_role_mode = ew_mode_options[ew_choice - 1][0]
+
             updated = HandProfile(
                 profile_name=new_name,
                 description=new_desc,
@@ -733,9 +792,9 @@ def edit_profile_action() -> None:
                 version=new_version,
                 rotate_deals_by_default=rotate_default,
                 ns_role_mode=new_ns_role_mode,
+                ew_role_mode=new_ew_role_mode,
                 subprofile_exclusions=list(profile.subprofile_exclusions),
                 is_invariants_safety_profile=profile.is_invariants_safety_profile,
-                use_rs_w_only_path=profile.use_rs_w_only_path,
                 sort_order=profile.sort_order,
             )
 
@@ -820,9 +879,9 @@ def edit_profile_action() -> None:
                     version=profile.version,
                     rotate_deals_by_default=profile.rotate_deals_by_default,
                     ns_role_mode=profile.ns_role_mode,
+                    ew_role_mode=profile.ew_role_mode,
                     subprofile_exclusions=list(profile.subprofile_exclusions),
                     is_invariants_safety_profile=profile.is_invariants_safety_profile,
-                    use_rs_w_only_path=profile.use_rs_w_only_path,
                     sort_order=profile.sort_order,
                 )
                 _save_profile_to_path(updated, path)
@@ -872,9 +931,9 @@ def save_as_new_version_action() -> None:
         version=new_version,
         rotate_deals_by_default=profile.rotate_deals_by_default,
         ns_role_mode=profile.ns_role_mode,
+        ew_role_mode=profile.ew_role_mode,
         subprofile_exclusions=list(profile.subprofile_exclusions),
         is_invariants_safety_profile=profile.is_invariants_safety_profile,
-        use_rs_w_only_path=profile.use_rs_w_only_path,
         sort_order=profile.sort_order,
     )
 

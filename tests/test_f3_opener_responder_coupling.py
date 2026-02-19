@@ -8,7 +8,7 @@ from bridge_engine.hand_profile import HandProfile
 from bridge_engine.hand_profile_model import SeatProfile, SubProfile
 from bridge_engine.hand_profile_validate import validate_profile
 
-from bridge_engine.deal_generator import _build_single_constrained_deal  # ok: tests already import internals
+from bridge_engine.deal_generator import _build_single_constrained_deal_v2  # ok: tests already import internals
 
 
 def test_f3_couples_responder_to_opener_by_index():
@@ -41,7 +41,7 @@ def test_f3_couples_responder_to_opener_by_index():
     validated = validate_profile(profile)
     rng = random.Random(1234)
 
-    deal = _build_single_constrained_deal(rng, validated, board_number=1)
+    deal = _build_single_constrained_deal_v2(rng, validated, board_number=1)
 
     # We don’t assert exact hands here, only that the coupling logic ran
     # without violating any invariants and produced a valid deal.
@@ -66,7 +66,7 @@ def test_f3_couples_responder_to_opener_by_index():
         hand_dealing_order=["N", "S", "E", "W"],
     )
     validated2 = validate_profile(profile2)
-    deal2 = _build_single_constrained_deal(rng=random.Random(456), profile=validated2, board_number=1)
+    deal2 = _build_single_constrained_deal_v2(rng=random.Random(456), profile=validated2, board_number=1)
 
     # If we got here without exceptions, we know both deals are constructible.
     # This test is primarily a regression guard: coupling must not crash and must be deterministic.
@@ -131,7 +131,7 @@ def test_f3_ns_coupling_default_mode_still_works() -> None:
     profile = _make_ns_coupling_profile()  # uses default ns_role_mode
     rng = random.Random(1234)
 
-    deal = _build_single_constrained_deal(rng, profile, board_number=1)
+    deal = _build_single_constrained_deal_v2(rng, profile, board_number=1)
     assert deal is not None
 
 
@@ -147,7 +147,7 @@ def test_f3_ns_coupling_north_drives_metadata_is_accepted() -> None:
     profile = _make_ns_coupling_profile(ns_role_mode="north_drives")
     rng = random.Random(5678)
 
-    deal = _build_single_constrained_deal(rng, profile, board_number=1)
+    deal = _build_single_constrained_deal_v2(rng, profile, board_number=1)
     assert deal is not None
 
 
@@ -165,5 +165,5 @@ def test_f3_ns_coupling_south_or_random_modes_do_not_crash() -> None:
         profile = _make_ns_coupling_profile(ns_role_mode=mode)
         rng = random.Random(9999)
 
-        deal = _build_single_constrained_deal(rng, profile, board_number=1)
+        deal = _build_single_constrained_deal_v2(rng, profile, board_number=1)
         assert deal is not None

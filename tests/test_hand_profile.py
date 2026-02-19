@@ -449,3 +449,102 @@ def test_sub_label_without_name() -> None:
     """sub_label shows only the index when name is None."""
     sub = SubProfile(standard=_standard_all_open())
     assert sub_label(2, sub) == "Sub-profile 2"
+
+
+# ===================================================================
+# EW role mode / usage
+# ===================================================================
+
+
+def test_ew_role_mode_default(make_valid_profile) -> None:
+    """ew_role_mode defaults to 'no_driver_no_index'."""
+    profile = make_valid_profile()
+    assert profile.ew_role_mode == "no_driver_no_index"
+    assert profile.ew_driver_seat() is None
+
+
+def test_ew_driver_seat_east_drives(make_valid_profile) -> None:
+    profile = make_valid_profile()
+    profile = replace(profile, ew_role_mode="east_drives")
+    assert profile.ew_driver_seat() == "E"
+
+
+def test_ew_driver_seat_west_drives(make_valid_profile) -> None:
+    profile = make_valid_profile()
+    profile = replace(profile, ew_role_mode="west_drives")
+    assert profile.ew_driver_seat() == "W"
+
+
+def test_ew_driver_seat_random_driver(make_valid_profile) -> None:
+    profile = make_valid_profile()
+    profile = replace(profile, ew_role_mode="random_driver")
+
+    rng = random.Random(12345)
+    results = {profile.ew_driver_seat(rng) for _ in range(20)}
+    assert results == {"E", "W"}
+
+
+def test_ew_driver_seat_unknown_mode(make_valid_profile) -> None:
+    profile = make_valid_profile()
+    profile = replace(profile, ew_role_mode="totally_bogus")
+    assert profile.ew_driver_seat() is None
+
+
+def test_ew_role_mode_roundtrip(make_valid_profile) -> None:
+    """ew_role_mode survives to_dict / from_dict."""
+    profile = make_valid_profile()
+    profile = replace(profile, ew_role_mode="east_drives")
+    raw = profile.to_dict()
+    assert raw["ew_role_mode"] == "east_drives"
+    restored = HandProfile.from_dict(raw)
+    assert restored.ew_role_mode == "east_drives"
+
+
+def test_ew_role_mode_missing_key_defaults(make_valid_profile) -> None:
+    """Legacy JSON without ew_role_mode defaults to 'no_driver_no_index'."""
+    profile = make_valid_profile()
+    raw = profile.to_dict()
+    raw.pop("ew_role_mode", None)
+    restored = HandProfile.from_dict(raw)
+    assert restored.ew_role_mode == "no_driver_no_index"
+
+
+def test_ew_role_usage_roundtrip() -> None:
+    """ew_role_usage survives SubProfile to_dict / from_dict."""
+    sub = SubProfile(standard=_standard_all_open(), ew_role_usage="driver_only")
+    raw = sub.to_dict()
+    assert raw["ew_role_usage"] == "driver_only"
+    restored = SubProfile.from_dict(raw)
+    assert restored.ew_role_usage == "driver_only"
+
+
+def test_ew_role_usage_default() -> None:
+    """ew_role_usage defaults to 'any'."""
+    sub = SubProfile(standard=_standard_all_open())
+    assert sub.ew_role_usage == "any"
+
+
+def test_ew_role_buckets(make_valid_profile) -> None:
+    """ew_role_buckets groups E/W subprofiles by ew_role_usage."""
+    std = _standard_all_open()
+    e_subs = [
+        SubProfile(standard=std, ew_role_usage="driver_only"),
+        SubProfile(standard=std, ew_role_usage="follower_only"),
+        SubProfile(standard=std, ew_role_usage="any"),
+    ]
+    w_subs = [
+        SubProfile(standard=std, ew_role_usage="any"),
+    ]
+    from bridge_engine.hand_profile_model import SeatProfile
+
+    profile = make_valid_profile()
+    seat_profiles = dict(profile.seat_profiles)
+    seat_profiles["E"] = SeatProfile(seat="E", subprofiles=e_subs)
+    seat_profiles["W"] = SeatProfile(seat="W", subprofiles=w_subs)
+    profile = replace(profile, seat_profiles=seat_profiles)
+
+    buckets = profile.ew_role_buckets()
+    assert len(buckets["E"]["driver"]) == 1
+    assert len(buckets["E"]["follower"]) == 1
+    assert len(buckets["E"]["neutral"]) == 1
+    assert len(buckets["W"]["neutral"]) == 1

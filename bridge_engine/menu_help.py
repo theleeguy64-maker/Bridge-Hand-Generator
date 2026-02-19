@@ -375,6 +375,50 @@ Tips:
   • You can further refine with per-sub-profile "role usage" tags
     (any / driver_only / follower_only) when editing constraints.
 """,
+    "ew_role_mode": """\
+=== EW Role Mode – Who Drives the Auction? ===
+
+When both East and West have multiple sub-profiles, "EW role mode"
+controls which seat's sub-profile index is chosen first each board.
+The other seat ("follower") then uses the same index, ensuring the
+partnership's sub-profiles stay coordinated.
+
+The five modes:
+
+1) E_DRIVER — East always drives
+   East's sub-profile index is chosen first (by weight), and West
+   follows with the same index.
+   Use when East is always the "opener" and West's hand should
+   match East's hand type.
+
+2) W_DRIVER — West always drives
+   West's sub-profile index is chosen first, East follows.
+   Symmetric opposite of mode 1.
+
+3) RANDOM_DRIVER — Random driver per board
+   Each board, one of E or W is randomly designated as driver.
+   The other follows. Use when either player could be opener and
+   you want variety.
+
+4) NO_DRIVER — No explicit driver, but index matching applies
+   Neither seat is the "driver", but both seats still use the same
+   sub-profile index each board. The index is chosen by combined
+   weight. Use when the sub-profiles are symmetric between E and W.
+
+5) NO_DRIVER_NO_INDEX — No driver, no index matching
+   Each seat's sub-profile is chosen independently. East might use
+   sub-profile 0 while West uses sub-profile 2 on the same board.
+   This is the simplest and most flexible default — use it unless
+   you specifically need coordinated EW sub-profile selection.
+
+Tips:
+  • If East and West have DIFFERENT numbers of sub-profiles,
+    modes 1–4 will pad the shorter list to match.
+  • For most profiles (especially when only one seat has multiple
+    sub-profiles), mode 5 is the safest choice.
+  • You can further refine with per-sub-profile "role usage" tags
+    (any / driver_only / follower_only) when editing constraints.
+""",
     # --- y/n help entries ---
     "yn_non_chosen_partner": """\
 === Partner Contingent – Chosen or Unchosen Suit ===
@@ -461,6 +505,27 @@ Example: North has 2 named sub-profiles:
   • Sub-profile 1 (Strong opener): driver_only
   • Sub-profile 2 (Responder): follower_only
 When North drives, Sub-profile 1 is used; when South drives, North
+uses Sub-profile 2.
+
+Most profiles do not need this level of control. Answer No unless
+you specifically want different sub-profiles for driving vs following.
+""",
+    "yn_edit_ew_roles": """\
+=== EW Role Usage (Driver / Follower) ===
+
+When both East and West have multiple sub-profiles AND EW role mode
+uses a driver/follower system (modes 1–4), each sub-profile can be
+tagged with a "role usage":
+
+  • "any" — this sub-profile can be used whether the seat is driving
+    or following (default)
+  • "driver_only" — only used when THIS seat is the driver
+  • "follower_only" — only used when THIS seat is the follower
+
+Example: East has 2 named sub-profiles:
+  • Sub-profile 1 (Strong overcall): driver_only
+  • Sub-profile 2 (Responder): follower_only
+When East drives, Sub-profile 1 is used; when West drives, East
 uses Sub-profile 2.
 
 Most profiles do not need this level of control. Answer No unless

@@ -887,14 +887,11 @@ def _build_single_constrained_deal_v2(
     """
     Build a single constrained deal using shape-based help (v2 algorithm).
 
-    Key differences from v1 (_build_single_constrained_deal):
+    Algorithm:
       - Uses _dispersion_check() to identify tight seats BEFORE dealing
       - Pre-allocates 75% of suit minima for tight seats via _deal_with_help()
-      - No hardest-seat selection or v1 constructive gates
       - Full failure attribution (seat_fail_as_seat, global_other,
         global_unchecked, hcp, shape) + debug hooks
-
-    Old v1 function remains untouched.  This is a parallel implementation.
 
     Args:
         rng: Random number generator (seeded for reproducibility).
@@ -920,7 +917,7 @@ def _build_single_constrained_deal_v2(
     profile_dealing_order: List[Seat] = list(profile.hand_dealing_order)
 
     # ------------------------------------------------------------------
-    # FAST PATH: invariants-safety profiles (same as v1)
+    # FAST PATH: invariants-safety profiles (skip all constraints)
     # ------------------------------------------------------------------
     if getattr(profile, "is_invariants_safety_profile", False):
         deck = _build_deck()

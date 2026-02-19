@@ -28,7 +28,6 @@ from .deal_generator_types import (
     _CARD_HCP,
 )
 from .hand_profile import (
-    HandProfile,
     SeatProfile,
 )
 
@@ -241,21 +240,6 @@ def _choose_index_for_seat(
 def _build_deck() -> List[Card]:
     """Return a fresh copy of the 52-card master deck."""
     return list(_MASTER_DECK)
-
-
-def _get_constructive_mode(profile: HandProfile) -> Dict[str, bool]:
-    """
-    Decide which constructive-help modes are eligible for this profile.
-
-    Currently all modes are disabled. The v1 constructive help code paths
-    remain in the builder but are never activated. The feature flags that
-    previously gated these modes have been removed.
-    """
-    return {
-        "standard": False,
-        "nonstandard_shadow": False,
-        "nonstandard_v2": False,
-    }
 
 
 # ---------------------------------------------------------------------------

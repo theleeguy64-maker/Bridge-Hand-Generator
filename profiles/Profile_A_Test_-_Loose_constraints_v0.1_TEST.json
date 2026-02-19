@@ -1,0 +1,101 @@
+{
+  "author": "Lee",
+  "dealer": "W",
+  "description": "Profile A Test - Loose constraints",
+  "hand_dealing_order": [
+    "W",
+    "N",
+    "E",
+    "S"
+  ],
+  "is_invariants_safety_profile": false,
+  "ns_role_mode": "no_driver_no_index",
+  "profile_name": "Profile A Test - Loose constraints TEST",
+  "rotate_deals_by_default": true,
+  "seat_profiles": {
+    "N": {
+      "seat": "N",
+      "subprofiles": [
+        {
+          "ns_role_usage": "any",
+          "opponents_contingent_suit_constraint": null,
+          "partner_contingent_constraint": null,
+          "random_suit_constraint": null,
+          "standard": {
+            "clubs": {
+              "max_cards": 6,
+              "max_hcp": 10,
+              "min_cards": 0,
+              "min_hcp": 0
+            },
+            "diamonds": {
+              "max_cards": 6,
+              "max_hcp": 10,
+              "min_cards": 0,
+              "min_hcp": 0
+            },
+            "hearts": {
+              "max_cards": 6,
+              "max_hcp": 10,
+              "min_cards": 0,
+              "min_hcp": 0
+            },
+            "spades": {
+              "max_cards": 6,
+              "max_hcp": 10,
+              "min_cards": 0,
+              "min_hcp": 0
+            },
+            "total_max_hcp": 37,
+            "total_min_hcp": 0
+          },
+          "weight_percent": 100.0
+        }
+      ]
+    },
+    "W": {
+      "seat": "W",
+      "subprofiles": [
+        {
+          "ns_role_usage": "any",
+          "opponents_contingent_suit_constraint": null,
+          "partner_contingent_constraint": null,
+          "random_suit_constraint": null,
+          "standard": {
+            "clubs": {
+              "max_cards": 6,
+              "max_hcp": 10,
+              "min_cards": 0,
+              "min_hcp": 0
+            },
+            "diamonds": {
+              "max_cards": 6,
+              "max_hcp": 10,
+              "min_cards": 0,
+              "min_hcp": 0
+            },
+            "hearts": {
+              "max_cards": 6,
+              "max_hcp": 10,
+              "min_cards": 0,
+              "min_hcp": 0
+            },
+            "spades": {
+              "max_cards": 6,
+              "max_hcp": 10,
+              "min_cards": 0,
+              "min_hcp": 0
+            },
+            "total_max_hcp": 37,
+            "total_min_hcp": 0
+          },
+          "weight_percent": 100.0
+        }
+      ]
+    }
+  },
+  "sort_order": 20,
+  "subprofile_exclusions": [],
+  "tag": "Opener",
+  "version": "0.1"
+}

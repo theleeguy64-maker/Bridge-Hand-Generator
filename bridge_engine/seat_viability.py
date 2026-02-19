@@ -560,13 +560,13 @@ def _subprofile_is_viable(
     if not isinstance(seat_profile, SeatProfile):
         return False
 
-    # Save the original subprofiles so we can restore them.
-    original_subprofiles = list(getattr(seat_profile, "subprofiles", []))
+    # Create a temporary SeatProfile narrowed to a single subprofile,
+    # swap it into seat_profiles for validation, then restore the original.
+    from dataclasses import replace
 
+    temp_sp = replace(seat_profile, subprofiles=[subprofile])
     try:
-        # Temporarily narrow this seat to a single subprofile.
-        # SeatProfile is frozen, so use object.__setattr__ to bypass.
-        object.__setattr__(seat_profile, "subprofiles", [subprofile])
+        seat_profiles[seat] = temp_sp
         # If this doesn't raise, the subprofile is viable in the context
         # of the whole profile (NS coupling, etc.).
         validate_profile_viability_light(profile)
@@ -575,8 +575,8 @@ def _subprofile_is_viable(
         # Validation failure means this subprofile is not viable.
         return False
     finally:
-        # Restore the original configuration.
-        object.__setattr__(seat_profile, "subprofiles", original_subprofiles)
+        # Restore the original seat profile.
+        seat_profiles[seat] = seat_profile
 
 
 def validate_profile_viability_light(profile: HandProfile) -> None:

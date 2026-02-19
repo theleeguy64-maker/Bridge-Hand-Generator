@@ -404,6 +404,5 @@
   },
   "subprofile_exclusions": [],
   "tag": "Overcaller",
-  "use_rs_w_only_path": false,
   "version": "0.9"
 }

@@ -8,7 +8,6 @@
 #
 #   deal_generator_types.py   — types, constants, dataclasses, debug hooks
 #   deal_generator_helpers.py — shared utilities (viability, HCP, deck, etc.)
-#   deal_generator_v1.py      — v1 builder + hardest-seat + constructive help
 #   deal_generator_v2.py      — v2 shape-based help system (active path)
 #
 # This module retains:
@@ -38,16 +37,15 @@ from .profile_viability import _cross_seat_feasible
 # (import dg; dg.Deal, dg.SHAPE_PROB_GTE, etc.) continue to work unchanged.
 #
 # IMPORTANT: `import *` skips _-prefixed names (no __all__ in sub-modules).
-# Every _-prefixed name accessed through this facade — by v1/v2 late imports
+# Every _-prefixed name accessed through this facade — by v2 late imports
 # (`_dg._DEBUG_ON_MAX_ATTEMPTS`), by tests, or by this module's own code —
 # MUST appear in the explicit re-import lists below.
 # Non-underscore names (Deal, MAX_BOARD_ATTEMPTS, etc.) come through the
 # wildcard and don't need explicit listing.
 # ---------------------------------------------------------------------------
 from .deal_generator_types import *  # noqa: F401,F403
-from .deal_generator_types import (  # _-prefixed names for v1/v2 late imports
+from .deal_generator_types import (  # _-prefixed names for v2 late imports
     _DEBUG_ON_MAX_ATTEMPTS,
-    _DEBUG_STANDARD_CONSTRUCTIVE_USED,
     _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION,
 )
 
@@ -63,17 +61,6 @@ from .deal_generator_helpers import (  # _-prefixed names for this module + test
     _summarize_profile_viability,
     _deal_single_board_simple,
     _apply_vulnerability_and_rotation,
-)
-
-# v1 builder + helpers — extracted to deal_generator_v1.py (#7 Batch 4B)
-from .deal_generator_v1 import (
-    _seat_has_nonstandard_constraints,
-    _is_shape_dominant_failure,
-    _choose_hardest_seat_for_board,
-    _extract_standard_suit_minima,
-    _construct_hand_for_seat,
-    _build_single_board_random_suit_w_only,
-    _build_single_constrained_deal,
 )
 
 # v2 shape-based help system — extracted to deal_generator_v2.py (#7)
@@ -158,8 +145,11 @@ def _select_subprofiles_for_board(
           - force responder to use same index.
 
     EW:
-      * Always index-coupled when both E/W have >1 subprofiles and equal lengths,
-        using the first EW seat in dealing_order as the driver.
+      * If ew_role_mode is set (not "no_driver_no_index") and both E/W have
+        >1 subprofiles with equal lengths, use index coupling:
+          - choose an EW "driver" (via ew_driver_seat or first EW in dealing order),
+          - pick its index by weights,
+          - force the other seat to use same index.
 
     Any remaining seats just choose their own index by their local weights.
 
@@ -177,7 +167,7 @@ def _select_subprofiles_for_board(
 
         # --- NS coupling ---
         # Enabled for all ns_role_mode values EXCEPT "no_driver_no_index".
-        # getattr needed: tests pass DummyProfile objects without ns_role_mode
+        # getattr needed: tests use duck-typed DummyProfile without this field
         _ns_mode = getattr(profile, "ns_role_mode", None) or "no_driver_no_index"
         if _ns_mode != "no_driver_no_index":
             ns_driver: Optional[Seat] = profile.ns_driver_seat(rng)
@@ -193,17 +183,23 @@ def _select_subprofiles_for_board(
                 chosen_indices,
             )
 
-        # --- EW coupling (always attempted) ---
-        ew_driver: Seat = next((s for s in dealing_order if s in ("E", "W")), "E")
-        _try_pair_coupling(
-            rng,
-            profile.seat_profiles,
-            "E",
-            "W",
-            ew_driver,
-            chosen_subprofiles,
-            chosen_indices,
-        )
+        # --- EW coupling ---
+        # Enabled for all ew_role_mode values EXCEPT "no_driver_no_index".
+        # getattr needed: tests use duck-typed DummyProfile without this field
+        _ew_mode = getattr(profile, "ew_role_mode", None) or "no_driver_no_index"
+        if _ew_mode != "no_driver_no_index":
+            ew_driver: Optional[Seat] = profile.ew_driver_seat(rng)
+            if ew_driver not in ("E", "W"):
+                ew_driver = next((s for s in dealing_order if s in ("E", "W")), "E")
+            _try_pair_coupling(
+                rng,
+                profile.seat_profiles,
+                "E",
+                "W",
+                ew_driver,
+                chosen_subprofiles,
+                chosen_indices,
+            )
 
         # --- Remaining seats (incl. unconstrained or single-subprofile) ----
         for seat_name, seat_profile in profile.seat_profiles.items():
@@ -290,29 +286,6 @@ def generate_deals(
                 dealing_order=dealing_order,
             )
             deals.append(deal)
-        return DealSet(deals=deals)
-
-    # ---------------------------------------------------------------
-    # Special-case: Profiles opting into the lightweight RS-W-only path.
-    # Bypasses the full constrained pipeline and only enforces West's
-    # Random Suit constraint.  Used by test profiles that don't need
-    # the full matching pipeline.
-    # ---------------------------------------------------------------
-    if getattr(profile, "use_rs_w_only_path", False):
-        deals: List[Deal] = []  # type: ignore[no-redef]
-        for board_number in range(1, num_deals + 1):
-            deal = _build_single_board_random_suit_w_only(
-                rng=rng,
-                profile=profile,
-                board_number=board_number,
-            )
-            deals.append(deal)
-
-        deals = _apply_vulnerability_and_rotation(
-            rng,
-            deals,
-            rotate=enable_rotation,
-        )
         return DealSet(deals=deals)
 
     # -------------------------

@@ -126,10 +126,9 @@ def test_edit_metadata_saves_updated_fields(monkeypatch, tmp_path, capsys):
     assert updated.version == "0.2"
     assert updated.rotate_deals_by_default is False
     assert updated.ns_role_mode == "no_driver_no_index"
-    # Verify the 3 previously-missing fields are preserved (not reset to defaults)
+    # Verify the previously-missing fields are preserved (not reset to defaults)
     assert updated.subprofile_exclusions == list(profile.subprofile_exclusions)
     assert updated.is_invariants_safety_profile == profile.is_invariants_safety_profile
-    assert updated.use_rs_w_only_path == profile.use_rs_w_only_path
 
 
 # ---------------------------------------------------------------------------
@@ -293,7 +292,6 @@ def test_save_as_new_version_preserves_all_fields(monkeypatch, tmp_path, capsys)
     assert new_profile.rotate_deals_by_default is False
     assert new_profile.subprofile_exclusions == list(profile.subprofile_exclusions)
     assert new_profile.is_invariants_safety_profile == profile.is_invariants_safety_profile
-    assert new_profile.use_rs_w_only_path == profile.use_rs_w_only_path
 
 
 # ---------------------------------------------------------------------------

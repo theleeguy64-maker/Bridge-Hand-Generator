@@ -24,7 +24,6 @@ from bridge_engine.setup_env import run_setup
 from bridge_engine.deal_generator import (
     generate_deals,
     DealGenerationError,
-    _build_single_constrained_deal,  # <-- add this if not already imported
 )
 
 
@@ -140,7 +139,6 @@ def _random_suit_w_partner_contingent_e_profile() -> HandProfile:
         author="Test",
         version="0.1",
         seat_profiles=seat_profiles,
-        use_rs_w_only_path=True,  # Explicit flag replaces magic name check
     )
 
 

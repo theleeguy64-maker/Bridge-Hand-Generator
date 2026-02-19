@@ -251,9 +251,7 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
 
     # Only relevant if N or S actually has subprofiles.
     ns_seats: List[Seat] = [
-        seat
-        for seat in ("N", "S")
-        if seat in profile.seat_profiles and getattr(profile.seat_profiles[seat], "subprofiles", None)
+        seat for seat in ("N", "S") if seat in profile.seat_profiles and profile.seat_profiles[seat].subprofiles
     ]
     if not ns_seats:
         return
@@ -320,6 +318,70 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
                 )
 
 
+def _validate_ew_role_usage_coverage(profile: HandProfile) -> None:
+    """
+    Ensure that for each EW seat and each role that can occur under
+    ew_role_mode, there is at least one compatible SubProfile.
+
+    Parallel to _validate_ns_role_usage_coverage() but for E/W seats.
+    """
+
+    # Only relevant if E or W actually has subprofiles.
+    ew_seats: List[Seat] = [
+        seat for seat in ("E", "W") if seat in profile.seat_profiles and profile.seat_profiles[seat].subprofiles
+    ]
+    if not ew_seats:
+        return
+
+    mode = (profile.ew_role_mode or "no_driver_no_index").strip()
+
+    if mode in ("no_driver", "no_driver_no_index"):
+        return
+
+    if mode not in ("east_drives", "west_drives", "random_driver"):
+        # Defensive: unknown future mode → disable EW role semantics.
+        return
+
+    def roles_for(seat: Seat) -> Set[str]:
+        """Return roles ('driver', 'follower') that this seat may take."""
+        if seat not in ("E", "W"):
+            return set()
+
+        if mode == "east_drives":
+            return {"driver"} if seat == "E" else {"follower"}
+        if mode == "west_drives":
+            return {"driver"} if seat == "W" else {"follower"}
+
+        # random_driver: either E or W may be driver or follower.
+        return {"driver", "follower"}
+
+    def has_compatible_usage(sub: SubProfile, allowed: Tuple[str, str]) -> bool:
+        return sub.ew_role_usage in allowed
+
+    for seat in ("E", "W"):
+        sp = profile.seat_profiles.get(seat)
+        if sp is None or not sp.subprofiles:
+            continue
+
+        roles = roles_for(seat)
+        if not roles:
+            continue
+
+        for role in sorted(roles):
+            if role == "driver":
+                allowed = ("any", "driver_only")
+            else:
+                allowed = ("any", "follower_only")
+
+            if not any(has_compatible_usage(sub, allowed) for sub in sp.subprofiles):
+                raise ProfileError(
+                    "Invalid EW role configuration: seat "
+                    f"{seat} may act as {role} under ew_role_mode={mode!r}, "
+                    "but no subprofile has ew_role_usage in "
+                    f"{allowed}."
+                )
+
+
 def _validate_partner_contingent(profile: HandProfile) -> None:
     """
     Ensure that for any subprofile with a partner-contingent constraint,
@@ -333,7 +395,7 @@ def _validate_partner_contingent(profile: HandProfile) -> None:
 
     for seat, seat_profile in profile.seat_profiles.items():
         for sub in seat_profile.subprofiles:
-            constraint = getattr(sub, "partner_contingent_constraint", None)
+            constraint = sub.partner_contingent_constraint
             if constraint is None:
                 continue
 
@@ -397,7 +459,7 @@ def _validate_opponent_contingent(profile: HandProfile) -> None:
 
     for seat, seat_profile in profile.seat_profiles.items():
         for sub in seat_profile.subprofiles:
-            constraint = getattr(sub, "opponents_contingent_suit_constraint", None)
+            constraint = sub.opponents_contingent_suit_constraint
             if constraint is None:
                 continue
 
@@ -500,6 +562,21 @@ def validate_profile(data: Any) -> HandProfile:
     raw["ns_role_mode"] = mode
 
     # -----------------------------------
+    # 3b. ew_role_mode sanity (parallel to NS)
+    # -----------------------------------
+    ew_mode = str(raw.get("ew_role_mode", "no_driver_no_index") or "no_driver_no_index").strip()
+    ew_allowed_modes = {
+        "east_drives",
+        "west_drives",
+        "random_driver",
+        "no_driver",  # no driver roles, but index matching ON
+        "no_driver_no_index",  # no driver roles, and index matching OFF
+    }
+    if ew_mode not in ew_allowed_modes:
+        ew_mode = "no_driver_no_index"
+    raw["ew_role_mode"] = ew_mode
+
+    # -----------------------------------
     # 4. Subprofile weight normalisation
     # -----------------------------------
     _normalise_subprofile_weights(raw)
@@ -515,6 +592,7 @@ def validate_profile(data: Any) -> HandProfile:
     _validate_partner_contingent(profile)
     _validate_opponent_contingent(profile)
     _validate_ns_role_usage_coverage(profile)
+    _validate_ew_role_usage_coverage(profile)
 
     # Random Suit vs standard suit constraints consistency
     _validate_random_suit_vs_standard(profile)
