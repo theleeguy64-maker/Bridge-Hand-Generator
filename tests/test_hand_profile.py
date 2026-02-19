@@ -11,6 +11,7 @@ from bridge_engine.hand_profile import (
     PartnerContingentData,
     SuitPairOverride,
     SubProfile,
+    sub_label,
     SeatProfile,
     HandProfile,
     SubprofileExclusionClause,
@@ -399,3 +400,52 @@ def test_exclusion_validate_catches_bad_subprofile_index(make_valid_profile) -> 
     )
     with pytest.raises(ProfileError, match="Invalid subprofile index"):
         exc.validate(profile)
+
+
+# ---------------------------------------------------------------------------
+# SubProfile name field + sub_label helper
+# ---------------------------------------------------------------------------
+
+
+def test_subprofile_name_round_trip() -> None:
+    """SubProfile.name survives to_dict → from_dict."""
+    sub = SubProfile(standard=_standard_all_open(), name="Strong opener")
+    d = sub.to_dict()
+    assert d["name"] == "Strong opener"
+    restored = SubProfile.from_dict(d)
+    assert restored.name == "Strong opener"
+
+
+def test_subprofile_name_none_omitted() -> None:
+    """When name is None, to_dict() should not include a 'name' key."""
+    sub = SubProfile(standard=_standard_all_open())
+    d = sub.to_dict()
+    assert "name" not in d
+
+
+def test_subprofile_name_missing_defaults_none() -> None:
+    """Backwards compat: from_dict with no 'name' key produces name=None."""
+    d = SubProfile(standard=_standard_all_open()).to_dict()
+    assert "name" not in d
+    restored = SubProfile.from_dict(d)
+    assert restored.name is None
+
+
+def test_subprofile_name_empty_treated_as_none() -> None:
+    """Blank/whitespace-only name is normalised to None on load."""
+    d = SubProfile(standard=_standard_all_open()).to_dict()
+    d["name"] = "   "
+    restored = SubProfile.from_dict(d)
+    assert restored.name is None
+
+
+def test_sub_label_with_name() -> None:
+    """sub_label includes the name in parentheses when set."""
+    sub = SubProfile(standard=_standard_all_open(), name="Weak response")
+    assert sub_label(1, sub) == "Sub-profile 1 (Weak response)"
+
+
+def test_sub_label_without_name() -> None:
+    """sub_label shows only the index when name is None."""
+    sub = SubProfile(standard=_standard_all_open())
+    assert sub_label(2, sub) == "Sub-profile 2"

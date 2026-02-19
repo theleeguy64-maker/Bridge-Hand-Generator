@@ -461,11 +461,11 @@ tagged with a "role usage":
   • "driver_only" — only used when THIS seat is the driver
   • "follower_only" — only used when THIS seat is the follower
 
-Example: North has 2 sub-profiles:
-  • Sub-profile 0: "Strong opener" → driver_only
-  • Sub-profile 1: "Responder" → follower_only
-When North drives, sub-profile 0 is used; when South drives, North
-uses sub-profile 1.
+Example: North has 2 named sub-profiles:
+  • Sub-profile 1 (Strong opener): driver_only
+  • Sub-profile 2 (Responder): follower_only
+When North drives, Sub-profile 1 is used; when South drives, North
+uses Sub-profile 2.
 
 Most profiles do not need this level of control. Answer No unless
 you specifically want different sub-profiles for driving vs following.

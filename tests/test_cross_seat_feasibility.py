@@ -359,7 +359,7 @@ class TestDeadSubprofileDetection:
         )
         warnings_list = _check_cross_seat_subprofile_viability(profile)
         assert len(warnings_list) == 1
-        assert "Seat N subprofile 1" in warnings_list[0]
+        assert "Seat N Sub-profile 1" in warnings_list[0]
         assert "DEAD" in warnings_list[0]
 
     def test_all_dead_raises_profile_error(self):

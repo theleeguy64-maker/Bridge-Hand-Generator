@@ -254,17 +254,15 @@ def _convert_to_lin_deals(deals: Sequence[Deal]) -> List[LinDeal]:
     We pass board_number, dealer, hands, AND vulnerability so BBO can show
     the correct 'sv' tag.
     """
-    lin_deals: List[LinDeal] = []
-    for d in deals:
-        lin_deals.append(
-            LinDeal(
-                board_number=d.board_number,
-                dealer=d.dealer,
-                hands=d.hands,
-                vulnerability=d.vulnerability,
-            )
+    return [
+        LinDeal(
+            board_number=d.board_number,
+            dealer=d.dealer,
+            hands=d.hands,
+            vulnerability=d.vulnerability,
         )
-    return lin_deals
+        for d in deals
+    ]
 
 
 # ---------------------------------------------------------------------------

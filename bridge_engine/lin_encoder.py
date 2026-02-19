@@ -1,6 +1,3 @@
-# file: bridge_engine/lin_encoder.py
-from __future__ import annotations
-
 """
 LIN encoder utilities (Section D of Bridge Hand Generator).
 
@@ -26,6 +23,9 @@ Key behaviours
         "e" -> EW vulnerable
         "b" -> both vulnerable
 """
+
+# file: bridge_engine/lin_encoder.py
+from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path

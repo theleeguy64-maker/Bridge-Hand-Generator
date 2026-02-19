@@ -54,6 +54,7 @@ from .hand_profile_model import (
     HandProfile,
     SeatProfile,
     SubProfile,
+    sub_label,
     SubprofileExclusionData,
     StandardSuitConstraints,
     SuitRange,
@@ -311,7 +312,9 @@ def _edit_subprofile_exclusions_for_seat(
         print(f"\nExisting exclusions for seat {seat}:")
         for i, exc in enumerate(this_seat, start=1):
             kind = "shapes" if exc.excluded_shapes else "rule"
-            print(f"  {i}) sub-profile {exc.subprofile_index} ({kind})")
+            si = exc.subprofile_index  # 1-based
+            label = sub_label(si, sp.subprofiles[si - 1]) if 1 <= si <= len(sp.subprofiles) else f"sub-profile {si}"
+            print(f"  {i}) {label} ({kind})")
 
         # Simple edit loop: remove entries
         while True:
@@ -786,6 +789,12 @@ def _build_subprofile(
     """
     print(f"\nBuilding sub-profile for seat {seat}:")
 
+    # Optional name for this sub-profile (purely cosmetic label).
+    existing_name = existing.name if existing is not None else ""
+    default_hint = f" [{existing_name}]" if existing_name else ""
+    raw_name = wiz_io.prompt_str(f"  Sub-profile name (optional, Enter to skip){default_hint}: ")
+    name: Optional[str] = raw_name.strip() or existing_name or None
+
     # Standard constraints
     std_existing = existing.standard if existing is not None else None
     standard = _prompt_standard_constraints(std_existing)
@@ -843,6 +852,7 @@ def _build_subprofile(
 
     return SubProfile(
         standard=standard,
+        name=name,
         random_suit_constraint=random_constraint,
         partner_contingent_constraint=partner_constraint,
         opponents_contingent_suit_constraint=opponents_constraint,
@@ -905,7 +915,7 @@ def _assign_subprofile_weights_interactive(
     print(f"\nSub-profile weighting for seat {seat}:")
     for idx, w in enumerate(default_weights, start=1):
         suffix = " (default)" if all_zero else ""
-        print(f"  Sub-profile {idx}: {w:.1f}% of deals{suffix}")
+        print(f"  {sub_label(idx, subprofiles[idx - 1])}: {w:.1f}% of deals{suffix}")
 
     if not _yes_no_help("Do you want to edit these weights?", "yn_edit_weights", default=False):
         # User kept defaults; normalise them to sum exactly 100 in case of rounding.
@@ -926,7 +936,7 @@ def _assign_subprofile_weights_interactive(
         edited_weights: List[float] = []
         for i, sub in enumerate(subprofiles, start=1):
             default = default_weights[i - 1]
-            prompt = f"  Weight for sub-profile {i} as % of deals (0–100, at most one decimal)"
+            prompt = f"  Weight for {sub_label(i, sub)} as % of deals (0–100, at most one decimal)"
             w = _input_float_with_default(
                 prompt,
                 default=default,
@@ -970,10 +980,12 @@ def _build_seat_profile(
 
     subprofiles: List[SubProfile] = []
     for idx in range(1, num_sub + 1):
-        print(f"\nSub-profile {idx} for seat {seat}:\n")
         existing_sub = None
         if existing is not None and idx - 1 < len(existing.subprofiles):
             existing_sub = existing.subprofiles[idx - 1]
+        # Show name if re-editing an existing named sub-profile.
+        header = sub_label(idx, existing_sub) if existing_sub else f"Sub-profile {idx}"
+        print(f"\n{header} for seat {seat}:\n")
         sub = _build_subprofile_for_seat(seat, existing_sub)
         subprofiles.append(sub)
 
@@ -1029,7 +1041,7 @@ def _assign_ns_role_usage_interactive(
 
     print(f"\nNS role usage for seat {seat}:")
     for idx, role in enumerate(defaults, start=1):
-        print(f"  Sub-profile {idx}: {role}")
+        print(f"  {sub_label(idx, subprofiles[idx - 1])}: {role}")
 
     # Let the user opt in; default is 'no' so beginners aren't bothered.
     if not _yes_no_help(
@@ -1046,7 +1058,7 @@ def _assign_ns_role_usage_interactive(
     valid_options = {"any", "driver_only", "follower_only"}
 
     for idx, default_usage in enumerate(defaults, start=1):
-        prompt = f"  NS role usage for sub-profile {idx} (any/driver_only/follower_only)"
+        prompt = f"  NS role usage for {sub_label(idx, subprofiles[idx - 1])} (any/driver_only/follower_only)"
         while True:
             raw = _input_with_default(
                 prompt + f" [{default_usage}]: ",
@@ -1110,8 +1122,7 @@ def _build_profile(
     seat_builder = _pw_attr("_build_seat_profile", _build_seat_profile)
 
     # Rotation is metadata; constraints edit must preserve existing value (default True).
-    # getattr for back-compat with legacy profile objects missing this field.
-    rotate_flag = getattr(existing, "rotate_deals_by_default", True) if existing is not None else True
+    rotate_flag = existing.rotate_deals_by_default if existing is not None else True
 
     # ----- Metadata (and rotation flag) -----
     if existing is not None:

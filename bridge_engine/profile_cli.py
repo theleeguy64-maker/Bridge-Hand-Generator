@@ -32,6 +32,7 @@ import os
 import sys
 import io
 import tempfile
+from dataclasses import replace
 
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -47,6 +48,7 @@ from .hand_profile import (
     OpponentContingentSuitData,
     StandardSuitConstraints,
     SubProfile,
+    sub_label,
     SeatProfile,
     HandProfile,
     ProfileError,
@@ -385,13 +387,9 @@ def _print_random_suit_constraint(rs: RandomSuitConstraintData, indent: str = ""
     if rs.pair_overrides:
         print(f"{indent}  Pair overrides:")
         for o in rs.pair_overrides:
-            suits = getattr(o, "suits", None)
-            first_range = getattr(o, "first_range", None)
-            second_range = getattr(o, "second_range", None)
-            if suits is None and isinstance(o, dict):
-                suits = o.get("suits")
-                first_range = o.get("first_range")
-                second_range = o.get("second_range")
+            suits = o.suits
+            first_range = o.first_range
+            second_range = o.second_range
 
             suits2 = _fmt_suits(suits)
 
@@ -417,7 +415,9 @@ def _print_partner_contingent_constraint(pc: PartnerContingentData, indent: str 
     print(f"{indent}Partner Contingent constraint:")
     print(f"{indent}  Partner seat: {pc.partner_seat}")
     if pc.use_non_chosen_suit:
-        print(f"{indent}  Mode: NON-CHOSEN (inverse)")
+        print(f"{indent}  Target: partner's NON-CHOSEN suit (inverse)")
+    else:
+        print(f"{indent}  Target: partner's CHOSEN suit")
     _print_suit_range("Suit", pc.suit_range, indent + "  ")
 
 
@@ -425,7 +425,9 @@ def _print_opponent_contingent_constraint(oc: OpponentContingentSuitData, indent
     print(f"{indent}Opponent Contingent-Suit constraint:")
     print(f"{indent}  Opponent seat: {oc.opponent_seat}")
     if oc.use_non_chosen_suit:
-        print(f"{indent}  Mode: NON-CHOSEN (inverse)")
+        print(f"{indent}  Target: opponent's NON-CHOSEN suit (inverse)")
+    else:
+        print(f"{indent}  Target: opponent's CHOSEN suit")
     _print_suit_range("Suit", oc.suit_range, indent + "  ")
 
 
@@ -463,7 +465,7 @@ def _print_profile_constraints(profile: HandProfile) -> None:
         multi = len(sp.subprofiles) > 1
 
         for idx, sub in enumerate(sp.subprofiles, start=1):
-            print(f"\n  Sub-profile {idx}:")
+            print(f"\n  {sub_label(idx, sub)}:")
             if multi:
                 weight = sub.weight_percent
                 if weight is not None:
@@ -517,13 +519,21 @@ def _print_subprofile_exclusions(
         return
 
     print(f"{indent}Exclusions:")
+    # Look up SeatProfile once for sub_label display.
+    sp = profile.seat_profiles.get(seat)
+
     for e in relevant:
         idx = e.subprofile_index
+        # Build display label with name if available (idx is 1-based).
+        if sp and 1 <= idx <= len(sp.subprofiles):
+            label = sub_label(idx, sp.subprofiles[idx - 1])
+        else:
+            label = f"Sub-profile {idx}"
 
         shapes = e.excluded_shapes
         if shapes:
             shapes_txt = ", ".join(str(s) for s in shapes)
-            print(f"{indent}  Sub-profile {idx}: exclude shapes: {shapes_txt}")
+            print(f"{indent}  {label}: exclude shapes: {shapes_txt}")
             continue
 
         clauses = e.clauses
@@ -534,10 +544,10 @@ def _print_subprofile_exclusions(
                 length_eq = c.length_eq
                 count = c.count
                 parts.append(f"({group} len={length_eq} count={count})")
-            print(f"{indent}  Sub-profile {idx}: exclude if: " + " AND ".join(parts))
+            print(f"{indent}  {label}: exclude if: " + " AND ".join(parts))
             continue
 
-        print(f"{indent}  Sub-profile {idx}: (invalid exclusion: no shapes/clauses)")
+        print(f"{indent}  {label}: (invalid exclusion: no shapes/clauses)")
 
 
 def view_and_optional_print_profile_action() -> None:
@@ -615,19 +625,20 @@ def edit_profile_action() -> None:
         print("  0) Done (back to Profile Manager)")
         print("  1) Edit metadata only")
         print("  2) Edit constraints only")
-        print("  3) Help")
+        print("  3) Edit sub-profile names")
+        print("  4) Help")
         mode = _input_int(
-            "Choose [0-3] [0]: ",
+            "Choose [0-4] [0]: ",
             default=0,
             minimum=0,
-            maximum=3,
+            maximum=4,
             show_range_suffix=False,
         )
 
         if mode == 0:
             return
 
-        if mode == 3:
+        if mode == 4:
             print(get_menu_help("edit_profile_mode"))
             continue
 
@@ -741,7 +752,7 @@ def edit_profile_action() -> None:
             path = new_path
             profile = updated
 
-        else:
+        elif mode == 2:
             # ------------------------
             # Constraints-only edit
             # ------------------------
@@ -757,6 +768,58 @@ def edit_profile_action() -> None:
                 print(f"\nUpdated profile saved to {path}")
                 # Update profile so next loop iteration uses the saved version
                 profile = updated
+
+        elif mode == 3:
+            # ------------------------
+            # Edit sub-profile names
+            # ------------------------
+            updated_seats = dict(profile.seat_profiles)
+            changed = False
+
+            for seat in ("N", "E", "S", "W"):
+                sp = updated_seats.get(seat)
+                if sp is None or not sp.subprofiles:
+                    continue
+
+                print(f"\n--- Seat {seat} ({len(sp.subprofiles)} sub-profile(s)) ---")
+                new_subs = list(sp.subprofiles)
+                for idx, sub in enumerate(sp.subprofiles, start=1):
+                    current = sub.name or ""
+                    hint = f" [{current}]" if current else ""
+                    raw = _input_with_default(
+                        f"  {sub_label(idx, sub)} name{hint}",
+                        current,
+                    )
+                    new_name_val = raw.strip() or None
+                    if new_name_val != sub.name:
+                        new_subs[idx - 1] = replace(sub, name=new_name_val)
+                        changed = True
+
+                updated_seats[seat] = SeatProfile(seat=seat, subprofiles=new_subs)
+
+            if changed:
+                updated = HandProfile(
+                    profile_name=profile.profile_name,
+                    description=profile.description,
+                    dealer=profile.dealer,
+                    hand_dealing_order=profile.hand_dealing_order,
+                    tag=profile.tag,
+                    seat_profiles=updated_seats,
+                    author=profile.author,
+                    version=profile.version,
+                    rotate_deals_by_default=profile.rotate_deals_by_default,
+                    ns_role_mode=profile.ns_role_mode,
+                    subprofile_exclusions=list(profile.subprofile_exclusions),
+                    is_invariants_safety_profile=profile.is_invariants_safety_profile,
+                    use_rs_w_only_path=profile.use_rs_w_only_path,
+                    sort_order=profile.sort_order,
+                )
+                _save_profile_to_path(updated, path)
+                profile_store.delete_draft_for_canonical(path)
+                print(f"\nSub-profile names updated and saved to {path.name}")
+                profile = updated
+            else:
+                print("\nNo changes made.")
 
 
 def delete_profile_action() -> None:

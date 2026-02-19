@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 import warnings
 from types import SimpleNamespace
 
-from .hand_profile_model import ProfileError
+from .hand_profile_model import ProfileError, sub_label
 from .deal_generator_types import FULL_DECK_HCP_SUM
 from .seat_viability import (
     _subprofile_is_viable,
@@ -269,7 +269,7 @@ def _check_cross_seat_subprofile_viability(profile: Any) -> List[str]:
                 alive_count += 1
             else:
                 dead_warnings.append(
-                    f"Seat {seat} subprofile {idx + 1}: DEAD — "
+                    f"Seat {seat} {sub_label(idx + 1, sub)}: DEAD — "
                     f"can never be dealt. Even with the most generous "
                     f"settings on all other seats: {reason}"
                 )

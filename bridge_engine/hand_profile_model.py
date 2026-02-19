@@ -424,6 +424,11 @@ class SubProfile:
     """
 
     standard: StandardSuitConstraints
+
+    # Optional human-readable label for this sub-profile (e.g., "Strong opener").
+    # Purely cosmetic — not used by deal generation or constraint matching.
+    name: Optional[str] = None
+
     random_suit_constraint: Optional[RandomSuitConstraintData] = None
     partner_contingent_constraint: Optional[PartnerContingentData] = None
     opponents_contingent_suit_constraint: Optional[OpponentContingentSuitData] = None
@@ -440,7 +445,7 @@ class SubProfile:
     ns_role_usage: str = "any"
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        d: Dict[str, Any] = {
             "standard": self.standard.to_dict(),
             "random_suit_constraint": (
                 self.random_suit_constraint.to_dict() if self.random_suit_constraint is not None else None
@@ -457,6 +462,10 @@ class SubProfile:
             # JSON field name for Phase 3 metadata.
             "ns_role_usage": self.ns_role_usage,
         }
+        # Only include name when set (keeps JSON clean for unnamed sub-profiles).
+        if self.name is not None:
+            d["name"] = self.name
+        return d
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SubProfile":
@@ -467,6 +476,10 @@ class SubProfile:
           - new-style "ns_role_usage" (preferred)
           - earlier experimental "ns_role_for_seat" (mapped to usage)
         """
+        # Optional name (strip whitespace; treat empty/blank as None).
+        raw_name = data.get("name")
+        name: Optional[str] = raw_name.strip() if isinstance(raw_name, str) and raw_name.strip() else None
+
         rsc_data = data.get("random_suit_constraint")
         pc_data = data.get("partner_contingent_constraint")
         oc_data = data.get("opponents_contingent_suit_constraint")
@@ -488,6 +501,7 @@ class SubProfile:
 
         return cls(
             standard=StandardSuitConstraints.from_dict(data["standard"]),
+            name=name,
             random_suit_constraint=(RandomSuitConstraintData.from_dict(rsc_data) if rsc_data is not None else None),
             partner_contingent_constraint=(PartnerContingentData.from_dict(pc_data) if pc_data is not None else None),
             opponents_contingent_suit_constraint=(
@@ -496,6 +510,18 @@ class SubProfile:
             weight_percent=float(data.get("weight_percent", 0.0)),
             ns_role_usage=ns_role_usage,
         )
+
+
+def sub_label(idx: int, sub: Any) -> str:
+    """Format a display label for a sub-profile: 'Sub-profile {idx}' or 'Sub-profile {idx} (name)'.
+
+    Accepts any object with an optional `name` attribute (SubProfile, SimpleNamespace, etc.)
+    so callers using test stubs or synthetic objects don't crash.
+    """
+    name = getattr(sub, "name", None)
+    if name:
+        return f"Sub-profile {idx} ({name})"
+    return f"Sub-profile {idx}"
 
 
 @dataclass(frozen=True)

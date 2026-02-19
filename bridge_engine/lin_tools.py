@@ -352,33 +352,33 @@ def run_lin_combiner() -> None:
         print(f"  - {label}")
 
     # 5b) Optional weighted selection (F4)
+    # chosen_files is guaranteed non-empty (loop above requires >= 2).
     file_weights: List[float] | None = None
-    if chosen_files:
-        use_weights = input("\nUse weighted selection by source file? [y/N]: ").strip().lower()
-        if use_weights.startswith("y"):
-            print(
-                "Enter a *relative* weight for each file. "
-                "Higher numbers mean that file's boards are used more often.\n"
-                "For example, weights 1,2,1 make the second file appear about twice "
-                "as often as each of the others. Weights do NOT need to sum to 100; "
-                "a weight of 0 means 'never use this file'."
-            )
-            file_weights = []
-            for p in chosen_files:
-                while True:
-                    raw_w = input(f"  Weight for {p.name} [1]: ").strip()
-                    if not raw_w:
-                        raw_w = "1"
-                    try:
-                        w = float(raw_w)
-                    except ValueError:
-                        print(f"    Invalid number {raw_w!r}; please enter a numeric weight.")
-                        continue
-                    if w < 0.0:
-                        print("    Weight must be non-negative.")
-                        continue
-                    file_weights.append(w)
-                    break
+    use_weights = input("\nUse weighted selection by source file? [y/N]: ").strip().lower()
+    if use_weights.startswith("y"):
+        print(
+            "Enter a *relative* weight for each file. "
+            "Higher numbers mean that file's boards are used more often.\n"
+            "For example, weights 1,2,1 make the second file appear about twice "
+            "as often as each of the others. Weights do NOT need to sum to 100; "
+            "a weight of 0 means 'never use this file'."
+        )
+        file_weights = []
+        for p in chosen_files:
+            while True:
+                raw_w = input(f"  Weight for {p.name} [1]: ").strip()
+                if not raw_w:
+                    raw_w = "1"
+                try:
+                    w = float(raw_w)
+                except ValueError:
+                    print(f"    Invalid number {raw_w!r}; please enter a numeric weight.")
+                    continue
+                if w < 0.0:
+                    print("    Weight must be non-negative.")
+                    continue
+                file_weights.append(w)
+                break
 
     # 6) Ask for output filename (stem; we always write .lin)
     default_stem = "combined"

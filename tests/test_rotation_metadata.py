@@ -141,8 +141,8 @@ def _dummy_existing(*, rotate: Optional[bool]) -> Any:
             self.subprofile_exclusions: list = []
             self.sort_order = None
             self.ns_role_mode = "no_driver_no_index"
-            if rotate is not None:
-                self.rotate_deals_by_default = rotate
+            # Real HandProfile always has rotate_deals_by_default (default True).
+            self.rotate_deals_by_default = rotate if rotate is not None else True
 
     return Existing()
 

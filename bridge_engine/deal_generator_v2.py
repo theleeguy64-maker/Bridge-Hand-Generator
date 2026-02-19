@@ -137,16 +137,16 @@ def _dispersion_check(
     tight_seats: set = set()
 
     for seat, sub in chosen_subprofiles.items():
-        std = getattr(sub, "standard", None)
+        std = sub.standard
         if std is None:
             continue
 
         # Check each suit for tight shape constraints (standard).
         for suit_attr in ("spades", "hearts", "diamonds", "clubs"):
-            suit_range = getattr(std, suit_attr, None)
+            suit_range: Optional[SuitRange] = getattr(std, suit_attr, None)
             if suit_range is None:
                 continue
-            min_cards = getattr(suit_range, "min_cards", 0)
+            min_cards = suit_range.min_cards
             if min_cards <= 0:
                 continue
             prob = SHAPE_PROB_GTE.get(min_cards, 0.0)
@@ -209,7 +209,7 @@ def _pre_select_rs_suits(
     rs_pre: Dict[Seat, List[str]] = {}
 
     for seat, sub in chosen_subprofiles.items():
-        rs = getattr(sub, "random_suit_constraint", None)
+        rs = sub.random_suit_constraint
         if rs is None:
             continue
         allowed = list(rs.allowed_suits)
@@ -238,7 +238,7 @@ def _compute_rs_allowed_suits(
     """
     result: Dict[Seat, List[str]] = {}
     for seat, sub in chosen_subprofiles.items():
-        rs = getattr(sub, "random_suit_constraint", None)
+        rs = sub.random_suit_constraint
         if rs is not None and rs.allowed_suits:
             result[seat] = list(rs.allowed_suits)
     return result
@@ -291,7 +291,7 @@ def _get_suit_maxima(
     maxima: Dict[str, int] = {"S": 13, "H": 13, "D": 13, "C": 13}
 
     # Standard constraints.
-    std = getattr(subprofile, "standard", None)
+    std = subprofile.standard
     if std is not None:
         for suit_letter, suit_attr in [
             ("S", "spades"),
@@ -299,19 +299,19 @@ def _get_suit_maxima(
             ("D", "diamonds"),
             ("C", "clubs"),
         ]:
-            sr = getattr(std, suit_attr, None)
+            sr: Optional[SuitRange] = getattr(std, suit_attr, None)
             if sr is not None:
-                mc = getattr(sr, "max_cards", 13)
+                mc = sr.max_cards
                 if mc < maxima[suit_letter]:
                     maxima[suit_letter] = mc
 
     # RS constraints: enforce max_cards for pre-selected suits.
-    rs = getattr(subprofile, "random_suit_constraint", None)
+    rs = subprofile.random_suit_constraint
     if rs is not None and rs_pre_selected:
         ranges_by_suit = _resolve_rs_ranges(rs, rs_pre_selected)
 
         for suit_letter, sr in ranges_by_suit.items():
-            mc = getattr(sr, "max_cards", 13)
+            mc = sr.max_cards
             if mc < maxima[suit_letter]:
                 maxima[suit_letter] = mc
 
@@ -445,7 +445,7 @@ def _pre_allocate(
     Returns:
         List of pre-allocated cards (may be empty).
     """
-    std = getattr(subprofile, "standard", None)
+    std = subprofile.standard
     if std is None:
         return []
 
@@ -522,7 +522,7 @@ def _pre_allocate_rs(
     Returns:
         List of pre-allocated cards (may be empty).
     """
-    rs = getattr(subprofile, "random_suit_constraint", None)
+    rs = subprofile.random_suit_constraint
     if rs is None:
         return []
 
@@ -685,7 +685,7 @@ def _deal_with_help(
             sub = chosen_subprofiles.get(seat)
             if sub is None:
                 continue
-            std = getattr(sub, "standard", None)
+            std = sub.standard
             if std is None:
                 continue
             drawn_hcp = sum(_CARD_HCP[c] for c in pre)
@@ -723,19 +723,19 @@ def _deal_with_help(
                 # HCP cap for RS suits (#13).
                 rs_for_seat = rs_pre_selections.get(seat) if rs_pre_selections else None
                 maxima = _get_suit_maxima(sub, rs_for_seat)
-                std = getattr(sub, "standard", None)
-                max_hcp = getattr(std, "total_max_hcp", MAX_HAND_HCP) if std is not None else MAX_HAND_HCP
+                std = sub.standard
+                max_hcp = std.total_max_hcp if std is not None else MAX_HAND_HCP
 
                 # Extract per-suit HCP max from RS constraints (#13).
                 # Only needed when RS suits have an explicit max_hcp cap.
                 rs_hcp_max: Optional[Dict[str, int]] = None
                 if rs_for_seat:
-                    rs = getattr(sub, "random_suit_constraint", None)
+                    rs = sub.random_suit_constraint
                     if rs is not None:
                         resolved = _resolve_rs_ranges(rs, rs_for_seat)
                         rs_hcp_max = {}
                         for s_letter, sr in resolved.items():
-                            mhcp = getattr(sr, "max_hcp", None)
+                            mhcp = sr.max_hcp
                             if mhcp is not None and mhcp < MAX_HAND_HCP:
                                 rs_hcp_max[s_letter] = mhcp
                         if not rs_hcp_max:
@@ -822,11 +822,9 @@ def _compute_dealing_order(
         risk = _CONSTRAINT_RISK[ctype]
 
         # HCP tiebreaker: narrower range = harder = higher effective risk.
-        std = getattr(sub, "standard", None)
+        std = sub.standard
         if std is not None:
-            hcp_min = getattr(std, "total_min_hcp", 0)
-            hcp_max = getattr(std, "total_max_hcp", 37)
-            hcp_range = max(hcp_max - hcp_min, 0)
+            hcp_range = max(std.total_max_hcp - std.total_min_hcp, 0)
         else:
             hcp_range = 37  # unconstrained
 
@@ -1096,7 +1094,7 @@ def _build_single_constrained_deal_v2(
             # NOTE: Attribution is always "hcp" here even though the hand might
             # also fail shape checks.  This is a known diagnostic imprecision —
             # HCP is the *detected* cause since we check it first for speed.
-            std_early = getattr(sub, "standard", None)
+            std_early = sub.standard
             if std_early is not None:
                 hand_hcp_quick = sum(_CARD_HCP[c] for c in hands[seat])
                 if hand_hcp_quick < std_early.total_min_hcp or hand_hcp_quick > std_early.total_max_hcp:

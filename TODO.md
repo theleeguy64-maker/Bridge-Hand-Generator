@@ -454,12 +454,30 @@
 - ✅ **D5**: Narrowed `except Exception` → `(OSError, ValueError)` in `lin_tools.py` LIN combiner
 - ✅ **D6**: Narrowed `except Exception` → `(OSError, ValueError, TypeError, KeyError)` in `deal_output.py` render_deals
 
+### 52. [x] Named Subprofiles
+- ✅ Added optional `name: Optional[str] = None` field to SubProfile dataclass (model + serialization)
+- ✅ `sub_label()` helper formats "Sub-profile 1 (name)" or "Sub-profile 1" for display
+- ✅ Wizard name prompt during creation (optional, Enter to skip)
+- ✅ "Edit sub-profile names" menu option (mode 3) for existing profiles
+- ✅ Display updates: profile_cli.py (4 sites), wizard_flow.py (6 sites), profile_viability.py (dead sub warnings), menu_help.py
+- ✅ PC/OC print: always shows "Target: partner's CHOSEN suit" or "Target: partner's NON-CHOSEN suit (inverse)"
+- ✅ Backwards compatible — old profiles load fine with name=None
+- ✅ 6 new tests in `test_hand_profile.py` (round-trip, omission, missing defaults, empty→None, sub_label)
+
+### 53. [x] Code Review #58 — 7 fixes across 6 files
+- ✅ **B1**: Removed always-true `if chosen_files:` guard in `lin_tools.py` (guaranteed >= 2 by loop above)
+- ✅ **B2**: Removed dead dict fallback + redundant `getattr` on `PairOverrideData` in `profile_cli.py`
+- ✅ **C1**: Moved docstring before `from __future__` in `lin_encoder.py` (was making `__doc__` = None)
+- ✅ **C2**: Replaced redundant `getattr(existing, "rotate_deals_by_default", True)` with direct access in `wizard_flow.py`; updated test dummy
+- ✅ **C3**: Replaced 12 redundant `getattr` calls with direct field access on `SubProfile`/`StandardSuitConstraints`/`SuitRange` in `deal_generator_v2.py`
+- ✅ **D1**: Converted `_convert_to_lin_deals()` loop-append to list comprehension in `deal_output.py`
+
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 32 (32 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 34 (34 done) | **All complete**
 
-**Tests**: 475 passed | **pyright**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
+**Tests**: 481 passed | **pyright**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 
