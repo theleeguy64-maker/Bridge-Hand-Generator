@@ -510,6 +510,11 @@
 - ✅ `ew_role_mode`: "E_DRIVER" → "EAST DRIVES", "W_DRIVER" → "WEST DRIVES"
 - ✅ `yn_edit_roles`: Added note about parallel EW role usage prompt
 
+### 61. [x] Test coverage improvements (+32 tests)
+- ✅ 6 tests for `_build_processing_order()` in `test_shape_help_v3.py`
+- ✅ 12 tests in new `test_lin_tools_split_renumber.py` (split/renumber LIN boards)
+- ✅ 14 tests in new `test_profile_diagnostic_helpers.py` (hand_hcp, suit_count, hand_shape, fmt_row, smoke test)
+
 ### 59. [x] Dead code sweep (post-v1 removal)
 - ✅ Removed dead `_summarize_profile_viability()` (~44 lines) from `deal_generator_helpers.py`
 - ✅ Removed dead `_is_unviable_bucket()` (~11 lines) from `deal_generator_helpers.py`
@@ -528,9 +533,9 @@
 ---
 
 ## Summary
-Architecture: 15 (15 done) | Enhancements: 41 (41 done) | **All complete**
+Architecture: 15 (15 done) | Enhancements: 42 (42 done) | **All complete**
 
-**Tests**: 461 passed | **pyright**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
+**Tests**: 493 passed | **pyright**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
 
 **Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
 

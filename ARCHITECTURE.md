@@ -422,6 +422,7 @@ _deal_with_help(rng, deck, subs, tight_seats, order, rs_pre_selections) -> (hand
 # Dealing order auto-compute (#37)
 _subprofile_constraint_type(sub) -> str  # "rs", "pc", "oc", or "standard"
 _compute_dealing_order(chosen_subprofiles, dealer) -> List[Seat]  # least constrained last
+_build_processing_order(chosen_subs, dealing_order) -> List[Seat]  # RS seats first
 
 # v2 builder (active production path)
 _build_single_constrained_deal_v2(rng, profile, board_number) -> Deal
@@ -458,12 +459,12 @@ npx pyright bridge_engine/
 
 ## Test Coverage
 
-**461 passed** organized by:
+**493 passed** organized by:
 - Core matching: `test_seat_viability*.py`
 - Index coupling: `test_f3_opener_responder_coupling.py`
 - Profile viability: `test_profile_viability_*.py`
 - Benchmarks: `test_profile_e_*.py`
-- **Shape help**: `test_shape_help_v3.py` (88 tests — dispersion, pre-alloc, RS suit HCP, auto-compute dealing order)
+- **Shape help**: `test_shape_help_v3.py` (94 tests — dispersion, pre-alloc, RS suit HCP, auto-compute dealing order, build processing order)
 - **HCP feasibility**: `test_hcp_feasibility.py` (36 tests — unit + integration)
 - **Profile E e2e**: `test_profile_e_v2_hcp_gate.py` (7 tests — v2 builder + pipeline)
 - **RS pre-selection**: `test_rs_pre_selection.py` (32 tests — B1-B4 unit tests)
@@ -472,6 +473,8 @@ npx pyright bridge_engine/
 - **v2 comparison**: `test_v2_comparison.py` (6 gated — `RUN_V2_BENCHMARKS=1`)
 - **OC non-chosen suit**: `test_oc_non_chosen_suit.py` (25 tests — data model, helper, matching, regression, graceful fail, validation, integration, edge cases)
 - **PC non-chosen suit**: `test_pc_non_chosen_suit.py` (18 tests — data model, matching, regression, graceful fail, validation, integration)
+- **LIN split/renumber**: `test_lin_tools_split_renumber.py` (12 tests — split into boards, renumber, edge cases)
+- **Diagnostic helpers**: `test_profile_diagnostic_helpers.py` (14 tests — hand_hcp, suit_count, hand_shape, fmt_row, smoke test)
 
 - **Profile mgmt actions**: `test_profile_mgmt_actions.py` (9 tests — edit/delete/save-as/draft-tools)
 - **Menu dispatch**: `test_profile_mgmt_menus.py` (4 tests — profile manager + admin menu loops)

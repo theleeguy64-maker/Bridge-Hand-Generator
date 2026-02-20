@@ -16,6 +16,7 @@ import random
 import pytest
 
 from bridge_engine import deal_generator as dg
+from bridge_engine.deal_generator_v2 import _build_processing_order
 from bridge_engine.hand_profile import (
     HandProfile,
     SeatProfile,
@@ -1399,3 +1400,105 @@ class TestComputeDealingOrder:
         assert dg._subprofile_constraint_type(self._make_sub(rs=True)) == "rs"
         assert dg._subprofile_constraint_type(self._make_sub(pc=True)) == "pc"
         assert dg._subprofile_constraint_type(self._make_sub(oc=True)) == "oc"
+
+
+# ===================================================================
+# _build_processing_order — RS seats first, then others
+# ===================================================================
+
+
+class TestBuildProcessingOrder:
+    """Tests for _build_processing_order (RS seats processed first)."""
+
+    def _make_sub(self, *, rs=False):
+        """Build a minimal SubProfile-like object."""
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            standard=SimpleNamespace(total_min_hcp=0, total_max_hcp=37),
+            random_suit_constraint=SimpleNamespace() if rs else None,
+            partner_contingent_constraint=None,
+            opponents_contingent_suit_constraint=None,
+        )
+
+    def _make_profile(self, seat_subs):
+        """Build a minimal profile with SeatProfile wrappers."""
+        from types import SimpleNamespace
+
+        seat_profiles = {}
+        for seat, sub in seat_subs.items():
+            seat_profiles[seat] = dg.SeatProfile(seat=seat, subprofiles=[sub])
+        return SimpleNamespace(seat_profiles=seat_profiles)
+
+    def test_all_standard_preserves_dealing_order(self):
+        """All standard seats: output preserves dealing order."""
+        subs = {"N": self._make_sub(), "E": self._make_sub(), "S": self._make_sub(), "W": self._make_sub()}
+        profile = self._make_profile(subs)
+        result = _build_processing_order(profile, ["N", "E", "S", "W"], subs)
+        assert result == ["N", "E", "S", "W"]
+
+    def test_rs_seats_come_first(self):
+        """RS seats should be processed before non-RS seats."""
+        subs = {
+            "N": self._make_sub(),
+            "E": self._make_sub(rs=True),
+            "S": self._make_sub(),
+            "W": self._make_sub(rs=True),
+        }
+        profile = self._make_profile(subs)
+        result = _build_processing_order(profile, ["N", "E", "S", "W"], subs)
+        # E and W have RS, should come first (preserving dealing order within group)
+        assert result == ["E", "W", "N", "S"]
+
+    def test_single_rs_seat_first(self):
+        """One RS seat moves to front, others follow in dealing order."""
+        subs = {
+            "N": self._make_sub(),
+            "E": self._make_sub(),
+            "S": self._make_sub(rs=True),
+            "W": self._make_sub(),
+        }
+        profile = self._make_profile(subs)
+        result = _build_processing_order(profile, ["N", "E", "S", "W"], subs)
+        assert result == ["S", "N", "E", "W"]
+
+    def test_all_rs_preserves_order(self):
+        """All RS seats: just preserves dealing order."""
+        subs = {
+            "N": self._make_sub(rs=True),
+            "E": self._make_sub(rs=True),
+            "S": self._make_sub(rs=True),
+            "W": self._make_sub(rs=True),
+        }
+        profile = self._make_profile(subs)
+        result = _build_processing_order(profile, ["W", "N", "E", "S"], subs)
+        assert result == ["W", "N", "E", "S"]
+
+    def test_skips_unconstrained_seats(self):
+        """Seats with no SeatProfile are skipped."""
+        from types import SimpleNamespace
+
+        subs = {"N": self._make_sub(rs=True), "S": self._make_sub()}
+        profile = SimpleNamespace(
+            seat_profiles={
+                "N": dg.SeatProfile(seat="N", subprofiles=[subs["N"]]),
+                "S": dg.SeatProfile(seat="S", subprofiles=[subs["S"]]),
+                # E and W have no SeatProfile
+            }
+        )
+        result = _build_processing_order(profile, ["N", "E", "S", "W"], subs)
+        assert result == ["N", "S"]
+
+    def test_different_dealing_order(self):
+        """RS-first ordering respects the base dealing order."""
+        subs = {
+            "N": self._make_sub(),
+            "E": self._make_sub(rs=True),
+            "S": self._make_sub(),
+            "W": self._make_sub(rs=True),
+        }
+        profile = self._make_profile(subs)
+        # Different dealing order: W first
+        result = _build_processing_order(profile, ["W", "N", "E", "S"], subs)
+        # RS seats (W, E) first in dealing order, then non-RS (N, S)
+        assert result == ["W", "E", "N", "S"]
