@@ -69,8 +69,11 @@ def test_edit_skip_all_seats_preserves_profile(monkeypatch, capsys):
     """
     profile = _make_full_profile()
 
-    # _yes_no via profile_wizard: always False (skip editing each seat)
+    # _yes_no: "no" for "Edit sub-profile names?" prompt
     monkeypatch.setattr(profile_wizard, "_yes_no", lambda prompt, default=True: False)
+
+    # _prompt_yne via profile_wizard: always "n" (skip editing each seat)
+    monkeypatch.setattr(profile_wizard, "_prompt_yne", lambda prompt, default="y": "n")
 
     # clear_screen no-op (wizard calls it at start of edit flow)
     monkeypatch.setattr(profile_wizard, "clear_screen", lambda: None)
@@ -107,12 +110,15 @@ def test_edit_one_seat_updates_only_that_seat(monkeypatch, capsys):
     new_sub = SubProfile(standard=new_std, weight_percent=100.0, ns_role_usage="any")
     new_n_seat = SeatProfile(seat="N", subprofiles=[new_sub])
 
-    # _yes_no: True for N (first call), False for E/S/W (next 3 calls)
-    yes_no_calls = iter([True, False, False, False])
+    # _yes_no: "no" for "Edit sub-profile names?" prompt
+    monkeypatch.setattr(profile_wizard, "_yes_no", lambda prompt, default=True: False)
+
+    # _prompt_yne: "y" for N (first call), "n" for E/S/W (next 3 calls)
+    yne_calls = iter(["y", "n", "n", "n"])
     monkeypatch.setattr(
         profile_wizard,
-        "_yes_no",
-        lambda prompt, default=True: next(yes_no_calls),
+        "_prompt_yne",
+        lambda prompt, default="y": next(yne_calls),
     )
     # _yes_no_help: exclusion editing prompt after N → False (skip)
     monkeypatch.setattr(
@@ -152,12 +158,15 @@ def test_edit_triggers_autosave(monkeypatch, tmp_path, capsys):
     profile = _make_full_profile()
     original_path = tmp_path / "EditTest.json"
 
+    # _yes_no: "no" for "Edit sub-profile names?" prompt
+    monkeypatch.setattr(profile_wizard, "_yes_no", lambda prompt, default=True: False)
+
     # Edit N, skip E/S/W
-    yes_no_calls = iter([True, False, False, False])
+    yne_calls = iter(["y", "n", "n", "n"])
     monkeypatch.setattr(
         profile_wizard,
-        "_yes_no",
-        lambda prompt, default=True: next(yes_no_calls),
+        "_prompt_yne",
+        lambda prompt, default="y": next(yne_calls),
     )
     # _yes_no_help: exclusion editing prompt after N → False (skip)
     monkeypatch.setattr(
@@ -220,8 +229,11 @@ def test_edit_constraints_roundtrip(monkeypatch, capsys):
     """
     profile = _make_full_profile()
 
-    # Skip all seats
+    # _yes_no: "no" for "Edit sub-profile names?" prompt
     monkeypatch.setattr(profile_wizard, "_yes_no", lambda prompt, default=True: False)
+
+    # Skip all seats
+    monkeypatch.setattr(profile_wizard, "_prompt_yne", lambda prompt, default="y": "n")
     monkeypatch.setattr(profile_wizard, "clear_screen", lambda: None)
 
     # validate_profile is called inside edit_constraints_interactive
@@ -272,12 +284,15 @@ def test_exclusion_editing_adds_exclusion(monkeypatch, capsys):
         excluded_shapes=["4333"],
     )
 
-    # _yes_no: True for N (edit), False for E/S/W
-    yes_no_calls = iter([True, False, False, False])
+    # _yes_no: "no" for "Edit sub-profile names?" prompt
+    monkeypatch.setattr(profile_wizard, "_yes_no", lambda prompt, default=True: False)
+
+    # _prompt_yne: "y" for N (edit), "n" for E/S/W
+    yne_calls = iter(["y", "n", "n", "n"])
     monkeypatch.setattr(
         profile_wizard,
-        "_yes_no",
-        lambda prompt, default=True: next(yes_no_calls),
+        "_prompt_yne",
+        lambda prompt, default="y": next(yne_calls),
     )
 
     # _build_seat_profile: return existing unchanged

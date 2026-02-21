@@ -532,12 +532,15 @@
 
 ---
 
-## Summary
-Architecture: 15 (15 done) | Enhancements: 42 (42 done) | **All complete**
+## Manual Testing (uncommitted changes)
 
-**Tests**: 493 passed | **pyright**: 0 errors (28 files) | **Branch**: cleanup/cli-menu/Test
-
-**Admin menu**: 0-Exit, 1-LIN Combiner, 2-Draft Tools, 3-Profile Diagnostic, 4-Help
+- [ ] Wildcard excluded shapes — enter `64xx` in wizard, verify it excludes all 64xx hands
+- [ ] Wildcard validation — confirm `99xx` is rejected, `4333` still requires sum to 13
+- [ ] PC/OC prompt order — chosen/unchosen question now appears before suit range prompt
+- [ ] Weight editing menu — 0=Exit, 1=Keep, 2=Even, 3=Manual (replaces old y/n prompt)
+- [ ] Seat editing save & exit — press "e" to save and skip remaining seats
+- [ ] Edit subprofile names before constraints — say Yes at prompt, rename subs, then verify names carry through
+- [ ] Profile JSON updates — Our 1 Major and Ops Interference v0.2 load correctly
 
 ---
 

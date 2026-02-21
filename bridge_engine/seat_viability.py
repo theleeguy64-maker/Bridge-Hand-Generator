@@ -340,6 +340,11 @@ def _match_subprofile(
     return False, None, "other"
 
 
+def _shape_matches_pattern(shape: str, pattern: str) -> bool:
+    """Check if a 4-char shape matches a pattern (x = any digit)."""
+    return all(p == "x" or p == s for s, p in zip(shape, pattern))
+
+
 def _is_excluded_for_seat_subprofile(
     profile: HandProfile,
     seat: Seat,
@@ -365,7 +370,7 @@ def _is_excluded_for_seat_subprofile(
             continue
 
         if exc.excluded_shapes:
-            if shape in exc.excluded_shapes:
+            if any(_shape_matches_pattern(shape, pat) for pat in exc.excluded_shapes):
                 return True
 
         if exc.clauses:

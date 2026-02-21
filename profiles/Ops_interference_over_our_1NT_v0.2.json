@@ -2,6 +2,7 @@
   "author": "Lee",
   "dealer": "N",
   "description": "Ops interference over our 1NT - BBO - Cappelletti Only",
+  "ew_role_mode": "no_driver_no_index",
   "hand_dealing_order": [
     "N",
     "E",
@@ -17,6 +18,7 @@
       "seat": "E",
       "subprofiles": [
         {
+          "ew_role_usage": "any",
           "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
@@ -69,6 +71,7 @@
           "weight_percent": 50.0
         },
         {
+          "ew_role_usage": "any",
           "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
@@ -151,6 +154,7 @@
       "seat": "N",
       "subprofiles": [
         {
+          "ew_role_usage": "any",
           "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
@@ -191,6 +195,7 @@
       "seat": "S",
       "subprofiles": [
         {
+          "ew_role_usage": "any",
           "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
@@ -231,14 +236,16 @@
       "seat": "W",
       "subprofiles": [
         {
+          "ew_role_usage": "any",
+          "name": "Partner has single suit",
           "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": {
             "partner_seat": "E",
             "suit_range": {
-              "max_cards": 3,
-              "max_hcp": 5,
-              "min_cards": 0,
+              "max_cards": 5,
+              "max_hcp": 6,
+              "min_cards": 3,
               "min_hcp": 0
             },
             "use_non_chosen_suit": false
@@ -246,33 +253,70 @@
           "random_suit_constraint": null,
           "standard": {
             "clubs": {
-              "max_cards": 13,
+              "max_cards": 6,
+              "max_hcp": 10,
+              "min_cards": 0,
+              "min_hcp": 7
+            },
+            "diamonds": {
+              "max_cards": 6,
+              "max_hcp": 7,
+              "min_cards": 0,
+              "min_hcp": 0
+            },
+            "hearts": {
+              "max_cards": 6,
+              "max_hcp": 7,
+              "min_cards": 0,
+              "min_hcp": 0
+            },
+            "spades": {
+              "max_cards": 6,
+              "max_hcp": 7,
+              "min_cards": 0,
+              "min_hcp": 0
+            },
+            "total_max_hcp": 6,
+            "total_min_hcp": 0
+          },
+          "weight_percent": 50.0
+        },
+        {
+          "ew_role_usage": "any",
+          "name": "Partner has two suits",
+          "ns_role_usage": "any",
+          "opponents_contingent_suit_constraint": null,
+          "partner_contingent_constraint": null,
+          "random_suit_constraint": null,
+          "standard": {
+            "clubs": {
+              "max_cards": 6,
               "max_hcp": 10,
               "min_cards": 0,
               "min_hcp": 0
             },
             "diamonds": {
-              "max_cards": 13,
+              "max_cards": 6,
               "max_hcp": 10,
               "min_cards": 0,
               "min_hcp": 0
             },
             "hearts": {
-              "max_cards": 13,
+              "max_cards": 6,
               "max_hcp": 10,
               "min_cards": 0,
               "min_hcp": 0
             },
             "spades": {
-              "max_cards": 13,
+              "max_cards": 6,
               "max_hcp": 10,
               "min_cards": 0,
               "min_hcp": 0
             },
-            "total_max_hcp": 4,
+            "total_max_hcp": 37,
             "total_min_hcp": 0
           },
-          "weight_percent": 100.0
+          "weight_percent": 50.0
         }
       ]
     }
@@ -323,5 +367,5 @@
     }
   ],
   "tag": "Opener",
-  "version": "0.9"
+  "version": "0.2"
 }

@@ -85,6 +85,11 @@ def _yes_no_help(prompt: str, help_key: str, default: bool = True) -> bool:
     return _pw_attr("_yes_no_help", wiz_io._yes_no_help)(prompt, help_key, default=default)
 
 
+def _prompt_yne(prompt: str, default: str = "y") -> str:
+    """Prompt for y/n/e — routes through _pw_attr for monkeypatch seam."""
+    return _pw_attr("_prompt_yne", wiz_io._prompt_yne)(prompt, default=default)
+
+
 def _input_with_default(prompt: str, default: str) -> str:
     return _pw_attr("_input_with_default", wiz_io._input_with_default)(prompt, default)
 
@@ -222,7 +227,7 @@ def _build_exclusion_rule(
 
     if kind == "shapes":
         raw = _input_with_default(
-            "Enter excluded shapes as comma-separated 4-digit S/H/D/C patterns that sum to 13 (e.g. 4333,4432): ",
+            "Enter excluded shapes as comma-separated 4-digit S/H/D/C patterns (e.g. 4333, 64xx where x=any): ",
             "",
         ).strip()
         shapes = _parse_shapes_csv(raw)
@@ -634,12 +639,9 @@ def _build_partner_contingent_constraint(
         print("Invalid seat; defaulting to N.")
         partner_seat = "N"
 
-    # Extract existing suit range if editing an existing constraint.
-    existing_suit_range = existing.suit_range if existing is not None else None
-
-    suit_range = _prompt_suit_range("Partner suit", existing_suit_range)
-
-    # Ask whether to target the partner's chosen or unchosen RS suit.
+    # Ask whether to target the partner's chosen or unchosen RS suit
+    # BEFORE prompting for suit range, so the user knows which variant
+    # they are defining ranges for.
     default_choice = "U" if (existing is not None and existing.use_non_chosen_suit) else "C"
     while True:
         raw = (
@@ -660,6 +662,11 @@ def _build_partner_contingent_constraint(
             use_non_chosen = False
             break
         print("  Please enter C (chosen) or U (unchosen).")
+
+    # Extract existing suit range if editing an existing constraint.
+    existing_suit_range = existing.suit_range if existing is not None else None
+
+    suit_range = _prompt_suit_range("Partner suit", existing_suit_range)
 
     return PartnerContingentData(
         partner_seat=partner_seat,
@@ -692,14 +699,9 @@ def _build_opponent_contingent_constraint(
         default=default_opp,
     )
 
-    # Use the same SuitRange prompt helper used elsewhere in this wizard.
-    # (This should exist because you saw: 'Define SuitRange for Clubs:' etc.)
-    suit_range = _prompt_suit_range(
-        "Suit",
-        existing.suit_range if existing is not None else None,
-    )
-
-    # Ask whether to target the opponent's chosen or unchosen RS suit.
+    # Ask whether to target the opponent's chosen or unchosen RS suit
+    # BEFORE prompting for suit range, so the user knows which variant
+    # they are defining ranges for.
     # E.g., if opponent RS picks H from [S, H], unchosen mode means
     # this seat's OC constraint applies to S instead of H.
     default_choice = "U" if (existing is not None and existing.use_non_chosen_suit) else "C"
@@ -722,6 +724,12 @@ def _build_opponent_contingent_constraint(
             use_non_chosen = False
             break
         print("  Please enter C (chosen) or U (unchosen).")
+
+    # Use the same SuitRange prompt helper used elsewhere in this wizard.
+    suit_range = _prompt_suit_range(
+        "Suit",
+        existing.suit_range if existing is not None else None,
+    )
 
     return OpponentContingentSuitData(
         opponent_seat=opponent_seat,
@@ -936,8 +944,15 @@ def _assign_subprofile_weights_interactive(
         suffix = " (default)" if all_zero else ""
         print(f"  {sub_label(idx, subprofiles[idx - 1])}: {w:.1f}% of deals{suffix}")
 
-    if not _yes_no_help("Do you want to edit these weights?", "yn_edit_weights", default=False):
-        # User kept defaults; normalise them to sum exactly 100 in case of rounding.
+    # Menu: let user choose how to handle weights
+    print("\n  0) Exit (keep weights as shown)")
+    print("  1) Use current weights")
+    print("  2) Use even weights")
+    print("  3) Manually define weights")
+    choice = prompt_int("Choice", default=0, minimum=0, maximum=3)
+
+    if choice in (0, 1):
+        # Keep current weights; normalise them to sum exactly 100 in case of rounding.
         total_default = sum(default_weights)
         if total_default <= 0:
             # Safeguard: if for some reason the defaults sum to 0, fall back to equal.
@@ -949,8 +964,20 @@ def _assign_subprofile_weights_interactive(
         normalised = [round(w * factor, 1) for w in default_weights]
         return [replace(sub, weight_percent=normalised[i]) for i, sub in enumerate(subprofiles)]
 
-    # If the user wants to edit, we prompt for each weight,
-    # enforce no negatives, and require the total to be within ±2 of 100.
+    if choice == 2:
+        # Even weights across all subprofiles
+        n = len(subprofiles)
+        equal_weight = round(100.0 / n, 1)
+        even_weights = [equal_weight] * n
+        # Adjust last weight so they sum to exactly 100
+        even_weights[-1] = round(100.0 - sum(even_weights[:-1]), 1)
+        print("\n  Even weights applied:")
+        for idx, w in enumerate(even_weights, start=1):
+            print(f"    {sub_label(idx, subprofiles[idx - 1])}: {w:.1f}%")
+        return [replace(sub, weight_percent=even_weights[i]) for i, sub in enumerate(subprofiles)]
+
+    # choice == 3: manually define weights.
+    # Prompt for each weight, enforce no negatives, require total within ±2 of 100.
     while True:
         edited_weights: List[float] = []
         for i, sub in enumerate(subprofiles, start=1):
@@ -1205,7 +1232,6 @@ def _build_profile(
     # Route interaction helpers through profile_wizard when tests monkeypatch there.
     input_with_default = _pw_attr("_input_with_default", _input_with_default)
     input_choice = _pw_attr("_input_choice", _input_choice)
-    yes_no = _pw_attr("_yes_no", _yes_no)
     seat_builder = _pw_attr("_build_seat_profile", _build_seat_profile)
 
     # Rotation is metadata; constraints edit must preserve existing value (default True).
@@ -1278,6 +1304,53 @@ def _build_profile(
     # ------------------------------------------------------------------
     # EDIT FLOW (existing is not None): full constraints wizard
     # ------------------------------------------------------------------
+
+    # Offer to edit subprofile names before diving into constraints.
+    if _yes_no("Edit sub-profile names before editing constraints?", default=False):
+        updated_seats_for_names = dict(existing.seat_profiles)
+        names_changed = False
+        for seat in hand_dealing_order:
+            sp = updated_seats_for_names.get(seat)
+            if sp is None or not sp.subprofiles:
+                continue
+            if len(sp.subprofiles) == 1 and sp.subprofiles[0].name is None:
+                # Single unnamed subprofile — skip (nothing useful to name)
+                continue
+            print(f"\n--- Seat {seat} ({len(sp.subprofiles)} sub-profile(s)) ---")
+            new_subs = list(sp.subprofiles)
+            for idx, sub in enumerate(sp.subprofiles, start=1):
+                current = sub.name or ""
+                hint = f" [{current}]" if current else ""
+                raw = _input_with_default(
+                    f"  Name for {sub_label(idx, sub)}{hint}",
+                    current,
+                )
+                new_name_val = raw.strip() or None
+                if new_name_val != sub.name:
+                    new_subs[idx - 1] = replace(sub, name=new_name_val)
+                    names_changed = True
+            updated_seats_for_names[seat] = SeatProfile(
+                seat=seat,
+                subprofiles=new_subs,
+            )
+        if names_changed:
+            existing = HandProfile(
+                profile_name=existing.profile_name,
+                description=existing.description,
+                dealer=existing.dealer,
+                hand_dealing_order=list(existing.hand_dealing_order),
+                tag=existing.tag,
+                seat_profiles=updated_seats_for_names,
+                author=existing.author,
+                version=existing.version,
+                rotate_deals_by_default=existing.rotate_deals_by_default,
+                ns_role_mode=existing.ns_role_mode,
+                ew_role_mode=existing.ew_role_mode,
+                subprofile_exclusions=list(existing.subprofile_exclusions or []),
+                sort_order=existing.sort_order,
+            )
+            print("\nSub-profile names updated.")
+
     seat_profiles: Dict[str, SeatProfile] = {}  # type: ignore[no-redef]
     subprofile_exclusions: List[SubprofileExclusionData] = list(  # type: ignore[no-redef]
         existing.subprofile_exclusions or []
@@ -1288,11 +1361,19 @@ def _build_profile(
 
         existing_seat_profile: Optional[SeatProfile] = existing.seat_profiles.get(seat)
 
-        # In edit flow, tests fake _yes_no here to *skip* editing seats.
-        if not yes_no(
-            f"Do you want to edit constraints for seat {seat}?",
-            default=True,
-        ):
+        # y = edit this seat, n = skip (keep existing), e = save & exit loop
+        choice = _prompt_yne(
+            f"Edit seat {seat} constraints, or save and exit?",
+            default="y",
+        )
+        if choice == "e":
+            # Save and exit: keep existing profiles for this and all remaining seats
+            for remaining_seat in hand_dealing_order[hand_dealing_order.index(seat) :]:
+                ep = existing.seat_profiles.get(remaining_seat)
+                if ep is not None:
+                    seat_profiles[remaining_seat] = ep
+            break
+        if choice == "n":
             if existing_seat_profile is not None:
                 seat_profiles[seat] = existing_seat_profile
             continue

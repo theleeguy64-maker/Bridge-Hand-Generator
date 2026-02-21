@@ -214,9 +214,8 @@ def _print_session_summary(
     print(f"Deals created : {summary.num_deals}")
     print(f"Time taken    : {gen_elapsed:.1f}s")
     # Per-board timing breakdown (populated by adaptive re-seeding feature).
-    # Use getattr for compatibility with test stubs / DummyDealSet objects.
-    board_times = getattr(deal_set, "board_times", [])
-    reseed_count = getattr(deal_set, "reseed_count", 0)
+    board_times = deal_set.board_times
+    reseed_count = deal_set.reseed_count
     if board_times:
         avg_time = sum(board_times) / len(board_times)
         max_time = max(board_times)

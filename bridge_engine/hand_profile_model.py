@@ -90,11 +90,17 @@ class SubprofileExclusionData:
                     raise ProfileError(f"Duplicate excluded shape: {s}")
                 seen.add(s)
 
-                if not (isinstance(s, str) and len(s) == 4 and s.isdigit()):
+                if not (isinstance(s, str) and len(s) == 4 and all(c in "0123456789x" for c in s)):
                     raise ProfileError(f"Invalid shape: {s}")
-                digits = [int(c) for c in s]
-                if sum(digits) != 13:
-                    raise ProfileError(f"Shape does not sum to 13: {s}")
+                # For fully specified shapes (no wildcards), enforce sum == 13.
+                # For wildcard shapes, just check that specified digits don't exceed 13.
+                specified_digits = [int(c) for c in s if c != "x"]
+                if "x" not in s:
+                    if sum(specified_digits) != 13:
+                        raise ProfileError(f"Shape does not sum to 13: {s}")
+                else:
+                    if sum(specified_digits) > 13:
+                        raise ProfileError(f"Specified digits exceed 13: {s}")
 
         if self.clauses:
             if not (1 <= len(self.clauses) <= 2):

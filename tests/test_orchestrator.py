@@ -214,7 +214,8 @@ def test_run_deal_generation_session_happy_path(monkeypatch, tmp_path: Path, cap
 
     # --- generate_deals stub: capture inputs and return a dummy DealSet ---
     class DummyDealSet:
-        pass
+        board_times: list = []
+        reseed_count: int = 0
 
     deals_called: Dict[str, Any] = {}
 

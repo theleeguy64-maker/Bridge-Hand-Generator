@@ -403,6 +403,44 @@ def test_exclusion_validate_catches_bad_subprofile_index(make_valid_profile) -> 
 
 
 # ---------------------------------------------------------------------------
+# Wildcard "x" support in excluded_shapes
+# ---------------------------------------------------------------------------
+
+
+def test_exclusion_wildcard_shape_accepted(make_valid_profile) -> None:
+    """Validation accepts wildcard shapes like '64xx' and 'x4xx'."""
+    profile = make_valid_profile()
+    exc1 = SubprofileExclusionData(seat="N", subprofile_index=1, excluded_shapes=["64xx"])
+    exc1.validate(profile)  # should not raise
+    exc2 = SubprofileExclusionData(seat="N", subprofile_index=1, excluded_shapes=["x4xx"])
+    exc2.validate(profile)  # should not raise
+
+
+def test_exclusion_wildcard_digits_exceed_13_rejected(make_valid_profile) -> None:
+    """Validation rejects wildcard shapes where specified digits exceed 13."""
+    profile = make_valid_profile()
+    exc = SubprofileExclusionData(seat="N", subprofile_index=1, excluded_shapes=["99xx"])
+    with pytest.raises(ProfileError, match="Specified digits exceed 13"):
+        exc.validate(profile)
+
+
+def test_exclusion_wildcard_round_trip() -> None:
+    """Wildcard shapes survive to_dict → from_dict round-trip."""
+    exc = SubprofileExclusionData(seat="N", subprofile_index=1, excluded_shapes=["64xx", "5xxx"])
+    d = exc.to_dict()
+    restored = SubprofileExclusionData.from_dict(d)
+    assert restored.excluded_shapes == ["64xx", "5xxx"]
+
+
+def test_exclusion_exact_shape_still_validated(make_valid_profile) -> None:
+    """Exact shapes (no wildcards) still enforce sum-to-13."""
+    profile = make_valid_profile()
+    exc = SubprofileExclusionData(seat="N", subprofile_index=1, excluded_shapes=["9999"])
+    with pytest.raises(ProfileError, match="Shape does not sum to 13"):
+        exc.validate(profile)
+
+
+# ---------------------------------------------------------------------------
 # SubProfile name field + sub_label helper
 # ---------------------------------------------------------------------------
 

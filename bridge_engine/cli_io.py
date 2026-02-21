@@ -112,6 +112,25 @@ def _yes_no(prompt: str, default: bool = True) -> bool:
         print("Please answer y or n.", file=sys.stderr)
 
 
+def _prompt_yne(prompt: str, default: str = "y") -> str:
+    """Prompt for y/n/e (yes / no / exit). Returns 'y', 'n', or 'e'."""
+    hint = {"y": "Y/n/e", "n": "y/N/e", "e": "y/n/E"}[default]
+    while True:
+        try:
+            raw = input(f"{prompt} ({hint}): ").strip().lower()
+        except EOFError:
+            raise RuntimeError("Input aborted (EOF) while prompting user.")
+        if not raw:
+            return default
+        if raw in {"y", "yes"}:
+            return "y"
+        if raw in {"n", "no"}:
+            return "n"
+        if raw in {"e", "exit"}:
+            return "e"
+        print("Please answer y, n, or e.", file=sys.stderr)
+
+
 def _yes_no_help(prompt: str, help_key: str, default: bool = True) -> bool:
     """
     Prompt for a yes/no response with inline help support.

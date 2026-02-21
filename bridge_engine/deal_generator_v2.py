@@ -164,7 +164,7 @@ def _dispersion_check(
             rs_sub = chosen_subprofiles.get(seat)
             if rs_sub is None:
                 continue
-            rs = getattr(rs_sub, "random_suit_constraint", None)
+            rs = rs_sub.random_suit_constraint
             if rs is None:
                 continue
 
@@ -172,7 +172,7 @@ def _dispersion_check(
 
             # Check each RS suit's min_cards against the probability table.
             for suit_letter, sr in ranges_by_suit.items():
-                min_cards = getattr(sr, "min_cards", 0)
+                min_cards = sr.min_cards
                 if min_cards <= 0:
                     continue
                 prob = SHAPE_PROB_GTE.get(min_cards, 0.0)
@@ -538,7 +538,7 @@ def _pre_allocate_rs(
     pre_allocated: List[Card] = []
 
     for suit_letter, sr in ranges_by_suit.items():
-        min_cards = getattr(sr, "min_cards", 0)
+        min_cards = sr.min_cards
         if min_cards <= 0:
             continue
 
@@ -557,16 +557,13 @@ def _pre_allocate_rs(
         # the first whose pro-rated HCP is on-track for the suit's target.
         # This dramatically improves success rates for tight HCP constraints
         # (e.g. W in "Defense to Weak 2s" needs 5-7 HCP in exactly 6 cards).
-        min_hcp: Optional[int] = getattr(sr, "min_hcp", None)
-        max_hcp: Optional[int] = getattr(sr, "max_hcp", None)
-        use_hcp_targeting = (
-            RS_PRE_ALLOCATE_HCP_RETRIES > 0 and min_hcp is not None and max_hcp is not None and min_cards > 0
-        )
+        min_hcp: int = sr.min_hcp
+        max_hcp: int = sr.max_hcp
+        use_hcp_targeting = RS_PRE_ALLOCATE_HCP_RETRIES > 0 and min_cards > 0
 
         if use_hcp_targeting:
             # Pro-rate HCP target to the pre-allocated card count.
             # E.g. 6 cards need 5-7 HCP → 3 pre-allocated need 2-4 HCP.
-            assert min_hcp is not None and max_hcp is not None  # guarded above
             target_low = math.floor(min_hcp * actual / min_cards)
             target_high = math.ceil(max_hcp * actual / min_cards)
 

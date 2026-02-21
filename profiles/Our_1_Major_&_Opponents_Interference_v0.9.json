@@ -2,6 +2,7 @@
   "author": "Lee",
   "dealer": "N",
   "description": "After we open 1 Major BBO Opponets interfer with Cappelletti",
+  "ew_role_mode": "no_driver_no_index",
   "hand_dealing_order": [
     "N",
     "E",
@@ -17,6 +18,7 @@
       "seat": "E",
       "subprofiles": [
         {
+          "ew_role_usage": "any",
           "name": "Other Major",
           "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": {
@@ -56,12 +58,13 @@
               "min_cards": 0,
               "min_hcp": 0
             },
-            "total_max_hcp": 15,
-            "total_min_hcp": 10
+            "total_max_hcp": 13,
+            "total_min_hcp": 8
           },
           "weight_percent": 25.0
         },
         {
+          "ew_role_usage": "any",
           "name": "t/o dbl",
           "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": {
@@ -107,6 +110,7 @@
           "weight_percent": 25.0
         },
         {
+          "ew_role_usage": "any",
           "name": "Minor",
           "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
@@ -158,6 +162,7 @@
           "weight_percent": 25.0
         },
         {
+          "ew_role_usage": "any",
           "name": "1NT",
           "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": {
@@ -208,7 +213,8 @@
       "seat": "N",
       "subprofiles": [
         {
-          "name": "Main",
+          "ew_role_usage": "any",
+          "name": "Open a major",
           "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
@@ -253,7 +259,7 @@
               "min_cards": 0,
               "min_hcp": 0
             },
-            "total_max_hcp": 18,
+            "total_max_hcp": 20,
             "total_min_hcp": 12
           },
           "weight_percent": 100.0
@@ -264,14 +270,15 @@
       "seat": "S",
       "subprofiles": [
         {
+          "ew_role_usage": "any",
           "name": "Major Suppport",
           "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": {
             "partner_seat": "N",
             "suit_range": {
-              "max_cards": 5,
-              "max_hcp": 8,
+              "max_cards": 4,
+              "max_hcp": 5,
               "min_cards": 3,
               "min_hcp": 0
             },
@@ -306,9 +313,10 @@
             "total_max_hcp": 14,
             "total_min_hcp": 5
           },
-          "weight_percent": 75.0
+          "weight_percent": 50.0
         },
         {
+          "ew_role_usage": "any",
           "name": "Big Minor",
           "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
@@ -354,10 +362,10 @@
               "min_cards": 0,
               "min_hcp": 0
             },
-            "total_max_hcp": 14,
-            "total_min_hcp": 5
+            "total_max_hcp": 15,
+            "total_min_hcp": 8
           },
-          "weight_percent": 25.0
+          "weight_percent": 50.0
         }
       ]
     },
@@ -365,6 +373,7 @@
       "seat": "W",
       "subprofiles": [
         {
+          "ew_role_usage": "any",
           "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,

@@ -9,6 +9,9 @@ Design goals:
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Optional
+
 # ---- Model + validation seams (tests monkeypatch these) ----------------------
 # HandProfile/validate_profile are expected to be available here so tests can do:
 #   monkeypatch.setattr(profile_wizard, "HandProfile", DummyHandProfile)
@@ -30,6 +33,7 @@ from .wizard_io import (  # type: ignore
     _input_choice,
     _yes_no,
     _yes_no_help,
+    _prompt_yne,
 )
 
 # ---- Wizard flow / builders -------------------------------------------------
@@ -107,25 +111,27 @@ def create_profile_from_existing_constraints(existing: HandProfile) -> HandProfi
 
     # Replace auto-generated standard constraints with the template's.
     kwargs["seat_profiles"] = dict(existing.seat_profiles)
-    kwargs["subprofile_exclusions"] = list(getattr(existing, "subprofile_exclusions", []))
-    kwargs["ns_role_mode"] = getattr(existing, "ns_role_mode", "no_driver_no_index")
-    kwargs["ew_role_mode"] = getattr(existing, "ew_role_mode", "no_driver_no_index")
+    kwargs["subprofile_exclusions"] = list(existing.subprofile_exclusions or [])
+    kwargs["ns_role_mode"] = existing.ns_role_mode
+    kwargs["ew_role_mode"] = existing.ew_role_mode
 
     profile = HandProfile(**kwargs)
     validate_profile(profile)
     return profile
 
 
-def edit_constraints_interactive(existing: HandProfile) -> HandProfile:
+def edit_constraints_interactive(
+    existing: HandProfile,
+    profile_path: Optional[Path] = None,
+) -> HandProfile:
     print("\n=== Edit Constraints for Profile ===")
     print(f"Profile: {existing.profile_name}")
     print(f"Dealer : {existing.dealer}")
     print(f"Order  : {list(existing.hand_dealing_order)}\n")
 
-    kwargs = wizard_flow._build_profile(existing=existing)
+    kwargs = wizard_flow._build_profile(existing=existing, original_path=profile_path)
     profile = HandProfile(**kwargs)
     validate_profile(profile)
-    # any save logic here should use `profile`
     return profile
 
 
@@ -140,6 +146,7 @@ __all__ = [
     "_input_choice",
     "_yes_no",
     "_yes_no_help",
+    "_prompt_yne",
     # entrypoints
     "create_profile_interactive",
     "edit_constraints_interactive",

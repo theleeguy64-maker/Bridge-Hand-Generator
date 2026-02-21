@@ -34,6 +34,11 @@ def _yes_no_help(prompt: str, help_key: str, default: bool = True) -> bool:
     return cli_io._yes_no_help(prompt, help_key, default=default)
 
 
+def _prompt_yne(prompt: str, default: str = "y") -> str:
+    """Prompt for y/n/e — delegate to cli_io."""
+    return cli_io._prompt_yne(prompt, default=default)
+
+
 def prompt_str(prompt: str, default: str = "") -> str:
     """
     Prompt for a line of text with an optional default.
@@ -75,8 +80,8 @@ def _input_int(
 
 def _input_choice(prompt: str, options: Sequence[str], default: str) -> str:
     """
-    Legacy: choose by typing the value (not by number).
-    Tests may monkeypatch _input_choice; keep it stable.
+    Choose by typing the value (not by number).
+    Tests monkeypatch profile_wizard._input_choice via this seam.
     """
     default_val = default if default in options else (options[0] if options else default)
 
@@ -87,37 +92,6 @@ def _input_choice(prompt: str, options: Sequence[str], default: str) -> str:
         if raw in options:
             return raw
         print(f"Please enter one of: {', '.join(options)}")
-
-
-def _input_float_with_default(
-    prompt: str,
-    default: float,
-    *,
-    min_value: float | None = None,
-    max_value: float | None = None,
-    decimal_places: int = 1,
-) -> float:
-    """
-    Float input with default + bounds.
-
-    IMPORTANT: uses _input_with_default so tests can indirectly control input.
-    """
-    while True:
-        raw = _input_with_default(prompt, str(default)).strip()
-        try:
-            value = float(raw)
-        except ValueError:
-            print("Please enter a number.")
-            continue
-
-        if min_value is not None and value < min_value:
-            print(f"Value must be at least {min_value}.")
-            continue
-        if max_value is not None and value > max_value:
-            print(f"Value must be at most {max_value}.")
-            continue
-
-        return round(value, decimal_places)
 
 
 def clear_screen() -> None:

@@ -110,9 +110,7 @@ def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
     """
     data: Dict[str, Any] = profile.to_dict()
 
-    name = str(data.get("profile_name", "") or "")
-    if name.endswith(" TEST"):
-        data["profile_name"] = name[:-5].rstrip()
+    data["profile_name"] = _strip_test_suffix(str(data.get("profile_name", "") or ""))
 
     _atomic_write(path, json.dumps(data, indent=2, sort_keys=True) + "\n")
 
@@ -176,12 +174,7 @@ def save_profile(profile: HandProfile, base_dir: Path | None = None) -> Path:
     Save profile to its canonical path. Returns the saved path.
     """
     path = _profile_path_for(profile, base_dir=base_dir)
-    data: Dict[str, Any] = profile.to_dict()
-
-    # Canonical metadata should NOT carry the " TEST" suffix.
-    data["profile_name"] = _strip_test_suffix(str(data.get("profile_name", "") or ""))
-
-    _atomic_write(path, json.dumps(data, indent=2, sort_keys=True) + "\n")
+    _save_profile_to_path(profile, path)
     return path
 
 

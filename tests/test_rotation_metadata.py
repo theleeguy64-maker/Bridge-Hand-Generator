@@ -183,10 +183,17 @@ def test_edit_constraints_interactive_preserves_existing_rotation(monkeypatch: p
 
     existing = _dummy_existing(rotate=False)
 
-    # In constraints edit, we should skip editing each seat; return False for those prompts.
+    # In constraints edit, we should skip editing each seat; _prompt_yne returns "n".
+    def fake_prompt_yne(prompt: str, default: str = "y") -> str:
+        return "n"
+
+    monkeypatch.setattr(cli_io, "_prompt_yne", fake_prompt_yne)
+    _patch_if_hasattr(monkeypatch, wizard_flow, "_prompt_yne", fake_prompt_yne)
+    if hasattr(wizard_flow, "wiz_io"):
+        _patch_if_hasattr(monkeypatch, wizard_flow.wiz_io, "_prompt_yne", fake_prompt_yne)  # type: ignore[attr-defined]
+
+    # _yes_no still used for other prompts; ensure rotation is not asked.
     def fake_yes_no(prompt: str, default: bool = True) -> bool:
-        if "Do you want to edit constraints for seat" in prompt:
-            return False
         if "Rotate deals by default" in prompt:
             raise AssertionError("Constraints-only edit must not prompt for rotation")
         return default
@@ -216,9 +223,16 @@ def test_edit_constraints_interactive_defaults_rotation_true_if_missing(monkeypa
 
     existing = _dummy_existing(rotate=None)
 
+    # Skip all seats via _prompt_yne
+    def fake_prompt_yne(prompt: str, default: str = "y") -> str:
+        return "n"
+
+    monkeypatch.setattr(cli_io, "_prompt_yne", fake_prompt_yne)
+    _patch_if_hasattr(monkeypatch, wizard_flow, "_prompt_yne", fake_prompt_yne)
+    if hasattr(wizard_flow, "wiz_io"):
+        _patch_if_hasattr(monkeypatch, wizard_flow.wiz_io, "_prompt_yne", fake_prompt_yne)  # type: ignore[attr-defined]
+
     def fake_yes_no(prompt: str, default: bool = True) -> bool:
-        if "Do you want to edit constraints for seat" in prompt:
-            return False
         if "Rotate deals by default" in prompt:
             raise AssertionError("Constraints-only edit must not prompt for rotation")
         return default

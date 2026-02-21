@@ -201,14 +201,12 @@ def _convert_to_formatted_deals(profile: HandProfile, deals: Sequence[Deal]) -> 
     lines.append("")
 
     # Per-board sections
-    first = True
-    for d in deals:
-        if not first:
+    for idx, d in enumerate(deals):
+        if idx > 0:
             # Visual separator between boards
             lines.append("")
             lines.append("========================================")
             lines.append("")
-        first = False
 
         lines.extend(_format_single_board_text(d))
 
