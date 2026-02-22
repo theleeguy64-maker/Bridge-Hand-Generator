@@ -117,17 +117,13 @@ def _validate_random_suit_vs_standard(profile: HandProfile) -> None:
                 "C": std.clubs,
             }
 
-            # If allowed_suits is empty/None, treat as all suits allowed
-            allowed_suits = rs.allowed_suits or ["S", "H", "D", "C"]
-            suit_ranges = rs.suit_ranges or []
+            # allowed_suits and suit_ranges are validated non-empty by
+            # RandomSuitConstraintData.__post_init__, so no fallbacks needed.
+            allowed_suits = rs.allowed_suits
+            suit_ranges = rs.suit_ranges
 
-            # Pair suits with ranges safely (ignore any extra)
-            pairs = list(zip(allowed_suits, suit_ranges))
-            if not pairs:
-                # Nothing concrete to check
-                continue
-
-            for suit_symbol, rs_range in pairs:
+            # Pair suits with ranges (ignore any extra suits beyond ranges)
+            for suit_symbol, rs_range in zip(allowed_suits, suit_ranges):
                 if suit_symbol not in std_by_suit:
                     # Unexpected but don't crash; skip this suit
                     continue

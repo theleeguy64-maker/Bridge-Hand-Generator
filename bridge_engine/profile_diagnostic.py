@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import random
 import time
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from . import deal_generator as dg
 from .deal_generator import (
@@ -19,8 +19,8 @@ from .deal_generator import (
     _card_hcp,
     DealGenerationError,
 )
-
-Seat = str
+from .deal_generator_types import Seat
+from .hand_profile_model import HandProfile
 
 
 # ---------------------------------------------------------------------------
@@ -61,7 +61,7 @@ def _fmt_row(label: str, counts: Dict[Seat, int]) -> str:
 
 
 def run_profile_diagnostic(
-    profile,
+    profile: HandProfile,
     num_boards: int = 20,
     seed_base: int = 50_000,
 ) -> None:
@@ -91,10 +91,10 @@ def run_profile_diagnostic(
 
     # ---- Hook to capture per-attempt attribution ----
     latest_snapshot: Dict[str, Dict[Seat, int]] = {}
-    attempt_counter = [0]
+    attempt_counter = 0
 
     def hook(
-        _profile,
+        _profile: Any,
         _board_number: int,
         _attempt_number: int,
         seat_fail_as_seat: Dict[Seat, int],
@@ -103,12 +103,13 @@ def run_profile_diagnostic(
         seat_fail_hcp: Dict[Seat, int],
         seat_fail_shape: Dict[Seat, int],
     ) -> None:
+        nonlocal attempt_counter
         latest_snapshot["as_seat"] = dict(seat_fail_as_seat)
         latest_snapshot["global_other"] = dict(seat_fail_global_other)
         latest_snapshot["global_unchecked"] = dict(seat_fail_global_unchecked)
         latest_snapshot["hcp"] = dict(seat_fail_hcp)
         latest_snapshot["shape"] = dict(seat_fail_shape)
-        attempt_counter[0] = _attempt_number
+        attempt_counter = _attempt_number
 
     old_hook = getattr(dg, "_DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION", None)
 
@@ -124,7 +125,7 @@ def run_profile_diagnostic(
 
         for board_number in range(1, num_boards + 1):
             latest_snapshot.clear()
-            attempt_counter[0] = 0
+            attempt_counter = 0
 
             rng = random.Random(seed_base + board_number)
             success = True
@@ -141,7 +142,7 @@ def run_profile_diagnostic(
 
             # Attempt count: hook tracks failed attempts; add 1 for the
             # successful attempt itself.
-            attempts = attempt_counter[0] + (1 if success else 0)
+            attempts = attempt_counter + (1 if success else 0)
             total_attempts += attempts
 
             # ---- Print per-board summary ----

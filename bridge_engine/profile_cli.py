@@ -193,12 +193,14 @@ def _load_profiles() -> List[Tuple[Path, HandProfile]]:
         return results
 
     for path in sorted(dir_path.glob("*.json")):
+        if profile_store.is_draft_path(path):
+            continue
         try:
             with path.open("r", encoding="utf-8") as f:
                 data = json.load(f)
             profile = HandProfile.from_dict(data)
             results.append((path, profile))
-        except (json.JSONDecodeError, TypeError, KeyError, ValueError) as exc:
+        except (json.JSONDecodeError, TypeError, KeyError, ValueError, ProfileError) as exc:
             print(
                 f"WARNING: Failed to load profile from {path}: {exc}",
                 file=sys.stderr,

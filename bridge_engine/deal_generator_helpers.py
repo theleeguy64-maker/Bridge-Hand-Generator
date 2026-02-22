@@ -137,10 +137,9 @@ def _weights_for_seat_profile(seat_profile: SeatProfile) -> List[float]:
 
     weights: List[float] = []
     for sub in subs:
-        w = getattr(sub, "weight_percent", None)
-        if w is None:
-            # Default to non-zero to keep the subprofile usable
-            w = 100.0
+        w = sub.weight_percent
+        # weight_percent defaults to 0.0; treat 0.0 as usable (all-zero
+        # case is handled below by equalising weights).
         weights.append(float(w))
 
     if all(w <= 0.0 for w in weights):

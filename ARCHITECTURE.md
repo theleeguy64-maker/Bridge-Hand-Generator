@@ -5,23 +5,23 @@
 ```
 bridge_engine/
 ├── deal_generator.py        (358 lines) - Facade: subprofile selection + generate_deals() + re-exports
-├── deal_generator_v2.py   (1,222 lines) - v2 shape-help helpers + v2 builder (active path)
+├── deal_generator_v2.py   (1,225 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py  (227 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
-├── deal_generator_helpers.py (385 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
+├── deal_generator_helpers.py (384 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (905 lines) - Data models (incl. EW role mode)
 ├── seat_viability.py        (603 lines) - Constraint matching + RS pre-selection threading
-├── hand_profile_validate.py (614 lines) - Validation (incl. EW role usage coverage)
-├── profile_diagnostic.py     (212 lines) - Generic profile diagnostic runner (Admin menu)
+├── hand_profile_validate.py (610 lines) - Validation (incl. EW role usage coverage)
+├── profile_diagnostic.py     (213 lines) - Generic profile diagnostic runner (Admin menu)
 ├── orchestrator.py          (467 lines) - CLI/session management + generic menu loop
-├── profile_cli.py         (1,029 lines) - Profile commands (incl. EW role mode editing)
+├── profile_cli.py         (1,031 lines) - Profile commands (incl. EW role mode editing)
 ├── profile_wizard.py        (150 lines) - Profile creation UI
 ├── profile_convert.py        (40 lines) - Profile format conversion
-├── wizard_flow.py         (1,378 lines) - Wizard steps, seat editing, RS/PC/OC prompts, EW role usage
-├── wizard_io.py             (130 lines) - Wizard I/O helpers
+├── wizard_flow.py         (1,434 lines) - Wizard steps, seat editing, RS/PC/OC prompts, EW role usage
+├── wizard_io.py             (104 lines) - Wizard I/O helpers
 ├── profile_viability.py     (426 lines) - Profile-level viability + cross-seat feasibility + EW coupling
-├── profile_store.py         (302 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
+├── profile_store.py         (294 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
 ├── menu_help.py             (601 lines) - Menu help text (incl. EW role mode)
-├── lin_tools.py             (416 lines) - LIN file operations
+├── lin_tools.py             (413 lines) - LIN file operations
 ├── deal_output.py           (328 lines) - Deal rendering
 ├── lin_encoder.py           (188 lines) - LIN format encoding
 ├── setup_env.py             (216 lines) - RNG seed management

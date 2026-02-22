@@ -14,10 +14,11 @@ from typing import Any, Dict, List, Optional
 import pytest
 
 from bridge_engine.profile_viability import (
-    _ns_pair_jointly_viable,
+    _pair_jointly_viable,
     validate_profile_viability,
 )
 from bridge_engine.hand_profile_model import (
+    ProfileError,
     SubProfile,
     SeatProfile,
     SuitRange,
@@ -70,7 +71,7 @@ def _make_subprofile(spade_min=0, heart_min=0, diamond_min=0, club_min=0, min_hc
 @dataclass
 class MockSubProfileForNsPair:
     """
-    Minimal mock subprofile for testing _ns_pair_jointly_viable only.
+    Minimal mock subprofile for testing _pair_jointly_viable only.
 
     The function accesses min_suit_counts via getattr() with default.
     """
@@ -94,44 +95,44 @@ class MockHandProfile:
 
 
 # ---------------------------------------------------------------------------
-# Tests for _ns_pair_jointly_viable
+# Tests for _pair_jointly_viable
 # ---------------------------------------------------------------------------
 
 
-def test_ns_pair_jointly_viable_passes_when_ok() -> None:
+def test_pair_jointly_viable_passes_when_ok() -> None:
     """Valid NS pair with combined suit minima <= 13 should return True."""
     n_sub = MockSubProfileForNsPair(min_suit_counts={"S": 5, "H": 3, "D": 2, "C": 1})
     s_sub = MockSubProfileForNsPair(min_suit_counts={"S": 3, "H": 5, "D": 2, "C": 2})
 
     # S: 5+3=8 <= 13, H: 3+5=8 <= 13, D: 2+2=4 <= 13, C: 1+2=3 <= 13
-    assert _ns_pair_jointly_viable(n_sub, s_sub) is True
+    assert _pair_jointly_viable(n_sub, s_sub) is True
 
 
-def test_ns_pair_jointly_viable_suit_min_exceeds_13() -> None:
+def test_pair_jointly_viable_suit_min_exceeds_13() -> None:
     """Combined suit minima > 13 for any suit should return False."""
     n_sub = MockSubProfileForNsPair(min_suit_counts={"S": 10, "H": 0, "D": 0, "C": 0})
     s_sub = MockSubProfileForNsPair(min_suit_counts={"S": 4, "H": 0, "D": 0, "C": 0})
 
     # S: 10+4=14 > 13, should fail
-    assert _ns_pair_jointly_viable(n_sub, s_sub) is False
+    assert _pair_jointly_viable(n_sub, s_sub) is False
 
 
-def test_ns_pair_jointly_viable_exactly_13() -> None:
+def test_pair_jointly_viable_exactly_13() -> None:
     """Combined suit minima exactly 13 should return True (edge case)."""
     n_sub = MockSubProfileForNsPair(min_suit_counts={"S": 7, "H": 0, "D": 0, "C": 0})
     s_sub = MockSubProfileForNsPair(min_suit_counts={"S": 6, "H": 0, "D": 0, "C": 0})
 
     # S: 7+6=13 <= 13, should pass
-    assert _ns_pair_jointly_viable(n_sub, s_sub) is True
+    assert _pair_jointly_viable(n_sub, s_sub) is True
 
 
-def test_ns_pair_jointly_viable_missing_suit_counts() -> None:
+def test_pair_jointly_viable_missing_suit_counts() -> None:
     """Missing suit counts should default to 0 and pass."""
     n_sub = MockSubProfileForNsPair(min_suit_counts={})  # No minima specified
     s_sub = MockSubProfileForNsPair(min_suit_counts={})
 
     # All suits default to 0, should pass
-    assert _ns_pair_jointly_viable(n_sub, s_sub) is True
+    assert _pair_jointly_viable(n_sub, s_sub) is True
 
 
 # ---------------------------------------------------------------------------
@@ -172,7 +173,7 @@ def test_validate_profile_viability_respects_coupling_disabled() -> None:
 def test_validate_profile_viability_respects_coupling_enabled() -> None:
     """
     When ns_role_mode enables coupling (e.g. "north_drives"), NS coupling
-    checks run. An impossible NS pair at any index should raise ValueError.
+    checks run. An impossible NS pair at any index should raise ProfileError.
     """
     # Index 0: viable pair (low spade requirements)
     viable_n = _make_subprofile(spade_min=3, heart_min=3, diamond_min=3, club_min=3)
@@ -191,7 +192,7 @@ def test_validate_profile_viability_respects_coupling_enabled() -> None:
     )
 
     # Should raise because index 1 is not jointly viable
-    with pytest.raises(ValueError, match="not jointly viable"):
+    with pytest.raises(ProfileError, match="not jointly viable"):
         validate_profile_viability(profile)
 
 
@@ -244,7 +245,7 @@ def test_validate_profile_viability_single_subprofile() -> None:
 
 def test_validate_profile_viability_no_viable_pair_raises() -> None:
     """
-    If no NS index has both sides viable, should raise ValueError.
+    If no NS index has both sides viable, should raise ProfileError.
 
     This happens when N[i] is viable but S[i] is not (or vice versa)
     for all indices.
@@ -266,7 +267,7 @@ def test_validate_profile_viability_no_viable_pair_raises() -> None:
     # Index 0: N viable, S not viable (suit mins > 13)
     # Index 1: N not viable, S viable
     # No index where both are viable
-    with pytest.raises(ValueError, match="No NS index-coupled subprofile pair is jointly viable"):
+    with pytest.raises(ProfileError, match="No NS index-coupled subprofile pair is jointly viable"):
         validate_profile_viability(profile)
 
 

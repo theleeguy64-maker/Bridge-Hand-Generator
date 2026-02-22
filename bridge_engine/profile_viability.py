@@ -179,7 +179,7 @@ def _cross_seat_feasible(
     return True, None
 
 
-def _ns_pair_jointly_viable(n_sub: Any, s_sub: Any) -> bool:
+def _pair_jointly_viable(n_sub: Any, s_sub: Any) -> bool:
     """
     Lightweight joint viability check for an NS index-coupled pair.
 
@@ -212,7 +212,7 @@ def _check_cross_seat_subprofile_viability(profile: Any) -> List[str]:
     Raises:
         ProfileError if ALL subprofiles for any seat are dead.
     """
-    seat_profiles = getattr(profile, "seat_profiles", None)
+    seat_profiles = profile.seat_profiles
     if not isinstance(seat_profiles, Mapping):
         return []
 
@@ -321,10 +321,10 @@ def _validate_ns_coupling(profile: Any) -> None:
     If NS index-coupling is enabled and both N/S have >1 subprofiles
     with equal lengths, then for each index i:
       - If both N[i] and S[i] are individually viable, they must also
-        be jointly viable as a pair; otherwise we raise ValueError.
+        be jointly viable as a pair; otherwise we raise ProfileError.
       - If no index has both N[i] and S[i] individually viable, raise.
     """
-    seat_profiles = getattr(profile, "seat_profiles", None)
+    seat_profiles = profile.seat_profiles
     if not isinstance(seat_profiles, Mapping):
         return
 
@@ -365,13 +365,13 @@ def _validate_ns_coupling(profile: Any) -> None:
 
         # For indices where both sides are individually viable, the pair must
         # also be jointly viable (cannot over-demand any suit).
-        if not _ns_pair_jointly_viable(n_sub, s_sub):
-            raise ValueError(f"NS index-coupled subprofile pair is not jointly viable at index {idx}")
+        if not _pair_jointly_viable(n_sub, s_sub):
+            raise ProfileError(f"NS index-coupled subprofile pair is not jointly viable at index {idx}")
 
     # If NS coupling is present but there is *no* index where both N and S are
     # individually viable, the profile is unusable.
     if not individually_viable_indices:
-        raise ValueError("No NS index-coupled subprofile pair is jointly viable")
+        raise ProfileError("No NS index-coupled subprofile pair is jointly viable")
 
 
 def _validate_ew_coupling(profile: Any) -> None:
@@ -381,10 +381,10 @@ def _validate_ew_coupling(profile: Any) -> None:
     If EW index-coupling is enabled and both E/W have >1 subprofiles
     with equal lengths, then for each index i:
       - If both E[i] and W[i] are individually viable, they must also
-        be jointly viable as a pair; otherwise we raise ValueError.
+        be jointly viable as a pair; otherwise we raise ProfileError.
       - If no index has both E[i] and W[i] individually viable, raise.
     """
-    seat_profiles = getattr(profile, "seat_profiles", None)
+    seat_profiles = profile.seat_profiles
     if not isinstance(seat_profiles, Mapping):
         return
 
@@ -419,8 +419,8 @@ def _validate_ew_coupling(profile: Any) -> None:
         individually_viable_indices.append(idx)
 
         # Reuse the same joint viability check (suit minima don't exceed 13).
-        if not _ns_pair_jointly_viable(e_sub, w_sub):
-            raise ValueError(f"EW index-coupled subprofile pair is not jointly viable at index {idx}")
+        if not _pair_jointly_viable(e_sub, w_sub):
+            raise ProfileError(f"EW index-coupled subprofile pair is not jointly viable at index {idx}")
 
     if not individually_viable_indices:
-        raise ValueError("No EW index-coupled subprofile pair is jointly viable")
+        raise ProfileError("No EW index-coupled subprofile pair is jointly viable")

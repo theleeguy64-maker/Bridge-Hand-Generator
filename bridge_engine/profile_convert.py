@@ -5,13 +5,13 @@ from pathlib import Path
 from .hand_profile import validate_profile
 
 
-def convert_profiles(dir_path: Path, write: bool = False):
+def convert_profiles(dir_path: Path, write: bool = False) -> None:
     """
-    Convert all JSON profile files in a directory from schema v0 to v1.
+    Normalize all JSON profile files in a directory and stamp as schema v1.
 
-    The conversion validates each profile and writes it back with
-    schema_version=1. This ensures any legacy defaults are applied
-    and the profile is in the canonical format.
+    Validates each profile and writes it back with schema_version=1.
+    This ensures any legacy defaults are applied and the profile is in
+    the canonical format.
 
     Args:
         dir_path: Directory containing .json profile files

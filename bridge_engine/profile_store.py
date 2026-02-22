@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -142,8 +143,6 @@ def _load_profiles(base_dir: Path | None = None) -> List[Tuple[Path, HandProfile
 
     Returns: list of (path, HandProfile)
     """
-    import sys
-
     profiles: List[Tuple[Path, HandProfile]] = []
     dir_path = _profiles_dir(base_dir)
 

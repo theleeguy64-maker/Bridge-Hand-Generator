@@ -76,7 +76,7 @@ class TestPreSelectRsSuits:
     def test_no_rs_seats_returns_empty(self):
         """Standard-only subprofiles produce an empty dict."""
         subs = {"W": _DummySubProfile(), "N": _DummySubProfile()}
-        result = dg._pre_select_rs_suits(random.Random(42), subs)
+        result = dg._pre_select_rs_suits(random.Random(42), subs, ["W", "N"])
         assert result == {}
 
     def test_single_rs_seat_present(self):
@@ -86,7 +86,7 @@ class TestPreSelectRsSuits:
             "W": _DummySubProfile(rs=rs),
             "N": _DummySubProfile(),
         }
-        result = dg._pre_select_rs_suits(random.Random(42), subs)
+        result = dg._pre_select_rs_suits(random.Random(42), subs, ["W", "N"])
         assert "W" in result
         assert "N" not in result
 
@@ -94,7 +94,7 @@ class TestPreSelectRsSuits:
         """required_suits_count=1 produces a single-element list."""
         rs = _DummyRS(allowed_suits=["S", "H", "D"], required_suits_count=1)
         subs = {"W": _DummySubProfile(rs=rs)}
-        result = dg._pre_select_rs_suits(random.Random(42), subs)
+        result = dg._pre_select_rs_suits(random.Random(42), subs, ["W"])
         assert len(result["W"]) == 1
 
     def test_rs_count_2_yields_list_of_length_2(self):
@@ -105,7 +105,7 @@ class TestPreSelectRsSuits:
             suit_ranges=[_DummySuitRange(min_cards=4), _DummySuitRange(min_cards=4)],
         )
         subs = {"N": _DummySubProfile(rs=rs)}
-        result = dg._pre_select_rs_suits(random.Random(42), subs)
+        result = dg._pre_select_rs_suits(random.Random(42), subs, ["N"])
         assert len(result["N"]) == 2
 
     def test_chosen_suits_from_allowed(self):
@@ -113,19 +113,19 @@ class TestPreSelectRsSuits:
         rs = _DummyRS(allowed_suits=["S", "H"], required_suits_count=1)
         subs = {"W": _DummySubProfile(rs=rs)}
         for seed in range(50):
-            result = dg._pre_select_rs_suits(random.Random(seed), subs)
+            result = dg._pre_select_rs_suits(random.Random(seed), subs, ["W"])
             assert result["W"][0] in ("S", "H"), f"seed={seed}: {result['W']}"
 
     def test_deterministic_with_seed(self):
         """Same seed produces same result."""
         rs = _DummyRS(allowed_suits=["S", "H", "D"], required_suits_count=1)
         subs = {"W": _DummySubProfile(rs=rs)}
-        r1 = dg._pre_select_rs_suits(random.Random(123), subs)
-        r2 = dg._pre_select_rs_suits(random.Random(123), subs)
+        r1 = dg._pre_select_rs_suits(random.Random(123), subs, ["W"])
+        r2 = dg._pre_select_rs_suits(random.Random(123), subs, ["W"])
         assert r1 == r2
 
-    def test_multiple_rs_seats_independent(self):
-        """Multiple RS seats each get their own pre-selection."""
+    def test_multiple_rs_seats_cross_exclusion(self):
+        """Earlier RS seat's chosen suit is excluded from later RS seat."""
         rs_w = _DummyRS(allowed_suits=["S", "H", "D"], required_suits_count=1)
         rs_n = _DummyRS(
             allowed_suits=["S", "H", "D", "C"],
@@ -138,32 +138,106 @@ class TestPreSelectRsSuits:
             "S": _DummySubProfile(),
             "E": _DummySubProfile(),
         }
-        result = dg._pre_select_rs_suits(random.Random(42), subs)
+        # W is dealt first, so W's chosen suit is excluded from N's pool.
+        result = dg._pre_select_rs_suits(random.Random(42), subs, ["W", "N", "S", "E"])
         assert "W" in result and len(result["W"]) == 1
         assert "N" in result and len(result["N"]) == 2
         assert "S" not in result
         assert "E" not in result
+        # N should not have picked any suit that W already chose.
+        w_suit = result["W"][0]
+        assert w_suit not in result["N"], f"N picked {result['N']} but W already chose {w_suit}"
 
     def test_empty_allowed_suits_skipped(self):
         """RS with empty allowed_suits is skipped."""
         rs = _DummyRS(allowed_suits=[], required_suits_count=1)
         subs = {"W": _DummySubProfile(rs=rs)}
-        result = dg._pre_select_rs_suits(random.Random(42), subs)
+        result = dg._pre_select_rs_suits(random.Random(42), subs, ["W"])
         assert "W" not in result
 
     def test_required_count_exceeds_allowed_skipped(self):
         """RS with required_suits_count > len(allowed) is skipped."""
         rs = _DummyRS(allowed_suits=["S"], required_suits_count=2)
         subs = {"W": _DummySubProfile(rs=rs)}
-        result = dg._pre_select_rs_suits(random.Random(42), subs)
+        result = dg._pre_select_rs_suits(random.Random(42), subs, ["W"])
         assert "W" not in result
 
     def test_required_count_zero_skipped(self):
         """RS with required_suits_count=0 is skipped."""
         rs = _DummyRS(allowed_suits=["S", "H"], required_suits_count=0)
         subs = {"W": _DummySubProfile(rs=rs)}
-        result = dg._pre_select_rs_suits(random.Random(42), subs)
+        result = dg._pre_select_rs_suits(random.Random(42), subs, ["W"])
         assert "W" not in result
+
+
+# ===================================================================
+# B1b — Cross-seat RS exclusion tests
+# ===================================================================
+
+
+class TestPreSelectRsSuitsCrossSeatExclusion:
+    """Tests for cross-seat suit exclusion in _pre_select_rs_suits()."""
+
+    def test_overlapping_suits_excluded(self):
+        """Second RS seat cannot pick a suit already chosen by the first."""
+        # W picks from [S, H], E picks from [S, H, D, C].
+        # W goes first → whatever W picks is excluded from E.
+        rs_w = _DummyRS(allowed_suits=["S", "H"], required_suits_count=1)
+        rs_e = _DummyRS(allowed_suits=["S", "H", "D", "C"], required_suits_count=1)
+        subs = {"W": _DummySubProfile(rs=rs_w), "E": _DummySubProfile(rs=rs_e)}
+        # Run many seeds to ensure no overlap ever occurs.
+        for seed in range(100):
+            result = dg._pre_select_rs_suits(random.Random(seed), subs, ["W", "E"])
+            assert "W" in result and "E" in result, f"seed={seed}"
+            assert result["W"][0] != result["E"][0], f"seed={seed}: W={result['W']}, E={result['E']} — overlap!"
+
+    def test_no_overlap_suits_unaffected(self):
+        """RS seats with disjoint allowed_suits are unaffected by exclusion."""
+        rs_w = _DummyRS(allowed_suits=["S", "H"], required_suits_count=1)
+        rs_e = _DummyRS(allowed_suits=["D", "C"], required_suits_count=1)
+        subs = {"W": _DummySubProfile(rs=rs_w), "E": _DummySubProfile(rs=rs_e)}
+        result = dg._pre_select_rs_suits(random.Random(42), subs, ["W", "E"])
+        assert "W" in result and "E" in result
+        assert result["W"][0] in ("S", "H")
+        assert result["E"][0] in ("D", "C")
+
+    def test_exhaustion_skips_later_seat(self):
+        """If exclusion leaves fewer suits than required, later seat is skipped."""
+        # W picks 1 from [S, H]. E needs 2 from [S, H] — after W takes one,
+        # only 1 remains, which is less than required_suits_count=2.
+        rs_w = _DummyRS(allowed_suits=["S", "H"], required_suits_count=1)
+        rs_e = _DummyRS(
+            allowed_suits=["S", "H"],
+            required_suits_count=2,
+            suit_ranges=[_DummySuitRange(), _DummySuitRange()],
+        )
+        subs = {"W": _DummySubProfile(rs=rs_w), "E": _DummySubProfile(rs=rs_e)}
+        result = dg._pre_select_rs_suits(random.Random(42), subs, ["W", "E"])
+        assert "W" in result
+        # E should be skipped — only 1 suit remains but it needs 2.
+        assert "E" not in result
+
+    def test_dealing_order_determines_priority(self):
+        """The seat listed first in dealing_order gets priority."""
+        # Both seats want 1 from [H]. Only the first in order gets it.
+        rs = _DummyRS(allowed_suits=["H"], required_suits_count=1)
+        subs = {"W": _DummySubProfile(rs=rs), "E": _DummySubProfile(rs=rs)}
+        # W first → W gets H, E has nothing left.
+        result_w_first = dg._pre_select_rs_suits(random.Random(42), subs, ["W", "E"])
+        assert "W" in result_w_first
+        assert "E" not in result_w_first
+        # E first → E gets H, W has nothing left.
+        result_e_first = dg._pre_select_rs_suits(random.Random(42), subs, ["E", "W"])
+        assert "E" in result_e_first
+        assert "W" not in result_e_first
+
+    def test_single_rs_seat_unchanged(self):
+        """Single RS seat behaves identically (no exclusion needed)."""
+        rs = _DummyRS(allowed_suits=["S", "H", "D"], required_suits_count=1)
+        subs = {"W": _DummySubProfile(rs=rs), "N": _DummySubProfile()}
+        result = dg._pre_select_rs_suits(random.Random(42), subs, ["W", "N"])
+        assert "W" in result and len(result["W"]) == 1
+        assert result["W"][0] in ("S", "H", "D")
 
 
 # ===================================================================

@@ -136,10 +136,7 @@ def _renumber_boards(boards: List[str], start_at: int = 1) -> List[str]:
         label = f"Board {num}"
 
         # Replace the first "Board <number>" if present.
-        def repl(_match: re.Match[str]) -> str:
-            return label
-
-        new_board, count = _BOARD_LABEL_RE.subn(repl, board, count=1)
+        new_board = _BOARD_LABEL_RE.sub(label, board, count=1)
 
         # Also renumber the qx|oN| container tag to match the new board number.
         new_board = re.sub(r"qx\|o\d+\|", f"qx|o{num}|", new_board, count=1)

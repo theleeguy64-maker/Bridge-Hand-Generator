@@ -1,12 +1,12 @@
 # bridge_engine/deal_generator_v2.py
 #
-# v2 shape-help helpers extracted from deal_generator.py (Batch 3, #7).
-# These functions implement the "shape help" system: dispersion checking,
-# pre-allocation, constrained fill, RS suit pre-selection, and the
-# _deal_with_help orchestrator.
-#
-# None of these functions use isinstance(x, SeatProfile) or reference
-# _match_seat, so they have no monkeypatch sensitivity.
+# v2 deal-building engine. Contains:
+#   - Shape-help system: dispersion checking, pre-allocation, constrained fill
+#   - RS suit pre-selection (with cross-seat exclusion)
+#   - _deal_with_help orchestrator
+#   - _build_single_constrained_deal_v2: full per-board builder with attribution
+#   - Processing/dealing order helpers
+#   - RS range resolution and allowed-suit computation
 # ---------------------------------------------------------------------------
 from __future__ import annotations
 
@@ -142,10 +142,7 @@ def _dispersion_check(
             continue
 
         # Check each suit for tight shape constraints (standard).
-        for suit_attr in ("spades", "hearts", "diamonds", "clubs"):
-            suit_range: Optional[SuitRange] = getattr(std, suit_attr, None)
-            if suit_range is None:
-                continue
+        for suit_range in (std.spades, std.hearts, std.diamonds, std.clubs):
             min_cards = suit_range.min_cards
             if min_cards <= 0:
                 continue
@@ -186,6 +183,7 @@ def _dispersion_check(
 def _pre_select_rs_suits(
     rng: random.Random,
     chosen_subprofiles: Dict[Seat, "SubProfile"],
+    dealing_order: List[Seat],
 ) -> Dict[Seat, List[str]]:
     """
     Pre-select Random Suit choices for all RS seats BEFORE dealing.
@@ -198,27 +196,40 @@ def _pre_select_rs_suits(
       - pre-allocate cards for the chosen RS suit(s)
       - use the pre-committed suits during matching (no random re-pick)
 
+    Cross-seat exclusion: suits chosen by earlier RS seats (in dealing
+    order) are excluded from later RS seats' available pool. This prevents
+    two seats from randomly choosing the same suit. If exclusion leaves
+    fewer suits than required, that seat is skipped (graceful degradation).
+
     Args:
         rng: Random number generator.
         chosen_subprofiles: The selected subprofile for each seat.
+        dealing_order: Seat processing order (determines exclusion priority).
 
     Returns:
         Dict mapping seat -> list of chosen suit letters (e.g. {"W": ["H"]}).
         Empty dict if no seats have RS constraints.
     """
     rs_pre: Dict[Seat, List[str]] = {}
+    # Track suits already chosen by earlier RS seats for cross-seat exclusion.
+    used_suits: set[str] = set()
 
-    for seat, sub in chosen_subprofiles.items():
+    for seat in dealing_order:
+        sub = chosen_subprofiles.get(seat)
+        if sub is None:
+            continue
         rs = sub.random_suit_constraint
         if rs is None:
             continue
-        allowed = list(rs.allowed_suits)
-        if not allowed or rs.required_suits_count <= 0:
+        # Filter out suits already chosen by earlier RS seats.
+        available = [s for s in rs.allowed_suits if s not in used_suits]
+        if not available or rs.required_suits_count <= 0:
             continue
-        if rs.required_suits_count > len(allowed):
+        if rs.required_suits_count > len(available):
             continue
-        chosen_suits = rng.sample(allowed, rs.required_suits_count)
+        chosen_suits = rng.sample(available, rs.required_suits_count)
         rs_pre[seat] = chosen_suits
+        used_suits.update(chosen_suits)
 
     return rs_pre
 
@@ -293,17 +304,15 @@ def _get_suit_maxima(
     # Standard constraints.
     std = subprofile.standard
     if std is not None:
-        for suit_letter, suit_attr in [
-            ("S", "spades"),
-            ("H", "hearts"),
-            ("D", "diamonds"),
-            ("C", "clubs"),
+        for suit_letter, sr in [
+            ("S", std.spades),
+            ("H", std.hearts),
+            ("D", std.diamonds),
+            ("C", std.clubs),
         ]:
-            sr: Optional[SuitRange] = getattr(std, suit_attr, None)
-            if sr is not None:
-                mc = sr.max_cards
-                if mc < maxima[suit_letter]:
-                    maxima[suit_letter] = mc
+            mc = sr.max_cards
+            if mc < maxima[suit_letter]:
+                maxima[suit_letter] = mc
 
     # RS constraints: enforce max_cards for pre-selected suits.
     rs = subprofile.random_suit_constraint
@@ -459,16 +468,13 @@ def _pre_allocate(
 
     # Process each suit's minimum.  Card format is rank+suit, e.g. "AS".
     # Suit letter is at index 1 (S/H/D/C).
-    for suit_letter, suit_attr in [
-        ("S", "spades"),
-        ("H", "hearts"),
-        ("D", "diamonds"),
-        ("C", "clubs"),
+    for suit_letter, suit_range in [
+        ("S", std.spades),
+        ("H", std.hearts),
+        ("D", std.diamonds),
+        ("C", std.clubs),
     ]:
-        suit_range = getattr(std, suit_attr, None)
-        if suit_range is None:
-            continue
-        min_cards = getattr(suit_range, "min_cards", 0)
+        min_cards = suit_range.min_cards
         if min_cards <= 0:
             continue
 
@@ -733,7 +739,7 @@ def _deal_with_help(
                         rs_hcp_max = {}
                         for s_letter, sr in resolved.items():
                             mhcp = sr.max_hcp
-                            if mhcp is not None and mhcp < MAX_HAND_HCP:
+                            if mhcp < MAX_HAND_HCP:
                                 rs_hcp_max[s_letter] = mhcp
                         if not rs_hcp_max:
                             rs_hcp_max = None
@@ -916,7 +922,7 @@ def _build_single_constrained_deal_v2(
     # ------------------------------------------------------------------
     # FAST PATH: invariants-safety profiles (skip all constraints)
     # ------------------------------------------------------------------
-    if getattr(profile, "is_invariants_safety_profile", False):
+    if profile.is_invariants_safety_profile:
         deck = _build_deck()
         rng.shuffle(deck)
         hands: Dict[Seat, List[Card]] = {}
@@ -946,7 +952,7 @@ def _build_single_constrained_deal_v2(
     #   (a) flag RS seats as tight in the dispersion check,
     #   (b) pre-allocate cards for the RS suit(s),
     #   (c) use the pre-committed suits during matching.
-    rs_pre_selections = _pre_select_rs_suits(rng, chosen_subprofiles)
+    rs_pre_selections = _pre_select_rs_suits(rng, chosen_subprofiles, dealing_order)
     # Track each RS seat's allowed_suits so OC non-chosen-suit matching
     # can compute which suits the opponent did NOT choose.
     rs_allowed_suits = _compute_rs_allowed_suits(chosen_subprofiles)
@@ -994,7 +1000,7 @@ def _build_single_constrained_deal_v2(
             chosen_subprofiles, chosen_indices = _dg._select_subprofiles_for_board(rng, profile, profile_dealing_order)
             # Recompute dealing order for new subprofile combination.
             dealing_order = _compute_dealing_order(chosen_subprofiles, profile.dealer)
-            rs_pre_selections = _pre_select_rs_suits(rng, chosen_subprofiles)
+            rs_pre_selections = _pre_select_rs_suits(rng, chosen_subprofiles, dealing_order)
             rs_allowed_suits = _compute_rs_allowed_suits(chosen_subprofiles)
             tight_seats = _dispersion_check(chosen_subprofiles, rs_pre_selections=rs_pre_selections)
             # Rebuild processing order since RS seats may have changed.
@@ -1003,7 +1009,7 @@ def _build_single_constrained_deal_v2(
         # Periodic RS re-roll (more frequent): try different RS suit
         # combinations within the same subprofile selection.
         elif board_attempts > 1 and RS_REROLL_INTERVAL > 0 and (board_attempts - 1) % RS_REROLL_INTERVAL == 0:
-            rs_pre_selections = _pre_select_rs_suits(rng, chosen_subprofiles)
+            rs_pre_selections = _pre_select_rs_suits(rng, chosen_subprofiles, dealing_order)
             # rs_allowed_suits unchanged — same subprofiles, same allowed_suits.
             tight_seats = _dispersion_check(chosen_subprofiles, rs_pre_selections=rs_pre_selections)
 

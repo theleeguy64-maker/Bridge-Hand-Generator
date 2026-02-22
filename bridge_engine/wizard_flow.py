@@ -44,17 +44,11 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from .menu_help import get_menu_help
 from . import wizard_io as wiz_io
-from .hand_profile_validate import validate_profile as _validate_profile_fallback
-
 from .cli_prompts import (
     prompt_int,
 )
 
 from .hand_profile_model import _default_dealing_order
-
-
-def _validate_profile(profile) -> None:
-    return _pw_attr("validate_profile", _validate_profile_fallback)(profile)
 
 
 # NOTE: pytest monkeypatches input helpers on bridge_engine.profile_wizard.
@@ -612,15 +606,6 @@ def _prompt_suit_range(
     )
 
 
-def _prompt_standard_constraints(
-    existing: Optional[StandardSuitConstraints],
-) -> StandardSuitConstraints:
-    """
-    Wrapper used by the interactive sub-profile builder.
-    """
-    return _build_standard_constraints(existing)
-
-
 def _build_partner_contingent_constraint(
     existing: Optional[PartnerContingentData] = None,
 ) -> PartnerContingentData:
@@ -824,7 +809,7 @@ def _build_subprofile(
 
     # Standard constraints
     std_existing = existing.standard if existing is not None else None
-    standard = _prompt_standard_constraints(std_existing)
+    standard = _build_standard_constraints(std_existing)
 
     # Default: 2 if existing had a random-suit, 3 for partner-contingent,
     # 4 for opp-contingent, otherwise 1.
@@ -885,16 +870,6 @@ def _build_subprofile(
         opponents_contingent_suit_constraint=opponents_constraint,
         weight_percent=weight_percent,
     )
-
-
-def _build_subprofile_for_seat(
-    seat: str,
-    existing_sub: Optional[SubProfile] = None,
-) -> SubProfile:
-    """
-    Wrapper used by tests and edit_constraints_interactive to build a subprofile.
-    """
-    return _build_subprofile(seat, existing_sub)
 
 
 def _assign_subprofile_weights_interactive(
@@ -1032,7 +1007,7 @@ def _build_seat_profile(
         # Show name if re-editing an existing named sub-profile.
         header = sub_label(idx, existing_sub) if existing_sub else f"Sub-profile {idx}"
         print(f"\n{header} for seat {seat}:\n")
-        sub = _build_subprofile_for_seat(seat, existing_sub)
+        sub = _build_subprofile(seat, existing_sub)
         subprofiles.append(sub)
 
     # First, handle weighting (returns a new list).

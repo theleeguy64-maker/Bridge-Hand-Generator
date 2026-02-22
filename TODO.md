@@ -530,6 +530,29 @@
 - ✅ **C4**: Fixed stale "profile_wizard.py" references in `wizard_flow.py`
 - ✅ **D2**: Replaced `object.__setattr__` with `replace()` + dict swap in `seat_viability.py`
 
+### 62. [x] RS cross-seat suit exclusion
+- ✅ `_pre_select_rs_suits()` now excludes suits chosen by earlier RS seats from later RS seats
+- ✅ Processing order follows dealing_order for deterministic exclusion priority
+- ✅ Graceful degradation: if exclusion leaves fewer suits than required, seat is skipped
+- ✅ 5 new cross-seat exclusion tests + updated 10 existing RS tests for new `dealing_order` param
+
+### 63. [x] Code Review #63 — 18 fixes across 12 files
+- ✅ **A1**: Added `ProfileError` to `profile_cli._load_profiles()` except tuple
+- ✅ **A2**: Added draft file filter (`is_draft_path` skip) to `profile_cli._load_profiles()`
+- ✅ **B1-B3**: Removed 3 dead wrappers from `wizard_flow.py` (`_validate_profile`, `_prompt_standard_constraints`, `_build_subprofile_for_seat`)
+- ✅ **B4-B5**: Removed dead `or` fallbacks and unreachable guard in `hand_profile_validate.py`
+- ✅ **B6**: Replaced closure+subn with `sub()` in `lin_tools.py`
+- ✅ **C1**: Updated stale module header in `deal_generator_v2.py`
+- ✅ **C2**: Changed `ValueError` → `ProfileError` in `profile_viability.py` coupling validators (4 sites)
+- ✅ **C3**: Renamed `_ns_pair_jointly_viable` → `_pair_jointly_viable` (generic name)
+- ✅ **C4**: Added `HandProfile` type annotation to `profile_diagnostic.py`
+- ✅ **C5**: Fixed `profile_convert.py` docstring + added `-> None` return type
+- ✅ **D1**: Removed 6 redundant `getattr` on typed fields in `deal_generator_v2.py`
+- ✅ **D2**: Removed redundant `getattr` on `weight_percent` in `deal_generator_helpers.py`
+- ✅ **D3**: Replaced 3 `getattr` with direct access in `profile_viability.py`
+- ✅ **D4**: Replaced mutable list `[0]` with `nonlocal` in `profile_diagnostic.py`
+- ✅ **D5**: Moved `import sys` to top-level in `profile_store.py`
+
 ---
 
 ## Manual Testing (uncommitted changes)
