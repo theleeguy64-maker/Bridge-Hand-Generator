@@ -829,6 +829,7 @@ def edit_profile_action() -> None:
                 print(f"ERROR while editing constraints: {exc}")
                 continue
 
+            print()  # Visual separator before save prompt
             if prompt_yes_no("Save updated constraints to this profile?", True):
                 _save_profile_to_path(updated, path)
                 profile_store.delete_draft_for_canonical(path)
