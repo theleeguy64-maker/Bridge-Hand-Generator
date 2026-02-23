@@ -536,6 +536,22 @@
 - ✅ Graceful degradation: if exclusion leaves fewer suits than required, seat is skipped
 - ✅ 5 new cross-seat exclusion tests + updated 10 existing RS tests for new `dealing_order` param
 
+### 65. [x] Sort profile listing by version (highest first), then alphabetically
+- ✅ Added `_version_sort_key()` helper to `profile_store.py` — parses version strings for descending numeric sort
+- ✅ `build_profile_display_map()` sorts unordered profiles by version (highest first), then alphabetically by name
+- ✅ Test profiles with `sort_order` (20+) unaffected — they use the `ordered` path
+
+### 64. [x] Code Review #64 — 10 fixes across 8 files
+- ✅ **A1 (bug)**: Added `ProfileError` to `orchestrator._discover_profiles()` exception handler — was missing, could crash on corrupted-but-valid-JSON profiles
+- ✅ **B1 (dead code)**: Removed unused `prompt_choice()` + `TypeVar` import from `cli_prompts.py` — the `prompt_choice` in `profile_cli.py` is a different function
+- ✅ **B2 (dead code)**: Removed unreachable seat validation guard in `wizard_flow.py` — `_input_choice` already guarantees valid return
+- ✅ **C1 (consistency)**: Removed redundant `.upper()` on `_input_choice` return in `wizard_flow.py`
+- ✅ **C2 (consistency)**: Removed redundant `min_cards > 0` guard in `deal_generator_v2.py` — already filtered above
+- ✅ **C3 (consistency)**: Removed misleading `weight is not None` check on `float` field in `profile_cli.py`
+- ✅ **C4 (consistency)**: Fixed seat iteration order to consistent W-N-S-E in `profile_diagnostic.py`
+- ✅ **D1-D2 (simplification)**: Consolidated duplicated RS fallback logic in `deal_generator_v2.py` and `seat_viability.py`
+- ✅ **D3 (simplification)**: Unified `_validate_ns_coupling` + `_validate_ew_coupling` → `_validate_pair_coupling` in `profile_viability.py`
+
 ### 63. [x] Code Review #63 — 18 fixes across 12 files
 - ✅ **A1**: Added `ProfileError` to `profile_cli._load_profiles()` except tuple
 - ✅ **A2**: Added draft file filter (`is_draft_path` skip) to `profile_cli._load_profiles()`

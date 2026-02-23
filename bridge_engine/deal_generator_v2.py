@@ -84,20 +84,17 @@ def _resolve_rs_ranges(
     """
     ranges: Dict[str, SuitRange] = {}
 
+    matched = None
     if rs.required_suits_count == 2 and rs.pair_overrides and len(pre_selected_suits) == 2:
         sorted_pair = tuple(sorted(pre_selected_suits))
-        matched = None
         for po in rs.pair_overrides:
             if tuple(sorted(po.suits)) == sorted_pair:
                 matched = po
                 break
-        if matched is not None:
-            ranges[matched.suits[0]] = matched.first_range
-            ranges[matched.suits[1]] = matched.second_range
-        else:
-            for idx, suit in enumerate(pre_selected_suits):
-                if idx < len(rs.suit_ranges):
-                    ranges[suit] = rs.suit_ranges[idx]
+
+    if matched is not None:
+        ranges[matched.suits[0]] = matched.first_range
+        ranges[matched.suits[1]] = matched.second_range
     else:
         for idx, suit in enumerate(pre_selected_suits):
             if idx < len(rs.suit_ranges):
@@ -565,7 +562,7 @@ def _pre_allocate_rs(
         # (e.g. W in "Defense to Weak 2s" needs 5-7 HCP in exactly 6 cards).
         min_hcp: int = sr.min_hcp
         max_hcp: int = sr.max_hcp
-        use_hcp_targeting = RS_PRE_ALLOCATE_HCP_RETRIES > 0 and min_cards > 0
+        use_hcp_targeting = RS_PRE_ALLOCATE_HCP_RETRIES > 0
 
         if use_hcp_targeting:
             # Pro-rate HCP target to the pre-allocated card count.

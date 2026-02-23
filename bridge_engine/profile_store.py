@@ -228,6 +228,14 @@ def autosave_profile_draft_for_new(profile: HandProfile, base_dir: Path | None =
 # ---------------------------------------------------------------------------
 
 
+def _version_sort_key(version_str: str) -> Tuple[float, str]:
+    """Parse version for sorting: numeric part descending, then alpha ascending."""
+    try:
+        return (-float(version_str), version_str)
+    except (ValueError, TypeError):
+        return (0.0, version_str)
+
+
 def build_profile_display_map(
     profiles: List[Tuple[Path, HandProfile]],
 ) -> Dict[int, Tuple[Path, HandProfile]]:
@@ -251,6 +259,14 @@ def build_profile_display_map(
             ordered.append((so, path, profile))
         else:
             unordered.append((path, profile))
+
+    # Sort unordered: highest version first, then alphabetically by name
+    unordered.sort(
+        key=lambda pair: (
+            _version_sort_key(pair[1].version),
+            pair[1].profile_name.lower(),
+        )
+    )
 
     # Collect claimed numbers
     claimed = {so for so, _, _ in ordered}

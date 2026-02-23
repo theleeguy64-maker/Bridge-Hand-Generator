@@ -628,10 +628,7 @@ def _build_partner_contingent_constraint(
         "Partner seat [N/E/S/W]: ",
         ["N", "E", "S", "W"],
         default_partner_seat,
-    ).upper()
-    if partner_seat not in ("N", "E", "S", "W"):
-        print("Invalid seat; defaulting to N.")
-        partner_seat = "N"
+    )
 
     # Ask whether to target the partner's chosen or unchosen RS suit
     # BEFORE prompting for suit range, so the user knows which variant

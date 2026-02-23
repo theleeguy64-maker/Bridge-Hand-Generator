@@ -143,22 +143,17 @@ def _match_random_suit_with_attempt(
 
     ranges_by_suit: Dict[str, SuitRange] = {}
 
+    matched_override = None
     if rs.required_suits_count == 2 and rs.pair_overrides:
         sorted_pair = tuple(sorted(chosen_suits))
-        matched_override = None
         for po in rs.pair_overrides:
             if tuple(sorted(po.suits)) == sorted_pair:
                 matched_override = po
                 break
 
-        if matched_override is not None:
-            ranges_by_suit[matched_override.suits[0]] = matched_override.first_range
-            ranges_by_suit[matched_override.suits[1]] = matched_override.second_range
-        else:
-            for idx, suit in enumerate(chosen_suits):
-                if idx >= len(rs.suit_ranges):
-                    return False, chosen_suits
-                ranges_by_suit[suit] = rs.suit_ranges[idx]
+    if matched_override is not None:
+        ranges_by_suit[matched_override.suits[0]] = matched_override.first_range
+        ranges_by_suit[matched_override.suits[1]] = matched_override.second_range
     else:
         for idx, suit in enumerate(chosen_suits):
             if idx >= len(rs.suit_ranges):

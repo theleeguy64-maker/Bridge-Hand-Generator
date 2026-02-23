@@ -395,7 +395,10 @@ def _print_random_suit_constraint(rs: RandomSuitConstraintData, indent: str = ""
 
             # Name each suit explicitly instead of "first"/"second"
             suit_names = {
-                "S": "Spades", "H": "Hearts", "D": "Diamonds", "C": "Clubs",
+                "S": "Spades",
+                "H": "Hearts",
+                "D": "Diamonds",
+                "C": "Clubs",
             }
             s1 = suit_names.get(suits[0], suits[0]) if len(suits) > 0 else "1st"
             s2 = suit_names.get(suits[1], suits[1]) if len(suits) > 1 else "2nd"
@@ -482,9 +485,7 @@ def _print_profile_constraints(profile: HandProfile) -> None:
         for idx, sub in enumerate(sp.subprofiles, start=1):
             print(f"\n  {sub_label(idx, sub)}:")
             if multi:
-                weight = sub.weight_percent
-                if weight is not None:
-                    print(f"    Weight: {weight:.1f}%")
+                print(f"    Weight: {sub.weight_percent:.1f}%")
 
             print("    Standard constraints:")
             _print_standard_constraints(sub.standard, indent="      ")

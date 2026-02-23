@@ -314,113 +314,76 @@ def validate_profile_viability(profile: Any) -> None:
         warnings.warn(warning_msg, stacklevel=2)
 
 
-def _validate_ns_coupling(profile: Any) -> None:
+def _validate_pair_coupling(
+    profile: Any,
+    seat_a: str,
+    seat_b: str,
+    role_mode_attr: str,
+) -> None:
     """
-    NS index-coupling viability check.
+    Index-coupling viability check for a pair of seats (NS or EW).
 
-    If NS index-coupling is enabled and both N/S have >1 subprofiles
+    If index-coupling is enabled and both seats have >1 subprofiles
     with equal lengths, then for each index i:
-      - If both N[i] and S[i] are individually viable, they must also
+      - If both A[i] and B[i] are individually viable, they must also
         be jointly viable as a pair; otherwise we raise ProfileError.
-      - If no index has both N[i] and S[i] individually viable, raise.
+      - If no index has both A[i] and B[i] individually viable, raise.
     """
+    pair_label = f"{seat_a}{seat_b}"
+
     seat_profiles = profile.seat_profiles
     if not isinstance(seat_profiles, Mapping):
         return
 
-    north = seat_profiles.get("N")
-    south = seat_profiles.get("S")
-    if north is None or south is None:
+    sp_a = seat_profiles.get(seat_a)
+    sp_b = seat_profiles.get(seat_b)
+    if sp_a is None or sp_b is None:
         return
 
-    # NS coupling is enabled for all ns_role_mode values EXCEPT
+    # Coupling is enabled for all role_mode values EXCEPT
     # "no_driver_no_index", which explicitly opts out of index coupling.
-    _ns_mode = profile.ns_role_mode or "no_driver_no_index"
-    ns_coupling_enabled = _ns_mode != "no_driver_no_index"
-    if not ns_coupling_enabled:
+    mode = getattr(profile, role_mode_attr, None) or "no_driver_no_index"
+    if mode == "no_driver_no_index":
         return
 
-    n_subs = getattr(north, "subprofiles", None)
-    s_subs = getattr(south, "subprofiles", None)
-    if not isinstance(n_subs, Sequence) or not isinstance(s_subs, Sequence):
+    subs_a = getattr(sp_a, "subprofiles", None)
+    subs_b = getattr(sp_b, "subprofiles", None)
+    if not isinstance(subs_a, Sequence) or not isinstance(subs_b, Sequence):
         return
-    if len(n_subs) <= 1 or len(s_subs) <= 1 or len(n_subs) != len(s_subs):
-        # No NS coupling scenario we care about.
+    if len(subs_a) <= 1 or len(subs_b) <= 1 or len(subs_a) != len(subs_b):
         return
 
     individually_viable_indices: List[int] = []
 
-    for idx, (n_sub, s_sub) in enumerate(zip(n_subs, s_subs)):
+    for idx, (sub_a, sub_b) in enumerate(zip(subs_a, subs_b)):
         # Use the light viability check (doesn't require dealing cards)
-        n_ok = _subprofile_is_viable_light(n_sub)
-        s_ok = _subprofile_is_viable_light(s_sub)
+        a_ok = _subprofile_is_viable_light(sub_a)
+        b_ok = _subprofile_is_viable_light(sub_b)
 
         # If either side is individually impossible, we skip this index.
         # The light validator already enforces "at least one viable subprofile
         # per seat" globally.
-        if not (n_ok and s_ok):
+        if not (a_ok and b_ok):
             continue
 
         individually_viable_indices.append(idx)
 
         # For indices where both sides are individually viable, the pair must
         # also be jointly viable (cannot over-demand any suit).
-        if not _pair_jointly_viable(n_sub, s_sub):
-            raise ProfileError(f"NS index-coupled subprofile pair is not jointly viable at index {idx}")
+        if not _pair_jointly_viable(sub_a, sub_b):
+            raise ProfileError(f"{pair_label} index-coupled subprofile pair is not jointly viable at index {idx}")
 
-    # If NS coupling is present but there is *no* index where both N and S are
+    # If coupling is present but there is *no* index where both seats are
     # individually viable, the profile is unusable.
     if not individually_viable_indices:
-        raise ProfileError("No NS index-coupled subprofile pair is jointly viable")
+        raise ProfileError(f"No {pair_label} index-coupled subprofile pair is jointly viable")
+
+
+def _validate_ns_coupling(profile: Any) -> None:
+    """NS index-coupling viability check."""
+    _validate_pair_coupling(profile, "N", "S", "ns_role_mode")
 
 
 def _validate_ew_coupling(profile: Any) -> None:
-    """
-    EW index-coupling viability check (parallel to _validate_ns_coupling).
-
-    If EW index-coupling is enabled and both E/W have >1 subprofiles
-    with equal lengths, then for each index i:
-      - If both E[i] and W[i] are individually viable, they must also
-        be jointly viable as a pair; otherwise we raise ProfileError.
-      - If no index has both E[i] and W[i] individually viable, raise.
-    """
-    seat_profiles = profile.seat_profiles
-    if not isinstance(seat_profiles, Mapping):
-        return
-
-    east = seat_profiles.get("E")
-    west = seat_profiles.get("W")
-    if east is None or west is None:
-        return
-
-    # EW coupling is enabled for all ew_role_mode values EXCEPT
-    # "no_driver_no_index", which explicitly opts out of index coupling.
-    _ew_mode = profile.ew_role_mode or "no_driver_no_index"
-    ew_coupling_enabled = _ew_mode != "no_driver_no_index"
-    if not ew_coupling_enabled:
-        return
-
-    e_subs = getattr(east, "subprofiles", None)
-    w_subs = getattr(west, "subprofiles", None)
-    if not isinstance(e_subs, Sequence) or not isinstance(w_subs, Sequence):
-        return
-    if len(e_subs) <= 1 or len(w_subs) <= 1 or len(e_subs) != len(w_subs):
-        return
-
-    individually_viable_indices: List[int] = []
-
-    for idx, (e_sub, w_sub) in enumerate(zip(e_subs, w_subs)):
-        e_ok = _subprofile_is_viable_light(e_sub)
-        w_ok = _subprofile_is_viable_light(w_sub)
-
-        if not (e_ok and w_ok):
-            continue
-
-        individually_viable_indices.append(idx)
-
-        # Reuse the same joint viability check (suit minima don't exceed 13).
-        if not _pair_jointly_viable(e_sub, w_sub):
-            raise ProfileError(f"EW index-coupled subprofile pair is not jointly viable at index {idx}")
-
-    if not individually_viable_indices:
-        raise ProfileError("No EW index-coupled subprofile pair is jointly viable")
+    """EW index-coupling viability check."""
+    _validate_pair_coupling(profile, "E", "W", "ew_role_mode")

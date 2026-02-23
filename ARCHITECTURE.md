@@ -18,15 +18,15 @@ bridge_engine/
 ├── profile_convert.py        (40 lines) - Profile format conversion
 ├── wizard_flow.py         (1,434 lines) - Wizard steps, seat editing, RS/PC/OC prompts, EW role usage
 ├── wizard_io.py             (104 lines) - Wizard I/O helpers
-├── profile_viability.py     (426 lines) - Profile-level viability + cross-seat feasibility + EW coupling
-├── profile_store.py         (294 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
+├── profile_viability.py     (393 lines) - Profile-level viability + cross-seat feasibility + EW coupling
+├── profile_store.py         (302 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
 ├── menu_help.py             (601 lines) - Menu help text (incl. EW role mode)
 ├── lin_tools.py             (413 lines) - LIN file operations
 ├── deal_output.py           (328 lines) - Deal rendering
 ├── lin_encoder.py           (188 lines) - LIN format encoding
 ├── setup_env.py             (216 lines) - RNG seed management
 ├── cli_io.py                (144 lines) - CLI utilities
-├── cli_prompts.py            (96 lines) - CLI prompts
+├── cli_prompts.py            (53 lines) - CLI prompts
 ├── hand_profile.py           (36 lines) - Exports
 └── __main__.py               (14 lines) - Entry point
 ```
@@ -322,7 +322,7 @@ Tests: 9 tests for `_compute_dealing_order()` in `test_shape_help_v3.py`
 | — | Our 1 Major & Opponents Interference | `Our_1_Major_&_Opponents_Interference_v0.2.json` |
 | — | Responding with a Major to 1NT Opening | `Responding_with_a_Major_to_1NT_Opening_v0.9.json` |
 
-Profiles with `sort_order` appear first in menus in that order; profiles without `sort_order` appear after, sorted alphabetically.
+Profiles with `sort_order` appear at their fixed positions; profiles without `sort_order` are sorted by version (highest first), then alphabetically by name.
 
 ## Benchmark Portfolio
 

@@ -31,8 +31,9 @@ def test_choose_profile_simple(monkeypatch):
         (Path("/fake/B.json"), p2),
     ]
 
+    # ProfileB (v0.2) sorts before ProfileA (v0.1) — highest version first
     def fake_input(prompt: str) -> str:
-        return "2"
+        return "1"
 
     monkeypatch.setattr(builtins, "input", fake_input)
 
