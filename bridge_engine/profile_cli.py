@@ -387,30 +387,35 @@ def _print_random_suit_constraint(rs: RandomSuitConstraintData, indent: str = ""
         print(f"{indent}  #{idx}: cards {r.min_cards}–{r.max_cards}, HCP {r.min_hcp}–{r.max_hcp}")
 
     if rs.pair_overrides:
-        print(f"{indent}  Pair overrides:")
+        print(f"{indent}  When specific suit pairs are chosen, override ranges:")
         for o in rs.pair_overrides:
             suits = o.suits
             first_range = o.first_range
             second_range = o.second_range
 
-            suits2 = _fmt_suits(suits)
+            # Name each suit explicitly instead of "first"/"second"
+            suit_names = {
+                "S": "Spades", "H": "Hearts", "D": "Diamonds", "C": "Clubs",
+            }
+            s1 = suit_names.get(suits[0], suits[0]) if len(suits) > 0 else "1st"
+            s2 = suit_names.get(suits[1], suits[1]) if len(suits) > 1 else "2nd"
 
             parts: List[str] = []
             if first_range is not None:
                 parts.append(
-                    f"first cards {first_range.min_cards}–{first_range.max_cards}, "
+                    f"{s1}: cards {first_range.min_cards}–{first_range.max_cards}, "
                     f"HCP {first_range.min_hcp}–{first_range.max_hcp}"
                 )
             if second_range is not None:
                 parts.append(
-                    f"second cards {second_range.min_cards}–{second_range.max_cards}, "
+                    f"{s2}: cards {second_range.min_cards}–{second_range.max_cards}, "
                     f"HCP {second_range.min_hcp}–{second_range.max_hcp}"
                 )
 
             if parts:
-                print(f"{indent}    {suits2}: " + "; ".join(parts))
+                print(f"{indent}    If {_fmt_suits(suits)}: " + "; ".join(parts))
             else:
-                print(f"{indent}    {suits2}")
+                print(f"{indent}    If {_fmt_suits(suits)}: (no range changes)")
 
 
 def _print_partner_contingent_constraint(pc: PartnerContingentData, indent: str = "") -> None:
