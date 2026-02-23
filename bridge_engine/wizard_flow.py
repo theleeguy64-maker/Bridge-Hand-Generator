@@ -316,7 +316,7 @@ def _edit_subprofile_exclusions_for_seat(
                 print(f"  {i}) {label}: (invalid exclusion)")
 
         # Simple edit loop: remove entries
-        while True:
+        while this_seat:
             if not _yes_no("Remove any exclusion for this seat? ", default=False):
                 break
             n = _input_int(
@@ -1013,6 +1013,13 @@ def _build_seat_profile(
         # Show name if re-editing an existing named sub-profile.
         header = sub_label(idx, existing_sub) if existing_sub else f"Sub-profile {idx}"
         print(f"\n{header} for seat {seat}:\n")
+
+        # When editing an existing sub-profile, let user skip to keep it as-is.
+        if existing_sub is not None:
+            if not _yes_no(f"Edit {header}?", default=True):
+                subprofiles.append(existing_sub)
+                continue
+
         sub = _build_subprofile(seat, existing_sub)
         subprofiles.append(sub)
 

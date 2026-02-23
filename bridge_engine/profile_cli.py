@@ -697,7 +697,7 @@ def edit_profile_action() -> None:
                 ),
                 (
                     "no_driver",
-                    "No Driver – neither N or S explicitly drives, but SubProfile [index] matching applies",
+                    "Index matching – no driver",
                 ),
                 ("no_driver_no_index", "No driver / no index matching"),
             ]
@@ -749,7 +749,7 @@ def edit_profile_action() -> None:
                 ),
                 (
                     "no_driver",
-                    "No Driver – neither E or W explicitly drives, but SubProfile [index] matching applies",
+                    "Index matching – no driver",
                 ),
                 ("no_driver_no_index", "No driver / no index matching"),
             ]

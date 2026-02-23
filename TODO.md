@@ -541,6 +541,12 @@
 - ✅ `build_profile_display_map()` sorts unordered profiles by version (highest first), then alphabetically by name
 - ✅ Test profiles with `sort_order` (20+) unaffected — they use the `ordered` path
 
+### 66. [x] Sub-profile skip prompt during constraint editing
+- ✅ Added Y/n "Edit Sub-profile N?" prompt in `_build_seat_profile()` when editing existing profiles
+- ✅ Skipping preserves the existing sub-profile as-is (no re-entry needed)
+- ✅ Default is Yes (Enter proceeds to edit as before)
+- ✅ Shortened NS/EW role mode "no_driver" label in `profile_cli.py`
+
 ### 64. [x] Code Review #64 — 10 fixes across 8 files
 - ✅ **A1 (bug)**: Added `ProfileError` to `orchestrator._discover_profiles()` exception handler — was missing, could crash on corrupted-but-valid-JSON profiles
 - ✅ **B1 (dead code)**: Removed unused `prompt_choice()` + `TypeVar` import from `cli_prompts.py` — the `prompt_choice` in `profile_cli.py` is a different function
