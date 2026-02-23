@@ -76,7 +76,7 @@ Per-attempt tracking for diagnostics:
 
 ### What Works
 - Profile validation and viability checking
-- Constrained deal generation with retry loop (v2 active path, v1 available for rollback)
+- Constrained deal generation with retry loop (v2 sole production path, v1 removed)
 - v2 shape-based help system (D0-D9 complete, production path)
 - RS-aware pre-selection (#8): RS suits pre-selected before dealing, visible to dispersion check and pre-allocation
 - Profiles A-E all work with v2 (tight shape + HCP constraints handled)
@@ -90,7 +90,7 @@ Per-attempt tracking for diagnostics:
 - Constrained fill (#11): suit max + HCP max enforcement during dealing, PRE_ALLOCATE_FRACTION 0.75 — W shape failures eliminated, HCP failures -81%
 - Full RS pre-allocation (#14): RS_PRE_ALLOCATE_FRACTION=1.0 — RS suits fully populated at pre-allocation time with HCP targeting. "Defense to Weak 2s" 5-20x faster
 - Adaptive re-seeding (#12): per-board timing + auto re-seed on slow boards (1.75s threshold) — eliminates seed-dependent variance
-- 468 tests passing
+- 512 tests passing
 
 ### Remaining Work
 - **Benchmark suite** — establish baseline performance metrics across test profiles (A-E + production profiles) to track v2 optimization impact
@@ -107,20 +107,19 @@ Per-attempt tracking for diagnostics:
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `deal_generator.py` | 384 | Facade: subprofile selection + `generate_deals()` + re-exports |
-| `deal_generator_v2.py` | 1,229 | v2 shape-help helpers + v2 builder (active production path) |
-| `deal_generator_v1.py` | 782 | v1 builder + hardest-seat + constructive help (legacy, rollback only) |
-| `deal_generator_types.py` | 285 | Types, constants, dataclasses, exception, debug hooks (leaf module) |
-| `deal_generator_helpers.py` | 462 | Shared utilities: viability, HCP, deck helpers, vulnerability/rotation |
-| `hand_profile_model.py` | 775 | Data models: SubProfile, SeatProfile, HandProfile |
-| `seat_viability.py` | 589 | Constraint matching: `_match_seat`, `_match_subprofile`, RS pre-selection |
-| `hand_profile_validate.py` | 512 | Profile validation |
-| `profile_viability.py` | 371 | Profile-level viability + cross-seat feasibility checks |
-| `wizard_flow.py` | 1,340 | Wizard steps, seat editing |
-| `profile_cli.py` | 867 | Profile commands (atomic saves) |
-| `orchestrator.py` | 485 | CLI/session management + generic menu loop |
-| `profile_store.py` | 302 | JSON persistence (atomic writes, error-tolerant loading, display ordering) |
-| `failure_report.py` | 275 | Failure attribution diagnostic (uses v2 builder) |
+| `deal_generator.py` | 358 | Facade: subprofile selection + `generate_deals()` + re-exports |
+| `deal_generator_v2.py` | 1,222 | v2 shape-help helpers + v2 builder (active production path) |
+| `deal_generator_types.py` | 227 | Types, constants, dataclasses, exception, debug hooks (leaf module) |
+| `deal_generator_helpers.py` | 384 | Shared utilities: viability, HCP, deck helpers, vulnerability/rotation |
+| `hand_profile_model.py` | 911 | Data models: SubProfile, SeatProfile, HandProfile (incl. EW role mode) |
+| `seat_viability.py` | 603 | Constraint matching: `_match_seat`, `_match_subprofile`, RS pre-selection |
+| `hand_profile_validate.py` | 610 | Profile validation (incl. EW role usage coverage) |
+| `profile_viability.py` | 389 | Profile-level viability + cross-seat feasibility + EW coupling |
+| `wizard_flow.py` | 1,616 | Wizard steps, per-sub role/exclusion editing, RS/PC/OC prompts |
+| `profile_cli.py` | 1,038 | Profile commands (incl. EW role mode editing, atomic saves) |
+| `orchestrator.py` | 473 | CLI/session management + generic menu loop |
+| `profile_store.py` | 310 | JSON persistence (atomic writes, error-tolerant loading, display ordering) |
+| `failure_report.py` | 271 | Failure attribution diagnostic (uses v2 builder) |
 
 ## Terminology
 

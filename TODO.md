@@ -551,7 +551,9 @@
 - ✅ Single subprofile: auto-assigns "any" role, no prompt
 - ✅ `_build_profile()` updated to handle tuple return + backward compat with monkeypatch stubs
 - ✅ Legacy `_edit_subprofile_exclusions_for_seat()` kept as wrapper for backward compatibility
-- wizard_flow.py: 1,447 → 1,596 lines (+149)
+- ✅ Skipping a sub-profile now also skips role + exclusion prompts (preserves existing fully)
+- ✅ Visual separators: blank line before exclusion gate prompt and before save confirmation
+- wizard_flow.py: 1,447 → 1,616 lines (+169)
 
 ### 66. [x] Sub-profile skip prompt during constraint editing
 - ✅ Added Y/n "Edit Sub-profile N?" prompt in `_build_seat_profile()` when editing existing profiles

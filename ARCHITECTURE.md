@@ -5,28 +5,28 @@
 ```
 bridge_engine/
 ├── deal_generator.py        (358 lines) - Facade: subprofile selection + generate_deals() + re-exports
-├── deal_generator_v2.py   (1,225 lines) - v2 shape-help helpers + v2 builder (active path)
+├── deal_generator_v2.py   (1,222 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py  (227 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (384 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
-├── hand_profile_model.py    (905 lines) - Data models (incl. EW role mode)
+├── hand_profile_model.py    (911 lines) - Data models (incl. EW role mode)
 ├── seat_viability.py        (603 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py (610 lines) - Validation (incl. EW role usage coverage)
 ├── profile_diagnostic.py     (213 lines) - Generic profile diagnostic runner (Admin menu)
-├── orchestrator.py          (467 lines) - CLI/session management + generic menu loop
-├── profile_cli.py         (1,031 lines) - Profile commands (incl. EW role mode editing)
-├── profile_wizard.py        (150 lines) - Profile creation UI
+├── orchestrator.py          (473 lines) - CLI/session management + generic menu loop
+├── profile_cli.py         (1,038 lines) - Profile commands (incl. EW role mode editing)
+├── profile_wizard.py        (157 lines) - Profile creation UI
 ├── profile_convert.py        (40 lines) - Profile format conversion
-├── wizard_flow.py         (1,596 lines) - Wizard steps, per-sub role/exclusion editing, RS/PC/OC prompts
+├── wizard_flow.py         (1,616 lines) - Wizard steps, per-sub role/exclusion editing, RS/PC/OC prompts
 ├── wizard_io.py             (104 lines) - Wizard I/O helpers
-├── profile_viability.py     (393 lines) - Profile-level viability + cross-seat feasibility + EW coupling
-├── profile_store.py         (302 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
+├── profile_viability.py     (389 lines) - Profile-level viability + cross-seat feasibility + EW coupling
+├── profile_store.py         (310 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
 ├── menu_help.py             (601 lines) - Menu help text (incl. EW role mode)
 ├── lin_tools.py             (413 lines) - LIN file operations
-├── deal_output.py           (328 lines) - Deal rendering
+├── deal_output.py           (326 lines) - Deal rendering
 ├── lin_encoder.py           (188 lines) - LIN format encoding
 ├── setup_env.py             (216 lines) - RNG seed management
-├── cli_io.py                (144 lines) - CLI utilities
-├── cli_prompts.py            (53 lines) - CLI prompts
+├── cli_io.py                (163 lines) - CLI utilities
+├── cli_prompts.py            (49 lines) - CLI prompts
 ├── hand_profile.py           (36 lines) - Exports
 └── __main__.py               (14 lines) - Entry point
 ```
@@ -451,7 +451,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Type Checking
 
-**pyright** — 0 errors across 28 source files.
+**pyright** — 0 errors across 27 source files.
 
 ```bash
 npx pyright bridge_engine/
