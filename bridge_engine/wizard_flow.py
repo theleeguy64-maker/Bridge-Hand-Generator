@@ -267,6 +267,123 @@ def _build_exclusion_rule(
     )
 
 
+def _print_exclusion_summary(exc: SubprofileExclusionData, sp: SeatProfile) -> None:
+    """Print a confirmation summary of a newly added exclusion."""
+    si = exc.subprofile_index  # 1-based
+    label = sub_label(si, sp.subprofiles[si - 1]) if 1 <= si <= len(sp.subprofiles) else f"Sub-profile {si}"
+    if exc.excluded_shapes:
+        shapes_txt = ", ".join(str(s) for s in exc.excluded_shapes)
+        print(f"  Added: {label}: exclude shapes: {shapes_txt}")
+    elif exc.clauses:
+        parts = [f"({c.group} len={c.length_eq} count={c.count})" for c in exc.clauses]
+        print(f"  Added: {label}: exclude if: " + " AND ".join(parts))
+
+
+def _print_exclusions_for_subprofile(
+    sub_excls: List[SubprofileExclusionData],
+    label: str,
+) -> None:
+    """Print exclusions belonging to one subprofile, or '(none)'."""
+    if not sub_excls:
+        print(f"  {label}: (none)")
+        return
+    print(f"  {label}:")
+    for i, exc in enumerate(sub_excls, start=1):
+        if exc.excluded_shapes:
+            shapes_txt = ", ".join(str(s) for s in exc.excluded_shapes)
+            print(f"    {i}) exclude shapes: {shapes_txt}")
+        elif exc.clauses:
+            parts = [f"({c.group} len={c.length_eq} count={c.count})" for c in exc.clauses]
+            print(f"    {i}) exclude if: " + " AND ".join(parts))
+        else:
+            print(f"    {i}) (invalid exclusion)")
+
+
+def _edit_exclusions_for_subprofile(
+    seat: str,
+    sub_idx: int,
+    sp: SeatProfile,
+    this_sub_excls: List[SubprofileExclusionData],
+) -> List[SubprofileExclusionData]:
+    """
+    Edit exclusions for ONE subprofile (inner menu only, no sub-picker).
+
+    Parameters:
+        seat:           The seat letter (N/E/S/W).
+        sub_idx:        1-based subprofile index.
+        sp:             The SeatProfile (used for label display).
+        this_sub_excls: Current exclusions for this subprofile (mutable copy).
+
+    Returns the updated exclusion list for this subprofile.
+    """
+    label = sub_label(sub_idx, sp.subprofiles[sub_idx - 1])
+
+    # Gate prompt: ask whether to add/edit exclusions for this subprofile
+    has_existing = len(this_sub_excls) > 0
+    if not _yes_no_help(
+        f"Add/edit exclusions for {label}?",
+        "yn_exclusions",
+        default=has_existing,
+    ):
+        return this_sub_excls
+
+    # Show current exclusions before the menu
+    _print_exclusions_for_subprofile(this_sub_excls, label)
+
+    # Inner loop: unified menu for this subprofile
+    while True:
+        sub_excls = list(this_sub_excls)
+        has_excls = len(sub_excls) > 0
+
+        print(f"\nExclusion menu for seat {seat}, {label}:")
+        print("  0) Exit")
+        print("  1) Add shapes exclusion")
+        print("  2) Add rule exclusion")
+        if has_excls:
+            print("  3) Remove exclusion")
+            print("  4) Help")
+            max_choice = 4
+        else:
+            print("  3) Help")
+            max_choice = 3
+
+        choice = _input_int("Choice", default=0, minimum=0, maximum=max_choice)
+
+        if choice == 0:
+            break
+        elif choice == 1:
+            exc = _build_exclusion_rule(seat=seat, subprofile_index=sub_idx, kind="shapes")
+            this_sub_excls.append(exc)
+            _print_exclusion_summary(exc, sp)
+        elif choice == 2:
+            exc = _build_exclusion_rule(seat=seat, subprofile_index=sub_idx, kind="rule")
+            this_sub_excls.append(exc)
+            _print_exclusion_summary(exc, sp)
+        elif choice == 3 and has_excls:
+            # Show numbered list for removal
+            for ri, re_exc in enumerate(sub_excls, start=1):
+                if re_exc.excluded_shapes:
+                    shapes_txt = ", ".join(str(s) for s in re_exc.excluded_shapes)
+                    print(f"  {ri}) exclude shapes: {shapes_txt}")
+                elif re_exc.clauses:
+                    parts = [f"({c.group} len={c.length_eq} count={c.count})" for c in re_exc.clauses]
+                    print(f"  {ri}) exclude if: " + " AND ".join(parts))
+            n = _input_int(
+                f"Which exclusion # to remove (1–{len(sub_excls)})",
+                default=1,
+                minimum=1,
+                maximum=len(sub_excls),
+            )
+            # Remove from this_sub_excls by identity
+            this_sub_excls.remove(sub_excls[n - 1])
+            print("  Removed.")
+        else:
+            # Help (choice 3 when no excls, or choice 4 when excls present)
+            print(get_menu_help("exclusions"))
+
+    return this_sub_excls
+
+
 def _edit_subprofile_exclusions_for_seat(
     *,
     existing: Optional[HandProfile],
@@ -275,9 +392,11 @@ def _edit_subprofile_exclusions_for_seat(
     current_all: List[SubprofileExclusionData],
 ) -> List[SubprofileExclusionData]:
     """
-    Edit exclusions for ONE seat, returning the updated full exclusions list.
+    Legacy wrapper — edit exclusions for ONE seat via sub-picker loop.
 
-    Storage model remains global list; this helper just provides a seat-local UI.
+    This is kept for backward compatibility with tests that call it directly.
+    The main wizard flow now uses _edit_exclusions_for_subprofile() per-sub
+    inside _build_seat_profile().
     """
     # Partition: this seat vs other seats
     this_seat = [e for e in current_all if e.seat == seat]
@@ -297,64 +416,35 @@ def _edit_subprofile_exclusions_for_seat(
     ):
         return current_all
 
-    # Show existing exclusions for this seat with full detail
-    if this_seat:
-        print(f"\nExisting exclusions for seat {seat}:")
-        for i, exc in enumerate(this_seat, start=1):
-            si = exc.subprofile_index  # 1-based
-            label = sub_label(si, sp.subprofiles[si - 1]) if 1 <= si <= len(sp.subprofiles) else f"Sub-profile {si}"
-
-            if exc.excluded_shapes:
-                shapes_txt = ", ".join(str(s) for s in exc.excluded_shapes)
-                print(f"  {i}) {label}: exclude shapes: {shapes_txt}")
-            elif exc.clauses:
-                parts = []
-                for c in exc.clauses:
-                    parts.append(f"({c.group} len={c.length_eq} count={c.count})")
-                print(f"  {i}) {label}: exclude if: " + " AND ".join(parts))
-            else:
-                print(f"  {i}) {label}: (invalid exclusion)")
-
-        # Simple edit loop: remove entries
-        while this_seat:
-            if not _yes_no("Remove any exclusion for this seat? ", default=False):
-                break
-            n = _input_int(
-                f"Which exclusion # to remove (1–{len(this_seat)})",
-                default=1,
-                minimum=1,
-                maximum=len(this_seat),
-            )
-            this_seat.pop(n - 1)
-
-    # Ask sub-profile index once before the menu loop
-    sub_idx = _input_int(
-        f"Sub-profile index for seat {seat} (1–{len(sp.subprofiles)})",
-        default=1,
-        minimum=1,
-        maximum=len(sp.subprofiles),
-    )
-
-    # Numbered menu loop for adding exclusions
+    # Outer loop: pick a subprofile to work on (0 = done)
     while True:
-        print(f"\nExclusion menu for seat {seat}, sub-profile {sub_idx}:")
-        print("  0) Exit")
-        print("  1) Add shapes exclusion")
-        print("  2) Add rule exclusion")
-        print("  3) Help")
+        # Show current exclusions grouped by subprofile before each prompt
+        print(f"\nExisting exclusions for seat {seat}:")
+        for si, sub in enumerate(sp.subprofiles, start=1):
+            lbl = sub_label(si, sub)
+            sub_excls = [e for e in this_seat if e.subprofile_index == si]
+            _print_exclusions_for_subprofile(sub_excls, lbl)
 
-        choice = _input_int("Choice", default=0, minimum=0, maximum=3)
-
-        if choice == 0:
+        sub_idx = _input_int(
+            f"\nSubprofile number for seat {seat} to edit (0=done, 1–{len(sp.subprofiles)})",
+            default=0,
+            minimum=0,
+            maximum=len(sp.subprofiles),
+        )
+        if sub_idx == 0:
             break
-        elif choice == 1:
-            exc = _build_exclusion_rule(seat=seat, subprofile_index=sub_idx, kind="shapes")
-            this_seat.append(exc)
-        elif choice == 2:
-            exc = _build_exclusion_rule(seat=seat, subprofile_index=sub_idx, kind="rule")
-            this_seat.append(exc)
-        elif choice == 3:
-            print(get_menu_help("exclusions"))
+
+        # Delegate to the per-subprofile menu
+        sub_excls_for_idx = [e for e in this_seat if e.subprofile_index == sub_idx]
+        # Remove old ones from this_seat, replace with updated
+        this_seat = [e for e in this_seat if e.subprofile_index != sub_idx]
+        updated = _edit_exclusions_for_subprofile(
+            seat=seat,
+            sub_idx=sub_idx,
+            sp=sp,
+            this_sub_excls=sub_excls_for_idx,
+        )
+        this_seat.extend(updated)
 
     return other + this_seat
 
@@ -989,11 +1079,87 @@ def _assign_subprofile_weights_interactive(
         return [replace(sub, weight_percent=normalised[i]) for i, sub in enumerate(subprofiles)]
 
 
+def _assign_role_usage_for_subprofile(
+    seat: str,
+    sub: SubProfile,
+    sub_idx: int,
+    existing_sub: Optional[SubProfile],
+) -> SubProfile:
+    """
+    Prompt for role usage (driver/follower/any) for a single subprofile.
+
+    For N/S seats: prompts for ns_role_usage.
+    For E/W seats: prompts for ew_role_usage.
+    Returns the subprofile with the role field updated.
+    """
+    valid_options = {"any", "driver_only", "follower_only"}
+
+    if seat in ("N", "S"):
+        # Determine default from existing subprofile or fall back to "any"
+        default_usage = existing_sub.ns_role_usage if existing_sub is not None else "any"
+        label = sub_label(sub_idx, sub)
+
+        if not _yes_no_help(
+            f"Edit NS driver/follower role for {label}?",
+            "yn_edit_roles",
+            default=False,
+        ):
+            return replace(sub, ns_role_usage=default_usage)
+
+        prompt = f"  NS role usage for {label} (any/driver_only/follower_only)"
+        while True:
+            raw = _input_with_default(prompt + f" [{default_usage}]: ", default_usage)
+            value = raw.strip().lower()
+            if value in valid_options:
+                break
+            print("Please enter one of: any, driver_only, follower_only")
+        return replace(sub, ns_role_usage=value)
+
+    if seat in ("E", "W"):
+        default_usage = existing_sub.ew_role_usage if existing_sub is not None else "any"
+        label = sub_label(sub_idx, sub)
+
+        if not _yes_no_help(
+            f"Edit EW driver/follower role for {label}?",
+            "yn_edit_ew_roles",
+            default=False,
+        ):
+            return replace(sub, ew_role_usage=default_usage)
+
+        prompt = f"  EW role usage for {label} (any/driver_only/follower_only)"
+        while True:
+            raw = _input_with_default(prompt + f" [{default_usage}]: ", default_usage)
+            value = raw.strip().lower()
+            if value in valid_options:
+                break
+            print("Please enter one of: any, driver_only, follower_only")
+        return replace(sub, ew_role_usage=value)
+
+    # Seats other than N/S/E/W — no role prompt
+    return sub
+
+
 def _build_seat_profile(
     seat: str,
     existing: Optional[SeatProfile] = None,
-) -> SeatProfile:
+    current_exclusions: Optional[List[SubprofileExclusionData]] = None,
+) -> tuple[SeatProfile, List[SubprofileExclusionData]]:
+    """
+    Build a SeatProfile interactively, including per-subprofile role and exclusion editing.
+
+    Parameters:
+        seat:               The seat letter (N/E/S/W).
+        existing:           Existing SeatProfile to edit, or None for new.
+        current_exclusions: Full list of all exclusions (all seats). This seat's
+                            exclusions will be updated in-place for each subprofile.
+
+    Returns:
+        A tuple of (SeatProfile, updated_exclusions_list).
+    """
     print(f"\n--- Seat {seat} ---")
+
+    # Work with a mutable copy of the exclusions list
+    all_exclusions = list(current_exclusions) if current_exclusions else []
 
     # Determine how many sub-profiles for this seat.
     default_subprofiles = 1 if existing is None else len(existing.subprofiles)
@@ -1006,6 +1172,10 @@ def _build_seat_profile(
     )
 
     subprofiles: List[SubProfile] = []
+    # Collect exclusions for this seat, rebuilding as we go
+    other_excls = [e for e in all_exclusions if e.seat != seat]
+    this_seat_excls: List[SubprofileExclusionData] = []
+
     for idx in range(1, num_sub + 1):
         existing_sub = None
         if existing is not None and idx - 1 < len(existing.subprofiles):
@@ -1014,37 +1184,62 @@ def _build_seat_profile(
         header = sub_label(idx, existing_sub) if existing_sub else f"Sub-profile {idx}"
         print(f"\n{header} for seat {seat}:\n")
 
+        # Existing exclusions for this subprofile
+        sub_excls = [e for e in all_exclusions if e.seat == seat and e.subprofile_index == idx]
+
         # When editing an existing sub-profile, let user skip to keep it as-is.
+        skipped = False
         if existing_sub is not None:
             if not _yes_no(f"Edit {header}?", default=True):
                 subprofiles.append(existing_sub)
-                continue
+                skipped = True
+            # Fall through to role + exclusion prompts even when skipped
 
-        sub = _build_subprofile(seat, existing_sub)
-        subprofiles.append(sub)
+        if not skipped:
+            sub = _build_subprofile(seat, existing_sub)
+            subprofiles.append(sub)
 
-    # First, handle weighting (returns a new list).
+        # --- Per-subprofile role assignment (right after constraints) ---
+        # For single-subprofile seats, auto-assign "any" without prompting.
+        current_sub = subprofiles[-1]
+        if num_sub > 1:
+            current_sub = _assign_role_usage_for_subprofile(
+                seat,
+                current_sub,
+                idx,
+                existing_sub,
+            )
+            subprofiles[-1] = current_sub
+        else:
+            # Single subprofile: auto-assign "any"
+            if seat in ("N", "S"):
+                default_role = existing_sub.ns_role_usage if existing_sub is not None else "any"
+                subprofiles[-1] = replace(current_sub, ns_role_usage=default_role)
+            elif seat in ("E", "W"):
+                default_role = existing_sub.ew_role_usage if existing_sub is not None else "any"
+                subprofiles[-1] = replace(current_sub, ew_role_usage=default_role)
+
+        # --- Per-subprofile exclusion editing (right after role) ---
+        # Build a temporary SeatProfile so the display helpers work
+        temp_sp = SeatProfile(seat=seat, subprofiles=list(subprofiles))
+        updated_sub_excls = _edit_exclusions_for_subprofile(
+            seat=seat,
+            sub_idx=idx,
+            sp=temp_sp,
+            this_sub_excls=list(sub_excls),
+        )
+        this_seat_excls.extend(updated_sub_excls)
+
+    # Handle weighting (returns a new list). Weights must sum to 100%
+    # across all subprofiles, so this stays as a post-loop step.
     subprofiles = _assign_subprofile_weights_interactive(
         seat,
         subprofiles,
         existing,
     )
 
-    # Then, for N/S seats, mark ns_role_usage on each subprofile.
-    _assign_ns_role_usage_interactive(
-        seat,
-        subprofiles,
-        existing,
-    )
-
-    # For E/W seats, mark ew_role_usage on each subprofile.
-    _assign_ew_role_usage_interactive(
-        seat,
-        subprofiles,
-        existing,
-    )
-
-    return SeatProfile(seat=seat, subprofiles=subprofiles)
+    seat_profile = SeatProfile(seat=seat, subprofiles=subprofiles)
+    return seat_profile, other_excls + this_seat_excls
 
 
 def _assign_ns_role_usage_interactive(
@@ -1293,52 +1488,6 @@ def _build_profile(
     # EDIT FLOW (existing is not None): full constraints wizard
     # ------------------------------------------------------------------
 
-    # Offer to edit subprofile names before diving into constraints.
-    if _yes_no("Edit sub-profile names before editing constraints?", default=False):
-        updated_seats_for_names = dict(existing.seat_profiles)
-        names_changed = False
-        for seat in hand_dealing_order:
-            sp = updated_seats_for_names.get(seat)
-            if sp is None or not sp.subprofiles:
-                continue
-            if len(sp.subprofiles) == 1 and sp.subprofiles[0].name is None:
-                # Single unnamed subprofile — skip (nothing useful to name)
-                continue
-            print(f"\n--- Seat {seat} ({len(sp.subprofiles)} sub-profile(s)) ---")
-            new_subs = list(sp.subprofiles)
-            for idx, sub in enumerate(sp.subprofiles, start=1):
-                current = sub.name or ""
-                hint = f" [{current}]" if current else ""
-                raw = _input_with_default(
-                    f"  Name for {sub_label(idx, sub)}{hint}",
-                    current,
-                )
-                new_name_val = raw.strip() or None
-                if new_name_val != sub.name:
-                    new_subs[idx - 1] = replace(sub, name=new_name_val)
-                    names_changed = True
-            updated_seats_for_names[seat] = SeatProfile(
-                seat=seat,
-                subprofiles=new_subs,
-            )
-        if names_changed:
-            existing = HandProfile(
-                profile_name=existing.profile_name,
-                description=existing.description,
-                dealer=existing.dealer,
-                hand_dealing_order=list(existing.hand_dealing_order),
-                tag=existing.tag,
-                seat_profiles=updated_seats_for_names,
-                author=existing.author,
-                version=existing.version,
-                rotate_deals_by_default=existing.rotate_deals_by_default,
-                ns_role_mode=existing.ns_role_mode,
-                ew_role_mode=existing.ew_role_mode,
-                subprofile_exclusions=list(existing.subprofile_exclusions or []),
-                sort_order=existing.sort_order,
-            )
-            print("\nSub-profile names updated.")
-
     seat_profiles: Dict[str, SeatProfile] = {}  # type: ignore[no-redef]
     subprofile_exclusions: List[SubprofileExclusionData] = list(  # type: ignore[no-redef]
         existing.subprofile_exclusions or []
@@ -1366,16 +1515,16 @@ def _build_profile(
                 seat_profiles[seat] = existing_seat_profile
             continue
 
-        # EDIT FLOW: call _build_seat_profile with (seat, existing)
-        new_seat_profile = seat_builder(seat, existing_seat_profile)
+        # EDIT FLOW: call _build_seat_profile with (seat, existing, exclusions).
+        # Role prompts and exclusion editing now happen per-subprofile inside
+        # _build_seat_profile, so no separate exclusion call is needed here.
+        result = seat_builder(seat, existing_seat_profile, subprofile_exclusions)
+        # Handle both tuple return (new) and plain SeatProfile (legacy monkeypatch)
+        if isinstance(result, tuple):
+            new_seat_profile, subprofile_exclusions = result
+        else:
+            new_seat_profile = result
         seat_profiles[seat] = new_seat_profile
-
-        subprofile_exclusions = _edit_subprofile_exclusions_for_seat(
-            existing=existing,
-            seat=seat,
-            seat_profiles=seat_profiles,
-            current_all=subprofile_exclusions,
-        )
 
         # --- Autosave draft after each seat (best-effort) ---
         if original_path is not None:

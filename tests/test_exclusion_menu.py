@@ -48,27 +48,21 @@ def _make_seat_profiles():
 
 def test_menu_exit_adds_nothing(monkeypatch):
     """
-    When user picks 0 (Exit) on the exclusion menu, no exclusions should
+    When user picks 0 (done) at subprofile picker, no exclusions should
     be added. The function should return the original list unchanged.
     """
     seat_profiles = _make_seat_profiles()
 
-    # _yes_no / _yes_no_help: "Add/edit exclusions for seat N?" → True
     monkeypatch.setattr(profile_wizard, "_yes_no", lambda prompt, default=True: True)
     monkeypatch.setattr(profile_wizard, "_yes_no_help", lambda prompt, key, default=True: True)
 
     # _input_int calls:
-    #   1) sub-profile index → 1
-    #   2) menu choice → 0 (exit)
-    int_calls = {"n": 0}
-
-    def fake_input_int(prompt, default=0, minimum=0, maximum=99, show_range_suffix=True):
-        int_calls["n"] += 1
-        if int_calls["n"] == 1:
-            return 1  # sub-profile index
-        return 0  # menu choice: exit
-
-    monkeypatch.setattr(profile_wizard, "_input_int", fake_input_int)
+    #   1) subprofile number → 0 (done)
+    monkeypatch.setattr(
+        profile_wizard,
+        "_input_int",
+        lambda prompt, default=0, minimum=0, maximum=99, show_range_suffix=True: 0,
+    )
 
     result = wizard_flow._edit_subprofile_exclusions_for_seat(
         existing=None,
@@ -96,18 +90,17 @@ def test_menu_shapes_adds_exclusion(monkeypatch):
     monkeypatch.setattr(profile_wizard, "_yes_no_help", lambda prompt, key, default=True: True)
 
     # _input_int calls:
-    #   1) sub-profile index → 1
+    #   1) subprofile number → 1
     #   2) menu choice → 1 (shapes)
-    #   3) menu choice → 0 (exit)
+    #   3) menu choice → 0 (exit inner)
+    #   4) subprofile number → 0 (done)
     int_calls = {"n": 0}
+    int_responses = [1, 1, 0, 0]
 
     def fake_input_int(prompt, default=0, minimum=0, maximum=99, show_range_suffix=True):
+        idx = int_calls["n"]
         int_calls["n"] += 1
-        if int_calls["n"] == 1:
-            return 1  # sub-profile index
-        if int_calls["n"] == 2:
-            return 1  # menu: add shapes
-        return 0  # menu: exit
+        return int_responses[idx]
 
     monkeypatch.setattr(profile_wizard, "_input_int", fake_input_int)
 
@@ -148,17 +141,18 @@ def test_menu_rule_adds_exclusion(monkeypatch):
     # _yes_no_help: "Add/edit exclusions for seat S?" → True
     monkeypatch.setattr(profile_wizard, "_yes_no_help", lambda prompt, key, default=True: True)
 
-    # _yes_no: "Add a second clause?" → False (stop at 1 clause)
+    # _yes_no: "Add a second clause?" → False
     monkeypatch.setattr(profile_wizard, "_yes_no", lambda prompt, default=True: False)
 
     # _input_int calls:
-    #   1) sub-profile index → 1
+    #   1) subprofile number → 1
     #   2) menu choice → 2 (rule)
     #   3) clause 1 length_eq → 4
     #   4) clause 1 count → 2
-    #   5) menu choice → 0 (exit)
+    #   5) menu choice → 0 (exit inner)
+    #   6) subprofile number → 0 (done)
     int_calls = {"n": 0}
-    int_responses = [1, 2, 4, 2, 0]
+    int_responses = [1, 2, 4, 2, 0, 0]
 
     def fake_input_int(prompt, default=0, minimum=0, maximum=99, show_range_suffix=True):
         idx = int_calls["n"]
@@ -199,7 +193,7 @@ def test_menu_rule_adds_exclusion(monkeypatch):
 
 def test_menu_help_prints_text_and_loops(monkeypatch, capsys):
     """
-    When user picks 3 (Help), help text should be printed and no
+    When user picks Help, help text should be printed and no
     exclusions added. The menu should loop back so the user can exit.
     """
     seat_profiles = _make_seat_profiles()
@@ -208,18 +202,17 @@ def test_menu_help_prints_text_and_loops(monkeypatch, capsys):
     monkeypatch.setattr(profile_wizard, "_yes_no_help", lambda prompt, key, default=True: True)
 
     # _input_int calls:
-    #   1) sub-profile index → 1
-    #   2) menu choice → 3 (help)
-    #   3) menu choice → 0 (exit)
+    #   1) subprofile number → 1
+    #   2) menu choice → 3 (help — no exclusions so max_choice=3)
+    #   3) menu choice → 0 (exit inner)
+    #   4) subprofile number → 0 (done)
     int_calls = {"n": 0}
+    int_responses = [1, 3, 0, 0]
 
     def fake_input_int(prompt, default=0, minimum=0, maximum=99, show_range_suffix=True):
+        idx = int_calls["n"]
         int_calls["n"] += 1
-        if int_calls["n"] == 1:
-            return 1  # sub-profile index
-        if int_calls["n"] == 2:
-            return 3  # menu: help
-        return 0  # menu: exit
+        return int_responses[idx]
 
     monkeypatch.setattr(profile_wizard, "_input_int", fake_input_int)
 
@@ -257,14 +250,15 @@ def test_menu_multiple_additions(monkeypatch):
     monkeypatch.setattr(profile_wizard, "_yes_no", lambda prompt, default=True: False)
 
     # _input_int calls:
-    #   1) sub-profile index → 1
+    #   1) subprofile number → 1
     #   2) menu choice → 1 (shapes)
     #   3) menu choice → 2 (rule)
     #   4) clause 1 length_eq → 3
     #   5) clause 1 count → 4
-    #   6) menu choice → 0 (exit)
+    #   6) menu choice → 0 (exit inner)
+    #   7) subprofile number → 0 (done)
     int_calls = {"n": 0}
-    int_responses = [1, 1, 2, 3, 4, 0]
+    int_responses = [1, 1, 2, 3, 4, 0, 0]
 
     def fake_input_int(prompt, default=0, minimum=0, maximum=99, show_range_suffix=True):
         idx = int_calls["n"]

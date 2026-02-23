@@ -16,7 +16,7 @@ bridge_engine/
 ├── profile_cli.py         (1,031 lines) - Profile commands (incl. EW role mode editing)
 ├── profile_wizard.py        (150 lines) - Profile creation UI
 ├── profile_convert.py        (40 lines) - Profile format conversion
-├── wizard_flow.py         (1,447 lines) - Wizard steps, seat editing, RS/PC/OC prompts, EW role usage
+├── wizard_flow.py         (1,596 lines) - Wizard steps, per-sub role/exclusion editing, RS/PC/OC prompts
 ├── wizard_io.py             (104 lines) - Wizard I/O helpers
 ├── profile_viability.py     (393 lines) - Profile-level viability + cross-seat feasibility + EW coupling
 ├── profile_store.py         (302 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)

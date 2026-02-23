@@ -541,6 +541,18 @@
 - ✅ `build_profile_display_map()` sorts unordered profiles by version (highest first), then alphabetically by name
 - ✅ Test profiles with `sort_order` (20+) unaffected — they use the `ordered` path
 
+### 67. [x] Move role & exclusion editing into per-subprofile flow
+- ✅ Role prompt (NS/EW driver/follower) now happens per-subprofile, right after constraints
+- ✅ Exclusion editing (add shapes/rule, remove, help) now happens per-subprofile, right after role
+- ✅ New `_assign_role_usage_for_subprofile()` — per-sub role prompt for N/S or E/W seats
+- ✅ New `_edit_exclusions_for_subprofile()` — inner exclusion menu without outer sub-picker loop
+- ✅ `_build_seat_profile()` now returns `tuple[SeatProfile, List[SubprofileExclusionData]]`
+- ✅ Weights remain as post-loop prompt (must sum to 100% across all subs)
+- ✅ Single subprofile: auto-assigns "any" role, no prompt
+- ✅ `_build_profile()` updated to handle tuple return + backward compat with monkeypatch stubs
+- ✅ Legacy `_edit_subprofile_exclusions_for_seat()` kept as wrapper for backward compatibility
+- wizard_flow.py: 1,447 → 1,596 lines (+149)
+
 ### 66. [x] Sub-profile skip prompt during constraint editing
 - ✅ Added Y/n "Edit Sub-profile N?" prompt in `_build_seat_profile()` when editing existing profiles
 - ✅ Skipping preserves the existing sub-profile as-is (no re-entry needed)

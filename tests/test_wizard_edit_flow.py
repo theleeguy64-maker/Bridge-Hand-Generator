@@ -127,11 +127,11 @@ def test_edit_one_seat_updates_only_that_seat(monkeypatch, capsys):
         lambda prompt, key, default=True: False,
     )
 
-    # _build_seat_profile: return our modified seat profile for N
+    # _build_seat_profile: return our modified seat profile for N (tuple format)
     monkeypatch.setattr(
         profile_wizard,
         "_build_seat_profile",
-        lambda seat, existing_sp: new_n_seat,
+        lambda seat, existing_sp, excls=None: (new_n_seat, excls or []),
     )
 
     monkeypatch.setattr(profile_wizard, "clear_screen", lambda: None)
@@ -175,11 +175,11 @@ def test_edit_triggers_autosave(monkeypatch, tmp_path, capsys):
         lambda prompt, key, default=True: False,
     )
 
-    # Return existing seat unchanged
+    # Return existing seat unchanged (tuple format)
     monkeypatch.setattr(
         profile_wizard,
         "_build_seat_profile",
-        lambda seat, existing_sp: (
+        lambda seat, existing_sp, excls=None: (
             existing_sp
             or SeatProfile(
                 seat=seat,
@@ -190,7 +190,8 @@ def test_edit_triggers_autosave(monkeypatch, tmp_path, capsys):
                         )
                     )
                 ],
-            )
+            ),
+            excls or [],
         ),
     )
 
@@ -295,21 +296,14 @@ def test_exclusion_editing_adds_exclusion(monkeypatch, capsys):
         lambda prompt, default="y": next(yne_calls),
     )
 
-    # _build_seat_profile: return existing unchanged
+    # _build_seat_profile: return existing unchanged, but inject dummy exclusion
     monkeypatch.setattr(
         profile_wizard,
         "_build_seat_profile",
-        lambda seat, existing_sp: existing_sp,
+        lambda seat, existing_sp, excls=None: (existing_sp, [dummy_exclusion]),
     )
 
     monkeypatch.setattr(profile_wizard, "clear_screen", lambda: None)
-
-    # Stub _edit_subprofile_exclusions_for_seat to return our dummy exclusion
-    monkeypatch.setattr(
-        wizard_flow,
-        "_edit_subprofile_exclusions_for_seat",
-        lambda existing, seat, seat_profiles, current_all: [dummy_exclusion],
-    )
 
     result = wizard_flow._build_profile(existing=profile)
 
