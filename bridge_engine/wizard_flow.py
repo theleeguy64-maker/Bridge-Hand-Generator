@@ -318,6 +318,8 @@ def _edit_exclusions_for_subprofile(
     """
     label = sub_label(sub_idx, sp.subprofiles[sub_idx - 1])
 
+    print()  # Visual separator before exclusion gate prompt
+
     # Gate prompt: ask whether to add/edit exclusions for this subprofile
     has_existing = len(this_sub_excls) > 0
     if not _yes_no_help(
@@ -1229,8 +1231,6 @@ def _build_seat_profile(
                 elif ew_has_driver:
                     default_role = existing_sub.ew_role_usage if existing_sub is not None else "any"
                     subprofiles[-1] = replace(current_sub, ew_role_usage=default_role)
-
-        print()  # Visual separator before exclusion prompt
 
         # --- Per-subprofile exclusion editing (right after role) ---
         # Build a temporary SeatProfile so the display helpers work
