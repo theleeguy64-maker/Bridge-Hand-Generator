@@ -297,14 +297,23 @@ def _edit_subprofile_exclusions_for_seat(
     ):
         return current_all
 
-    # Show existing exclusions for this seat (if any)
+    # Show existing exclusions for this seat with full detail
     if this_seat:
         print(f"\nExisting exclusions for seat {seat}:")
         for i, exc in enumerate(this_seat, start=1):
-            kind = "shapes" if exc.excluded_shapes else "rule"
             si = exc.subprofile_index  # 1-based
-            label = sub_label(si, sp.subprofiles[si - 1]) if 1 <= si <= len(sp.subprofiles) else f"sub-profile {si}"
-            print(f"  {i}) {label} ({kind})")
+            label = sub_label(si, sp.subprofiles[si - 1]) if 1 <= si <= len(sp.subprofiles) else f"Sub-profile {si}"
+
+            if exc.excluded_shapes:
+                shapes_txt = ", ".join(str(s) for s in exc.excluded_shapes)
+                print(f"  {i}) {label}: exclude shapes: {shapes_txt}")
+            elif exc.clauses:
+                parts = []
+                for c in exc.clauses:
+                    parts.append(f"({c.group} len={c.length_eq} count={c.count})")
+                print(f"  {i}) {label}: exclude if: " + " AND ".join(parts))
+            else:
+                print(f"  {i}) {label}: (invalid exclusion)")
 
         # Simple edit loop: remove entries
         while True:

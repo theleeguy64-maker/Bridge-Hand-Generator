@@ -459,7 +459,7 @@ npx pyright bridge_engine/
 
 ## Test Coverage
 
-**493 passed** organized by:
+**512 passed** organized by:
 - Core matching: `test_seat_viability*.py`
 - Index coupling: `test_f3_opener_responder_coupling.py`
 - Profile viability: `test_profile_viability_*.py`
