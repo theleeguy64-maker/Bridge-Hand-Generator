@@ -1196,52 +1196,53 @@ def _build_seat_profile(
         sub_excls = [e for e in all_exclusions if e.seat == seat and e.subprofile_index == idx]
 
         # When editing an existing sub-profile, let user skip to keep it as-is.
+        # Skipping preserves constraints, role usage, AND exclusions unchanged.
         skipped = False
         if existing_sub is not None:
             if not _yes_no(f"Edit {header}?", default=True):
                 subprofiles.append(existing_sub)
+                this_seat_excls.extend(sub_excls)
                 skipped = True
-            # Fall through to role + exclusion prompts even when skipped
 
         if not skipped:
             sub = _build_subprofile(seat, existing_sub)
             subprofiles.append(sub)
 
-        # --- Per-subprofile role assignment (right after constraints) ---
-        # Only prompt for roles when a driver is configured for this pair.
-        # "no_driver_no_index" means roles are irrelevant — skip entirely.
-        current_sub = subprofiles[-1]
-        ns_has_driver = seat in ("N", "S") and ns_role_mode != "no_driver_no_index"
-        ew_has_driver = seat in ("E", "W") and ew_role_mode != "no_driver_no_index"
+            # --- Per-subprofile role assignment (right after constraints) ---
+            # Only prompt for roles when a driver is configured for this pair.
+            # "no_driver_no_index" means roles are irrelevant — skip entirely.
+            current_sub = subprofiles[-1]
+            ns_has_driver = seat in ("N", "S") and ns_role_mode != "no_driver_no_index"
+            ew_has_driver = seat in ("E", "W") and ew_role_mode != "no_driver_no_index"
 
-        if ns_has_driver or ew_has_driver:
-            if num_sub > 1:
-                current_sub = _assign_role_usage_for_subprofile(
-                    seat,
-                    current_sub,
-                    idx,
-                    existing_sub,
-                )
-                subprofiles[-1] = current_sub
-            else:
-                # Single subprofile: auto-assign "any" (preserve existing if editing)
-                if ns_has_driver:
-                    default_role = existing_sub.ns_role_usage if existing_sub is not None else "any"
-                    subprofiles[-1] = replace(current_sub, ns_role_usage=default_role)
-                elif ew_has_driver:
-                    default_role = existing_sub.ew_role_usage if existing_sub is not None else "any"
-                    subprofiles[-1] = replace(current_sub, ew_role_usage=default_role)
+            if ns_has_driver or ew_has_driver:
+                if num_sub > 1:
+                    current_sub = _assign_role_usage_for_subprofile(
+                        seat,
+                        current_sub,
+                        idx,
+                        existing_sub,
+                    )
+                    subprofiles[-1] = current_sub
+                else:
+                    # Single subprofile: auto-assign "any" (preserve existing if editing)
+                    if ns_has_driver:
+                        default_role = existing_sub.ns_role_usage if existing_sub is not None else "any"
+                        subprofiles[-1] = replace(current_sub, ns_role_usage=default_role)
+                    elif ew_has_driver:
+                        default_role = existing_sub.ew_role_usage if existing_sub is not None else "any"
+                        subprofiles[-1] = replace(current_sub, ew_role_usage=default_role)
 
-        # --- Per-subprofile exclusion editing (right after role) ---
-        # Build a temporary SeatProfile so the display helpers work
-        temp_sp = SeatProfile(seat=seat, subprofiles=list(subprofiles))
-        updated_sub_excls = _edit_exclusions_for_subprofile(
-            seat=seat,
-            sub_idx=idx,
-            sp=temp_sp,
-            this_sub_excls=list(sub_excls),
-        )
-        this_seat_excls.extend(updated_sub_excls)
+            # --- Per-subprofile exclusion editing (right after role) ---
+            # Build a temporary SeatProfile so the display helpers work
+            temp_sp = SeatProfile(seat=seat, subprofiles=list(subprofiles))
+            updated_sub_excls = _edit_exclusions_for_subprofile(
+                seat=seat,
+                sub_idx=idx,
+                sp=temp_sp,
+                this_sub_excls=list(sub_excls),
+            )
+            this_seat_excls.extend(updated_sub_excls)
 
     # Handle weighting (returns a new list). Weights must sum to 100%
     # across all subprofiles, so this stays as a post-loop step.
