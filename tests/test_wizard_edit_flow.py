@@ -131,7 +131,7 @@ def test_edit_one_seat_updates_only_that_seat(monkeypatch, capsys):
     monkeypatch.setattr(
         profile_wizard,
         "_build_seat_profile",
-        lambda seat, existing_sp, excls=None: (new_n_seat, excls or []),
+        lambda seat, existing_sp, excls=None, **kw: (new_n_seat, excls or []),
     )
 
     monkeypatch.setattr(profile_wizard, "clear_screen", lambda: None)
@@ -179,7 +179,7 @@ def test_edit_triggers_autosave(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(
         profile_wizard,
         "_build_seat_profile",
-        lambda seat, existing_sp, excls=None: (
+        lambda seat, existing_sp, excls=None, **kw: (
             existing_sp
             or SeatProfile(
                 seat=seat,
@@ -300,7 +300,7 @@ def test_exclusion_editing_adds_exclusion(monkeypatch, capsys):
     monkeypatch.setattr(
         profile_wizard,
         "_build_seat_profile",
-        lambda seat, existing_sp, excls=None: (existing_sp, [dummy_exclusion]),
+        lambda seat, existing_sp, excls=None, **kw: (existing_sp, [dummy_exclusion]),
     )
 
     monkeypatch.setattr(profile_wizard, "clear_screen", lambda: None)

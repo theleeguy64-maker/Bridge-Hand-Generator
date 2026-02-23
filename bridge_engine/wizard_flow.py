@@ -1143,6 +1143,9 @@ def _build_seat_profile(
     seat: str,
     existing: Optional[SeatProfile] = None,
     current_exclusions: Optional[List[SubprofileExclusionData]] = None,
+    *,
+    ns_role_mode: str = "no_driver_no_index",
+    ew_role_mode: str = "no_driver_no_index",
 ) -> tuple[SeatProfile, List[SubprofileExclusionData]]:
     """
     Build a SeatProfile interactively, including per-subprofile role and exclusion editing.
@@ -1152,6 +1155,9 @@ def _build_seat_profile(
         existing:           Existing SeatProfile to edit, or None for new.
         current_exclusions: Full list of all exclusions (all seats). This seat's
                             exclusions will be updated in-place for each subprofile.
+        ns_role_mode:       Profile-level NS role mode. Role prompts are only shown
+                            when a driver is configured (not "no_driver_no_index").
+        ew_role_mode:       Profile-level EW role mode. Same logic as ns_role_mode.
 
     Returns:
         A tuple of (SeatProfile, updated_exclusions_list).
@@ -1200,24 +1206,31 @@ def _build_seat_profile(
             subprofiles.append(sub)
 
         # --- Per-subprofile role assignment (right after constraints) ---
-        # For single-subprofile seats, auto-assign "any" without prompting.
+        # Only prompt for roles when a driver is configured for this pair.
+        # "no_driver_no_index" means roles are irrelevant — skip entirely.
         current_sub = subprofiles[-1]
-        if num_sub > 1:
-            current_sub = _assign_role_usage_for_subprofile(
-                seat,
-                current_sub,
-                idx,
-                existing_sub,
-            )
-            subprofiles[-1] = current_sub
-        else:
-            # Single subprofile: auto-assign "any"
-            if seat in ("N", "S"):
-                default_role = existing_sub.ns_role_usage if existing_sub is not None else "any"
-                subprofiles[-1] = replace(current_sub, ns_role_usage=default_role)
-            elif seat in ("E", "W"):
-                default_role = existing_sub.ew_role_usage if existing_sub is not None else "any"
-                subprofiles[-1] = replace(current_sub, ew_role_usage=default_role)
+        ns_has_driver = seat in ("N", "S") and ns_role_mode != "no_driver_no_index"
+        ew_has_driver = seat in ("E", "W") and ew_role_mode != "no_driver_no_index"
+
+        if ns_has_driver or ew_has_driver:
+            if num_sub > 1:
+                current_sub = _assign_role_usage_for_subprofile(
+                    seat,
+                    current_sub,
+                    idx,
+                    existing_sub,
+                )
+                subprofiles[-1] = current_sub
+            else:
+                # Single subprofile: auto-assign "any" (preserve existing if editing)
+                if ns_has_driver:
+                    default_role = existing_sub.ns_role_usage if existing_sub is not None else "any"
+                    subprofiles[-1] = replace(current_sub, ns_role_usage=default_role)
+                elif ew_has_driver:
+                    default_role = existing_sub.ew_role_usage if existing_sub is not None else "any"
+                    subprofiles[-1] = replace(current_sub, ew_role_usage=default_role)
+
+        print()  # Visual separator before exclusion prompt
 
         # --- Per-subprofile exclusion editing (right after role) ---
         # Build a temporary SeatProfile so the display helpers work
@@ -1518,7 +1531,13 @@ def _build_profile(
         # EDIT FLOW: call _build_seat_profile with (seat, existing, exclusions).
         # Role prompts and exclusion editing now happen per-subprofile inside
         # _build_seat_profile, so no separate exclusion call is needed here.
-        result = seat_builder(seat, existing_seat_profile, subprofile_exclusions)
+        result = seat_builder(
+            seat,
+            existing_seat_profile,
+            subprofile_exclusions,
+            ns_role_mode=existing.ns_role_mode,
+            ew_role_mode=existing.ew_role_mode,
+        )
         # Handle both tuple return (new) and plain SeatProfile (legacy monkeypatch)
         if isinstance(result, tuple):
             new_seat_profile, subprofile_exclusions = result
