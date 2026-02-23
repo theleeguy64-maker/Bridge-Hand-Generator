@@ -1081,25 +1081,74 @@ def _assign_subprofile_weights_interactive(
         return [replace(sub, weight_percent=normalised[i]) for i, sub in enumerate(subprofiles)]
 
 
+def _valid_role_options_for_seat(
+    seat: str,
+    role_mode: str,
+    pair_seats: tuple[str, str],
+) -> list[str]:
+    """
+    Return the valid ew/ns_role_usage options for a seat given the role mode.
+
+    Rules:
+      - "no_driver":     only "any" (no driver/follower distinction)
+      - "random_driver": all three (either seat could drive)
+      - "<X>_drives":    driver seat gets any/driver_only,
+                         follower seat gets any/follower_only
+    """
+    # Determine which seat is the driver for fixed-driver modes
+    driver_map = {
+        f"{pair_seats[0].lower()}_drives": pair_seats[0],
+        f"{pair_seats[1].lower()}_drives": pair_seats[1],
+    }
+
+    if role_mode == "no_driver":
+        # Index matching but no driver/follower — only "any" makes sense
+        return ["any"]
+    if role_mode == "random_driver":
+        # Either seat could be driver or follower
+        return ["any", "driver_only", "follower_only"]
+
+    # Fixed driver mode (e.g. "north_drives", "east_drives")
+    driver_seat = driver_map.get(role_mode)
+    if driver_seat == seat:
+        return ["any", "driver_only"]
+    else:
+        return ["any", "follower_only"]
+
+
 def _assign_role_usage_for_subprofile(
     seat: str,
     sub: SubProfile,
     sub_idx: int,
     existing_sub: Optional[SubProfile],
+    *,
+    role_mode: str = "no_driver_no_index",
 ) -> SubProfile:
     """
     Prompt for role usage (driver/follower/any) for a single subprofile.
 
     For N/S seats: prompts for ns_role_usage.
     For E/W seats: prompts for ew_role_usage.
-    Returns the subprofile with the role field updated.
-    """
-    valid_options = {"any", "driver_only", "follower_only"}
 
+    The available options are restricted based on the role mode:
+      - "no_driver":     auto-assigns "any" (no prompt)
+      - "random_driver": offers any/driver_only/follower_only
+      - "<X>_drives":    driver seat gets any/driver_only,
+                         follower seat gets any/follower_only
+    """
     if seat in ("N", "S"):
-        # Determine default from existing subprofile or fall back to "any"
+        pair_seats = ("N", "S")
+        valid_options = _valid_role_options_for_seat(seat, role_mode, pair_seats)
+
         default_usage = existing_sub.ns_role_usage if existing_sub is not None else "any"
+        # Clamp default to valid options (in case profile had an invalid tag)
+        if default_usage not in valid_options:
+            default_usage = "any"
         label = sub_label(sub_idx, sub)
+
+        # If only "any" is valid, auto-assign without prompting
+        if valid_options == ["any"]:
+            return replace(sub, ns_role_usage="any")
 
         if not _yes_no_help(
             f"Edit NS driver/follower role for {label}?",
@@ -1108,18 +1157,30 @@ def _assign_role_usage_for_subprofile(
         ):
             return replace(sub, ns_role_usage=default_usage)
 
-        prompt = f"  NS role usage for {label} (any/driver_only/follower_only)"
+        options_str = "/".join(valid_options)
+        prompt = f"  NS role usage for {label} ({options_str})"
+        valid_set = set(valid_options)
         while True:
             raw = _input_with_default(prompt + f" [{default_usage}]: ", default_usage)
             value = raw.strip().lower()
-            if value in valid_options:
+            if value in valid_set:
                 break
-            print("Please enter one of: any, driver_only, follower_only")
+            print(f"Please enter one of: {options_str}")
         return replace(sub, ns_role_usage=value)
 
     if seat in ("E", "W"):
+        pair_seats = ("E", "W")
+        valid_options = _valid_role_options_for_seat(seat, role_mode, pair_seats)
+
         default_usage = existing_sub.ew_role_usage if existing_sub is not None else "any"
+        # Clamp default to valid options (in case profile had an invalid tag)
+        if default_usage not in valid_options:
+            default_usage = "any"
         label = sub_label(sub_idx, sub)
+
+        # If only "any" is valid, auto-assign without prompting
+        if valid_options == ["any"]:
+            return replace(sub, ew_role_usage="any")
 
         if not _yes_no_help(
             f"Edit EW driver/follower role for {label}?",
@@ -1128,13 +1189,15 @@ def _assign_role_usage_for_subprofile(
         ):
             return replace(sub, ew_role_usage=default_usage)
 
-        prompt = f"  EW role usage for {label} (any/driver_only/follower_only)"
+        options_str = "/".join(valid_options)
+        prompt = f"  EW role usage for {label} ({options_str})"
+        valid_set = set(valid_options)
         while True:
             raw = _input_with_default(prompt + f" [{default_usage}]: ", default_usage)
             value = raw.strip().lower()
-            if value in valid_options:
+            if value in valid_set:
                 break
-            print("Please enter one of: any, driver_only, follower_only")
+            print(f"Please enter one of: {options_str}")
         return replace(sub, ew_role_usage=value)
 
     # Seats other than N/S/E/W — no role prompt
@@ -1217,11 +1280,13 @@ def _build_seat_profile(
 
             if ns_has_driver or ew_has_driver:
                 if num_sub > 1:
+                    active_role_mode = ns_role_mode if ns_has_driver else ew_role_mode
                     current_sub = _assign_role_usage_for_subprofile(
                         seat,
                         current_sub,
                         idx,
                         existing_sub,
+                        role_mode=active_role_mode,
                     )
                     subprofiles[-1] = current_sub
                 else:

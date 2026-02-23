@@ -555,6 +555,15 @@
 - ✅ Visual separators: blank line before exclusion gate prompt and before save confirmation
 - wizard_flow.py: 1,447 → 1,616 lines (+169)
 
+### 68. [x] Restrict role usage options based on role mode
+- ✅ New `_valid_role_options_for_seat()` helper determines valid role usage choices
+- ✅ `"no_driver"` mode: auto-assigns `"any"` without prompting (no driver/follower distinction)
+- ✅ Fixed driver modes (e.g. `"east_drives"`): driver seat gets `any`/`driver_only`, follower gets `any`/`follower_only`
+- ✅ `"random_driver"`: all three options (either seat could drive)
+- ✅ Existing defaults clamped to valid options (prevents stale `driver_only` on `no_driver` mode)
+- ✅ Updated help text in `menu_help.py`: edit_profile_mode, yn_edit_weights, yn_edit_roles, yn_edit_ew_roles, yn_exclusions, exclusions (wildcard shapes)
+- ✅ Fixed Cappeletti profile: typo "Interfernce"→"Interference", E subs `driver_only`→`any`
+
 ### 66. [x] Sub-profile skip prompt during constraint editing
 - ✅ Added Y/n "Edit Sub-profile N?" prompt in `_build_seat_profile()` when editing existing profiles
 - ✅ Skipping preserves the existing sub-profile as-is (no re-entry needed)

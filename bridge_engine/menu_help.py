@@ -178,16 +178,21 @@ matches an exclusion, the generator discards it and retries.
 
 There are two types of exclusion:
 
-1) SHAPES -- Exclude exact 4-digit suit-length patterns
+1) SHAPES -- Exclude 4-digit suit-length patterns
    Each shape is 4 digits representing Spades-Hearts-Diamonds-Clubs
    and must sum to 13.
 
-   Examples:
+   Exact shapes:
      4333  = exactly 4 spades, 3 hearts, 3 diamonds, 3 clubs
      4432  = exactly 4 spades, 4 hearts, 3 diamonds, 2 clubs
      5332  = exactly 5 spades, 3 hearts, 3 diamonds, 2 clubs
 
-   Enter shapes as comma-separated values (e.g. 4333,4432).
+   Wildcard shapes (use 'x' for any digit):
+     64xx  = 6 spades, 4 hearts, any diamond/club split
+     5xxx  = 5 spades, any distribution in other suits
+   Wildcards expand to all matching shapes that sum to 13.
+
+   Enter shapes as comma-separated values (e.g. 4333,64xx).
    A hand matching ANY of the listed shapes is excluded.
 
 2) RULES -- Exclude by suit-group clause (up to 2 clauses, AND logic)
@@ -240,20 +245,24 @@ METADATA (option 1) — lightweight edits:
 
 CONSTRAINTS (option 2) — full wizard re-run:
   Constraints define the actual hand requirements for each seat. Each
-  seat has one or more "sub-profiles", each of which can specify:
-    • HCP range (e.g. 12–14 high-card points)
-    • Per-suit card-count ranges (e.g. Spades 5–7, Hearts 2–4)
-    • Extra constraints:
-        - Random Suit (RS): randomly pick a long suit each deal
-        - Partner Contingent (PC): react to partner's RS choice
-        - Opponent Contingent (OC): react to opponent's RS choice
-    • Exclusions: reject specific shapes after the hand passes
-    • Weights: how often each sub-profile is selected
-    • NS/EW role usage: driver/follower coordination
+  seat has one or more "sub-profiles".
 
-  Choosing this option runs the full interactive wizard for each seat,
-  using the current constraints as defaults so you only change what
-  you need.
+  For each sub-profile, the wizard runs these steps in order:
+    1. "Edit Sub-profile N?" — skip prompt (editing existing profiles
+       only). Answer No to keep that sub-profile's constraints, role
+       usage, AND exclusions entirely unchanged.
+    2. Constraints — HCP range, per-suit card-count ranges, and
+       optional extra constraint (RS / PC / OC).
+    3. Role usage — NS or EW driver/follower tag (only when a driver
+       mode is active for that pair).
+    4. Exclusions — reject specific shapes or shape families.
+
+  After all sub-profiles are defined:
+    5. Weights — how often each sub-profile is selected (must sum to
+       100% across all subs for the seat).
+
+  The wizard uses current constraints as defaults so you only change
+  what you need.
 
 SUB-PROFILE NAMES (option 3) — quick name edit:
   Give each sub-profile an optional display label (e.g. "Strong opener",
@@ -499,7 +508,11 @@ hand type is more common than another — for example, if you want
 most boards to feature a balanced opener but occasionally include
 a strong 2-club hand.
 
-Answer Yes to edit the weights, No to keep the current/equal weights.
+Options:
+  0) Exit — keep weights as shown (default)
+  1) Keep current weights
+  2) Use even weights (equal across all sub-profiles)
+  3) Manually define weights (enter percentages that sum to 100%)
 """,
     "yn_edit_roles": """\
 === NS Role Usage (Driver / Follower) ===
@@ -518,6 +531,9 @@ Example: North has 2 named sub-profiles:
   • Sub-profile 2 (Responder): follower_only
 When North drives, Sub-profile 1 is used; when South drives, North
 uses Sub-profile 2.
+
+This prompt appears per-subprofile during constraint editing, right
+after each sub-profile's constraints are defined.
 
 Most profiles do not need this level of control. Answer No unless
 you specifically want different sub-profiles for driving vs following.
@@ -542,6 +558,9 @@ Example: East has 2 named sub-profiles:
 When East drives, Sub-profile 1 is used; when West drives, East
 uses Sub-profile 2.
 
+This prompt appears per-subprofile during constraint editing, right
+after each sub-profile's constraints are defined.
+
 Most profiles do not need this level of control. Answer No unless
 you specifically want different sub-profiles for driving vs following.
 """,
@@ -562,7 +581,9 @@ Use exclusions when your standard constraints are correct but allow
 some distributions you don't want. For example, you want 12–14 HCP
 with a balanced hand but want to exclude the flattest shapes (4333).
 
-Answer Yes to add or edit exclusions, No to skip.
+This prompt appears per-subprofile during constraint editing, right
+after each sub-profile's role usage. Answer Yes to add or edit
+exclusions for that sub-profile, No to skip.
 """,
     "yn_rotate_deals": """\
 === Rotate Deals ===
