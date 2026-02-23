@@ -16,11 +16,11 @@ bridge_engine/
 ├── profile_cli.py         (1,038 lines) - Profile commands (incl. EW role mode editing)
 ├── profile_wizard.py        (157 lines) - Profile creation UI
 ├── profile_convert.py        (40 lines) - Profile format conversion
-├── wizard_flow.py         (1,616 lines) - Wizard steps, per-sub role/exclusion editing, RS/PC/OC prompts
+├── wizard_flow.py         (1,681 lines) - Wizard steps, per-sub role/exclusion editing, RS/PC/OC prompts
 ├── wizard_io.py             (104 lines) - Wizard I/O helpers
 ├── profile_viability.py     (389 lines) - Profile-level viability + cross-seat feasibility + EW coupling
 ├── profile_store.py         (310 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
-├── menu_help.py             (601 lines) - Menu help text (incl. EW role mode)
+├── menu_help.py             (622 lines) - Menu help text (incl. EW role mode)
 ├── lin_tools.py             (413 lines) - LIN file operations
 ├── deal_output.py           (326 lines) - Deal rendering
 ├── lin_encoder.py           (188 lines) - LIN format encoding
