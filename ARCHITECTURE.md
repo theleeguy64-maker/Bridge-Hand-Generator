@@ -16,7 +16,7 @@ bridge_engine/
 ├── profile_cli.py         (1,038 lines) - Profile commands (incl. EW role mode editing)
 ├── profile_wizard.py        (157 lines) - Profile creation UI
 ├── profile_convert.py        (40 lines) - Profile format conversion
-├── wizard_flow.py         (1,681 lines) - Wizard steps, per-sub role/exclusion editing, RS/PC/OC prompts
+├── wizard_flow.py         (1,556 lines) - Wizard steps, per-sub role/exclusion editing, RS/PC/OC prompts
 ├── wizard_io.py             (104 lines) - Wizard I/O helpers
 ├── profile_viability.py     (389 lines) - Profile-level viability + cross-seat feasibility + EW coupling
 ├── profile_store.py         (310 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
@@ -318,7 +318,8 @@ Tests: 9 tests for `_compute_dealing_order()` in `test_shape_help_v3.py`
 | — | Defense to 3 Weak 2s - Multi Overcall Shapes | `Defense_to_3_Weak_2s_-_Multi_Overcall_Shapes_v0.9.json` |
 | — | Opps_Open_&_Our_TO_Dbl | `Opps_Open_&_Our_TO_Dbl_v0.9.json` |
 | — | Opps_Open_&_Our_TO_Dbl_Balancing | `Opps_Open_&_Our_TO_Dbl_Balancing_v0.9.json` |
-| — | Ops interference over our 1NT | `Ops_interference_over_our_1NT_v0.9.json` |
+| — | Opps Cappeletti (BBO) over our Strong 1NT | `Opps_Cappeletti_(BBO)_over_our_Strong_1NT_v1.0.json` |
+| — | Opps Open and we Overcall Cappeletti | `Opps_Open_and_we_Overcall_Cappeletti_v0.9.json` |
 | — | Our 1 Major & Opponents Interference | `Our_1_Major_&_Opponents_Interference_v0.2.json` |
 | — | Responding with a Major to 1NT Opening | `Responding_with_a_Major_to_1NT_Opening_v0.9.json` |
 

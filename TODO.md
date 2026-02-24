@@ -564,6 +564,11 @@
 - ✅ Updated help text in `menu_help.py`: edit_profile_mode, yn_edit_weights, yn_edit_roles, yn_edit_ew_roles, yn_exclusions, exclusions (wildcard shapes)
 - ✅ Fixed Cappeletti profile: typo "Interfernce"→"Interference", E subs `driver_only`→`any`
 
+### 69. [x] Code Review #65 — 1 fix + golden test update
+- ✅ **B1 (dead code)**: Removed `_assign_ns_role_usage_interactive()` + `_assign_ew_role_usage_interactive()` from `wizard_flow.py` (123 lines) — superseded by per-subprofile `_assign_role_usage_for_subprofile()`
+- ✅ Updated golden test: `Ops interference over our 1NT` → `Our 1 Major & Opponents Interference` (old profile no longer on disk)
+- ✅ New profiles: `Opps_Cappeletti_(BBO)_over_our_Strong_1NT_v1.0.json`, `Opps_Open_and_we_Overcall_Cappeletti_v0.9.json`
+
 ### 66. [x] Sub-profile skip prompt during constraint editing
 - ✅ Added Y/n "Edit Sub-profile N?" prompt in `_build_seat_profile()` when editing existing profiles
 - ✅ Skipping preserves the existing sub-profile as-is (no re-entry needed)

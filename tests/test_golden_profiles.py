@@ -46,13 +46,13 @@ def test_golden_defense_to_weak_2s_profile_valid() -> None:
     validate_profile(raw)
 
 
-def test_golden_ops_interference_over_our_1nt_profile_valid() -> None:
+def test_golden_our_1_major_and_opponents_interference_valid() -> None:
     """
-    Golden test: the 'Ops interference over our 1NT' profile should
+    Golden test: the 'Our 1 Major & Opponents Interference' profile should
     be structurally valid and mapped to the expected JSON file.
     """
-    expected_name = "Ops interference over our 1NT"
-    expected_file = "Ops_interference_over_our_1NT_v0.2.json"
+    expected_name = "Our 1 Major & Opponents Interference"
+    expected_file = "Our_1_Major_&_Opponents_Interference_v0.9.json"
 
     path, profile = _get_profile_entry_by_name(expected_name)
 

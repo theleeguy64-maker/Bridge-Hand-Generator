@@ -115,7 +115,7 @@ Per-attempt tracking for diagnostics:
 | `seat_viability.py` | 603 | Constraint matching: `_match_seat`, `_match_subprofile`, RS pre-selection |
 | `hand_profile_validate.py` | 610 | Profile validation (incl. EW role usage coverage) |
 | `profile_viability.py` | 389 | Profile-level viability + cross-seat feasibility + EW coupling |
-| `wizard_flow.py` | 1,681 | Wizard steps, per-sub role/exclusion editing, RS/PC/OC prompts |
+| `wizard_flow.py` | 1,556 | Wizard steps, per-sub role/exclusion editing, RS/PC/OC prompts |
 | `profile_cli.py` | 1,038 | Profile commands (incl. EW role mode editing, atomic saves) |
 | `orchestrator.py` | 473 | CLI/session management + generic menu loop |
 | `profile_store.py` | 310 | JSON persistence (atomic writes, error-tolerant loading, display ordering) |
