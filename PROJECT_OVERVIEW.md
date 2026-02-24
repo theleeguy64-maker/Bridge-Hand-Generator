@@ -90,6 +90,7 @@ Per-attempt tracking for diagnostics:
 - Constrained fill (#11): suit max + HCP max enforcement during dealing, PRE_ALLOCATE_FRACTION 0.75 — W shape failures eliminated, HCP failures -81%
 - Full RS pre-allocation (#14): RS_PRE_ALLOCATE_FRACTION=1.0 — RS suits fully populated at pre-allocation time with HCP targeting. "Defense to Weak 2s" 5-20x faster
 - Adaptive re-seeding (#12): per-board timing + auto re-seed on slow boards (1.75s threshold) — eliminates seed-dependent variance
+- RS override (#70): RS constraints override standard per-suit checks for chosen suits — enables tight side-suit constraints alongside wider RS ranges
 - 512 tests passing
 
 ### Remaining Work
@@ -108,11 +109,11 @@ Per-attempt tracking for diagnostics:
 | File | Lines | Purpose |
 |------|-------|---------|
 | `deal_generator.py` | 358 | Facade: subprofile selection + `generate_deals()` + re-exports |
-| `deal_generator_v2.py` | 1,222 | v2 shape-help helpers + v2 builder (active production path) |
+| `deal_generator_v2.py` | 1,223 | v2 shape-help helpers + v2 builder (active production path) |
 | `deal_generator_types.py` | 227 | Types, constants, dataclasses, exception, debug hooks (leaf module) |
 | `deal_generator_helpers.py` | 384 | Shared utilities: viability, HCP, deck helpers, vulnerability/rotation |
 | `hand_profile_model.py` | 911 | Data models: SubProfile, SeatProfile, HandProfile (incl. EW role mode) |
-| `seat_viability.py` | 603 | Constraint matching: `_match_seat`, `_match_subprofile`, RS pre-selection |
+| `seat_viability.py` | 623 | Constraint matching: `_match_seat`, `_match_subprofile`, RS pre-selection |
 | `hand_profile_validate.py` | 610 | Profile validation (incl. EW role usage coverage) |
 | `profile_viability.py` | 389 | Profile-level viability + cross-seat feasibility + EW coupling |
 | `wizard_flow.py` | 1,556 | Wizard steps, per-sub role/exclusion editing, RS/PC/OC prompts |

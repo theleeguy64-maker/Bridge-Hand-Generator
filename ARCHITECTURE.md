@@ -320,7 +320,9 @@ Tests: 9 tests for `_compute_dealing_order()` in `test_shape_help_v3.py`
 | — | Opps_Open_&_Our_TO_Dbl_Balancing | `Opps_Open_&_Our_TO_Dbl_Balancing_v0.9.json` |
 | — | Opps Cappeletti (BBO) over our Strong 1NT | `Opps_Cappeletti_(BBO)_over_our_Strong_1NT_v1.0.json` |
 | — | Opps Open and we Overcall Cappeletti | `Opps_Open_and_we_Overcall_Cappeletti_v0.9.json` |
-| — | Our 1 Major & Opponents Interference | `Our_1_Major_&_Opponents_Interference_v0.2.json` |
+| — | Opps Open Strong 1NT and we Overcall Cappeletti | `Opps_Open_Strong_1NT_and_we_Overcall_Cappeletti_v0.9.json` |
+| — | Our 1 Major & Opponents Interference | `Our_1_Major_&_Opponents_Interference_v0.9.json` |
+| — | Our 1 Major & Opponents Interference | `Our_1_Major_&_Opponents_Interference_v1.0.json` |
 | — | Responding with a Major to 1NT Opening | `Responding_with_a_Major_to_1NT_Opening_v0.9.json` |
 
 Profiles with `sort_order` appear at their fixed positions; profiles without `sort_order` are sorted by version (highest first), then alphabetically by name.
@@ -408,7 +410,7 @@ _pre_allocate_rs, _deal_with_help,
 _compute_dealing_order, _subprofile_constraint_type
 ```
 
-### deal_generator_v2.py (v2 shape-help — 1,222 lines)
+### deal_generator_v2.py (v2 shape-help — 1,223 lines)
 ```python
 # v2 shape help helpers
 _dispersion_check(chosen_subs, threshold, rs_pre_selections) -> set[Seat]
