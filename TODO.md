@@ -609,11 +609,17 @@
 
 - [ ] Wildcard excluded shapes — enter `64xx` in wizard, verify it excludes all 64xx hands
 - [ ] Wildcard validation — confirm `99xx` is rejected, `4333` still requires sum to 13
-- [ ] PC/OC prompt order — chosen/unchosen question now appears before suit range prompt
-- [ ] Weight editing menu — 0=Exit, 1=Keep, 2=Even, 3=Manual (replaces old y/n prompt)
-- [ ] Seat editing save & exit — press "e" to save and skip remaining seats
-- [ ] Edit subprofile names before constraints — say Yes at prompt, rename subs, then verify names carry through
-- [ ] Profile JSON updates — Our 1 Major and Ops Interference v0.2 load correctly
+- [x] PC/OC prompt order — chosen/unchosen question now appears before suit range prompt
+- [x] Weight editing menu — 0=Exit, 1=Keep, 2=Even, 3=Manual (replaces old y/n prompt)
+- [x] Seat editing save & exit — press "e" to save and skip remaining seats
+- [x] Edit subprofile names before constraints — say Yes at prompt, rename subs, then verify names carry through
+- [ ] Profile JSON updates — Our 1 Major load correctly
+
+---
+
+## Consider
+
+- [ ] Pair constraint around points and suit count
 
 ---
 
