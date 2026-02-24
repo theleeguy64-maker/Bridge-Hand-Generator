@@ -5,7 +5,7 @@
 ```
 bridge_engine/
 ├── deal_generator.py        (358 lines) - Facade: subprofile selection + generate_deals() + re-exports
-├── deal_generator_v2.py   (1,223 lines) - v2 shape-help helpers + v2 builder (active path)
+├── deal_generator_v2.py   (1,373 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py  (227 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (384 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (911 lines) - Data models (incl. EW role mode)
@@ -18,7 +18,7 @@ bridge_engine/
 ├── profile_convert.py        (40 lines) - Profile format conversion
 ├── wizard_flow.py         (1,556 lines) - Wizard steps, per-sub role/exclusion editing, RS/PC/OC prompts
 ├── wizard_io.py             (104 lines) - Wizard I/O helpers
-├── profile_viability.py     (389 lines) - Profile-level viability + cross-seat feasibility + EW coupling
+├── profile_viability.py     (394 lines) - Profile-level viability + cross-seat feasibility + EW coupling
 ├── profile_store.py         (310 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
 ├── menu_help.py             (622 lines) - Menu help text (incl. EW role mode)
 ├── lin_tools.py             (413 lines) - LIN file operations

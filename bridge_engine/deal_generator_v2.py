@@ -174,6 +174,34 @@ def _dispersion_check(
                     tight_seats.add(seat)
                     break  # One tight RS suit is enough
 
+    # --- OC/PC-aware tightness check ---
+    # For seats with OC or PC constraints whose referenced seat has RS
+    # pre-selections, check whether the contingent suit_range's min_cards
+    # is tight enough to flag the seat.
+    if rs_pre_selections:
+        for seat, sub in chosen_subprofiles.items():
+            if seat in tight_seats:
+                continue  # Already flagged
+
+            # Check OC constraint.
+            oc = sub.opponents_contingent_suit_constraint
+            if oc is not None and oc.opponent_seat in rs_pre_selections:
+                min_cards = oc.suit_range.min_cards
+                if min_cards > 0:
+                    prob = SHAPE_PROB_GTE.get(min_cards, 0.0)
+                    if prob <= threshold:
+                        tight_seats.add(seat)
+                        continue
+
+            # Check PC constraint.
+            pc = sub.partner_contingent_constraint
+            if pc is not None and pc.partner_seat in rs_pre_selections:
+                min_cards = pc.suit_range.min_cards
+                if min_cards > 0:
+                    prob = SHAPE_PROB_GTE.get(min_cards, 0.0)
+                    if prob <= threshold:
+                        tight_seats.add(seat)
+
     return tight_seats
 
 
@@ -281,6 +309,36 @@ def _random_deal(
     hand = deck[:take]
     del deck[:take]
     return hand
+
+
+def _resolve_contingent_target_suit(
+    contingent_seat: str,
+    use_non_chosen_suit: bool,
+    rs_pre_selections: Dict[Seat, List[str]],
+    rs_allowed_suits: Optional[Dict[Seat, List[str]]] = None,
+) -> Optional[str]:
+    """
+    Resolve the target suit for an OC or PC constraint.
+
+    Looks up the referenced seat's pre-selected RS suits.  Returns the
+    target suit letter, or None if the referenced seat has no RS
+    pre-selection (graceful skip — no pre-allocation possible).
+    """
+    opp_suits = rs_pre_selections.get(contingent_seat)
+    if not opp_suits:
+        return None
+
+    if use_non_chosen_suit:
+        allowed = (rs_allowed_suits or {}).get(contingent_seat)
+        if not allowed:
+            return None
+        non_chosen = [s for s in allowed if s not in opp_suits]
+        if not non_chosen:
+            return None
+        return non_chosen[0]
+
+    # Standard: target the first chosen suit.
+    return opp_suits[0]
 
 
 def _get_suit_maxima(
@@ -592,6 +650,61 @@ def _pre_allocate_rs(
     return pre_allocated
 
 
+def _pre_allocate_contingent(
+    rng: random.Random,
+    deck: List[Card],
+    target_suit: str,
+    suit_range: "SuitRange",
+) -> List[Card]:
+    """
+    Pre-allocate cards for an OC/PC contingent suit.
+
+    Similar to _pre_allocate_rs() but for a single known suit with a
+    single SuitRange.  Uses HCP-targeted rejection sampling.  Fraction
+    is always 1.0 — the suit is fully known at this point.
+
+    Returns list of pre-allocated cards (may be empty).
+    """
+    min_cards: int = suit_range.min_cards
+    if min_cards <= 0:
+        return []
+
+    # Collect available cards in the target suit from the remaining deck.
+    # Card format: rank + suit letter (e.g. "AH", "5S").
+    available = [c for c in deck if c[1] == target_suit]
+    if not available:
+        return []
+
+    actual = min(min_cards, len(available))
+    if actual <= 0:
+        return []
+
+    # HCP-targeted rejection sampling (same pattern as _pre_allocate_rs).
+    min_hcp: int = suit_range.min_hcp
+    max_hcp: int = suit_range.max_hcp
+    use_hcp_targeting = RS_PRE_ALLOCATE_HCP_RETRIES > 0
+
+    if use_hcp_targeting:
+        target_low = math.floor(min_hcp * actual / min_cards) if min_cards > 0 else 0
+        target_high = math.ceil(max_hcp * actual / min_cards) if min_cards > 0 else max_hcp
+
+        chosen = rng.sample(available, actual)
+        for _retry in range(RS_PRE_ALLOCATE_HCP_RETRIES):
+            sample_hcp = sum(_CARD_HCP[c] for c in chosen)
+            if target_low <= sample_hcp <= target_high:
+                break
+            chosen = rng.sample(available, actual)
+    else:
+        chosen = rng.sample(available, actual)
+
+    # Remove chosen cards from deck.
+    if chosen:
+        chosen_set = set(chosen)
+        deck[:] = [c for c in deck if c not in chosen_set]
+
+    return chosen
+
+
 def _deal_with_help(
     rng: random.Random,
     deck: List[Card],
@@ -599,6 +712,7 @@ def _deal_with_help(
     tight_seats: set,
     dealing_order: List[Seat],
     rs_pre_selections: Optional[Dict[Seat, List[str]]] = None,
+    rs_allowed_suits: Optional[Dict[Seat, List[str]]] = None,
 ) -> Tuple[Optional[Dict[Seat, List[Card]]], Optional[Seat]]:
     """
     Deal 52 cards to 4 seats, giving shape help to tight seats.
@@ -655,6 +769,41 @@ def _deal_with_help(
         if rs_pre_selections and seat in rs_pre_selections:
             rs_pre = _pre_allocate_rs(rng, deck, sub, rs_pre_selections[seat])
             pre = pre + rs_pre
+
+        # OC/PC contingent pre-allocation: if this seat depends on
+        # another seat's RS choice, pre-allocate cards in the target suit.
+        if rs_pre_selections:
+            oc = sub.opponents_contingent_suit_constraint
+            pc = sub.partner_contingent_constraint
+            contingent_seat: Optional[str] = None
+            use_non_chosen = False
+            suit_range = None
+
+            if oc is not None:
+                contingent_seat = oc.opponent_seat
+                use_non_chosen = oc.use_non_chosen_suit
+                suit_range = oc.suit_range
+            elif pc is not None:
+                contingent_seat = pc.partner_seat
+                use_non_chosen = pc.use_non_chosen_suit
+                suit_range = pc.suit_range
+
+            if contingent_seat is not None and suit_range is not None:
+                target_suit = _resolve_contingent_target_suit(
+                    contingent_seat,
+                    use_non_chosen,
+                    rs_pre_selections,
+                    rs_allowed_suits,
+                )
+                if target_suit is not None:
+                    cont_pre = _pre_allocate_contingent(
+                        rng,
+                        deck,
+                        target_suit,
+                        suit_range,
+                    )
+                    pre = pre + cont_pre
+
         if pre:
             pre_allocated[seat] = pre
 
@@ -1023,6 +1172,7 @@ def _build_single_constrained_deal_v2(
             tight_seats,
             dealing_order,
             rs_pre_selections=rs_pre_selections,
+            rs_allowed_suits=rs_allowed_suits,
         )
 
         # ----- Early HCP rejection handling -----

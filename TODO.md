@@ -577,6 +577,20 @@
 - ✅ Aligns matching/dealing with validation concept "RS range overrides the standard one" (`hand_profile_validate.py:131`)
 - ✅ Updated Weak 2s profile: W standard max_cards 6→5, max_hcp 10→8, RS min_hcp 5→4
 
+### 71. [x] OC/PC contingent suit pre-allocation
+- ✅ `_resolve_contingent_target_suit()` — resolves target suit from opponent/partner RS pre-selections (handles `use_non_chosen_suit`)
+- ✅ `_pre_allocate_contingent()` — pre-allocates cards for OC/PC target suit with HCP-targeted rejection sampling (fraction=1.0)
+- ✅ `_dispersion_check()` extended with OC/PC tightness block — flags seats with tight contingent constraints
+- ✅ `_deal_with_help()` Phase 1c — contingent pre-allocation after RS pre-allocation, accepts `rs_allowed_suits` param
+- ✅ Builder wired: `rs_allowed_suits` passed from `_build_single_constrained_deal_v2()` to `_deal_with_help()`
+- ✅ OC subprofiles ~2x faster (median 3-4ms → 1.3-1.9ms on Weak 2s profile)
+- ✅ 28 tests in `test_contingent_pre_allocation.py` (resolve target suit, pre-allocate, dispersion check, pair viability HCP)
+
+### 72. [x] Code Review #65 — 3 fixes across 2 files
+- ✅ **A1**: Fixed `c[-1]` → `c[1]` for suit extraction in `_pre_allocate_contingent()` — consistency with rest of codebase
+- ✅ **A2**: Added combined HCP minimum check (`> 40`) to `_pair_jointly_viable()` in `profile_viability.py`
+- ✅ **C1**: Fixed stale "NS index-coupled pair" docstring → "NS or EW" in `_pair_jointly_viable()`
+
 ### 66. [x] Sub-profile skip prompt during constraint editing
 - ✅ Added Y/n "Edit Sub-profile N?" prompt in `_build_seat_profile()` when editing existing profiles
 - ✅ Skipping preserves the existing sub-profile as-is (no re-entry needed)

@@ -181,16 +181,21 @@ def _cross_seat_feasible(
 
 def _pair_jointly_viable(n_sub: Any, s_sub: Any) -> bool:
     """
-    Lightweight joint viability check for an NS index-coupled pair.
+    Lightweight joint viability check for an index-coupled pair (NS or EW).
 
-    For now we enforce that the combined suit minima don't exceed the deck
-    (13 cards per suit). This is enough for the current tests.
+    Checks:
+      1. Combined per-suit minima don't exceed the deck (13 cards per suit).
+      2. Combined total HCP minima don't exceed the deck (40 HCP total).
     """
     for suit in ("S", "H", "D", "C"):
         n_val = _get_suit_min(n_sub, suit)
         s_val = _get_suit_min(s_sub, suit)
         if n_val + s_val > 13:
             return False
+
+    # Combined HCP minimum must not exceed 40 (total HCP in deck).
+    if _get_total_min_hcp(n_sub) + _get_total_min_hcp(s_sub) > 40:
+        return False
 
     return True
 
