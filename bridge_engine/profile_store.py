@@ -294,7 +294,7 @@ def print_profile_display_map(
     for num in sorted(display_map):
         _, profile = display_map[num]
         version_str = f"v{profile.version}" if profile.version else "(no version)"
-        print(f"  {num}) {profile.profile_name} ({version_str}, tag={profile.tag}, dealer={profile.dealer})")
+        print(f"  {num}) {profile.profile_name} ({version_str})")
 
 
 def delete_draft_for_canonical(canonical_path: Path) -> None:
