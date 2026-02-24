@@ -113,8 +113,8 @@ class TestAccessors:
         w_sub = _real_sub_from_profile(profile, "W", 0)
         assert _get_total_min_hcp(w_sub) == 6
         assert _get_total_max_hcp(w_sub) == 10
-        # W has max 6 cards in each suit
-        assert _get_suit_max(w_sub, "S") == 6
+        # W standard max is 5 per suit (RS allows 6 in the chosen suit)
+        assert _get_suit_max(w_sub, "S") == 5
         # N sub0: min 2 in each suit
         n_sub = _real_sub_from_profile(profile, "N", 0)
         assert _get_suit_min(n_sub, "S") == 2

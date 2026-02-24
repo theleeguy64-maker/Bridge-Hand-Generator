@@ -290,15 +290,16 @@ def _get_suit_maxima(
     """
     Extract the effective max_cards per suit from a subprofile.
 
-    Combines standard constraint maxima with RS constraint maxima for
-    pre-selected suits.  Returns a dict mapping suit letter → max cards.
+    For non-RS suits: uses the standard constraint max_cards.
+    For RS pre-selected suits: the RS max_cards **replaces** (overrides)
+    the standard max_cards — the RS constraint owns that suit entirely.
 
-    E.g. standard has max_cards=13 for all suits, but RS says max=6 for
-    spades → effective max for S is 6.
+    E.g. standard has max_cards=5 for all suits, but RS says max=6 for
+    spades → effective max for S is 6 (RS wins), other suits stay at 5.
     """
     maxima: Dict[str, int] = {"S": 13, "H": 13, "D": 13, "C": 13}
 
-    # Standard constraints.
+    # Standard constraints — applied to all suits initially.
     std = subprofile.standard
     if std is not None:
         for suit_letter, sr in [
@@ -311,15 +312,15 @@ def _get_suit_maxima(
             if mc < maxima[suit_letter]:
                 maxima[suit_letter] = mc
 
-    # RS constraints: enforce max_cards for pre-selected suits.
+    # RS constraints: override (replace) standard max_cards for RS suits.
+    # The RS constraint owns the chosen suits, so its max_cards takes
+    # precedence over the standard constraint for those suits.
     rs = subprofile.random_suit_constraint
     if rs is not None and rs_pre_selected:
         ranges_by_suit = _resolve_rs_ranges(rs, rs_pre_selected)
 
         for suit_letter, sr in ranges_by_suit.items():
-            mc = sr.max_cards
-            if mc < maxima[suit_letter]:
-                maxima[suit_letter] = mc
+            maxima[suit_letter] = sr.max_cards
 
     return maxima
 

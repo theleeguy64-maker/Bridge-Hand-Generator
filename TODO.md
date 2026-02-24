@@ -569,6 +569,14 @@
 - ✅ Updated golden test: `Ops interference over our 1NT` → `Our 1 Major & Opponents Interference` (old profile no longer on disk)
 - ✅ New profiles: `Opps_Cappeletti_(BBO)_over_our_Strong_1NT_v1.0.json`, `Opps_Open_and_we_Overcall_Cappeletti_v0.9.json`
 
+### 70. [x] RS constraints override standard for chosen suits
+- ✅ `_match_standard()` now accepts `rs_skip_suits` — skips per-suit shape/HCP checks for RS-chosen suits (total HCP still checked)
+- ✅ `_match_subprofile()` passes `pre_selected_suits` to `_match_standard()` when RS constraint present
+- ✅ `_get_suit_maxima()` now **replaces** (not min) standard max_cards with RS max_cards for pre-selected suits
+- ✅ Enables tight standard constraints (e.g. max_cards=5) alongside wider RS constraints (e.g. max_cards=6)
+- ✅ Aligns matching/dealing with validation concept "RS range overrides the standard one" (`hand_profile_validate.py:131`)
+- ✅ Updated Weak 2s profile: W standard max_cards 6→5, max_hcp 10→8, RS min_hcp 5→4
+
 ### 66. [x] Sub-profile skip prompt during constraint editing
 - ✅ Added Y/n "Edit Sub-profile N?" prompt in `_build_seat_profile()` when editing existing profiles
 - ✅ Skipping preserves the existing sub-profile as-is (no re-entry needed)

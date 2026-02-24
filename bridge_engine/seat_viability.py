@@ -65,9 +65,17 @@ def _compute_suit_analysis(hand: List[Card]) -> SuitAnalysis:
 # ---------------------------------------------------------------------------
 
 
-def _match_standard(analysis: SuitAnalysis, std: StandardSuitConstraints) -> Tuple[bool, Optional[str]]:
+def _match_standard(
+    analysis: SuitAnalysis,
+    std: StandardSuitConstraints,
+    rs_skip_suits: Optional[List[str]] = None,
+) -> Tuple[bool, Optional[str]]:
     """
     Match a hand's SuitAnalysis against StandardSuitConstraints.
+
+    When rs_skip_suits is provided, per-suit shape/HCP checks are skipped
+    for those suits — the RS constraint owns them instead.  Total HCP is
+    still checked (it applies to the whole hand regardless).
 
     Returns:
         (matched: bool, fail_reason: Optional[str])
@@ -76,39 +84,46 @@ def _match_standard(analysis: SuitAnalysis, std: StandardSuitConstraints) -> Tup
           - "hcp": Failed total HCP or per-suit HCP check
           - "shape": Failed per-suit card count check
     """
-    # Total HCP check (HCP type failure)
+    # Total HCP check (HCP type failure) — always applies to full hand
     if not (std.total_min_hcp <= analysis.total_hcp <= std.total_max_hcp):
         return False, "hcp"
 
     # Per-suit checks — unrolled to avoid constructing a temporary list
     # of tuples on every call (this function is hot-path, called thousands
     # of times per board attempt).
+    # RS-chosen suits are skipped: their shape/HCP is governed by the RS
+    # constraint, not standard.
     cards = analysis.cards_by_suit
     hcp_by = analysis.hcp_by_suit
+    skip = rs_skip_suits  # local alias for speed
 
-    sr = std.spades
-    if not (sr.min_cards <= len(cards["S"]) <= sr.max_cards):
-        return False, "shape"
-    if not (sr.min_hcp <= hcp_by["S"] <= sr.max_hcp):
-        return False, "hcp"
+    if not skip or "S" not in skip:
+        sr = std.spades
+        if not (sr.min_cards <= len(cards["S"]) <= sr.max_cards):
+            return False, "shape"
+        if not (sr.min_hcp <= hcp_by["S"] <= sr.max_hcp):
+            return False, "hcp"
 
-    sr = std.hearts
-    if not (sr.min_cards <= len(cards["H"]) <= sr.max_cards):
-        return False, "shape"
-    if not (sr.min_hcp <= hcp_by["H"] <= sr.max_hcp):
-        return False, "hcp"
+    if not skip or "H" not in skip:
+        sr = std.hearts
+        if not (sr.min_cards <= len(cards["H"]) <= sr.max_cards):
+            return False, "shape"
+        if not (sr.min_hcp <= hcp_by["H"] <= sr.max_hcp):
+            return False, "hcp"
 
-    sr = std.diamonds
-    if not (sr.min_cards <= len(cards["D"]) <= sr.max_cards):
-        return False, "shape"
-    if not (sr.min_hcp <= hcp_by["D"] <= sr.max_hcp):
-        return False, "hcp"
+    if not skip or "D" not in skip:
+        sr = std.diamonds
+        if not (sr.min_cards <= len(cards["D"]) <= sr.max_cards):
+            return False, "shape"
+        if not (sr.min_hcp <= hcp_by["D"] <= sr.max_hcp):
+            return False, "hcp"
 
-    sr = std.clubs
-    if not (sr.min_cards <= len(cards["C"]) <= sr.max_cards):
-        return False, "shape"
-    if not (sr.min_hcp <= hcp_by["C"] <= sr.max_hcp):
-        return False, "hcp"
+    if not skip or "C" not in skip:
+        sr = std.clubs
+        if not (sr.min_cards <= len(cards["C"]) <= sr.max_cards):
+            return False, "shape"
+        if not (sr.min_hcp <= hcp_by["C"] <= sr.max_hcp):
+            return False, "hcp"
 
     return True, None
 
@@ -245,8 +260,13 @@ def _match_subprofile(
         - "shape": Standard shape constraint failed
         - "other": RS/PC/OC constraint failed (not standard)
     """
-    # Always check Standard first
-    std_matched, std_fail_reason = _match_standard(analysis, sub.standard)
+    # Always check Standard first.
+    # If RS pre-selected suits are known, skip those suits in the standard
+    # check — the RS constraint owns their shape/HCP, not standard.
+    rs_skip: Optional[List[str]] = None
+    if pre_selected_suits and sub.random_suit_constraint is not None:
+        rs_skip = pre_selected_suits
+    std_matched, std_fail_reason = _match_standard(analysis, sub.standard, rs_skip)
     if not std_matched:
         return False, None, std_fail_reason
 

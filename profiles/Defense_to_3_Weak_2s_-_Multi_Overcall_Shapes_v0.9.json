@@ -365,32 +365,32 @@
                 "max_cards": 6,
                 "max_hcp": 7,
                 "min_cards": 6,
-                "min_hcp": 5
+                "min_hcp": 4
               }
             ]
           },
           "standard": {
             "clubs": {
-              "max_cards": 6,
-              "max_hcp": 10,
+              "max_cards": 5,
+              "max_hcp": 8,
               "min_cards": 0,
               "min_hcp": 0
             },
             "diamonds": {
-              "max_cards": 6,
-              "max_hcp": 10,
+              "max_cards": 5,
+              "max_hcp": 8,
               "min_cards": 0,
               "min_hcp": 0
             },
             "hearts": {
-              "max_cards": 6,
-              "max_hcp": 10,
+              "max_cards": 5,
+              "max_hcp": 8,
               "min_cards": 0,
               "min_hcp": 0
             },
             "spades": {
-              "max_cards": 6,
-              "max_hcp": 10,
+              "max_cards": 5,
+              "max_hcp": 8,
               "min_cards": 0,
               "min_hcp": 0
             },
