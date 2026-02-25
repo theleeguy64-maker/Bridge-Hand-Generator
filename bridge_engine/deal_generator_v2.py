@@ -687,8 +687,9 @@ def _pre_allocate_contingent(
     use_hcp_targeting = RS_PRE_ALLOCATE_HCP_RETRIES > 0
 
     if use_hcp_targeting:
-        target_low = math.floor(min_hcp * actual / min_cards) if min_cards > 0 else 0
-        target_high = math.ceil(max_hcp * actual / min_cards) if min_cards > 0 else max_hcp
+        # min_cards > 0 guaranteed by the early return at line 671.
+        target_low = math.floor(min_hcp * actual / min_cards)
+        target_high = math.ceil(max_hcp * actual / min_cards)
 
         chosen = rng.sample(available, actual)
         for _retry in range(RS_PRE_ALLOCATE_HCP_RETRIES):

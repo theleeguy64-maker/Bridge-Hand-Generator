@@ -591,6 +591,17 @@
 - ✅ **A2**: Added combined HCP minimum check (`> 40`) to `_pair_jointly_viable()` in `profile_viability.py`
 - ✅ **C1**: Fixed stale "NS index-coupled pair" docstring → "NS or EW" in `_pair_jointly_viable()`
 
+### 74. [x] Code Review #66 — 7 fixes across 7 files
+- ✅ **C1**: Consistent `Callable[..., None]` type on `_DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION` in `deal_generator_types.py`
+- ✅ **C2**: Fixed stale "Optional" comment on `SubProfile.standard` in `hand_profile_validate.py` (kept guard for test mocks)
+- ✅ **C3**: Removed redundant `if min_cards > 0` ternary guards in `_pre_allocate_contingent()` in `deal_generator_v2.py`
+- ✅ **B1/B2/D1**: Removed always-true guards on pair override display in `profile_cli.py` (frozen dataclass guarantees 2 suits + non-None ranges)
+- ✅ **B3**: Removed dead `create_profile_from_existing_constraints()` from `profile_wizard.py` (never called)
+- ✅ **D3**: Simplified `True if x else False` → `bool(x)` in `wizard_flow.py`
+- ✅ **C4**: Fixed misleading "Seats other than N/S/E/W" comment in `wizard_flow.py`
+- ✅ **D2**: Removed dead `or []` fallback on `hand_dealing_order` in `hand_profile_validate.py` (validated in `__post_init__`)
+- ✅ **D4**: Removed always-false `if seat not in buckets` guards in `hand_profile_model.py`
+
 ### 73. [x] Adaptive subprofile re-roll intervals
 - ✅ Replaced fixed `SUBPROFILE_REROLL_INTERVAL=150` and `RS_REROLL_INTERVAL=105` with 4 adaptive constants
 - ✅ `ADAPTIVE_SUB_REROLL_INITIAL=150` — starting interval (same as old fixed value)

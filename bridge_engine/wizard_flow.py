@@ -410,7 +410,7 @@ def _edit_subprofile_exclusions_for_seat(
         return current_all
 
     # If no existing for this seat, optionally skip
-    default_edit = True if this_seat else False
+    default_edit = bool(this_seat)
     if not _yes_no_help(
         f"Add/edit sub-profile exclusions for seat {seat}?",
         "yn_exclusions",
@@ -1200,7 +1200,7 @@ def _assign_role_usage_for_subprofile(
             print(f"Please enter one of: {options_str}")
         return replace(sub, ew_role_usage=value)
 
-    # Seats other than N/S/E/W — no role prompt
+    # Fallback: should not reach here (all valid seats covered above).
     return sub
 
 

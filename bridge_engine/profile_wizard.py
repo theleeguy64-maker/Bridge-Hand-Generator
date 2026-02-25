@@ -88,38 +88,6 @@ def create_profile_interactive() -> HandProfile:
     return profile
 
 
-def create_profile_from_existing_constraints(existing: HandProfile) -> HandProfile:
-    """
-    Create a new profile that reuses all constraints from `existing`
-    (seat_profiles + subprofile_exclusions) but lets the user enter new
-    metadata fields (name, description, tag, dealer, dealing order,
-    author, version, rotate_deals_by_default).
-
-    This is intended for “new standard profile” flows built from a
-    base template; constraint tweaks are done later via
-    edit_constraints_interactive().
-    """
-    clear_screen()
-    print("=== Create New Profile (from template) ===")
-    print()
-    print(f"Starting from template: {existing.profile_name}")
-    print()
-
-    # Prompt for new metadata via the create flow (existing=None),
-    # then override constraints with the template's constraints.
-    kwargs = _build_profile(existing=None, original_path=None)
-
-    # Replace auto-generated standard constraints with the template's.
-    kwargs["seat_profiles"] = dict(existing.seat_profiles)
-    kwargs["subprofile_exclusions"] = list(existing.subprofile_exclusions or [])
-    kwargs["ns_role_mode"] = existing.ns_role_mode
-    kwargs["ew_role_mode"] = existing.ew_role_mode
-
-    profile = HandProfile(**kwargs)
-    validate_profile(profile)
-    return profile
-
-
 def edit_constraints_interactive(
     existing: HandProfile,
     profile_path: Optional[Path] = None,

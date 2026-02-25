@@ -104,7 +104,8 @@ def _validate_random_suit_vs_standard(profile: HandProfile) -> None:
             if rs is None:
                 continue
 
-            # SubProfile.standard is a declared field (Optional[StandardSuitConstraints]).
+            # SubProfile.standard is typed as StandardSuitConstraints (non-optional),
+            # but guard against None for test mocks that omit it.
             std = sub.standard
             if std is None:
                 continue
@@ -386,7 +387,7 @@ def _validate_partner_contingent(profile: HandProfile) -> None:
     This matches tests like
     test_partner_must_be_dealt_before_partner_contingent.
     """
-    order = list(profile.hand_dealing_order or [])
+    order = list(profile.hand_dealing_order)
     index = {seat: i for i, seat in enumerate(order)}
 
     for seat, seat_profile in profile.seat_profiles.items():
@@ -450,7 +451,7 @@ def _validate_opponent_contingent(profile: HandProfile) -> None:
       used for partner-contingent constraints and should be compatible
       with existing golden profiles.
     """
-    order = list(profile.hand_dealing_order or [])
+    order = list(profile.hand_dealing_order)
     index = {seat: i for i, seat in enumerate(order)}
 
     for seat, seat_profile in profile.seat_profiles.items():

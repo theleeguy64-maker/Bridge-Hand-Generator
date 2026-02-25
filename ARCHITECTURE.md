@@ -5,16 +5,16 @@
 ```
 bridge_engine/
 ├── deal_generator.py        (358 lines) - Facade: subprofile selection + generate_deals() + re-exports
-├── deal_generator_v2.py   (1,393 lines) - v2 shape-help helpers + v2 builder (active path)
+├── deal_generator_v2.py   (1,394 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py  (240 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (384 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
-├── hand_profile_model.py    (911 lines) - Data models (incl. EW role mode)
+├── hand_profile_model.py    (909 lines) - Data models (incl. EW role mode)
 ├── seat_viability.py        (623 lines) - Constraint matching + RS pre-selection threading
-├── hand_profile_validate.py (610 lines) - Validation (incl. EW role usage coverage)
+├── hand_profile_validate.py (611 lines) - Validation (incl. EW role usage coverage)
 ├── profile_diagnostic.py     (213 lines) - Generic profile diagnostic runner (Admin menu)
-├── orchestrator.py          (473 lines) - CLI/session management + generic menu loop
-├── profile_cli.py         (1,038 lines) - Profile commands (incl. EW role mode editing)
-├── profile_wizard.py        (157 lines) - Profile creation UI
+├── orchestrator.py          (432 lines) - CLI/session management + generic menu loop
+├── profile_cli.py         (1,031 lines) - Profile commands (incl. EW role mode editing)
+├── profile_wizard.py        (125 lines) - Profile creation UI
 ├── profile_convert.py        (40 lines) - Profile format conversion
 ├── wizard_flow.py         (1,556 lines) - Wizard steps, per-sub role/exclusion editing, RS/PC/OC prompts
 ├── wizard_io.py             (104 lines) - Wizard I/O helpers
@@ -317,15 +317,13 @@ Tests: 9 tests for `_compute_dealing_order()` in `test_shape_help_v3.py`
 | 23 | Profile D Test - tight point and suit constraints | `Profile_D_Test_-_tight_and_suit_point_constraint_v0.1.json` |
 | 24 | Profile E Test - tight point and suit constraints_plus | `Profile_E_Test_-_tight_and_suit_point_constraint_plus_v0.1.json` |
 | — | Big Hands | `Big_Hands_v0.1.json` |
-| — | Defense to 3 Weak 2s - Multi Overcall Shapes | `Defense_to_3_Weak_2s_-_Multi_Overcall_Shapes_v0.9.json` |
+| — | Opps Open 3 Weak 2s and we Compete | `Opps_Open_3_Weak_2s_and_we_Compete_v1.0.json` |
+| — | Opps Open Strong 1NT and we Overcall Cappeletti | `Opps_Open_Strong_1NT_and_we_Overcall_Cappeletti_v1.0.json` |
 | — | Opps_Open_&_Our_TO_Dbl | `Opps_Open_&_Our_TO_Dbl_v0.9.json` |
 | — | Opps_Open_&_Our_TO_Dbl_Balancing | `Opps_Open_&_Our_TO_Dbl_Balancing_v0.9.json` |
-| — | Opps Cappeletti (BBO) over our Strong 1NT | `Opps_Cappeletti_(BBO)_over_our_Strong_1NT_v1.0.json` |
-| — | Opps Open and we Overcall Cappeletti | `Opps_Open_and_we_Overcall_Cappeletti_v0.9.json` |
-| — | Opps Open Strong 1NT and we Overcall Cappeletti | `Opps_Open_Strong_1NT_and_we_Overcall_Cappeletti_v0.9.json` |
-| — | Our 1 Major & Opponents Interference | `Our_1_Major_&_Opponents_Interference_v0.9.json` |
-| — | Our 1 Major & Opponents Interference | `Our_1_Major_&_Opponents_Interference_v1.0.json` |
 | — | Responding with a Major to 1NT Opening | `Responding_with_a_Major_to_1NT_Opening_v0.9.json` |
+| — | We Open 1 Major and Opps Interfere | `We_Open_1_Major_and_Opps_Interfere_v1.0.json` |
+| — | We Open Strong 1NT and Opps Cappeletti (BBO) | `We_Open_Strong_1NT_and_Opps_Cappeletti_(BBO)_v1.0.json` |
 
 Profiles with `sort_order` appear at their fixed positions; profiles without `sort_order` are sorted by version (highest first), then alphabetically by name.
 
@@ -464,7 +462,7 @@ npx pyright bridge_engine/
 
 ## Test Coverage
 
-**512 passed** organized by:
+**521 passed** organized by:
 - Core matching: `test_seat_viability*.py`
 - Index coupling: `test_f3_opener_responder_coupling.py`
 - Profile viability: `test_profile_viability_*.py`

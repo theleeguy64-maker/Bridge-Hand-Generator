@@ -839,10 +839,9 @@ class HandProfile:
             buckets[seat] = seat_buckets
 
         # Ensure EW are present with empty buckets so callers don't need
-        # special cases.
+        # special cases.  The loop above only populates N/S.
         for seat in ("E", "W"):
-            if seat not in buckets:
-                buckets[seat] = {"driver": [], "follower": [], "neutral": []}
+            buckets[seat] = {"driver": [], "follower": [], "neutral": []}
 
         return buckets
 
@@ -881,10 +880,9 @@ class HandProfile:
             buckets[seat] = seat_buckets
 
         # Ensure NS are present with empty buckets so callers don't need
-        # special cases.
+        # special cases.  The loop above only populates E/W.
         for seat in ("N", "S"):
-            if seat not in buckets:
-                buckets[seat] = {"driver": [], "follower": [], "neutral": []}
+            buckets[seat] = {"driver": [], "follower": [], "neutral": []}
 
         return buckets
 
