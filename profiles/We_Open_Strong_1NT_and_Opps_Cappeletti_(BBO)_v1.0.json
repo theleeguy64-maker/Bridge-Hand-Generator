@@ -1,21 +1,21 @@
 {
   "author": "Lee",
-  "dealer": "W",
-  "description": "Opps open 1NT, we overcall Cappeletti (BBO) - single suiter and two suiters",
-  "ew_role_mode": "no_driver_no_index",
+  "dealer": "N",
+  "description": "Opps Interference using Cappeletti over our 1NT - single suiter and two suiters",
+  "ew_role_mode": "no_driver",
   "hand_dealing_order": [
-    "W",
     "N",
     "E",
-    "S"
+    "S",
+    "W"
   ],
   "is_invariants_safety_profile": false,
-  "ns_role_mode": "no_driver",
-  "profile_name": "Opps Open and we Overcall Cappeletti",
+  "ns_role_mode": "no_driver_no_index",
+  "profile_name": "We Open Strong 1NT and Opps Cappeletti (BBO)",
   "rotate_deals_by_default": true,
   "seat_profiles": {
-    "N": {
-      "seat": "N",
+    "E": {
+      "seat": "E",
       "subprofiles": [
         {
           "ew_role_usage": "any",
@@ -152,8 +152,50 @@
         }
       ]
     },
-    "E": {
-      "seat": "E",
+    "N": {
+      "seat": "N",
+      "subprofiles": [
+        {
+          "ew_role_usage": "any",
+          "name": "Strong 1NT",
+          "ns_role_usage": "any",
+          "opponents_contingent_suit_constraint": null,
+          "partner_contingent_constraint": null,
+          "random_suit_constraint": null,
+          "standard": {
+            "clubs": {
+              "max_cards": 5,
+              "max_hcp": 8,
+              "min_cards": 2,
+              "min_hcp": 0
+            },
+            "diamonds": {
+              "max_cards": 5,
+              "max_hcp": 8,
+              "min_cards": 2,
+              "min_hcp": 0
+            },
+            "hearts": {
+              "max_cards": 5,
+              "max_hcp": 8,
+              "min_cards": 2,
+              "min_hcp": 0
+            },
+            "spades": {
+              "max_cards": 5,
+              "max_hcp": 8,
+              "min_cards": 2,
+              "min_hcp": 0
+            },
+            "total_max_hcp": 17,
+            "total_min_hcp": 15
+          },
+          "weight_percent": 100.0
+        }
+      ]
+    },
+    "S": {
+      "seat": "S",
       "subprofiles": [
         {
           "ew_role_usage": "any",
@@ -308,8 +350,8 @@
         }
       ]
     },
-    "S": {
-      "seat": "S",
+    "W": {
+      "seat": "W",
       "subprofiles": [
         {
           "ew_role_usage": "any",
@@ -317,7 +359,7 @@
           "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": {
-            "partner_seat": "N",
+            "partner_seat": "E",
             "suit_range": {
               "max_cards": 5,
               "max_hcp": 6,
@@ -395,48 +437,6 @@
           "weight_percent": 50.0
         }
       ]
-    },
-    "W": {
-      "seat": "W",
-      "subprofiles": [
-        {
-          "ew_role_usage": "any",
-          "name": "Strong 1NT",
-          "ns_role_usage": "any",
-          "opponents_contingent_suit_constraint": null,
-          "partner_contingent_constraint": null,
-          "random_suit_constraint": null,
-          "standard": {
-            "clubs": {
-              "max_cards": 5,
-              "max_hcp": 8,
-              "min_cards": 2,
-              "min_hcp": 0
-            },
-            "diamonds": {
-              "max_cards": 5,
-              "max_hcp": 8,
-              "min_cards": 2,
-              "min_hcp": 0
-            },
-            "hearts": {
-              "max_cards": 5,
-              "max_hcp": 8,
-              "min_cards": 2,
-              "min_hcp": 0
-            },
-            "spades": {
-              "max_cards": 5,
-              "max_hcp": 8,
-              "min_cards": 2,
-              "min_hcp": 0
-            },
-            "total_max_hcp": 17,
-            "total_min_hcp": 15
-          },
-          "weight_percent": 100.0
-        }
-      ]
     }
   },
   "subprofile_exclusions": [
@@ -448,7 +448,7 @@
           "length_eq": 5
         }
       ],
-      "seat": "W",
+      "seat": "N",
       "subprofile_index": 1
     },
     {
@@ -464,7 +464,7 @@
           "length_eq": 4
         }
       ],
-      "seat": "W",
+      "seat": "N",
       "subprofile_index": 1
     },
     {
@@ -480,10 +480,10 @@
           "length_eq": 5
         }
       ],
-      "seat": "N",
+      "seat": "E",
       "subprofile_index": 2
     }
   ],
   "tag": "Opener",
-  "version": "0.9"
+  "version": "1.0"
 }

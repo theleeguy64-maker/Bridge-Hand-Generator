@@ -125,27 +125,21 @@ class TestResolveContingentTargetSuit:
         """When use_non_chosen=True, returns a suit NOT chosen by opponent."""
         rs_pre = {"W": ["H"]}
         rs_allowed = {"W": ["S", "H"]}
-        result = dg._resolve_contingent_target_suit(
-            "W", True, rs_pre, rs_allowed
-        )
+        result = dg._resolve_contingent_target_suit("W", True, rs_pre, rs_allowed)
         assert result == "S"
 
     def test_non_chosen_multiple_returns_first(self):
         """With multiple non-chosen suits, returns the first one."""
         rs_pre = {"W": ["H"]}
         rs_allowed = {"W": ["S", "H", "D", "C"]}
-        result = dg._resolve_contingent_target_suit(
-            "W", True, rs_pre, rs_allowed
-        )
+        result = dg._resolve_contingent_target_suit("W", True, rs_pre, rs_allowed)
         assert result == "S"
 
     def test_non_chosen_all_chosen_returns_none(self):
         """When opponent chose ALL allowed suits, no non-chosen → None."""
         rs_pre = {"W": ["S", "H"]}
         rs_allowed = {"W": ["S", "H"]}
-        result = dg._resolve_contingent_target_suit(
-            "W", True, rs_pre, rs_allowed
-        )
+        result = dg._resolve_contingent_target_suit("W", True, rs_pre, rs_allowed)
         assert result is None
 
     def test_non_chosen_no_allowed_suits_returns_none(self):
@@ -158,9 +152,7 @@ class TestResolveContingentTargetSuit:
         """When referenced seat not in rs_allowed_suits, returns None."""
         rs_pre = {"W": ["H"]}
         rs_allowed = {"E": ["S", "H"]}
-        result = dg._resolve_contingent_target_suit(
-            "W", True, rs_pre, rs_allowed
-        )
+        result = dg._resolve_contingent_target_suit("W", True, rs_pre, rs_allowed)
         assert result is None
 
 
@@ -240,9 +232,7 @@ class TestPreAllocateContingent:
             if 5 <= hcp <= 7:
                 in_range_count += 1
         # With rejection sampling, we expect a high hit rate (>60%).
-        assert in_range_count > 50, (
-            f"Only {in_range_count}/{trials} trials hit HCP target 5-7"
-        )
+        assert in_range_count > 50, f"Only {in_range_count}/{trials} trials hit HCP target 5-7"
 
     def test_all_cards_are_from_target_suit(self):
         """Every pre-allocated card must be from the target suit."""
@@ -252,9 +242,7 @@ class TestPreAllocateContingent:
             rng.shuffle(deck)
             sr = _DummySuitRange(min_cards=4, max_cards=8, min_hcp=0, max_hcp=10)
             result = dg._pre_allocate_contingent(rng, deck, suit, sr)
-            assert all(c[1] == suit for c in result), (
-                f"Found non-{suit} card in pre-allocation"
-            )
+            assert all(c[1] == suit for c in result), f"Found non-{suit} card in pre-allocation"
 
 
 # ===================================================================

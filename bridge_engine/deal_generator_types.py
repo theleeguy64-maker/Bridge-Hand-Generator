@@ -106,18 +106,31 @@ SHAPE_PROB_THRESHOLD: float = 0.19
 # 75% balances helping enough vs not depleting the deck for other seats.
 PRE_ALLOCATE_FRACTION: float = 0.75
 
-# How often (in attempts) to re-roll the RS suit pre-selections within a board.
-# Re-rolling protects against "stuck with a bad suit choice" scenarios by
-# trying different RS suit combinations across chunks of attempts.
-RS_REROLL_INTERVAL: int = 500
+# ---------------------------------------------------------------------------
+# Adaptive re-roll constants
+#
+# Instead of fixed re-roll intervals, the builder uses self-tuning intervals
+# that adapt at runtime based on consecutive failures.  When a subprofile
+# combo fails repeatedly, the interval shrinks (give up faster and try a new
+# combo).  When combos succeed quickly, the initial interval applies (let
+# them run longer).  This naturally favors easy combos and abandons hard
+# ones faster — reducing selection bias for profiles with uneven subprofile
+# difficulty (e.g. N sub 0 with a tight 4-point HCP window).
+# ---------------------------------------------------------------------------
 
-# How often (in attempts) to re-select subprofiles within a board.
-# This is critical for hard profiles where N/E have 4+ subprofiles each —
-# some subprofile combos are much easier than others (e.g. 3/16 combos might
-# be feasible while 13/16 are nearly impossible).  Re-selecting gives us
-# multiple bites at finding a workable combo within the same board.
-# Set to 0 to disable subprofile re-rolling.
-SUBPROFILE_REROLL_INTERVAL: int = 1000
+# Adaptive re-roll: initial interval (attempts before first re-roll).
+ADAPTIVE_SUB_REROLL_INITIAL: int = 150
+
+# Adaptive re-roll: minimum interval (floor — never re-roll faster than this).
+ADAPTIVE_SUB_REROLL_MIN: int = 50
+
+# Adaptive re-roll: decay factor applied on consecutive failures.
+# After each re-roll with no success, next_interval = max(min, int(current * decay)).
+ADAPTIVE_SUB_REROLL_DECAY: float = 0.7
+
+# RS re-roll uses a fixed ratio of the current sub-reroll interval.
+# rs_interval = int(sub_interval * ratio).
+ADAPTIVE_RS_REROLL_RATIO: float = 0.7
 
 # Number of retry attempts when pre-allocating RS suit cards to find a
 # sample whose HCP is on-track for the suit's HCP target.  This is a

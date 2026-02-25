@@ -27,8 +27,10 @@ from .deal_generator_types import (
     PRE_ALLOCATE_FRACTION,
     RS_PRE_ALLOCATE_FRACTION,
     RS_PRE_ALLOCATE_HCP_RETRIES,
-    SUBPROFILE_REROLL_INTERVAL,
-    RS_REROLL_INTERVAL,
+    ADAPTIVE_SUB_REROLL_INITIAL,
+    ADAPTIVE_SUB_REROLL_MIN,
+    ADAPTIVE_SUB_REROLL_DECAY,
+    ADAPTIVE_RS_REROLL_RATIO,
     FULL_DECK_HCP_SUM,
     FULL_DECK_HCP_SUM_SQ,
     MAX_HAND_HCP,
@@ -1129,21 +1131,34 @@ def _build_single_constrained_deal_v2(
 
     board_attempts = 0
 
+    # --- Adaptive re-roll state ---
+    # Intervals shrink on consecutive failures (decay), giving up on hard
+    # subprofile combos faster and cycling through more combos per board.
+    # Each board starts fresh at the initial interval.
+    sub_reroll_interval = ADAPTIVE_SUB_REROLL_INITIAL
+    rs_reroll_interval = int(sub_reroll_interval * ADAPTIVE_RS_REROLL_RATIO)
+    attempts_since_sub_reroll = 0  # attempts since last subprofile re-roll
+    attempts_since_rs_reroll = 0  # attempts since last RS re-roll
+
     _max_attempts = _dg.MAX_BOARD_ATTEMPTS
     while board_attempts < _max_attempts:
         board_attempts += 1
 
-        # Periodic subprofile re-roll: try different subprofile combinations.
+        # Adaptive subprofile re-roll: try different subprofile combinations.
         # This is critical for hard profiles with many subprofiles per seat
         # (e.g. N/E each have 4 → 16 combos, some much easier than others).
         # Re-selecting subprofiles also re-selects RS suits and rebuilds
         # processing order since different subprofiles may have different
         # constraint types (RS, OC, etc.).
-        if (
-            board_attempts > 1
-            and SUBPROFILE_REROLL_INTERVAL > 0
-            and (board_attempts - 1) % SUBPROFILE_REROLL_INTERVAL == 0
-        ):
+        # Interval decays on consecutive failures — hard combos are abandoned
+        # faster, easy combos get more attempts.
+        if board_attempts > 1 and attempts_since_sub_reroll >= sub_reroll_interval:
+            # Decay interval for next time (consecutive failures = shrinking patience).
+            sub_reroll_interval = max(ADAPTIVE_SUB_REROLL_MIN, int(sub_reroll_interval * ADAPTIVE_SUB_REROLL_DECAY))
+            rs_reroll_interval = int(sub_reroll_interval * ADAPTIVE_RS_REROLL_RATIO)
+            attempts_since_sub_reroll = 0
+            attempts_since_rs_reroll = 0
+
             chosen_subprofiles, chosen_indices = _dg._select_subprofiles_for_board(rng, profile, profile_dealing_order)
             # Recompute dealing order for new subprofile combination.
             dealing_order = _compute_dealing_order(chosen_subprofiles, profile.dealer)
@@ -1153,12 +1168,17 @@ def _build_single_constrained_deal_v2(
             # Rebuild processing order since RS seats may have changed.
             processing_order = _build_processing_order(profile, dealing_order, chosen_subprofiles)
 
-        # Periodic RS re-roll (more frequent): try different RS suit
+        # Adaptive RS re-roll (more frequent): try different RS suit
         # combinations within the same subprofile selection.
-        elif board_attempts > 1 and RS_REROLL_INTERVAL > 0 and (board_attempts - 1) % RS_REROLL_INTERVAL == 0:
+        elif board_attempts > 1 and attempts_since_rs_reroll >= rs_reroll_interval:
+            attempts_since_rs_reroll = 0
             rs_pre_selections = _pre_select_rs_suits(rng, chosen_subprofiles, dealing_order)
             # rs_allowed_suits unchanged — same subprofiles, same allowed_suits.
             tight_seats = _dispersion_check(chosen_subprofiles, rs_pre_selections=rs_pre_selections)
+
+        # Increment attempt counters (after re-roll checks so first attempt = 1).
+        attempts_since_sub_reroll += 1
+        attempts_since_rs_reroll += 1
 
         # Build and shuffle a full deck.
         deck = _build_deck()

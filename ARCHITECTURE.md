@@ -5,8 +5,8 @@
 ```
 bridge_engine/
 ├── deal_generator.py        (358 lines) - Facade: subprofile selection + generate_deals() + re-exports
-├── deal_generator_v2.py   (1,373 lines) - v2 shape-help helpers + v2 builder (active path)
-├── deal_generator_types.py  (227 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
+├── deal_generator_v2.py   (1,393 lines) - v2 shape-help helpers + v2 builder (active path)
+├── deal_generator_types.py  (240 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py (384 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (911 lines) - Data models (incl. EW role mode)
 ├── seat_viability.py        (623 lines) - Constraint matching + RS pre-selection threading
@@ -148,9 +148,9 @@ _deal_with_help(rng, deck, subs, tight_seats, order, rs_pre_selections)
 _match_seat(... rs_pre_selections) per seat (RS first, then others)
     ↓
 Success → Deal | Failure → retry (up to MAX_BOARD_ATTEMPTS)
-    ↓ (every SUBPROFILE_REROLL_INTERVAL attempts)
+    ↓ (adaptive interval: starts at 150, decays 0.7× on consecutive failures, floor 50)
 Re-select subprofiles (different N/E combos) + RS suits
-    ↓ (every RS_REROLL_INTERVAL attempts)
+    ↓ (RS interval = sub interval × 0.7)
 Re-select RS suits to avoid "stuck with bad suit" scenarios
     ↓ (on board exhaustion)
 Board-level retry in generate_deals (up to MAX_BOARD_RETRIES)
@@ -165,8 +165,10 @@ Adaptive re-seed: replace RNG with fresh SystemRandom seed
 | `SHAPE_PROB_THRESHOLD` | 0.19 | Cutoff for "tight" seats |
 | `PRE_ALLOCATE_FRACTION` | 0.75 | Fraction of standard suit minima to pre-allocate |
 | `RS_PRE_ALLOCATE_FRACTION` | 1.0 | Fraction of RS suit minima to pre-allocate (full, with HCP targeting) |
-| `RS_REROLL_INTERVAL` | 500 | Re-select RS suits every N attempts |
-| `SUBPROFILE_REROLL_INTERVAL` | 1000 | Re-select subprofiles every N attempts |
+| `ADAPTIVE_SUB_REROLL_INITIAL` | 150 | Initial attempts before first subprofile re-roll |
+| `ADAPTIVE_SUB_REROLL_MIN` | 50 | Floor — never re-roll faster than this |
+| `ADAPTIVE_SUB_REROLL_DECAY` | 0.7 | Decay factor on consecutive failures |
+| `ADAPTIVE_RS_REROLL_RATIO` | 0.7 | RS interval = sub interval × 0.7 |
 | `RS_PRE_ALLOCATE_HCP_RETRIES` | 10 | Rejection sampling retries for HCP-targeted RS pre-alloc |
 | `MAX_BOARD_RETRIES` | 50 | Retries per board in generate_deals() |
 | `RESEED_TIME_THRESHOLD_SECONDS` | 1.75 | Per-board wall-clock budget before adaptive re-seeding |

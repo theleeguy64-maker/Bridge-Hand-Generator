@@ -42,7 +42,7 @@ from .setup_env import run_setup, SetupError, SetupResult
 from .hand_profile import HandProfile, ProfileError, validate_profile
 from .deal_generator import DealSet, DealGenerationError, generate_deals
 from .deal_output import DealOutputSummary, OutputError, render_deals
-from .cli_io import _yes_no_help
+from .cli_io import _input_with_default, _yes_no_help
 from .profile_cli import _input_int
 
 from . import profile_cli
@@ -50,47 +50,6 @@ from . import profile_store
 from . import lin_tools
 from . import profile_diagnostic
 from .profile_store import PROFILE_DIR_NAME
-
-
-# ---------------------------------------------------------------------------
-# Utility helpers
-# ---------------------------------------------------------------------------
-
-
-def _input_with_default(prompt: str, default: str) -> str:
-    """
-    Prompt the user with a default value.
-
-    Example:
-        name = _input_with_default("Owner name", "Lee")
-    """
-    full_prompt = f"{prompt} [{default}]: "
-    response = input(full_prompt).strip()
-    if not response:
-        return default
-    return response
-
-
-def _input_int_with_default(prompt: str, default: int, minimum: int = 1) -> int:
-    """
-    Prompt for an integer with a default and simple validation.
-    """
-    while True:
-        full_prompt = f"{prompt} [{default}]: "
-        raw = input(full_prompt).strip()
-        if not raw:
-            value = default
-        else:
-            try:
-                value = int(raw)
-            except ValueError:
-                print("Please enter a whole number.")
-                continue
-
-        if value < minimum:
-            print(f"Please enter a value >= {minimum}.")
-            continue
-        return value
 
 
 # ---------------------------------------------------------------------------
@@ -269,7 +228,7 @@ def _run_deal_generation_session() -> None:
     owner = _input_with_default("Owner / player name", "Lee")
     base_dir_str = _input_with_default("Base output directory (will contain txt/ and lin/)", "out")
     base_dir = Path(base_dir_str).expanduser().resolve()
-    num_deals = _input_int_with_default("Number of deals to generate", 6, minimum=1)
+    num_deals = _input_int("Number of deals to generate", 6, 1, 9999, show_range_suffix=False)
 
     print("\nSection A: environment setup")
     print(f"  Base dir: {base_dir}")
@@ -432,7 +391,7 @@ def _run_profile_diagnostic_interactive() -> None:
     if profile is None:
         return
 
-    num_boards = _input_int_with_default("Number of boards to diagnose", 20, minimum=1)
+    num_boards = _input_int("Number of boards to diagnose", 20, 1, 9999, show_range_suffix=False)
 
     profile_diagnostic.run_profile_diagnostic(
         profile=profile,

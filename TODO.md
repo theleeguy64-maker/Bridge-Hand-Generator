@@ -591,6 +591,17 @@
 - ✅ **A2**: Added combined HCP minimum check (`> 40`) to `_pair_jointly_viable()` in `profile_viability.py`
 - ✅ **C1**: Fixed stale "NS index-coupled pair" docstring → "NS or EW" in `_pair_jointly_viable()`
 
+### 73. [x] Adaptive subprofile re-roll intervals
+- ✅ Replaced fixed `SUBPROFILE_REROLL_INTERVAL=150` and `RS_REROLL_INTERVAL=105` with 4 adaptive constants
+- ✅ `ADAPTIVE_SUB_REROLL_INITIAL=150` — starting interval (same as old fixed value)
+- ✅ `ADAPTIVE_SUB_REROLL_MIN=50` — floor (never re-roll faster than this)
+- ✅ `ADAPTIVE_SUB_REROLL_DECAY=0.7` — shrink factor on consecutive failures
+- ✅ `ADAPTIVE_RS_REROLL_RATIO=0.7` — RS interval = sub interval × 0.7
+- ✅ Builder loop tracks `attempts_since_sub_reroll` / `attempts_since_rs_reroll` counters
+- ✅ On sub re-roll: decay interval, reset counters, re-select subprofiles + RS suits
+- ✅ Each board starts fresh at the initial interval
+- **Benchmark (5 seeds × 500 boards)**: N sub 0 hit rate 17.5% → 19.6% (+2.1pp closer to 25% target), max deviation 9.2pp → 7.6pp, ~6% faster overall
+
 ### 66. [x] Sub-profile skip prompt during constraint editing
 - ✅ Added Y/n "Edit Sub-profile N?" prompt in `_build_seat_profile()` when editing existing profiles
 - ✅ Skipping preserves the existing sub-profile as-is (no re-entry needed)

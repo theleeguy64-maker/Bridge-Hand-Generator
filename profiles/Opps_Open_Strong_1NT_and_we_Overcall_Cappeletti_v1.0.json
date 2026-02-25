@@ -49,10 +49,10 @@
               "min_cards": 0,
               "min_hcp": 0
             },
-            "total_max_hcp": 14,
+            "total_max_hcp": 10,
             "total_min_hcp": 6
           },
-          "weight_percent": 50.0
+          "weight_percent": 25.0
         },
         {
           "ew_role_usage": "any",
@@ -110,63 +110,40 @@
         },
         {
           "ew_role_usage": "any",
-          "name": "2 suiter",
+          "name": "weak",
           "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
-          "random_suit_constraint": {
-            "allowed_suits": [
-              "S",
-              "H",
-              "D",
-              "C"
-            ],
-            "pair_overrides": [],
-            "required_suits_count": 2,
-            "suit_ranges": [
-              {
-                "max_cards": 5,
-                "max_hcp": 7,
-                "min_cards": 5,
-                "min_hcp": 3
-              },
-              {
-                "max_cards": 5,
-                "max_hcp": 7,
-                "min_cards": 4,
-                "min_hcp": 3
-              }
-            ]
-          },
+          "random_suit_constraint": null,
           "standard": {
             "clubs": {
-              "max_cards": 5,
-              "max_hcp": 8,
+              "max_cards": 6,
+              "max_hcp": 10,
               "min_cards": 0,
               "min_hcp": 0
             },
             "diamonds": {
-              "max_cards": 5,
-              "max_hcp": 8,
+              "max_cards": 6,
+              "max_hcp": 10,
               "min_cards": 0,
               "min_hcp": 0
             },
             "hearts": {
-              "max_cards": 5,
-              "max_hcp": 8,
+              "max_cards": 6,
+              "max_hcp": 10,
               "min_cards": 0,
               "min_hcp": 0
             },
             "spades": {
-              "max_cards": 5,
-              "max_hcp": 8,
+              "max_cards": 6,
+              "max_hcp": 10,
               "min_cards": 0,
               "min_hcp": 0
             },
-            "total_max_hcp": 10,
-            "total_min_hcp": 5
+            "total_max_hcp": 6,
+            "total_min_hcp": 0
           },
-          "weight_percent": 25.0
+          "weight_percent": 50.0
         }
       ]
     },
@@ -352,8 +329,8 @@
               "min_cards": 0,
               "min_hcp": 0
             },
-            "total_max_hcp": 6,
-            "total_min_hcp": 2
+            "total_max_hcp": 10,
+            "total_min_hcp": 6
           },
           "weight_percent": 50.0
         },
@@ -389,8 +366,8 @@
               "min_cards": 0,
               "min_hcp": 0
             },
-            "total_max_hcp": 8,
-            "total_min_hcp": 2
+            "total_max_hcp": 10,
+            "total_min_hcp": 6
           },
           "weight_percent": 50.0
         }
@@ -485,5 +462,5 @@
     }
   ],
   "tag": "Opener",
-  "version": "0.9"
+  "version": "1.0"
 }
