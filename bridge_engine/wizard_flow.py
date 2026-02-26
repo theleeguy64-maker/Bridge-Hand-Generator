@@ -1339,6 +1339,106 @@ def _autosave_profile_draft(profile: HandProfile, original_path: Path) -> None:
         return
 
 
+def _edit_bespoke_map(
+    pair_label: str,
+    role_mode: str,
+    driver_sp: SeatProfile,
+    follower_sp: SeatProfile,
+    existing_map: Optional[Dict[int, List[int]]] = None,
+) -> Optional[Dict[int, List[int]]]:
+    """
+    Interactively build a bespoke subprofile matching map for a pair.
+
+    Parameters:
+        pair_label:   "NS" or "EW" — for display.
+        role_mode:    The role mode for this pair.
+        driver_sp:    The driver SeatProfile (its subprofiles define keys).
+        follower_sp:  The follower SeatProfile (its subprofiles define values).
+        existing_map: Previously configured map (for re-editing), or None.
+
+    Returns:
+        A Dict[int, List[int]] mapping driver sub index → list of eligible
+        follower sub indices, or None if the user declines bespoke matching.
+
+    Skipped entirely if role_mode is "no_driver_no_index" or "random_driver"
+    (bespoke maps require a fixed driver).
+    """
+    # Bespoke maps only work with fixed drivers.
+    if role_mode in ("no_driver_no_index", "random_driver"):
+        return None
+
+    # Note: callers already guard against both seats having <=1 sub,
+    # so we proceed directly to the user prompt.
+
+    default_use = "y" if existing_map is not None else "n"
+    use_bespoke = _yes_no(
+        f"Use bespoke subprofile matching for {pair_label}?",
+        default=(default_use == "y"),
+    )
+    if not use_bespoke:
+        return None
+
+    bespoke_map: Dict[int, List[int]] = {}
+    num_follower = len(follower_sp.subprofiles)
+
+    for d_idx, d_sub in enumerate(driver_sp.subprofiles):
+        d_label = sub_label(d_idx + 1, d_sub)
+
+        # Show follower options.
+        follower_labels = []
+        for f_idx, f_sub in enumerate(follower_sp.subprofiles):
+            follower_labels.append(sub_label(f_idx + 1, f_sub))
+
+        # Default: existing map or all follower subs.
+        if existing_map is not None and d_idx in existing_map:
+            default_vals = existing_map[d_idx]
+        else:
+            default_vals = list(range(num_follower))
+
+        # Display default as 1-based.
+        default_str = ",".join(str(v + 1) for v in default_vals)
+
+        print(f"\n  {d_label} can pair with which follower sub-profiles?")
+        for f_idx, fl in enumerate(follower_labels):
+            print(f"    {f_idx + 1}. {fl}")
+
+        raw = _input_with_default(
+            f"  Enter follower sub-profile numbers (comma-separated) [{default_str}]: ",
+            default_str,
+        )
+
+        # Parse input: 1-based → 0-based.
+        chosen: List[int] = []
+        for part in raw.split(","):
+            part = part.strip()
+            if part.isdigit():
+                val = int(part) - 1  # Convert to 0-based
+                if 0 <= val < num_follower:
+                    chosen.append(val)
+
+        if not chosen:
+            # Fallback to all.
+            chosen = list(range(num_follower))
+
+        bespoke_map[d_idx] = chosen
+
+    # Validate: every follower sub must appear at least once.
+    all_followers = set()
+    for vals in bespoke_map.values():
+        all_followers.update(vals)
+    orphaned = [i for i in range(num_follower) if i not in all_followers]
+    if orphaned:
+        orphaned_labels = [sub_label(i + 1, follower_sp.subprofiles[i]) for i in orphaned]
+        print("\n  WARNING: The following follower subs are orphaned (not paired with any driver):")
+        for lbl in orphaned_labels:
+            print(f"    - {lbl}")
+        print("  Adding them to all driver entries to avoid validation errors.")
+        for d_idx in bespoke_map:
+            bespoke_map[d_idx] = list(set(bespoke_map[d_idx]) | set(orphaned))
+
+    return bespoke_map
+
+
 def _build_profile(
     existing: Optional[HandProfile] = None,
     original_path: Optional[Path] = None,
@@ -1514,6 +1614,44 @@ def _build_profile(
     ns_role_mode = existing.ns_role_mode
     ew_role_mode = existing.ew_role_mode
 
+    # --- Bespoke subprofile matching (after all seats are configured) ---
+    ns_bespoke_map: Optional[Dict[int, List[int]]] = None
+    ew_bespoke_map: Optional[Dict[int, List[int]]] = None
+
+    # NS bespoke map: only if both N and S have >1 subprofile.
+    n_sp = seat_profiles.get("N")
+    s_sp = seat_profiles.get("S")
+    if n_sp is not None and s_sp is not None and (len(n_sp.subprofiles) > 1 or len(s_sp.subprofiles) > 1):
+        # Determine driver/follower order from role mode.
+        if ns_role_mode == "south_drives":
+            ns_driver_sp, ns_follower_sp = s_sp, n_sp
+        else:
+            # north_drives (or other modes): N is driver.
+            ns_driver_sp, ns_follower_sp = n_sp, s_sp
+        ns_bespoke_map = _edit_bespoke_map(
+            "NS",
+            ns_role_mode,
+            ns_driver_sp,
+            ns_follower_sp,
+            existing_map=existing.ns_bespoke_map,
+        )
+
+    # EW bespoke map: only if both E and W have >1 subprofile.
+    e_sp = seat_profiles.get("E")
+    w_sp = seat_profiles.get("W")
+    if e_sp is not None and w_sp is not None and (len(e_sp.subprofiles) > 1 or len(w_sp.subprofiles) > 1):
+        if ew_role_mode == "west_drives":
+            ew_driver_sp, ew_follower_sp = w_sp, e_sp
+        else:
+            ew_driver_sp, ew_follower_sp = e_sp, w_sp
+        ew_bespoke_map = _edit_bespoke_map(
+            "EW",
+            ew_role_mode,
+            ew_driver_sp,
+            ew_follower_sp,
+            existing_map=existing.ew_bespoke_map,
+        )
+
     return {
         "profile_name": profile_name,
         "description": description,
@@ -1526,6 +1664,8 @@ def _build_profile(
         "rotate_deals_by_default": rotate_flag,
         "ns_role_mode": ns_role_mode,
         "ew_role_mode": ew_role_mode,
+        "ns_bespoke_map": ns_bespoke_map,
+        "ew_bespoke_map": ew_bespoke_map,
         "subprofile_exclusions": list(subprofile_exclusions),
         "sort_order": existing.sort_order,
     }

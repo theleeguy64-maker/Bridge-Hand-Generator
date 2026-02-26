@@ -459,6 +459,31 @@ def _print_profile_metadata(profile: HandProfile, path: Path) -> None:
         "random_driver": "Random between E/W",
     }.get(ew_mode, ew_mode)
     print(f"EW mode     : {ew_mode_pretty}")
+
+    # Display bespoke maps when present.
+    for pair_name, bmap, d_key, f_key in [
+        ("NS", profile.ns_bespoke_map, "N", "S"),
+        ("EW", profile.ew_bespoke_map, "E", "W"),
+    ]:
+        if bmap is not None:
+            # Determine driver/follower from role mode.
+            if pair_name == "NS" and profile.ns_role_mode == "south_drives":
+                d_key, f_key = "S", "N"
+            elif pair_name == "EW" and profile.ew_role_mode == "west_drives":
+                d_key, f_key = "W", "E"
+
+            d_sp = profile.seat_profiles.get(d_key)
+            f_sp = profile.seat_profiles.get(f_key)
+            print(f"\n{pair_name} Bespoke Map (driver={d_key}, follower={f_key}):")
+            for d_idx in sorted(bmap.keys()):
+                d_label = sub_label(d_idx + 1, d_sp.subprofiles[d_idx]) if d_sp else f"Sub {d_idx + 1}"
+                f_indices = bmap[d_idx]
+                if f_sp:
+                    f_labels = [sub_label(fi + 1, f_sp.subprofiles[fi]) for fi in f_indices]
+                else:
+                    f_labels = [f"Sub {fi + 1}" for fi in f_indices]
+                print(f"  {d_label} → [{', '.join(f_labels)}]")
+
     print(f"File name   : {path.name}")
 
 
@@ -794,6 +819,8 @@ def edit_profile_action() -> None:
                 rotate_deals_by_default=rotate_default,
                 ns_role_mode=new_ns_role_mode,
                 ew_role_mode=new_ew_role_mode,
+                ns_bespoke_map=profile.ns_bespoke_map,
+                ew_bespoke_map=profile.ew_bespoke_map,
                 subprofile_exclusions=list(profile.subprofile_exclusions),
                 is_invariants_safety_profile=profile.is_invariants_safety_profile,
                 sort_order=profile.sort_order,
@@ -882,6 +909,8 @@ def edit_profile_action() -> None:
                     rotate_deals_by_default=profile.rotate_deals_by_default,
                     ns_role_mode=profile.ns_role_mode,
                     ew_role_mode=profile.ew_role_mode,
+                    ns_bespoke_map=profile.ns_bespoke_map,
+                    ew_bespoke_map=profile.ew_bespoke_map,
                     subprofile_exclusions=list(profile.subprofile_exclusions),
                     is_invariants_safety_profile=profile.is_invariants_safety_profile,
                     sort_order=profile.sort_order,
@@ -934,6 +963,8 @@ def save_as_new_version_action() -> None:
         rotate_deals_by_default=profile.rotate_deals_by_default,
         ns_role_mode=profile.ns_role_mode,
         ew_role_mode=profile.ew_role_mode,
+        ns_bespoke_map=profile.ns_bespoke_map,
+        ew_bespoke_map=profile.ew_bespoke_map,
         subprofile_exclusions=list(profile.subprofile_exclusions),
         is_invariants_safety_profile=profile.is_invariants_safety_profile,
         sort_order=profile.sort_order,

@@ -30,7 +30,7 @@ Profile Viability (Stage 0-2)
     ↓ (pass)
 Deal Generation Loop
     ↓
-Select Subprofiles (with NS/EW index coupling)
+Select Subprofiles (with NS/EW coupling, role filtering, bespoke matching)
     ↓
 Pre-select RS suits (make RS visible to help system)
     ↓
@@ -92,7 +92,9 @@ Per-attempt tracking for diagnostics:
 - Adaptive re-seeding (#12): per-board timing + auto re-seed on slow boards (1.75s threshold) — eliminates seed-dependent variance
 - RS override (#70): RS constraints override standard per-suit checks for chosen suits — enables tight side-suit constraints alongside wider RS ranges
 - OC/PC contingent pre-allocation (#71): pre-allocate cards for OC/PC target suits using opponent/partner RS pre-selections — OC subs ~2x faster
-- 540 tests passing
+- Role filtering (#75): driver/follower role usage tags (`driver_only`, `follower_only`, `any`) enforced at runtime during subprofile selection
+- Bespoke subprofile matching (#76): explicit driver→follower sub mapping (`ns_bespoke_map`/`ew_bespoke_map`) allows unequal sub counts and custom pairing
+- 608 tests passing
 
 ### Remaining Work
 - **Benchmark suite** — establish baseline performance metrics across test profiles (A-E + production profiles) to track v2 optimization impact
@@ -109,17 +111,17 @@ Per-attempt tracking for diagnostics:
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `deal_generator.py` | 358 | Facade: subprofile selection + `generate_deals()` + re-exports |
-| `deal_generator_v2.py` | 1,373 | v2 shape-help helpers + v2 builder (active production path) |
-| `deal_generator_types.py` | 227 | Types, constants, dataclasses, exception, debug hooks (leaf module) |
-| `deal_generator_helpers.py` | 384 | Shared utilities: viability, HCP, deck helpers, vulnerability/rotation |
-| `hand_profile_model.py` | 911 | Data models: SubProfile, SeatProfile, HandProfile (incl. EW role mode) |
+| `deal_generator.py` | 407 | Facade: subprofile selection + `generate_deals()` + re-exports |
+| `deal_generator_v2.py` | 1,394 | v2 shape-help helpers + v2 builder (active production path) |
+| `deal_generator_types.py` | 240 | Types, constants, dataclasses, exception, debug hooks (leaf module) |
+| `deal_generator_helpers.py` | 438 | Shared utilities: viability, HCP, deck helpers, role filtering, vulnerability/rotation |
+| `hand_profile_model.py` | 946 | Data models: SubProfile, SeatProfile, HandProfile (incl. role mode, bespoke maps) |
 | `seat_viability.py` | 623 | Constraint matching: `_match_seat`, `_match_subprofile`, RS pre-selection |
-| `hand_profile_validate.py` | 610 | Profile validation (incl. EW role usage coverage) |
+| `hand_profile_validate.py` | 715 | Profile validation (incl. role usage coverage, bespoke map validation) |
 | `profile_viability.py` | 394 | Profile-level viability + cross-seat feasibility + EW coupling |
-| `wizard_flow.py` | 1,556 | Wizard steps, per-sub role/exclusion editing, RS/PC/OC prompts |
-| `profile_cli.py` | 1,038 | Profile commands (incl. EW role mode editing, atomic saves) |
-| `orchestrator.py` | 473 | CLI/session management + generic menu loop |
+| `wizard_flow.py` | 1,696 | Wizard steps, per-sub role/exclusion editing, bespoke map editing |
+| `profile_cli.py` | 1,062 | Profile commands (incl. role mode editing, bespoke map display, atomic saves) |
+| `orchestrator.py` | 432 | CLI/session management + generic menu loop |
 | `profile_store.py` | 310 | JSON persistence (atomic writes, error-tolerant loading, display ordering) |
 | `failure_report.py` | 271 | Failure attribution diagnostic (uses v2 builder) |
 
@@ -130,5 +132,7 @@ Per-attempt tracking for diagnostics:
 - **SeatProfile**: List of SubProfiles (alternatives) for a seat
 - **HandProfile**: Complete profile with all seats + metadata
 - **Dealing Order**: Which seat gets cards first (affects attribution)
-- **NS/EW Coupling**: Partners use same subprofile index
+- **NS/EW Coupling**: Partners use same subprofile index (or bespoke map)
 - **Driver/Follower**: Which partner's index choice drives the coupling
+- **Bespoke Map**: Explicit driver→follower sub mapping, replacing equal-index coupling
+- **Role Filtering**: `driver_only`/`follower_only`/`any` tags restrict which subs are eligible per seat role

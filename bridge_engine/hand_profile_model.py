@@ -631,9 +631,12 @@ class HandProfile:
 
     Full hand profile for one scenario.
 
-    NOTE: ns_role_mode is a Phase-3 field controlling who “drives” the
-    N-S partnership. For now it is metadata-only; generator logic still
-    behaves as in Phase 2 when this is left at the default.
+    NOTE: ns_role_mode controls who “drives” the N-S partnership at
+    runtime.  When set to a driver mode (north_drives, south_drives,
+    random_driver), the deal generator uses role filtering to restrict
+    subprofile selection based on ns_role_usage.  When combined with
+    ns_bespoke_map, it also enables bespoke subprofile matching.
+    The default “no_driver_no_index” disables both features.
     """
 
     profile_name: str
@@ -650,6 +653,18 @@ class HandProfile:
     # EW role mode (parallel to ns_role_mode for E/W partnership).
     # "no_driver_no_index" (default), "east_drives", "west_drives", or "random_driver".
     ew_role_mode: str = "no_driver_no_index"
+
+    # Bespoke subprofile matching maps (Phase 3).
+    #
+    # When set, these replace the default equal-index coupling with an explicit
+    # driver→follower map.  Keys are 0-based driver subprofile indices; values
+    # are lists of 0-based follower subprofile indices eligible to pair with
+    # that driver sub.  Allows unequal subprofile counts between paired seats.
+    #
+    # None (default) = use standard index coupling (same index for both seats).
+    ns_bespoke_map: Optional[Dict[int, List[int]]] = None
+    ew_bespoke_map: Optional[Dict[int, List[int]]] = None
+
     subprofile_exclusions: List["SubprofileExclusionData"] = field(default_factory=list)
 
     # Explicit flag replacing magic profile name check (P1.1 refactor)
@@ -706,6 +721,18 @@ class HandProfile:
         else:
             dealing_order = _default_dealing_order(dealer)
 
+        # Bespoke maps: parse string keys → int, values → List[int].
+        # None when absent (legacy/standard profiles).
+        def _parse_bespoke_map(raw_map: Any) -> Optional[Dict[int, List[int]]]:
+            if raw_map is None:
+                return None
+            if not isinstance(raw_map, dict):
+                return None
+            return {int(k): [int(v) for v in vals] for k, vals in raw_map.items()}
+
+        ns_bespoke = _parse_bespoke_map(data.get("ns_bespoke_map"))
+        ew_bespoke = _parse_bespoke_map(data.get("ew_bespoke_map"))
+
         return cls(
             profile_name=str(data["profile_name"]),
             description=str(data.get("description", "")),
@@ -722,6 +749,8 @@ class HandProfile:
             # when loading from arbitrary JSON.
             ns_role_mode=str(data.get("ns_role_mode", "no_driver_no_index") or "no_driver_no_index"),
             ew_role_mode=str(data.get("ew_role_mode", "no_driver_no_index") or "no_driver_no_index"),
+            ns_bespoke_map=ns_bespoke,
+            ew_bespoke_map=ew_bespoke,
             subprofile_exclusions=exclusions,
             # P1.1 refactor: explicit flags (default False for production profiles)
             is_invariants_safety_profile=bool(data.get("is_invariants_safety_profile", False)),
@@ -891,7 +920,7 @@ class HandProfile:
     # ------------------------------------------------------------------
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        d: Dict[str, Any] = {
             "profile_name": self.profile_name,
             "description": self.description,
             "dealer": self.dealer,
@@ -905,5 +934,13 @@ class HandProfile:
             "seat_profiles": {seat: sp.to_dict() for seat, sp in self.seat_profiles.items()},
             "subprofile_exclusions": [e.to_dict() for e in self.subprofile_exclusions],
             "is_invariants_safety_profile": self.is_invariants_safety_profile,
-            **({"sort_order": self.sort_order} if self.sort_order is not None else {}),
         }
+        if self.sort_order is not None:
+            d["sort_order"] = self.sort_order
+        # Bespoke maps: emit with string keys (JSON requires string keys).
+        # Only include when set (keeps JSON clean for profiles without bespoke maps).
+        if self.ns_bespoke_map is not None:
+            d["ns_bespoke_map"] = {str(k): v for k, v in self.ns_bespoke_map.items()}
+        if self.ew_bespoke_map is not None:
+            d["ew_bespoke_map"] = {str(k): v for k, v in self.ew_bespoke_map.items()}
+        return d

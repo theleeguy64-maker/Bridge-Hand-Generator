@@ -504,6 +504,107 @@ def _validate_opponent_contingent(profile: HandProfile) -> None:
                         )
 
 
+def _validate_bespoke_map(profile: HandProfile) -> None:
+    """
+    Validate ns_bespoke_map and ew_bespoke_map on a HandProfile.
+
+    For each map (when not None):
+      1. Reject if role_mode is "no_driver_no_index" or "random_driver"
+         (bespoke maps require a fixed driver).
+      2. All driver indices (keys) must be valid: 0 <= key < len(driver_seat.subprofiles).
+      3. All follower indices (values) must be valid: 0 <= idx < len(follower_seat.subprofiles).
+      4. Every driver sub index must be a key (exhaustive for driver).
+      5. Every follower sub index must appear in at least one value list (exhaustive for follower).
+      6. No empty value lists.
+    """
+    # getattr needed: tests pass duck-typed _DummyProfile objects that
+    # lack bespoke map and role mode fields.
+    ns_bmap = getattr(profile, "ns_bespoke_map", None)
+    ew_bmap = getattr(profile, "ew_bespoke_map", None)
+    ns_rmode = getattr(profile, "ns_role_mode", "no_driver_no_index")
+    ew_rmode = getattr(profile, "ew_role_mode", "no_driver_no_index")
+
+    for pair_label, bmap, role_mode, driver_seat_key, follower_seat_key in [
+        ("NS", ns_bmap, ns_rmode, "N", "S"),
+        ("EW", ew_bmap, ew_rmode, "E", "W"),
+    ]:
+        if bmap is None:
+            continue
+
+        # 1. Reject incompatible role modes.
+        if role_mode in ("no_driver_no_index", "random_driver"):
+            raise ProfileError(
+                f"{pair_label} bespoke map is not compatible with "
+                f"role_mode={role_mode!r}. Bespoke maps require a fixed driver."
+            )
+
+        # Determine which seat is driver based on role_mode.
+        if pair_label == "NS":
+            if role_mode == "north_drives":
+                d_key, f_key = "N", "S"
+            elif role_mode == "south_drives":
+                d_key, f_key = "S", "N"
+            else:
+                d_key, f_key = driver_seat_key, follower_seat_key
+        else:
+            if role_mode == "east_drives":
+                d_key, f_key = "E", "W"
+            elif role_mode == "west_drives":
+                d_key, f_key = "W", "E"
+            else:
+                d_key, f_key = driver_seat_key, follower_seat_key
+
+        driver_sp = profile.seat_profiles.get(d_key)
+        follower_sp = profile.seat_profiles.get(f_key)
+
+        if driver_sp is None or follower_sp is None:
+            raise ProfileError(f"{pair_label} bespoke map requires both {d_key} and {f_key} to have seat profiles.")
+
+        num_driver_subs = len(driver_sp.subprofiles)
+        num_follower_subs = len(follower_sp.subprofiles)
+
+        # 2. Validate driver index keys.
+        for key in bmap:
+            if not (0 <= key < num_driver_subs):
+                raise ProfileError(
+                    f"{pair_label} bespoke map: driver index {key} out of bounds "
+                    f"(driver seat {d_key} has {num_driver_subs} subprofiles)."
+                )
+
+        # 3. Validate follower index values.
+        for key, follower_indices in bmap.items():
+            for idx in follower_indices:
+                if not (0 <= idx < num_follower_subs):
+                    raise ProfileError(
+                        f"{pair_label} bespoke map: follower index {idx} (for driver key {key}) "
+                        f"out of bounds (follower seat {f_key} has {num_follower_subs} subprofiles)."
+                    )
+
+        # 4. Every driver sub index must be a key (exhaustive for driver).
+        for i in range(num_driver_subs):
+            if i not in bmap:
+                raise ProfileError(
+                    f"{pair_label} bespoke map: driver sub index {i} is missing as a key "
+                    f"(all {num_driver_subs} driver sub indices must be present)."
+                )
+
+        # 5. Every follower sub index must appear in at least one value list.
+        all_follower_indices: Set[int] = set()
+        for vals in bmap.values():
+            all_follower_indices.update(vals)
+        for i in range(num_follower_subs):
+            if i not in all_follower_indices:
+                raise ProfileError(
+                    f"{pair_label} bespoke map: follower sub index {i} does not appear "
+                    f"in any driver's candidate list (all follower subs must be reachable)."
+                )
+
+        # 6. No empty value lists.
+        for key, vals in bmap.items():
+            if not vals:
+                raise ProfileError(f"{pair_label} bespoke map: driver key {key} has an empty follower candidate list.")
+
+
 def validate_profile(data: Any) -> HandProfile:
     """
     Validate and normalise raw profile data, then build a HandProfile.
@@ -593,6 +694,9 @@ def validate_profile(data: Any) -> HandProfile:
 
     # Random Suit vs standard suit constraints consistency
     _validate_random_suit_vs_standard(profile)
+
+    # Bespoke subprofile matching maps
+    _validate_bespoke_map(profile)
 
     # 7. Seat-level viability check (light + cross-seat dead subprofile detection)
     # validate_profile_viability() calls the light check first, then NS coupling,

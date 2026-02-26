@@ -261,6 +261,14 @@ CONSTRAINTS (option 2) — full wizard re-run:
     5. Weights — how often each sub-profile is selected (must sum to
        100% across all subs for the seat).
 
+  After all SEATS are configured:
+    6. Bespoke matching — if a pair (NS or EW) has a fixed driver
+       mode and multiple sub-profiles, the wizard offers bespoke
+       subprofile matching. For each driver sub-profile, you choose
+       which follower sub-profiles can pair with it. This replaces
+       the default same-index coupling and allows unequal sub-profile
+       counts between paired seats.
+
   The wizard uses current constraints as defaults so you only change
   what you need.
 
@@ -388,13 +396,30 @@ The five modes:
    This is the simplest and most flexible default — use it unless
    you specifically need coordinated NS sub-profile selection.
 
+Role filtering (active at runtime):
+  When a driver mode is selected (modes 1–3), per-sub-profile "role
+  usage" tags (any / driver_only / follower_only) control which
+  sub-profiles are eligible for the driver and follower. For example,
+  a sub-profile tagged "driver_only" will never be selected when the
+  seat is the follower.
+
+Bespoke matching (optional, modes 1–2 only):
+  After editing constraints, the wizard offers "bespoke subprofile
+  matching" for the pair. This replaces the default same-index
+  coupling with an explicit map: for each driver sub-profile, you
+  choose which follower sub-profiles can pair with it. This allows
+  unequal sub-profile counts between paired seats and fine-grained
+  control over which combinations are allowed.
+
 Tips:
   • If North and South have DIFFERENT numbers of sub-profiles,
-    modes 1–4 will pad the shorter list to match.
+    bespoke matching lets you define exactly which follower subs
+    pair with each driver sub (no padding needed).
   • For most profiles (especially when only one seat has multiple
     sub-profiles), mode 5 is the safest choice.
-  • You can further refine with per-sub-profile "role usage" tags
-    (any / driver_only / follower_only) when editing constraints.
+  • Role filtering + bespoke matching can be combined: the driver
+    picks from role-eligible subs, then the follower picks from
+    the bespoke map entries that are also role-eligible.
 """,
     "ew_role_mode": """\
 === EW Role Mode – Who Drives the Auction? ===
@@ -432,13 +457,30 @@ The five modes:
    This is the simplest and most flexible default — use it unless
    you specifically need coordinated EW sub-profile selection.
 
+Role filtering (active at runtime):
+  When a driver mode is selected (modes 1–3), per-sub-profile "role
+  usage" tags (any / driver_only / follower_only) control which
+  sub-profiles are eligible for the driver and follower. For example,
+  a sub-profile tagged "driver_only" will never be selected when the
+  seat is the follower.
+
+Bespoke matching (optional, modes 1–2 only):
+  After editing constraints, the wizard offers "bespoke subprofile
+  matching" for the pair. This replaces the default same-index
+  coupling with an explicit map: for each driver sub-profile, you
+  choose which follower sub-profiles can pair with it. This allows
+  unequal sub-profile counts between paired seats and fine-grained
+  control over which combinations are allowed.
+
 Tips:
   • If East and West have DIFFERENT numbers of sub-profiles,
-    modes 1–4 will pad the shorter list to match.
+    bespoke matching lets you define exactly which follower subs
+    pair with each driver sub (no padding needed).
   • For most profiles (especially when only one seat has multiple
     sub-profiles), mode 5 is the safest choice.
-  • You can further refine with per-sub-profile "role usage" tags
-    (any / driver_only / follower_only) when editing constraints.
+  • Role filtering + bespoke matching can be combined: the driver
+    picks from role-eligible subs, then the follower picks from
+    the bespoke map entries that are also role-eligible.
 """,
     # --- y/n help entries ---
     "yn_non_chosen_partner": """\
@@ -518,7 +560,7 @@ Options:
 === NS Role Usage (Driver / Follower) ===
 
 When both North and South have multiple sub-profiles AND NS role mode
-uses a driver/follower system (modes 1–4), each sub-profile can be
+uses a driver/follower system (modes 1–3), each sub-profile can be
 tagged with a "role usage":
 
   • "any" — this sub-profile can be used whether the seat is driving
@@ -526,11 +568,19 @@ tagged with a "role usage":
   • "driver_only" — only used when THIS seat is the driver
   • "follower_only" — only used when THIS seat is the follower
 
+These tags are enforced at runtime: the deal generator filters
+sub-profiles by role before selecting. A "driver_only" sub will
+never be chosen when the seat is the follower, and vice versa.
+
 Example: North has 2 named sub-profiles:
   • Sub-profile 1 (Strong opener): driver_only
   • Sub-profile 2 (Responder): follower_only
 When North drives, Sub-profile 1 is used; when South drives, North
 uses Sub-profile 2.
+
+When combined with bespoke matching, role filtering applies first
+(narrowing eligible subs), then bespoke map entries are consulted
+to determine follower candidates.
 
 This prompt appears per-subprofile during constraint editing, right
 after each sub-profile's constraints are defined.
@@ -544,7 +594,7 @@ Note: A parallel EW Role Usage prompt appears when EW role mode is active.
 === EW Role Usage (Driver / Follower) ===
 
 When both East and West have multiple sub-profiles AND EW role mode
-uses a driver/follower system (modes 1–4), each sub-profile can be
+uses a driver/follower system (modes 1–3), each sub-profile can be
 tagged with a "role usage":
 
   • "any" — this sub-profile can be used whether the seat is driving
@@ -552,11 +602,19 @@ tagged with a "role usage":
   • "driver_only" — only used when THIS seat is the driver
   • "follower_only" — only used when THIS seat is the follower
 
+These tags are enforced at runtime: the deal generator filters
+sub-profiles by role before selecting. A "driver_only" sub will
+never be chosen when the seat is the follower, and vice versa.
+
 Example: East has 2 named sub-profiles:
   • Sub-profile 1 (Strong overcall): driver_only
   • Sub-profile 2 (Responder): follower_only
 When East drives, Sub-profile 1 is used; when West drives, East
 uses Sub-profile 2.
+
+When combined with bespoke matching, role filtering applies first
+(narrowing eligible subs), then bespoke map entries are consulted
+to determine follower candidates.
 
 This prompt appears per-subprofile during constraint editing, right
 after each sub-profile's constraints are defined.

@@ -591,6 +591,37 @@
 - ✅ **A2**: Added combined HCP minimum check (`> 40`) to `_pair_jointly_viable()` in `profile_viability.py`
 - ✅ **C1**: Fixed stale "NS index-coupled pair" docstring → "NS or EW" in `_pair_jointly_viable()`
 
+### 75. [x] Driver/Follower Role Filtering (Phase A)
+- ✅ `_eligible_indices_for_role()` in `deal_generator_helpers.py` — filters subprofile indices by role usage
+- ✅ `eligible_indices` param on `_choose_index_for_seat()` — restricts weighted choice to eligible subs
+- ✅ `pair` param on `_try_pair_coupling()` — enables role filtering per pair (NS/EW)
+- ✅ Call sites updated in `_select_subprofiles_for_board()` to pass pair and role info
+- ✅ Driver-only subs never chosen for follower seat, follower-only never for driver
+- ✅ `random_driver` mode filters correctly per board
+- ✅ `no_driver_no_index` skips filtering entirely
+
+### 76. [x] Bespoke Subprofile Matching (Phase B)
+- ✅ `ns_bespoke_map`/`ew_bespoke_map` fields on HandProfile (model + `to_dict`/`from_dict` with string key serialization)
+- ✅ `_validate_bespoke_map()` in `hand_profile_validate.py` — validates indices, exhaustiveness, rejects incompatible role modes
+- ✅ `bespoke_map` param on `_try_pair_coupling()` — follower picks from map entries instead of forced same-index
+- ✅ Removes equal-count requirement when bespoke map is set (driver and follower can have different sub counts)
+- ✅ Role filtering + bespoke map combined correctly
+- ✅ `_edit_bespoke_map()` in `wizard_flow.py` — multi-select wizard for driver→follower mapping
+- ✅ Bespoke map display in `profile_cli.py` — shows driver→follower sub labels
+- ✅ 68 tests across `test_role_filtering.py` and `test_bespoke_matching.py`
+
+### 77. [x] Code Review #67 — 4 fixes across 4 files
+- ✅ **C1**: Fixed stale "metadata-only" docstring on `ns_role_mode` in `hand_profile_model.py`
+- ✅ **C2**: Replaced unnecessary `getattr` with direct access for bespoke map in `profile_cli.py`
+- ✅ **C3**: Updated comment in `hand_profile_validate.py` explaining why `getattr` is needed (duck-typed test profiles)
+- ✅ **D1**: Removed redundant `both <= 1 sub` guard in `wizard_flow.py` `_edit_bespoke_map()`
+
+### 78. [x] Help menu updates for role filtering + bespoke matching
+- ✅ `ns_role_mode` help: Added "Role filtering" and "Bespoke matching" sections
+- ✅ `ew_role_mode` help: Same parallel updates
+- ✅ `edit_profile_mode` help: Added step 6 for bespoke matching after all seats configured
+- ✅ `yn_edit_roles` / `yn_edit_ew_roles` help: Added runtime filtering and bespoke matching notes
+
 ### 74. [x] Code Review #66 — 7 fixes across 7 files
 - ✅ **C1**: Consistent `Callable[..., None]` type on `_DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION` in `deal_generator_types.py`
 - ✅ **C2**: Fixed stale "Optional" comment on `SubProfile.standard` in `hand_profile_validate.py` (kept guard for test mocks)

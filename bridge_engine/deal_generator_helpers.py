@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 import random
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from .deal_generator_types import (
     Seat,
@@ -149,21 +149,75 @@ def _weights_for_seat_profile(seat_profile: SeatProfile) -> List[float]:
     return weights
 
 
+def _eligible_indices_for_role(
+    seat_profile: SeatProfile,
+    role: str,
+    pair: str,
+) -> List[int]:
+    """
+    Return 0-based indices of subprofiles eligible for a given role in a pair.
+
+    Args:
+        seat_profile: The SeatProfile to filter.
+        role: "driver" or "follower".
+        pair: "ns" or "ew" — determines which role_usage field to check.
+
+    For role="driver": eligible if usage is "any" or "driver_only".
+    For role="follower": eligible if usage is "any" or "follower_only".
+
+    Returns all indices if none match (fallback to full list for safety).
+    """
+    if role == "driver":
+        allowed = ("any", "driver_only")
+    else:
+        allowed = ("any", "follower_only")
+
+    eligible: List[int] = []
+    for idx, sub in enumerate(seat_profile.subprofiles):
+        # Check the appropriate role_usage field based on pair.
+        usage = sub.ns_role_usage if pair == "ns" else sub.ew_role_usage
+        if usage in allowed:
+            eligible.append(idx)
+
+    # Safety fallback: if filtering leaves nothing, return all indices.
+    # (Validation should prevent this, but be defensive at runtime.)
+    if not eligible:
+        return list(range(len(seat_profile.subprofiles)))
+
+    return eligible
+
+
 def _choose_index_for_seat(
     rng: random.Random,
     seat_profile: SeatProfile,
+    eligible_indices: Optional[List[int]] = None,
 ) -> int:
     """
     Choose a subprofile index for a single seat.
 
     If there are no subprofiles or only one, always return 0.
+
+    When eligible_indices is provided, only consider those indices
+    (role filtering). Weights are extracted for the eligible subset
+    and the chosen position is mapped back to the original index.
     """
     subs = list(seat_profile.subprofiles)
     if not subs or len(subs) == 1:
         return 0
 
-    weights = _weights_for_seat_profile(seat_profile)
-    return _weighted_choice_index(rng, weights)
+    if eligible_indices is not None and len(eligible_indices) == 1:
+        # Only one eligible index — no need for weighted choice.
+        return eligible_indices[0]
+
+    all_weights = _weights_for_seat_profile(seat_profile)
+
+    if eligible_indices is not None:
+        # Extract weights for eligible indices only, then map back.
+        subset_weights = [all_weights[i] for i in eligible_indices]
+        chosen_pos = _weighted_choice_index(rng, subset_weights)
+        return eligible_indices[chosen_pos]
+
+    return _weighted_choice_index(rng, all_weights)
 
 
 # NOTE: _select_subprofiles_for_board lives in deal_generator.py (not here)
