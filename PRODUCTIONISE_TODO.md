@@ -6,7 +6,7 @@
 ## Pending
 
 ### 1. Profile Review
-- [ ] Review all 11 profiles end-to-end (constraints, metadata, generation)
+- [ ] Review all 13 profiles end-to-end (constraints, metadata, generation)
 - [ ] Run each profile through deal generation to confirm it works
 - [ ] Verify sort_order values are correct
 

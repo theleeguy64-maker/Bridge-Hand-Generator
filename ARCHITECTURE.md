@@ -529,35 +529,12 @@ These files have DUPLICATE but DIVERGED persistence functions — do NOT consoli
 - `_profile_path_for()` differs: profile_cli omits version if empty; profile_store defaults to "0.1"
 - Existing profile filenames depend on `&` preservation
 
-### Duplicate Definitions (need cleanup)
-
-| File | Issue |
-|------|-------|
-| `orchestrator.py` | `_format_nonstandard_rs_buckets()` x2 — *removed in #4b* |
-
-*Resolved*: `_weights_for_seat_profile()`, `_choose_index_for_seat()`, `_select_subprofiles_for_board()` — duplicates cleaned up.
-
-### Orphaned/Dead Code
+### Remaining Issues
 
 | File | Issue |
 |------|-------|
 | `orchestrator.py` | Unreachable try-except |
-*Resolved*: `_build_rs_bucket_snapshot()`, `_nonstandard_constructive_help_enabled()`, v2 nonstandard stubs, `ENABLE_CONSTRUCTIVE_HELP` flags, debug hooks — removed.
 
-*Resolved*: Cascading dead code: `_shadow_probe_nonstandard_constructive()`, `_nonstandard_constructive_v2_policy()`, `_build_constraint_flags_per_seat()`, inline PC/OC nudge blocks, RS bucket tracking, shadow functions in orchestrator.py — removed.
+### Resolved Issues (Historical)
 
-*Resolved*: `passrandom_suit_choices` merge artifact — cleaned up.
-
-### Missing Implementations
-
-*Resolved*: `profile_store.py` `list_drafts()` — already implemented (lines 59-65).
-
-*Resolved*: `hand_profile_model.py` duplicate `SubprofileExclusionClause` — consolidated to single frozen definition with serialization. Added missing `to_dict()`/`from_dict()` to `SubprofileExclusionData`. Fixed `validate()` bug (`len(seat_profile.subprofiles)` not `len(seat_profiles)`).
-
-*Resolved*: `profile_cli.py` dead `_render_full_profile_details_text()` — removed.
-
-*Resolved*: `profile_store.py` safety — `_load_profiles()` error-tolerant with try/except; all writes use `_atomic_write()` (tempfile + os.replace); consistent trailing newline; `delete_draft_for_canonical()` narrowed to `except OSError`.
-
-*Resolved*: `wizard_flow.py` `_prompt_suit_range()` — `prompt_int()` called with swapped arguments (default/minimum/maximum in wrong order), causing OC/PC suit range prompts to show inverted bounds like `>=13 and <=1`.
-
-*Resolved*: `profile_cli.py` metadata edit — version change now saves to a new versioned file (keeps old version intact). Draft cleanup (`delete_draft_for_canonical`) added to constraints-only edit and save-as-new-version paths.
+All duplicate definitions, orphaned/dead code, and missing implementations have been resolved through code reviews #4-#67. See TODO.md for full history.

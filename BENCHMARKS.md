@@ -8,16 +8,16 @@ All benchmarks are skipped by default to keep the regular test suite fast. Enabl
 
 ### 1. Constructive Help Benchmark (All Standard Profiles)
 
-Tests constructive help algorithm (v1 on vs off) across 5 standard profiles.
+Tests v2 shape-help deal generation across 5 standard profiles.
 
 ```bash
 RUN_CONSTRUCTIVE_BENCHMARKS=1 pytest -q -s tests/test_constructive_benchmark_std_profiles.py
 ```
 
 **What it tests:**
-- 5 standard profiles × 120 boards × 2 seeds × 2 modes = 480 total boards
+- 5 standard profiles × 120 boards × 2 seeds = 240 total boards
 - MAX_ATTEMPTS = 500
-- Compares success rates with constructive help ON vs OFF
+- Measures v2 shape-help success rates and performance
 
 **Expected runtime:** ~30-60 seconds
 
@@ -112,7 +112,7 @@ When adding new benchmarks:
 
 ## Benchmark Status
 
-**2026-02-14:** Weak 3s profile has been changed and is expected to run faster.
+**2026-02-14:** Weak 2s profile has been changed and is expected to run faster.
 Benchmarks need to be re-run to establish new baselines. Use "rebenchmark" to
 trigger a full re-run and reset results for future comparison.
 
@@ -120,10 +120,9 @@ trigger a full re-run and reset results for future comparison.
 
 ## Debug Hooks for Instrumentation
 
-Benchmarks use debug hooks in `deal_generator.py` for telemetry:
+Benchmarks use debug hooks in `deal_generator_types.py` for telemetry:
 
 | Hook | Purpose |
 |------|---------|
-| `_DEBUG_STANDARD_CONSTRUCTIVE_USED` | Track when v1 constructive help is applied |
 | `_DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION` | Per-attempt failure attribution |
 | `_DEBUG_ON_MAX_ATTEMPTS` | When MAX_BOARD_ATTEMPTS is exhausted |

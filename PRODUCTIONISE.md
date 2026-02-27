@@ -17,13 +17,12 @@ can receive as a single file/folder, run a simple setup, and start using.
 
 - Core engine works: v2 shape-help system, constrained deal generation, all profiles viable
 - Interactive CLI via `python -m bridge_engine`
-- 483 tests passing, 4 skipped
+- 608 tests passing, 19 skipped
 - No packaging (no pyproject.toml, no requirements.txt)
 - No external dependencies beyond Python standard library
 - No CI/CD pipeline
 - No logging (print statements only)
 - No error recovery in CLI flows (exceptions propagate or get swallowed)
-- PROJECT_OVERVIEW.md "Current State" section is stale (says 414 tests)
 
 ## Distribution: High-Level Plan
 
@@ -93,7 +92,7 @@ kept as a future alternative if the Python install step proves to be a barrier.
 - [ ] Build zip and test on a clean Mac (or clean user account)
 
 ### 2. Profile Review & Cleanup
-- [ ] Review all 11 profiles: constraints, metadata, dealing order
+- [ ] Review all 13 profiles: constraints, metadata, dealing order
 - [ ] Run each profile through deal generation to confirm it works
 - [ ] Update stale profile descriptions/authors if needed
 - [ ] Verify sort_order values are correct

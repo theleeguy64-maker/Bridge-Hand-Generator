@@ -1,3 +1,8 @@
+> **ARCHIVED** — This was the original v2 design document. The system has evolved
+> significantly since this was written (PRE_ALLOCATE_FRACTION is now 0.75, v1 is
+> deleted, v2 is the sole production path, HCP feasibility is implemented).
+> See ARCHITECTURE.md for current details.
+
 # Deal Generator Reorganization - Complete Story
 
 ## The Problem
