@@ -8,7 +8,7 @@ bridge_engine/
 ├── deal_generator_v2.py     (1,394 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py    (240 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py  (438 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
-├── hand_profile_model.py      (946 lines) - Data models (incl. EW role mode, bespoke maps)
+├── hand_profile_model.py      (965 lines) - Data models (incl. EW role mode, bespoke maps)
 ├── seat_viability.py          (623 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py   (722 lines) - Validation (incl. role usage coverage, bespoke map validation)
 ├── profile_diagnostic.py      (213 lines) - Profile diagnostic runner (Admin menu)
@@ -16,7 +16,7 @@ bridge_engine/
 ├── profile_cli.py           (1,103 lines) - Profile commands (incl. role mode editing, bespoke map display)
 ├── profile_wizard.py          (125 lines) - Profile creation UI
 ├── profile_convert.py          (40 lines) - Profile format conversion
-├── wizard_flow.py           (1,696 lines) - Wizard steps, per-sub role/exclusion editing, bespoke map editing
+├── wizard_flow.py           (1,716 lines) - Wizard steps, per-sub role/exclusion editing, bespoke map editing
 ├── wizard_io.py               (104 lines) - Wizard I/O helpers
 ├── profile_viability.py       (394 lines) - Profile-level viability + cross-seat feasibility + EW coupling
 ├── profile_store.py           (348 lines) - JSON persistence (atomic writes, error-tolerant loading, category display)
@@ -27,7 +27,7 @@ bridge_engine/
 ├── setup_env.py               (216 lines) - RNG seed management
 ├── cli_io.py                  (163 lines) - CLI utilities
 ├── cli_prompts.py              (49 lines) - CLI prompts
-├── hand_profile.py             (36 lines) - Exports
+├── hand_profile.py             (40 lines) - Exports
 └── __main__.py                 (14 lines) - Entry point
 ```
 
@@ -64,6 +64,7 @@ HandProfile (frozen dataclass)
 ├── ew_driver_seat: Optional[Callable]
 ├── ew_bespoke_map: Optional[Dict[int, List[int]]]  (driver→follower sub mapping)
 ├── is_invariants_safety_profile: bool
+├── category: str  (Uncontested/Contested/Competitive/Test, default "")
 └── sort_order: Optional[int]  (custom display numbering)
 ```
 
@@ -476,7 +477,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Type Checking
 
-**pyright** — 0 errors across 27 source files (11,495 total lines).
+**pyright** — 0 errors across 27 source files (11,637 total lines).
 
 ```bash
 npx pyright bridge_engine/
@@ -544,4 +545,4 @@ These files have DUPLICATE but DIVERGED persistence functions — do NOT consoli
 
 ### Resolved Issues (Historical)
 
-All duplicate definitions, orphaned/dead code, and missing implementations have been resolved through code reviews #4-#67. See TODO.md for full history.
+All duplicate definitions, orphaned/dead code, and missing implementations have been resolved through code reviews #4-#68. See TODO.md for full history.
