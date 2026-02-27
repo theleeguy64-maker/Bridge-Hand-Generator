@@ -28,8 +28,8 @@ def test_golden_defense_to_weak_2s_profile_valid() -> None:
     Golden test: the 'Defense to Weak 2s' profile on disk should
     be structurally valid and keep its expected filename/version.
     """
-    expected_name = "Defense to 3 Weak 2s - Multi Overcall Shapes"
-    expected_file = "Defense_to_3_Weak_2s_-_Multi_Overcall_Shapes_v0.9.json"
+    expected_name = "Opps Open 3 Weak 2s and we Compete"
+    expected_file = "Opps_Open_3_Weak_2s_and_we_Compete_v1.0.json"
 
     path, profile = _get_profile_entry_by_name(expected_name)
 
@@ -51,8 +51,8 @@ def test_golden_our_1_major_and_opponents_interference_valid() -> None:
     Golden test: the 'Our 1 Major & Opponents Interference' profile should
     be structurally valid and mapped to the expected JSON file.
     """
-    expected_name = "Our 1 Major & Opponents Interference"
-    expected_file = "Our_1_Major_&_Opponents_Interference_v0.9.json"
+    expected_name = "We Open 1 Major and Opps Interfere"
+    expected_file = "We_Open_1_Major_and_Opps_Interfere_v1.0.json"
 
     path, profile = _get_profile_entry_by_name(expected_name)
 

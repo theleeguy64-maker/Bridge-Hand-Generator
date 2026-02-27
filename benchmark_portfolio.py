@@ -29,8 +29,8 @@ BENCHMARK_PROFILES = [
     ("Profile A (Loose)",       "Profile_A_Test_-_Loose_constraints_v0.1.json"),
     ("Profile D (Suit+Pts)",    "Profile_D_Test_-_tight_and_suit_point_constraint_v0.1.json"),
     ("Profile E (Suit+Pts+)",   "Profile_E_Test_-_tight_and_suit_point_constraint_plus_v0.1.json"),
-    ("Our 1 Major & Interf.",   "Our_1_Major_&_Opponents_Interference_v0.9.json"),
-    ("Defense to 3 Weak 2s",    "Defense_to_3_Weak_2s_-_Multi_Overcall_Shapes_v0.9.json"),
+    ("Our 1 Major & Interf.",   "We_Open_1_Major_and_Opps_Interfere_v1.0.json"),
+    ("Defense to 3 Weak 2s",    "Opps_Open_3_Weak_2s_and_we_Compete_v1.0.json"),
 ]
 
 PROFILE_DIR = Path(__file__).resolve().parent / "profiles"
