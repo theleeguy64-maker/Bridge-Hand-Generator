@@ -12,6 +12,14 @@ class ProfileError(Exception):
     """Raised when a hand profile or its constraints are invalid."""
 
 
+# Valid category values for HandProfile.category.
+# Empty string means "uncategorised" (legacy profiles).
+VALID_CATEGORIES = ("Uncontested", "Opps Interference", "We Compete", "Test", "")
+
+# Display order for category headers in the profile listing.
+CATEGORY_DISPLAY_ORDER = ("Uncontested", "Opps Interference", "We Compete", "Test", "")
+
+
 # ---------------------------------------------------------------------------
 # Low-level constraint building blocks
 # ---------------------------------------------------------------------------
@@ -676,6 +684,13 @@ class HandProfile:
     # without sort_order are numbered sequentially starting at 1.
     sort_order: Optional[int] = None
 
+    # Category for grouping in the profile listing display.
+    # One of VALID_CATEGORIES: "Uncontested", "Opps Interference",
+    # "We Compete", "Test", or "" (uncategorised).
+    # Auto-detected as "Test" when profile_name contains "Test" and
+    # no explicit category is set.
+    category: str = ""
+
     def __post_init__(self) -> None:
         # Basic structural validation only. Cross-seat semantics are
         # handled in validate_profile() so tests can construct even
@@ -756,6 +771,8 @@ class HandProfile:
             is_invariants_safety_profile=bool(data.get("is_invariants_safety_profile", False)),
             # Optional display ordering (None = sequential position)
             sort_order=data.get("sort_order", None),
+            # Category for grouped display; auto-detect "Test" if name contains it.
+            category=str(data.get("category", "")) or ("Test" if "Test" in str(data.get("profile_name", "")) else ""),
         )
 
     def ns_driver_seat(
@@ -937,6 +954,8 @@ class HandProfile:
         }
         if self.sort_order is not None:
             d["sort_order"] = self.sort_order
+        # Always emit category (keeps JSON explicit, even when empty).
+        d["category"] = self.category
         # Bespoke maps: emit with string keys (JSON requires string keys).
         # Only include when set (keeps JSON clean for profiles without bespoke maps).
         if self.ns_bespoke_map is not None:

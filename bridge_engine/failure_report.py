@@ -218,6 +218,8 @@ def collect_failure_attribution(
     try:
         rng = random.Random(seed)
 
+        # NOTE: This is intentionally a simpler loop than generate_deals() —
+        # no board-retry/reseed logic, since we want raw per-attempt stats.
         for board_num in range(1, num_boards + 1):
             # Reset latest snapshots for this board
             latest_as_seat = {}

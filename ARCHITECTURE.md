@@ -4,22 +4,22 @@
 
 ```
 bridge_engine/
-├── deal_generator.py          (407 lines) - Facade: subprofile selection + generate_deals() + re-exports
+├── deal_generator.py          (406 lines) - Facade: subprofile selection + generate_deals() + re-exports
 ├── deal_generator_v2.py     (1,394 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py    (240 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py  (438 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py      (946 lines) - Data models (incl. EW role mode, bespoke maps)
 ├── seat_viability.py          (623 lines) - Constraint matching + RS pre-selection threading
-├── hand_profile_validate.py   (715 lines) - Validation (incl. role usage coverage, bespoke map validation)
-├── profile_diagnostic.py      (213 lines) - Generic profile diagnostic runner (Admin menu)
-├── orchestrator.py            (432 lines) - CLI/session management + generic menu loop
-├── profile_cli.py           (1,062 lines) - Profile commands (incl. role mode editing, bespoke map display)
+├── hand_profile_validate.py   (722 lines) - Validation (incl. role usage coverage, bespoke map validation)
+├── profile_diagnostic.py      (213 lines) - Profile diagnostic runner (Admin menu)
+├── orchestrator.py            (444 lines) - CLI/session management + generic menu loop
+├── profile_cli.py           (1,103 lines) - Profile commands (incl. role mode editing, bespoke map display)
 ├── profile_wizard.py          (125 lines) - Profile creation UI
 ├── profile_convert.py          (40 lines) - Profile format conversion
 ├── wizard_flow.py           (1,696 lines) - Wizard steps, per-sub role/exclusion editing, bespoke map editing
 ├── wizard_io.py               (104 lines) - Wizard I/O helpers
 ├── profile_viability.py       (394 lines) - Profile-level viability + cross-seat feasibility + EW coupling
-├── profile_store.py           (310 lines) - JSON persistence (atomic writes, error-tolerant loading, display ordering)
+├── profile_store.py           (348 lines) - JSON persistence (atomic writes, error-tolerant loading, category display)
 ├── menu_help.py               (680 lines) - Menu help text (incl. role mode, bespoke matching)
 ├── lin_tools.py               (413 lines) - LIN file operations
 ├── deal_output.py             (326 lines) - Deal rendering
@@ -319,27 +319,34 @@ Recomputed on each subprofile re-roll (different subs → different last seat).
 The stored `hand_dealing_order` field is retained for NS/EW coupling driver selection
 but is no longer editable by users. Wizard/CLI no longer prompt for dealing order.
 
+**Validation note:** `_validate_partner_contingent()` and `_validate_opponent_contingent()`
+check that the referenced partner/opponent seat has an RS constraint (not `hand_dealing_order`
+index ordering). Since `_build_processing_order()` always processes RS seats first, an RS
+constraint on the partner/opponent guarantees its suit choices are visible when the PC/OC
+seat is dealt.
+
 Tests: 9 tests for `_compute_dealing_order()` in `test_shape_help_v3.py`
 
 ## Profile Inventory
 
-| sort_order | Profile Name | File |
-|-----------|-------------|------|
-| 20 | Profile A Test - Loose constraints | `Profile_A_Test_-_Loose_constraints_v0.1.json` |
-| 21 | Profile B Test - tight Suit constraints | `Profile_B_Test_-_tight_suit_constraints_v0.1.json` |
-| 22 | Profile C Test - tight points constraints | `Profile_C_Test_-_tight_points_constraints_v0.1.json` |
-| 23 | Profile D Test - tight point and suit constraints | `Profile_D_Test_-_tight_and_suit_point_constraint_v0.1.json` |
-| 24 | Profile E Test - tight point and suit constraints_plus | `Profile_E_Test_-_tight_and_suit_point_constraint_plus_v0.1.json` |
-| — | Big Hands | `Big_Hands_v0.1.json` |
-| — | Opps Open 3 Weak 2s and we Compete | `Opps_Open_3_Weak_2s_and_we_Compete_v1.0.json` |
-| — | Opps Open Strong 1NT and we Overcall Cappeletti | `Opps_Open_Strong_1NT_and_we_Overcall_Cappeletti_v1.0.json` |
-| — | Opps_Open_&_Our_TO_Dbl | `Opps_Open_&_Our_TO_Dbl_v0.9.json` |
-| — | Opps_Open_&_Our_TO_Dbl_Balancing | `Opps_Open_&_Our_TO_Dbl_Balancing_v0.9.json` |
-| — | Responding with a Major to 1NT Opening | `Responding_with_a_Major_to_1NT_Opening_v0.9.json` |
-| — | We Open 1 Major and Opps Interfere | `We_Open_1_Major_and_Opps_Interfere_v1.0.json` |
-| — | We Open Strong 1NT and Opps Cappeletti (BBO) | `We_Open_Strong_1NT_and_Opps_Cappeletti_(BBO)_v1.0.json` |
+Profiles are grouped by `category` (display order: Uncontested, Contested, Competitive, Test).
+Within each category, sorted by version (highest first) then alphabetically.
 
-Profiles with `sort_order` appear at their fixed positions; profiles without `sort_order` are sorted by version (highest first), then alphabetically by name.
+| Category | Profile Name | File |
+|----------|-------------|------|
+| Uncontested | Big Hands | `Big_Hands_v0.1.json` |
+| Uncontested | Responding with a Major to 1NT Opening | `Responding_with_a_Major_to_1NT_Opening_v0.9.json` |
+| Contested | Opps Open 3 Weak 2s and we Compete | `Opps_Open_3_Weak_2s_and_we_Compete_v1.0.json` |
+| Contested | Opps Open Strong 1NT and we Overcall Cappeletti | `Opps_Open_Strong_1NT_and_we_Overcall_Cappeletti_v1.0.json` |
+| Contested | Opps_Open_&_Our_TO_Dbl | `Opps_Open_&_Our_TO_Dbl_v0.9.json` |
+| Contested | Opps_Open_&_Our_TO_Dbl_Balancing | `Opps_Open_&_Our_TO_Dbl_Balancing_v0.9.json` |
+| Competitive | We Open 1 Major and Opps Interfere | `We_Open_1_Major_and_Opps_Interfere_v1.0.json` |
+| Competitive | We Open Strong 1NT and Opps Cappeletti (BBO) | `We_Open_Strong_1NT_and_Opps_Cappeletti_(BBO)_v1.0.json` |
+| Test | Profile A Test - Loose constraints | `Profile_A_Test_-_Loose_constraints_v0.1.json` |
+| Test | Profile B Test - tight Suit constraints | `Profile_B_Test_-_tight_suit_constraints_v0.1.json` |
+| Test | Profile C Test - tight points constraints | `Profile_C_Test_-_tight_points_constraints_v0.1.json` |
+| Test | Profile D Test - tight point and suit constraints | `Profile_D_Test_-_tight_and_suit_point_constraint_v0.1.json` |
+| Test | Profile E Test - tight point and suit constraints_plus | `Profile_E_Test_-_tight_and_suit_point_constraint_plus_v0.1.json` |
 
 ## Benchmark Portfolio
 
@@ -409,7 +416,7 @@ _deal_single_board_simple(rng, board_number, dealer, dealing_order) -> Deal
 _apply_vulnerability_and_rotation(rng, deals, rotate) -> List[Deal]
 ```
 
-### deal_generator.py (facade — 407 lines)
+### deal_generator.py (facade — 406 lines)
 ```python
 # Public API
 generate_deals(setup, profile, num_deals, enable_rotation) -> DealSet

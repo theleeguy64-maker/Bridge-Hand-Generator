@@ -63,9 +63,7 @@ def _make_bespoke_profile(
     """Build a profile with bespoke map. Flexible helper for many test shapes."""
     std = _standard_all_open()
 
-    def _make_subs(
-        count: int, pair_field: str, role_usages: Optional[List[str]]
-    ) -> List[SubProfile]:
+    def _make_subs(count: int, pair_field: str, role_usages: Optional[List[str]]) -> List[SubProfile]:
         weight = 100.0 / count
         subs = []
         for i in range(count):
@@ -77,21 +75,13 @@ def _make_bespoke_profile(
 
     seat_profiles: Dict[str, SeatProfile] = {}
     if num_n_subs > 0:
-        seat_profiles["N"] = SeatProfile(
-            seat="N", subprofiles=_make_subs(num_n_subs, "ns_role_usage", n_role_usages)
-        )
+        seat_profiles["N"] = SeatProfile(seat="N", subprofiles=_make_subs(num_n_subs, "ns_role_usage", n_role_usages))
     if num_s_subs > 0:
-        seat_profiles["S"] = SeatProfile(
-            seat="S", subprofiles=_make_subs(num_s_subs, "ns_role_usage", s_role_usages)
-        )
+        seat_profiles["S"] = SeatProfile(seat="S", subprofiles=_make_subs(num_s_subs, "ns_role_usage", s_role_usages))
     if num_e_subs > 0:
-        seat_profiles["E"] = SeatProfile(
-            seat="E", subprofiles=_make_subs(num_e_subs, "ew_role_usage", e_role_usages)
-        )
+        seat_profiles["E"] = SeatProfile(seat="E", subprofiles=_make_subs(num_e_subs, "ew_role_usage", e_role_usages))
     if num_w_subs > 0:
-        seat_profiles["W"] = SeatProfile(
-            seat="W", subprofiles=_make_subs(num_w_subs, "ew_role_usage", w_role_usages)
-        )
+        seat_profiles["W"] = SeatProfile(seat="W", subprofiles=_make_subs(num_w_subs, "ew_role_usage", w_role_usages))
 
     return HandProfile(
         profile_name="TEST_BESPOKE",
@@ -420,8 +410,15 @@ def test_try_pair_coupling_bespoke_constrains_follower():
         chosen_subs: dict[Seat, SubProfile] = {}
         chosen_idx: dict[Seat, int] = {}
         _try_pair_coupling(
-            rng, seat_profiles, "N", "S", "N",
-            chosen_subs, chosen_idx, pair="ns", bespoke_map=bmap,
+            rng,
+            seat_profiles,
+            "N",
+            "S",
+            "N",
+            chosen_subs,
+            chosen_idx,
+            pair="ns",
+            bespoke_map=bmap,
         )
         assert chosen_idx["N"] == 0
         assert chosen_idx["S"] in (1, 2), f"S should be 1 or 2, got {chosen_idx['S']}"
@@ -456,8 +453,15 @@ def test_try_pair_coupling_bespoke_unequal_counts():
         chosen_subs: dict[Seat, SubProfile] = {}
         chosen_idx: dict[Seat, int] = {}
         _try_pair_coupling(
-            rng, seat_profiles, "N", "S", "N",
-            chosen_subs, chosen_idx, pair="ns", bespoke_map=bmap,
+            rng,
+            seat_profiles,
+            "N",
+            "S",
+            "N",
+            chosen_subs,
+            chosen_idx,
+            pair="ns",
+            bespoke_map=bmap,
         )
         n_counter[chosen_idx["N"]] += 1
         s_counter[chosen_idx["S"]] += 1
@@ -493,8 +497,15 @@ def test_try_pair_coupling_bespoke_single_follower():
         chosen_subs: dict[Seat, SubProfile] = {}
         chosen_idx: dict[Seat, int] = {}
         _try_pair_coupling(
-            rng, seat_profiles, "N", "S", "N",
-            chosen_subs, chosen_idx, pair="ns", bespoke_map=bmap,
+            rng,
+            seat_profiles,
+            "N",
+            "S",
+            "N",
+            chosen_subs,
+            chosen_idx,
+            pair="ns",
+            bespoke_map=bmap,
         )
         assert chosen_idx["S"] == 1
 
@@ -524,8 +535,15 @@ def test_try_pair_coupling_bespoke_none_uses_index_coupling():
         chosen_subs: dict[Seat, SubProfile] = {}
         chosen_idx: dict[Seat, int] = {}
         _try_pair_coupling(
-            rng, seat_profiles, "N", "S", "N",
-            chosen_subs, chosen_idx, pair="ns", bespoke_map=None,
+            rng,
+            seat_profiles,
+            "N",
+            "S",
+            "N",
+            chosen_subs,
+            chosen_idx,
+            pair="ns",
+            bespoke_map=None,
         )
         # N picks 0 (100% weight), S gets same index.
         assert chosen_idx["N"] == 0
@@ -724,8 +742,8 @@ def test_runtime_follower_weights_respected_in_bespoke():
                 seat="S",
                 subprofiles=[
                     SubProfile(standard=std, weight_percent=90.0),  # Heavy
-                    SubProfile(standard=std, weight_percent=5.0),   # Light
-                    SubProfile(standard=std, weight_percent=5.0),   # Light
+                    SubProfile(standard=std, weight_percent=5.0),  # Light
+                    SubProfile(standard=std, weight_percent=5.0),  # Light
                 ],
             ),
         },

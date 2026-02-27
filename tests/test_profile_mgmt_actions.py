@@ -62,8 +62,8 @@ def test_edit_metadata_saves_updated_fields(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(pc, "_save_profile_to_path", lambda p, pth: saved.append((p, pth)))
     monkeypatch.setattr(profile_store, "delete_draft_for_canonical", lambda p: None)
 
-    # Stub _input_int for mode selection (1 = metadata edit), ns_role_mode choice,
-    # and loop exit (0 = done).  edit_profile_action() now loops, so call 3 = exit.
+    # Stub _input_int for mode selection (1 = metadata edit), category choice,
+    # ns_role_mode choice, ew_role_mode choice, and loop exit (0 = done).
     call_count = {"input_int": 0}
 
     def fake_input_int(prompt, default=0, minimum=0, maximum=99, show_range_suffix=True):
@@ -71,7 +71,11 @@ def test_edit_metadata_saves_updated_fields(monkeypatch, tmp_path, capsys):
         if call_count["input_int"] == 1:
             return 1  # mode = metadata edit
         if call_count["input_int"] == 2:
+            return 1  # category choice — option 1 (Uncontested)
+        if call_count["input_int"] == 3:
             return 5  # ns_role_mode choice — option 5 (no_driver_no_index)
+        if call_count["input_int"] == 4:
+            return 5  # ew_role_mode choice — option 5 (no_driver_no_index)
         return 0  # exit the edit loop
 
     monkeypatch.setattr(pc, "_input_int", fake_input_int)

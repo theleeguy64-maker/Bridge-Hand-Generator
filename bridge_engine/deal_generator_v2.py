@@ -39,11 +39,11 @@ from .deal_generator_types import (
 
 # _DEBUG_ON_MAX_ATTEMPTS and _DEBUG_ON_ATTEMPT_FAILURE_ATTRIBUTION are
 # mutable module-level hooks that tests set on the facade module (dg).
-# Read them through the late-imported _dg reference at call time.
-# ENABLE_HCP_FEASIBILITY_CHECK and HCP_FEASIBILITY_NUM_SD are read at call
-# time from the deal_generator facade module (late import) so that tests
-# which monkeypatch `dg.ENABLE_HCP_FEASIBILITY_CHECK` still work.  The
-# facade re-exports these from deal_generator_types via `from ... import *`.
+# ENABLE_HCP_FEASIBILITY_CHECK and HCP_FEASIBILITY_NUM_SD live in
+# deal_generator_types and are re-exported by the facade via `import *`.
+# Functions in this module read these via a function-local late import
+# (`from . import deal_generator as _dg`) so that test monkeypatches
+# on the facade (e.g. `dg.ENABLE_HCP_FEASIBILITY_CHECK`) take effect.
 from .deal_generator_helpers import (
     _check_hcp_feasibility,
     _build_deck,

@@ -52,6 +52,7 @@ from .hand_profile import (
     SeatProfile,
     HandProfile,
     ProfileError,
+    VALID_CATEGORIES,
     validate_profile,
 )
 
@@ -108,10 +109,10 @@ def prompt_choice(prompt: str, choices: List[str], default: Optional[str] = None
 
 def _input_int(
     prompt: str,
-    default: int,
+    *,
+    default: Optional[int] = None,
     minimum: int,
     maximum: int,
-    *,
     show_range_suffix: bool = True,
 ) -> int:
     """
@@ -126,17 +127,23 @@ def _input_int(
         else:
             suffix = ""
 
-        full_prompt = f"{prompt} [{default}]{suffix}: "
+        if default is not None:
+            full_prompt = f"{prompt} [{default}]{suffix}: "
+        else:
+            full_prompt = f"{prompt}{suffix}: "
         raw = input(full_prompt).strip()
 
         if not raw:
-            value = default
-        else:
-            try:
-                value = int(raw)
-            except ValueError:
-                print("Please enter a whole number.")
-                continue
+            if default is not None:
+                return default
+            print("Please enter a whole number.")
+            continue
+
+        try:
+            value = int(raw)
+        except ValueError:
+            print("Please enter a whole number.")
+            continue
 
         if value < minimum or value > maximum:
             print(f"Please enter a value between {minimum} and {maximum}.")
@@ -294,7 +301,13 @@ def draft_tools_action() -> None:
         print("  3) Cancel")
         print("  4) Help")
 
-        action = _input_int("Choose [1-4]", default=3, minimum=1, maximum=4, show_range_suffix=False)
+        action = _input_int(
+            "Choose [1-4]",
+            default=3,
+            minimum=1,
+            maximum=4,
+            show_range_suffix=False,
+        )
 
         if action == 4:
             print(get_menu_help("draft_tools"))
@@ -443,6 +456,7 @@ def _print_profile_metadata(profile: HandProfile, path: Path) -> None:
     print(f"Author      : {profile.author}")
     print(f"Version     : {profile.version}")
     print(f"Rotate deals: {profile.rotate_deals_by_default}")
+    print(f"Category    : {profile.category or '(none)'}")
 
     ns_mode = profile.ns_role_mode
     ns_mode_pretty = {
@@ -704,6 +718,30 @@ def edit_profile_action() -> None:
                 profile.rotate_deals_by_default,
             )
 
+            # Category selection
+            # Build menu of non-empty, non-Test categories (Test is auto-detected).
+            cat_options = [c for c in VALID_CATEGORIES if c and c != "Test"]
+            existing_cat = profile.category or ""
+            # Find default index (1-based); fall back to 1 if not found.
+            cat_default_idx = 1
+            for ci, cv in enumerate(cat_options, start=1):
+                if cv == existing_cat:
+                    cat_default_idx = ci
+                    break
+
+            print("Category:")
+            for ci, cv in enumerate(cat_options, start=1):
+                print(f"  {ci}) {cv}")
+
+            cat_choice = _input_int(
+                f"Choose [1-{len(cat_options)}]",
+                default=cat_default_idx,
+                minimum=1,
+                maximum=len(cat_options),
+                show_range_suffix=False,
+            )
+            new_category = cat_options[cat_choice - 1]
+
             # NS role mode (5 options)
             existing_ns_mode = profile.ns_role_mode or "no_driver_no_index"
             ns_mode_options = [
@@ -824,6 +862,7 @@ def edit_profile_action() -> None:
                 subprofile_exclusions=list(profile.subprofile_exclusions),
                 is_invariants_safety_profile=profile.is_invariants_safety_profile,
                 sort_order=profile.sort_order,
+                category=new_category,
             )
 
             # If name or version changed, save to a new file (keep old file intact)
@@ -914,6 +953,7 @@ def edit_profile_action() -> None:
                     subprofile_exclusions=list(profile.subprofile_exclusions),
                     is_invariants_safety_profile=profile.is_invariants_safety_profile,
                     sort_order=profile.sort_order,
+                    category=profile.category,
                 )
                 _save_profile_to_path(updated, path)
                 profile_store.delete_draft_for_canonical(path)
@@ -968,6 +1008,7 @@ def save_as_new_version_action() -> None:
         subprofile_exclusions=list(profile.subprofile_exclusions),
         is_invariants_safety_profile=profile.is_invariants_safety_profile,
         sort_order=profile.sort_order,
+        category=profile.category,
     )
 
     validate_profile(new_profile)

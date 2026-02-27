@@ -382,14 +382,14 @@ def _validate_ew_role_usage_coverage(profile: HandProfile) -> None:
 def _validate_partner_contingent(profile: HandProfile) -> None:
     """
     Ensure that for any subprofile with a partner-contingent constraint,
-    the *partner seat* is dealt *before* the seat that has the constraint.
+    the referenced *partner seat* has a Random-Suit (RS) constraint.
 
-    This matches tests like
-    test_partner_must_be_dealt_before_partner_contingent.
+    At runtime, `_build_processing_order()` always processes RS seats
+    before non-RS seats, so an RS constraint on the partner guarantees
+    the partner's suit choices are visible when the PC seat is dealt.
+
+    We do NOT rely on `hand_dealing_order` (a display hint only).
     """
-    order = list(profile.hand_dealing_order)
-    index = {seat: i for i, seat in enumerate(order)}
-
     for seat, seat_profile in profile.seat_profiles.items():
         for sub in seat_profile.subprofiles:
             constraint = sub.partner_contingent_constraint
@@ -403,18 +403,22 @@ def _validate_partner_contingent(profile: HandProfile) -> None:
 
             partner_seat = seats[0]
 
-            if partner_seat not in index:
-                raise ProfileError(f"Partner seat {partner_seat!r} for seat {seat!r} is not in hand_dealing_order.")
-            if seat not in index:
+            # Partner seat must exist in the profile.
+            if partner_seat not in profile.seat_profiles:
                 raise ProfileError(
-                    f"Seat {seat!r} has a partner-contingent constraint but is not in hand_dealing_order."
+                    f"Partner seat {partner_seat!r} referenced from {seat!r} is not defined in seat_profiles."
                 )
 
-            if index[partner_seat] >= index[seat]:
-                # The invalid case exercised by the test:
-                # partner is dealt after the constrained hand.
+            # Partner seat must have an RS constraint on at least one
+            # subprofile, so the runtime processing order guarantees it
+            # is dealt before the PC seat.
+            partner_sp = profile.seat_profiles[partner_seat]
+            has_rs = any(s.random_suit_constraint is not None for s in partner_sp.subprofiles)
+            if not has_rs:
                 raise ProfileError(
-                    f"Partner seat {partner_seat} must be dealt before {seat} for partner-contingent constraints."
+                    f"Partner seat {partner_seat} must have a Random-Suit "
+                    f"constraint so it is processed before {seat} for "
+                    f"partner-contingent constraints."
                 )
 
             # When use_non_chosen_suit is True, the partner must have an
@@ -443,17 +447,16 @@ def _validate_opponent_contingent(profile: HandProfile) -> None:
     """
     Structural sanity checks for opponents-contingent constraints.
 
-    We keep this deliberately conservative:
-    - If a subprofile has an opponents-contingent constraint, every
-      opponent seat it references must appear in hand_dealing_order.
-    - Additionally, we require those opponent seats to be dealt *before*
-      the constrained seat. This matches the same deal-ordering principle
-      used for partner-contingent constraints and should be compatible
-      with existing golden profiles.
-    """
-    order = list(profile.hand_dealing_order)
-    index = {seat: i for i, seat in enumerate(order)}
+    For each OC subprofile, every referenced opponent seat must:
+    1. Exist in seat_profiles.
+    2. Have a Random-Suit (RS) constraint on at least one subprofile.
 
+    At runtime, `_build_processing_order()` always processes RS seats
+    before non-RS seats, so an RS constraint on the opponent guarantees
+    the opponent's suit choices are visible when the OC seat is dealt.
+
+    We do NOT rely on `hand_dealing_order` (a display hint only).
+    """
     for seat, seat_profile in profile.seat_profiles.items():
         for sub in seat_profile.subprofiles:
             constraint = sub.opponents_contingent_suit_constraint
@@ -465,19 +468,23 @@ def _validate_opponent_contingent(profile: HandProfile) -> None:
                 # Nothing concrete to validate – be lenient.
                 continue
 
-            if seat not in index:
-                raise ProfileError(
-                    f"Seat {seat!r} has an opponents-contingent constraint but is not in hand_dealing_order."
-                )
-
-            seat_idx = index[seat]
-
             for opp in opp_seats:
-                if opp not in index:
-                    raise ProfileError(f"Opponent seat {opp!r} referenced from {seat!r} is not in hand_dealing_order.")
-                if index[opp] >= seat_idx:
+                # Opponent seat must exist in the profile.
+                if opp not in profile.seat_profiles:
                     raise ProfileError(
-                        f"Opponent seat {opp} must be dealt before {seat} for opponents-contingent constraints."
+                        f"Opponent seat {opp!r} referenced from {seat!r} is not defined in seat_profiles."
+                    )
+
+                # Opponent seat must have an RS constraint on at least one
+                # subprofile, so runtime processing order guarantees it is
+                # dealt before the OC seat.
+                opp_sp = profile.seat_profiles[opp]
+                has_rs = any(s.random_suit_constraint is not None for s in opp_sp.subprofiles)
+                if not has_rs:
+                    raise ProfileError(
+                        f"Opponent seat {opp} must have a Random-Suit "
+                        f"constraint so it is processed before {seat} for "
+                        f"opponents-contingent constraints."
                     )
 
             # When use_non_chosen_suit is True, the opponent must have an

@@ -434,15 +434,14 @@ class TestValidateProfile:
         assert isinstance(result, HandProfile)
         assert result.profile_name == original.profile_name
 
-    def test_validates_partner_contingent_ordering(self) -> None:
-        """Should reject profiles with invalid partner-contingent ordering."""
+    def test_validates_partner_contingent_requires_rs(self) -> None:
+        """Should reject profiles where PC partner has no RS constraint."""
         raw = _make_minimal_profile_dict()
-        # W has partner-contingent on E, but E is dealt after W
-        raw["hand_dealing_order"] = ["N", "W", "S", "E"]  # W before E
+        # W has partner-contingent on E, but E has no Random-Suit constraint.
         raw["seat_profiles"]["W"]["subprofiles"][0]["partner_contingent_constraint"] = {
-            "partner_seat": "E",  # E is dealt after W - invalid!
+            "partner_seat": "E",
             "suit_range": {"min_cards": 0, "max_cards": 13},
         }
 
-        with pytest.raises(ProfileError, match="must be dealt before"):
+        with pytest.raises(ProfileError, match="Random-Suit"):
             validate_profile(raw)

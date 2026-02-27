@@ -140,36 +140,35 @@ def _try_pair_coupling(
             return  # Coupling not possible.
 
     follower_seat: Seat = seat_b if driver_seat == seat_a else seat_a
-    driver_sp = seat_profiles.get(driver_seat)
-    follower_sp = seat_profiles.get(follower_seat)
+    # Both sp_a and sp_b are guaranteed to be SeatProfile after the
+    # isinstance guard above, so driver_sp/follower_sp are too.
+    driver_sp = seat_profiles[driver_seat]
+    follower_sp = seat_profiles[follower_seat]
 
-    if isinstance(driver_sp, SeatProfile) and isinstance(follower_sp, SeatProfile):
-        # Role-filter driver's eligible indices.
-        driver_eligible = _eligible_indices_for_role(driver_sp, "driver", pair)
-        idx = _choose_index_for_seat(rng, driver_sp, eligible_indices=driver_eligible)
+    # Role-filter driver's eligible indices.
+    driver_eligible = _eligible_indices_for_role(driver_sp, "driver", pair)
+    idx = _choose_index_for_seat(rng, driver_sp, eligible_indices=driver_eligible)
 
-        chosen_indices[driver_seat] = idx
-        chosen_subprofiles[driver_seat] = driver_sp.subprofiles[idx]
+    chosen_indices[driver_seat] = idx
+    chosen_subprofiles[driver_seat] = driver_sp.subprofiles[idx]
 
-        if bespoke_map is not None:
-            # Bespoke matching: look up follower candidates from map.
-            follower_candidates = bespoke_map.get(idx, [])
-            # Further filter by follower role eligibility.
-            follower_eligible = _eligible_indices_for_role(follower_sp, "follower", pair)
-            filtered = [i for i in follower_candidates if i in follower_eligible]
-            if not filtered:
-                # Safety fallback: use all candidates from map (skip role filter).
-                filtered = (
-                    list(follower_candidates) if follower_candidates else list(range(len(follower_sp.subprofiles)))
-                )
-            # Weighted choice among filtered follower indices.
-            follower_idx = _choose_index_for_seat(rng, follower_sp, eligible_indices=filtered)
-        else:
-            # Standard index coupling: follower uses same index as driver.
-            follower_idx = idx
+    if bespoke_map is not None:
+        # Bespoke matching: look up follower candidates from map.
+        follower_candidates = bespoke_map.get(idx, [])
+        # Further filter by follower role eligibility.
+        follower_eligible = _eligible_indices_for_role(follower_sp, "follower", pair)
+        filtered = [i for i in follower_candidates if i in follower_eligible]
+        if not filtered:
+            # Safety fallback: use all candidates from map (skip role filter).
+            filtered = list(follower_candidates) if follower_candidates else list(range(len(follower_sp.subprofiles)))
+        # Weighted choice among filtered follower indices.
+        follower_idx = _choose_index_for_seat(rng, follower_sp, eligible_indices=filtered)
+    else:
+        # Standard index coupling: follower uses same index as driver.
+        follower_idx = idx
 
-        chosen_indices[follower_seat] = follower_idx
-        chosen_subprofiles[follower_seat] = follower_sp.subprofiles[follower_idx]
+    chosen_indices[follower_seat] = follower_idx
+    chosen_subprofiles[follower_seat] = follower_sp.subprofiles[follower_idx]
 
 
 def _select_subprofiles_for_board(

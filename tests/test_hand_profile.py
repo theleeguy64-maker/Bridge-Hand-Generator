@@ -73,22 +73,20 @@ def test_suit_pair_override_constructs_with_valid_data() -> None:
     assert spo.suits == ["S", "H"]
 
 
-def test_partner_must_be_dealt_before_partner_contingent() -> None:
+def test_partner_contingent_requires_partner_rs() -> None:
     """
-    East has Random Suit, West is Partner Contingent,
-    but dealing order is W,E,S,N (invalid because partner seat E
-    is dealt after W).
+    West has a partner-contingent constraint referencing East,
+    but East does NOT have a Random-Suit constraint.  Validation
+    should reject this because the runtime processing order
+    (`_build_processing_order`) only guarantees RS seats are dealt
+    first — without RS, East's suit choices won't be visible when
+    West is dealt.
     """
-    rs = RandomSuitConstraintData(
-        required_suits_count=1,
-        allowed_suits=["S"],
-        suit_ranges=[SuitRange()],
-    )
-
     north = SeatProfile(seat="N", subprofiles=[SubProfile(_standard_all_open())])
+    # East has NO Random-Suit constraint — just standard.
     east = SeatProfile(
         seat="E",
-        subprofiles=[SubProfile(_standard_all_open(), random_suit_constraint=rs)],
+        subprofiles=[SubProfile(_standard_all_open())],
     )
     south = SeatProfile(seat="S", subprofiles=[SubProfile(_standard_all_open())])
     west = SeatProfile(
@@ -106,14 +104,14 @@ def test_partner_must_be_dealt_before_partner_contingent() -> None:
 
     profile = HandProfile(
         profile_name="TestProfileOrder",
-        description="Bad dealing order",
+        description="Partner without RS",
         dealer="W",
-        hand_dealing_order=["W", "E", "S", "N"],  # W before E
+        hand_dealing_order=["N", "E", "S", "W"],
         tag="Overcaller",
         seat_profiles={"N": north, "E": east, "S": south, "W": west},
     )
 
-    with pytest.raises(ProfileError):
+    with pytest.raises(ProfileError, match="Random-Suit"):
         validate_profile(profile)
 
 

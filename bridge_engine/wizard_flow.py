@@ -48,7 +48,7 @@ from .cli_prompts import (
     prompt_int,
 )
 
-from .hand_profile_model import _default_dealing_order
+from .hand_profile_model import VALID_CATEGORIES, _default_dealing_order
 
 
 # NOTE: pytest monkeypatches input helpers on bridge_engine.profile_wizard.
@@ -1509,6 +1509,25 @@ def _build_profile(
         author = input_with_default("Author: ", "")
         version = input_with_default("Version: ", "0.1")
 
+        # ----- Category selection -----
+        # Auto-detect "Test" if the name contains "Test"; otherwise prompt.
+        if "Test" in profile_name:
+            category = "Test"
+            print(f"  Category auto-detected: {category}")
+        else:
+            # Show numbered menu of non-empty categories (exclude "" and "Test").
+            cat_options = [c for c in VALID_CATEGORIES if c and c != "Test"]
+            print("\nCategory:")
+            for i, c in enumerate(cat_options, start=1):
+                print(f"  {i}) {c}")
+            cat_choice = _pw_attr("_input_int", _input_int)(
+                f"Choose [1-{len(cat_options)}]",
+                1,
+                1,
+                len(cat_options),
+            )
+            category = cat_options[cat_choice - 1]
+
         # ----- NEW: auto-build standard constraints for all seats -----
         seat_profiles: Dict[str, SeatProfile] = {}
         for seat in hand_dealing_order:
@@ -1536,6 +1555,7 @@ def _build_profile(
             "ns_role_mode": ns_role_mode,
             "ew_role_mode": ew_role_mode,
             "subprofile_exclusions": subprofile_exclusions,
+            "category": category,
         }
 
     # ------------------------------------------------------------------

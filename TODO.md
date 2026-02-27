@@ -4,7 +4,11 @@
 - [x] Run profile management in program
 - [ ] Review all profiles (check constraints, metadata, dealing order)
 
-## Recent Fixes (#42, #43, #44, #45)
+## Recent Fixes (#68, #42-#45)
+- [x] Category display: indent profiles under headers, remove test sort_order 20-24
+- [x] Code review #68: A1/A2 — PC/OC validation uses RS check instead of stale hand_dealing_order; C2 — standardize _input_int keyword-only args; C3 — fix stale comment in deal_generator_v2.py; D1 — remove redundant isinstance in _try_pair_coupling; D3 — clarify failure_report.py board loop
+
+## Older Fixes (#42, #43, #44, #45)
 - [x] Fix prompt_int argument order bug in _prompt_suit_range (OC/PC suit range prompts showed inverted bounds)
 - [x] Profile Summary: move File to last, rename to "File name", show filename only
 - [x] Version change in metadata edit now saves to new file (keeps old version)

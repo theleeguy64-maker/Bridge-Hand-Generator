@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from .hand_profile import HandProfile, ProfileError
+from .hand_profile import CATEGORY_DISPLAY_ORDER, HandProfile, ProfileError
 
 PROFILE_DIR_NAME = "profiles"
 TEST_NAME_SUFFIX = " TEST"
@@ -240,41 +240,58 @@ def build_profile_display_map(
     profiles: List[Tuple[Path, HandProfile]],
 ) -> Dict[int, Tuple[Path, HandProfile]]:
     """
-    Build a mapping from display number → (path, profile).
+    Build a mapping from display number → (path, profile), grouped by category.
+
+    Profiles are grouped by category in CATEGORY_DISPLAY_ORDER, then within
+    each category sorted by version (highest first) then name (alphabetically).
 
     Profiles with a sort_order field use that exact number.
     Profiles without sort_order get sequential numbers starting at 1,
     skipping any numbers already claimed by sort_order profiles.
-
-    The returned dict is ordered: unnumbered profiles first (ascending),
-    then sort_order profiles (ascending by sort_order).
     """
-    # Separate profiles with and without sort_order
-    ordered: List[Tuple[int, Path, HandProfile]] = []
-    unordered: List[Tuple[Path, HandProfile]] = []
+    # Group profiles by category, preserving CATEGORY_DISPLAY_ORDER.
+    by_category: Dict[str, List[Tuple[Path, HandProfile]]] = {}
+    for cat in CATEGORY_DISPLAY_ORDER:
+        by_category[cat] = []
 
     for path, profile in profiles:
-        so = profile.sort_order
-        if so is not None:
-            ordered.append((so, path, profile))
+        cat = profile.category or ""
+        if cat not in by_category:
+            # Unknown category — treat as uncategorised
+            by_category.setdefault("", [])
+            by_category[""].append((path, profile))
         else:
-            unordered.append((path, profile))
+            by_category[cat].append((path, profile))
 
-    # Sort unordered: highest version first, then alphabetically by name
-    unordered.sort(
-        key=lambda pair: (
-            _version_sort_key(pair[1].version),
-            pair[1].profile_name.lower(),
+    # Sort within each category: highest version first, then name ascending
+    for cat_profiles in by_category.values():
+        cat_profiles.sort(
+            key=lambda pair: (
+                _version_sort_key(pair[1].version),
+                pair[1].profile_name.lower(),
+            )
         )
-    )
 
-    # Collect claimed numbers
+    # Build the flat ordering: categories in display order, within each
+    # category separate sort_order profiles from sequential ones.
+    ordered: List[Tuple[int, Path, HandProfile]] = []
+    unordered_flat: List[Tuple[Path, HandProfile]] = []
+
+    for cat in CATEGORY_DISPLAY_ORDER:
+        for path, profile in by_category.get(cat, []):
+            so = profile.sort_order
+            if so is not None:
+                ordered.append((so, path, profile))
+            else:
+                unordered_flat.append((path, profile))
+
+    # Collect claimed numbers from sort_order profiles
     claimed = {so for so, _, _ in ordered}
 
     # Assign sequential numbers to unordered profiles, skipping claimed
     result: Dict[int, Tuple[Path, HandProfile]] = {}
     seq = 1
-    for path, profile in unordered:
+    for path, profile in unordered_flat:
         while seq in claimed:
             seq += 1
         result[seq] = (path, profile)
@@ -290,11 +307,32 @@ def build_profile_display_map(
 def print_profile_display_map(
     display_map: Dict[int, Tuple[Path, HandProfile]],
 ) -> None:
-    """Print the numbered profile list from a display map."""
+    """Print the numbered profile list from a display map, grouped by category."""
+    # Group display numbers by category, preserving display order.
+    cat_nums: Dict[str, List[int]] = {}
+    for cat in CATEGORY_DISPLAY_ORDER:
+        cat_nums[cat] = []
+
     for num in sorted(display_map):
         _, profile = display_map[num]
-        version_str = f"v{profile.version}" if profile.version else "(no version)"
-        print(f"  {num}) {profile.profile_name} ({version_str})")
+        cat = profile.category or ""
+        if cat not in cat_nums:
+            cat_nums.setdefault("", [])
+            cat_nums[""].append(num)
+        else:
+            cat_nums[cat].append(num)
+
+    # Print each non-empty category with a header.
+    for cat in CATEGORY_DISPLAY_ORDER:
+        nums = cat_nums.get(cat, [])
+        if not nums:
+            continue
+        header = cat if cat else "Uncategorised"
+        print(f"\n  --- {header} ---")
+        for num in nums:
+            _, profile = display_map[num]
+            version_str = f"v{profile.version}" if profile.version else "(no version)"
+            print(f"    {num}) {profile.profile_name} ({version_str})")
 
 
 def delete_draft_for_canonical(canonical_path: Path) -> None:

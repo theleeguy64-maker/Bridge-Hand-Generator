@@ -228,7 +228,13 @@ def _run_deal_generation_session() -> None:
     owner = _input_with_default("Owner / player name", "Lee")
     base_dir_str = _input_with_default("Base output directory (will contain txt/ and lin/)", "out")
     base_dir = Path(base_dir_str).expanduser().resolve()
-    num_deals = _input_int("Number of deals to generate", 6, 1, 9999, show_range_suffix=False)
+    num_deals = _input_int(
+        "Number of deals to generate",
+        default=6,
+        minimum=1,
+        maximum=9999,
+        show_range_suffix=False,
+    )
 
     print("\nSection A: environment setup")
     print(f"  Base dir: {base_dir}")
@@ -391,7 +397,13 @@ def _run_profile_diagnostic_interactive() -> None:
     if profile is None:
         return
 
-    num_boards = _input_int("Number of boards to diagnose", 20, 1, 9999, show_range_suffix=False)
+    num_boards = _input_int(
+        "Number of boards to diagnose",
+        default=20,
+        minimum=1,
+        maximum=9999,
+        show_range_suffix=False,
+    )
 
     profile_diagnostic.run_profile_diagnostic(
         profile=profile,
