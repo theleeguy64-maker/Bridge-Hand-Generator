@@ -1,5 +1,9 @@
 # Bridge Hand Generator - Architecture
 
+## Overview
+
+The Bridge Hand Generator is a Python CLI application that produces constrained bridge card deals. Given a `HandProfile` describing what each seat's hand should look like (HCP ranges, suit lengths, random-suit and contingent constraints), it validates feasibility, then generates valid 4-hand deals using a shape-based help system that pre-allocates cards for tight seats. The system supports subprofile coupling between partners (index-based or bespoke mapping), role filtering (driver/follower), and adaptive re-seeding for hard profiles.
+
 ## Module Structure
 
 ```
@@ -477,7 +481,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Type Checking
 
-**pyright** — 0 errors across 27 source files (11,637 total lines).
+**pyright** — 0 errors across 27 source files (11,631 total lines).
 
 ```bash
 npx pyright bridge_engine/
@@ -546,3 +550,40 @@ These files have DUPLICATE but DIVERGED persistence functions — do NOT consoli
 ### Resolved Issues (Historical)
 
 All duplicate definitions, orphaned/dead code, and missing implementations have been resolved through code reviews #4-#69. See TODO.md for full history.
+
+## Dependencies
+
+| Package | Purpose |
+|---------|---------|
+| Python 3.13 | Runtime |
+| pytest | Test framework (608 tests) |
+| pyright | Static type checking (0 errors) |
+| ruff | Linting + formatting |
+
+No external runtime dependencies — the engine uses only Python stdlib.
+
+## Architectural Decisions
+
+Key choices made during development and why.
+
+- **v2 shape-help builder** over v1 brute-force — pre-allocating cards for tight seats reduces retries by orders of magnitude; v1 removed entirely
+- **pyright** over mypy — faster, stricter, better inference; switched after mypy couldn't handle complex generics
+- **Category grouping** over sort_order for profile display — categories (Uncontested/Contested/Competitive/Test) are more meaningful than arbitrary numbers
+- **RS-first processing order** over fixed dealing order — RS seats must be dealt first so PC/OC seats can see partner/opponent suit choices
+- **Pre-allocation strategy** (75% standard, 100% RS with HCP targeting) — 75% standard gives tight seats a head start without over-constraining; RS gets 100% because RS suit HCP windows are tight
+- **Adaptive re-seeding** over fixed retry limits — per-board wall-clock budget (1.75s) detects seed-dependent ruts and recovers with a fresh RNG
+- **Auto-computed dealing order** over user-configured — least constrained seat goes last (gets remainder advantage); recomputed on each subprofile re-roll
+- **Frozen dataclasses** for HandProfile/SubProfile — immutability prevents accidental mutation during generation
+- **Facade pattern** (deal_generator.py) — keeps public API stable while v2 internals can change; re-exports enable monkeypatch in tests
+- **Late imports** in deal_generator_v2.py — reads constants through facade module at call time for monkeypatch compatibility in tests
+
+## Rejected
+
+Approaches tried or considered and abandoned.
+
+- **v1 builder** — pure brute-force dealing; too slow for tight constraints (Profile E unviable)
+- **mypy** — slower, weaker inference; replaced by pyright
+- **Global failure attribution** — smearing failures across all seats hid root causes; replaced with per-seat local attribution
+- **Hardcoded dealing order** — user-configured order was fragile; replaced with auto-computed order based on constraint tightness
+- **Fixed subprofile re-roll intervals** — constant intervals couldn't adapt to profile difficulty; replaced with exponential decay (150 → 50, 0.7x)
+- **Random RS suit selection during matching** — too late to help; replaced with pre-selection before dealing so dispersion check and pre-allocation can see RS suits

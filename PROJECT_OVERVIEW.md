@@ -115,15 +115,15 @@ Per-attempt tracking for diagnostics:
 | `deal_generator_v2.py` | 1,394 | v2 shape-help helpers + v2 builder (active production path) |
 | `deal_generator_types.py` | 240 | Types, constants, dataclasses, exception, debug hooks (leaf module) |
 | `deal_generator_helpers.py` | 438 | Shared utilities: viability, HCP, deck helpers, role filtering, vulnerability/rotation |
-| `hand_profile_model.py` | 946 | Data models: SubProfile, SeatProfile, HandProfile (incl. role mode, bespoke maps) |
+| `hand_profile_model.py` | 965 | Data models: SubProfile, SeatProfile, HandProfile (incl. role mode, bespoke maps) |
 | `seat_viability.py` | 623 | Constraint matching: `_match_seat`, `_match_subprofile`, RS pre-selection |
-| `hand_profile_validate.py` | 715 | Profile validation (incl. role usage coverage, bespoke map validation) |
+| `hand_profile_validate.py` | 722 | Profile validation (incl. role usage coverage, bespoke map validation) |
 | `profile_viability.py` | 394 | Profile-level viability + cross-seat feasibility + EW coupling |
-| `wizard_flow.py` | 1,696 | Wizard steps, per-sub role/exclusion editing, bespoke map editing |
-| `profile_cli.py` | 1,062 | Profile commands (incl. role mode editing, bespoke map display, atomic saves) |
-| `orchestrator.py` | 432 | CLI/session management + generic menu loop |
-| `profile_store.py` | 310 | JSON persistence (atomic writes, error-tolerant loading, display ordering) |
-| `failure_report.py` | 271 | Failure attribution diagnostic (uses v2 builder) |
+| `wizard_flow.py` | 1,716 | Wizard steps, per-sub role/exclusion editing, bespoke map editing |
+| `profile_cli.py` | 1,103 | Profile commands (incl. role mode editing, bespoke map display, atomic saves) |
+| `orchestrator.py` | 444 | CLI/session management + generic menu loop |
+| `profile_store.py` | 348 | JSON persistence (atomic writes, error-tolerant loading, display ordering) |
+| `failure_report.py` | 273 | Failure attribution diagnostic (uses v2 builder) |
 
 ## Terminology
 

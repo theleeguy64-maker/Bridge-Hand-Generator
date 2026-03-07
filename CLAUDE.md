@@ -1,4 +1,53 @@
-# Generic Preferences for Claude
+# Bridge Hand Generator
+
+## Project
+- **Path**: `~/Applications/BridgeHandGenerator/Exec`
+- **Launcher**: `python -m bridge_engine` (CLI menu)
+- **Description**: Generates bridge card deals satisfying complex constraint profiles (HCP ranges, suit lengths, contingent constraints) with shape-based help, failure attribution, and adaptive re-seeding.
+
+## Quick Start
+```bash
+cd ~/Applications/BridgeHandGenerator/Exec
+source .venv/bin/activate
+python -m bridge_engine              # Run the CLI
+.venv/bin/pytest -v                  # Run tests (608)
+.venv/bin/ruff check bridge_engine/ tests/ && .venv/bin/ruff format bridge_engine/ tests/
+npx pyright bridge_engine/           # Type check (0 errors)
+```
+
+## Tech Stack
+| Layer | Technology |
+|-------|------------|
+| Language | Python 3.13 |
+| Testing | pytest |
+| Type Checking | pyright (0 errors, 27 files) |
+| Linting | ruff (check + format) |
+| Output | TXT + LIN format |
+
+## Pointers
+- See `ARCHITECTURE.md` for module structure, data model, pipeline, and architectural decisions
+- See `PROJECT_OVERVIEW.md` for purpose, key concepts, and design principles
+- See `TODO.md` for task tracking and code review history
+
+## Common Commands
+```bash
+# Run
+python -m bridge_engine
+
+# Test
+.venv/bin/pytest -v
+
+# Lint + Format
+.venv/bin/ruff check bridge_engine/ tests/
+.venv/bin/ruff format bridge_engine/ tests/
+
+# Type Check
+npx pyright bridge_engine/
+```
+
+---
+
+# Preferences for Claude
 
 ## Session Start
 - Review `TODO.md` at the start of sessions and display the full contents verbosely (all pending items, all details)
