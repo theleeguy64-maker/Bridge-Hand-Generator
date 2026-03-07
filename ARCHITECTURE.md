@@ -15,13 +15,13 @@ bridge_engine/
 ├── orchestrator.py            (444 lines) - CLI/session management + generic menu loop
 ├── profile_cli.py           (1,103 lines) - Profile commands (incl. role mode editing, bespoke map display)
 ├── profile_wizard.py          (125 lines) - Profile creation UI
-├── profile_convert.py          (40 lines) - Profile format conversion
+├── profile_convert.py          (40 lines) - Legacy profile format conversion (standalone utility)
 ├── wizard_flow.py           (1,716 lines) - Wizard steps, per-sub role/exclusion editing, bespoke map editing
 ├── wizard_io.py               (104 lines) - Wizard I/O helpers
 ├── profile_viability.py       (394 lines) - Profile-level viability + cross-seat feasibility + EW coupling
 ├── profile_store.py           (348 lines) - JSON persistence (atomic writes, error-tolerant loading, category display)
 ├── menu_help.py               (680 lines) - Menu help text (incl. role mode, bespoke matching)
-├── lin_tools.py               (413 lines) - LIN file operations
+├── lin_tools.py               (407 lines) - LIN file operations
 ├── deal_output.py             (326 lines) - Deal rendering
 ├── lin_encoder.py             (188 lines) - LIN format encoding
 ├── setup_env.py               (216 lines) - RNG seed management
@@ -545,4 +545,4 @@ These files have DUPLICATE but DIVERGED persistence functions — do NOT consoli
 
 ### Resolved Issues (Historical)
 
-All duplicate definitions, orphaned/dead code, and missing implementations have been resolved through code reviews #4-#68. See TODO.md for full history.
+All duplicate definitions, orphaned/dead code, and missing implementations have been resolved through code reviews #4-#69. See TODO.md for full history.

@@ -254,13 +254,7 @@ def combine_lin_files(
 
 
 def combine_lin_files_interactive() -> None:
-    """
-    CLI entrypoint for the LIN combiner, used by the Admin menu.
-
-    This wraps the existing interactive LIN-combiner flow so that:
-      • orchestrator.admin_menu() can call a single function,
-      • tests for the combiner can keep using their current APIs.
-    """
+    """Deprecated wrapper — use run_lin_combiner() directly."""
     run_lin_combiner()
 
 
@@ -315,7 +309,7 @@ def run_lin_combiner() -> None:
         if not raw:
             chosen_files = latest_files
         else:
-            indices = set()
+            chosen_nums: set[int] = set()
             for part in raw.replace(" ", "").split(","):
                 if not part:
                     continue
@@ -325,15 +319,15 @@ def run_lin_combiner() -> None:
                     print(f"Ignoring invalid entry: {part!r}")
                     continue
                 if 1 <= i <= len(latest_files):
-                    indices.add(i)
+                    chosen_nums.add(i)
                 else:
                     print(f"Ignoring out-of-range entry: {part!r}")
 
-            if not indices:
+            if not chosen_nums:
                 print("No valid selections made; please try again.")
                 continue
 
-            chosen_files = [latest_files[i - 1] for i in sorted(indices)]
+            chosen_files = [latest_files[i - 1] for i in sorted(chosen_nums)]
 
         if len(chosen_files) < 2:
             print("You must select at least 2 files to combine. Please choose again.")

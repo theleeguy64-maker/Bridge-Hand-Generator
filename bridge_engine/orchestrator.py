@@ -422,7 +422,7 @@ def admin_menu() -> None:
         title="Bridge Hand Generator – Admin",
         items=[
             ("Exit", None),
-            ("LIN Combiner", lin_tools.combine_lin_files_interactive),
+            ("LIN Combiner", lin_tools.run_lin_combiner),
             ("Recover/Delete *_TEST.json drafts", profile_cli.run_draft_tools),
             ("Profile Diagnostic", _run_profile_diagnostic_interactive),
             ("Help", _help_admin),

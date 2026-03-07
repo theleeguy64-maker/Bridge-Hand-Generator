@@ -90,7 +90,7 @@ def test_admin_menu_dispatches_all_actions(monkeypatch, capsys):
     """
     calls = {"lin": 0, "drafts": 0, "diag": 0, "help": 0}
 
-    monkeypatch.setattr(lin_tools, "combine_lin_files_interactive", lambda: _inc(calls, "lin"))
+    monkeypatch.setattr(lin_tools, "run_lin_combiner", lambda: _inc(calls, "lin"))
     monkeypatch.setattr(pc, "run_draft_tools", lambda: _inc(calls, "drafts"))
     monkeypatch.setattr(
         orchestrator,
@@ -112,7 +112,7 @@ def test_admin_menu_exit_immediately(monkeypatch, capsys):
     """admin_menu with choice 0 should exit without calling any actions."""
     calls = {"lin": 0, "drafts": 0, "diag": 0}
 
-    monkeypatch.setattr(lin_tools, "combine_lin_files_interactive", lambda: _inc(calls, "lin"))
+    monkeypatch.setattr(lin_tools, "run_lin_combiner", lambda: _inc(calls, "lin"))
     monkeypatch.setattr(pc, "run_draft_tools", lambda: _inc(calls, "drafts"))
     monkeypatch.setattr(
         orchestrator,

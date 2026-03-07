@@ -4,7 +4,8 @@
 - [x] Run profile management in program
 - [ ] Review all profiles (check constraints, metadata, dealing order)
 
-## Recent Fixes (#68, #42-#45)
+## Recent Fixes (#69, #68, #42-#45)
+- [x] Code review #69: C1 — parameterize bare `set` → `set[str]` in deal_generator_v2.py; C2 — align _input_int range suffix format; C3 — fix stale schema v1 docstring in profile_convert.py; B2 — orchestrator calls run_lin_combiner directly; D1 — rename shadowed `indices` → `chosen_nums` in lin_tools.py
 - [x] Category display: indent profiles under headers, remove test sort_order 20-24
 - [x] Code review #68: A1/A2 — PC/OC validation uses RS check instead of stale hand_dealing_order; C2 — standardize _input_int keyword-only args; C3 — fix stale comment in deal_generator_v2.py; D1 — remove redundant isinstance in _try_pair_coupling; D3 — clarify failure_report.py board loop
 

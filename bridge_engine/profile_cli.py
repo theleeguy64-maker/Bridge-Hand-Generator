@@ -123,7 +123,7 @@ def _input_int(
     """
     while True:
         if show_range_suffix:
-            suffix = f" (>= {minimum} and <= {maximum})"
+            suffix = f" (>={minimum} and <={maximum})"
         else:
             suffix = ""
 

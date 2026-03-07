@@ -7,11 +7,11 @@ from .hand_profile import validate_profile
 
 def convert_profiles(dir_path: Path, write: bool = False) -> None:
     """
-    Normalize all JSON profile files in a directory and stamp as schema v1.
+    Legacy one-time migration utility: normalize JSON profiles and stamp schema v1.
 
-    Validates each profile and writes it back with schema_version=1.
-    This ensures any legacy defaults are applied and the profile is in
-    the canonical format.
+    Validates each profile via validate_profile() and writes it back with
+    schema_version=1.  This was used during early development to canonicalize
+    profiles; it is not part of the normal runtime flow.
 
     Args:
         dir_path: Directory containing .json profile files

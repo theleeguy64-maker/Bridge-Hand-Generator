@@ -109,7 +109,7 @@ def _dispersion_check(
     chosen_subprofiles: Dict[Seat, "SubProfile"],
     threshold: float = SHAPE_PROB_THRESHOLD,
     rs_pre_selections: Optional[Dict[Seat, List[str]]] = None,
-) -> set:
+) -> set[str]:
     """
     Identify seats with tight shape constraints that need pre-allocation help.
 
@@ -133,7 +133,7 @@ def _dispersion_check(
         Set of seat names (e.g. {"N", "S"}) that need shape help.
         Empty set if no seats are tight.
     """
-    tight_seats: set = set()
+    tight_seats: set[str] = set()
 
     for seat, sub in chosen_subprofiles.items():
         std = sub.standard
@@ -712,7 +712,7 @@ def _deal_with_help(
     rng: random.Random,
     deck: List[Card],
     chosen_subprofiles: Dict[Seat, "SubProfile"],
-    tight_seats: set,
+    tight_seats: set[str],
     dealing_order: List[Seat],
     rs_pre_selections: Optional[Dict[Seat, List[str]]] = None,
     rs_allowed_suits: Optional[Dict[Seat, List[str]]] = None,
