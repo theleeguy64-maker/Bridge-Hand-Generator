@@ -22,9 +22,9 @@ Options:
         • Create new profiles (metadata-only wizard with standard constraints
           pre-attached)
         • View / print full profile details
-        • Edit metadata only (name, description, tag, dealer, author,
+        • Edit Overall Deal Data only (name, description, tag, dealer, author,
           version, sort order, rotate flag, NS/EW role / index settings)
-        • Edit constraints only (keep metadata, change seat constraints)
+        • Edit Each Hand Constraints only (keep metadata, change seat constraints)
         • Delete profiles
         • Save a profile as a new version
         • Work with draft *_TEST.json profiles via Draft Tools
@@ -114,7 +114,7 @@ The Profile Manager is where you define and maintain Hand Profiles.
    Dump full metadata and constraint details for a single profile.
 
 3) Edit profile
-   Edit metadata or constraints of an existing profile.
+   Edit Overall Deal Data or Each Hand Constraints of an existing profile.
 
 4) Create new profile
    Run the interactive wizard to create a new profile.
@@ -225,9 +225,9 @@ Tips:
     "edit_profile_mode": """\
 === Edit Profile – Mode Selection ===
 
-Each profile has two parts: metadata and constraints.
+Each profile has two parts: overall deal data and per-hand constraints.
 
-METADATA (option 1) — lightweight edits:
+OVERALL DEAL DATA (option 1) — lightweight edits:
   These are descriptive fields that label and configure the profile:
     • Profile name, description, tag (Opener/Overcaller)
     • Author, version
@@ -240,10 +240,10 @@ METADATA (option 1) — lightweight edits:
   Note: Dealing order is auto-computed at runtime based on constraint
   difficulty — it is not user-editable.
 
-  Editing metadata does NOT re-run the wizard — you just update the
-  fields and save.
+  Editing overall deal data does NOT re-run the wizard — you just update
+  the fields and save.
 
-CONSTRAINTS (option 2) — full wizard re-run:
+EACH HAND CONSTRAINTS (option 2) — full wizard re-run:
   Constraints define the actual hand requirements for each seat. Each
   seat has one or more "sub-profiles".
 

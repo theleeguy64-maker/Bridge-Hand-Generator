@@ -8,8 +8,8 @@ Features:
         * Show metadata and summary
         * Optionally print full constraints
     - Edit profile:
-        * Edit metadata only
-        * Edit constraints only (using current values as defaults)
+        * Edit Overall Deal Data only
+        * Edit Each Hand Constraints only (using current values as defaults)
     - Delete profile
     - Save profile as new version
 
@@ -63,9 +63,6 @@ from .profile_wizard import (
 from . import profile_store
 
 from .wizard_flow import edit_constraints_interactive as edit_constraints_interactive_flow
-from .profile_store import PROFILE_DIR_NAME
-
-
 # ---------------------------------------------------------------------------
 # Basic input helpers
 # ---------------------------------------------------------------------------
@@ -163,9 +160,8 @@ def prompt_yes_no(prompt: str, default: bool = True) -> bool:
 
 
 def _profiles_dir(base_dir: Optional[Path] = None) -> Path:
-    if base_dir is None:
-        base_dir = Path.cwd()
-    return base_dir / PROFILE_DIR_NAME
+    """Delegate to profile_store — single source of truth for profiles/ path."""
+    return profile_store._profiles_dir(base_dir)
 
 
 def _safe_file_stem(name: str) -> str:
@@ -176,8 +172,7 @@ def _safe_file_stem(name: str) -> str:
 
 def _profile_path_for(profile: HandProfile, base_dir: Optional[Path] = None) -> Path:
     """Construct a default file path for a profile based on name and version."""
-    dir_path = _profiles_dir(base_dir)
-    dir_path.mkdir(parents=True, exist_ok=True)
+    dir_path = _profiles_dir(base_dir)  # profile_store creates dir if needed
     stem = _safe_file_stem(profile.profile_name)
     version = profile.version
     if version:
@@ -653,8 +648,8 @@ def edit_profile_action() -> None:
     Edit an existing profile.
 
     User can choose:
-        - Edit metadata only
-        - Edit constraints only (keeping current constraints as defaults)
+        - Edit Overall Deal Data only
+        - Edit Each Hand Constraints only (keeping current constraints as defaults)
 
     After each edit, returns to the edit menu for the same profile
     so the user can make further changes without re-selecting.
@@ -671,9 +666,9 @@ def edit_profile_action() -> None:
 
         print("\nEdit mode:")
         print("  0) Done (back to Profile Manager)")
-        print("  1) Edit metadata only")
-        print("  2) Edit constraints only")
-        print("  3) Edit sub-profile names")
+        print("  1) Edit Overall Deal Data only")
+        print("  2) Edit Each Hand Constraints only")
+        print("  3) Edit Sub-Profile names")
         print("  4) Help")
         mode = _input_int(
             "Choose [0-4] [0]: ",
@@ -898,7 +893,7 @@ def edit_profile_action() -> None:
 
         elif mode == 3:
             # ------------------------
-            # Edit sub-profile names
+            # Edit Sub-Profile names
             # ------------------------
             updated_seats = dict(profile.seat_profiles)
             changed = False
