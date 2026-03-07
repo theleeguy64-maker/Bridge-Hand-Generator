@@ -111,7 +111,7 @@ Per-attempt tracking for diagnostics:
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `deal_generator.py` | 407 | Facade: subprofile selection + `generate_deals()` + re-exports |
+| `deal_generator.py` | 406 | Facade: subprofile selection + `generate_deals()` + re-exports |
 | `deal_generator_v2.py` | 1,394 | v2 shape-help helpers + v2 builder (active production path) |
 | `deal_generator_types.py` | 240 | Types, constants, dataclasses, exception, debug hooks (leaf module) |
 | `deal_generator_helpers.py` | 438 | Shared utilities: viability, HCP, deck helpers, role filtering, vulnerability/rotation |

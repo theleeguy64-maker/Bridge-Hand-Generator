@@ -5,16 +5,6 @@
 - **Launcher**: `python -m bridge_engine` (CLI menu)
 - **Description**: Generates bridge card deals satisfying complex constraint profiles (HCP ranges, suit lengths, contingent constraints) with shape-based help, failure attribution, and adaptive re-seeding.
 
-## Quick Start
-```bash
-cd ~/Applications/BridgeHandGenerator/Exec
-source .venv/bin/activate
-python -m bridge_engine              # Run the CLI
-.venv/bin/pytest -v                  # Run tests (608)
-.venv/bin/ruff check bridge_engine/ tests/ && .venv/bin/ruff format bridge_engine/ tests/
-npx pyright bridge_engine/           # Type check (0 errors)
-```
-
 ## Tech Stack
 | Layer | Technology |
 |-------|------------|
@@ -47,7 +37,7 @@ npx pyright bridge_engine/
 
 ---
 
-# Preferences for Claude
+## Preferences for Claude
 
 ## Session Start
 - Review `TODO.md` at the start of sessions and display the full contents verbosely (all pending items, all details)

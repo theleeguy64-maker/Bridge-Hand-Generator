@@ -90,7 +90,7 @@ def prompt_choice(prompt: str, choices: List[str], default: Optional[str] = None
     """
     choice_str = "/".join(choices)
     if default is not None:
-        full = f"{prompt} ({choice_str}) (default {default}): "
+        full = f"{prompt} ({choice_str}) [{default}]: "
     else:
         full = f"{prompt} ({choice_str}): "
 
@@ -248,6 +248,7 @@ def _choose_profile(profiles: List[Tuple[Path, HandProfile]]) -> Optional[Tuple[
 
     print("\nView or Edit Profiles on disk:")
     profile_store.print_profile_display_map(display_map)
+    print()  # blank line before prompt
 
     valid_nums = sorted(display_map)
     choice = _input_int(
@@ -694,7 +695,7 @@ def edit_profile_action() -> None:
             new_name = _input_with_default("Profile name", profile.profile_name)
             new_desc = _input_with_default("Description", profile.description)
             new_tag = prompt_choice(
-                "Tag (Opener / Overcaller)",
+                "Tag",
                 ["OPENER", "OVERCALLER"],
                 profile.tag.upper(),
             ).capitalize()

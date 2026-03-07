@@ -4,7 +4,8 @@
 - [x] Run profile management in program
 - [ ] Review all profiles (check constraints, metadata, dealing order)
 
-## Recent Fixes (UI rename, #69, #68, #42-#45)
+## Recent Fixes (UI prompts, UI rename, #69, #68, #42-#45)
+- [x] Fix Tag prompt duplication and standardize `prompt_choice` default format: remove redundant "(Opener / Overcaller)" label, change `(default X)` → `[X]` to match `_input_with_default` and `_input_int` (profile_cli.py)
 - [x] Rename Edit mode menu labels: "metadata" → "Overall Deal Data", "constraints" → "Each Hand Constraints", "sub-profile" → "Sub-Profile" (profile_cli.py + menu_help.py)
 
 - [x] Code review #69: C1 — parameterize bare `set` → `set[str]` in deal_generator_v2.py; C2 — align _input_int range suffix format; C3 — fix stale schema v1 docstring in profile_convert.py; B2 — orchestrator calls run_lin_combiner directly; D1 — rename shadowed `indices` → `chosen_nums` in lin_tools.py

@@ -12,6 +12,7 @@ if str(ROOT) not in sys.path:
 
 from bridge_engine import orchestrator  # type: ignore[import]
 from bridge_engine import profile_cli  # type: ignore[import]
+from bridge_engine import profile_store  # type: ignore[import]
 
 
 def test_profiles_dir_uses_given_base_dir(tmp_path: Path) -> None:
@@ -20,7 +21,7 @@ def test_profiles_dir_uses_given_base_dir(tmp_path: Path) -> None:
     """
     base_dir = tmp_path
     profiles_dir = orchestrator._profiles_dir(base_dir)  # type: ignore[attr-defined]
-    assert profiles_dir == base_dir / orchestrator.PROFILE_DIR_NAME  # type: ignore[attr-defined]
+    assert profiles_dir == base_dir / profile_store.PROFILE_DIR_NAME  # type: ignore[attr-defined]
 
 
 def test_discover_profiles_loads_profiles_using_handprofile(monkeypatch, tmp_path: Path) -> None:
@@ -30,7 +31,7 @@ def test_discover_profiles_loads_profiles_using_handprofile(monkeypatch, tmp_pat
 
     We stub HandProfile.from_dict so we don't depend on the full JSON schema.
     """
-    profiles_dir = tmp_path / orchestrator.PROFILE_DIR_NAME  # type: ignore[attr-defined]
+    profiles_dir = tmp_path / profile_store.PROFILE_DIR_NAME  # type: ignore[attr-defined]
     profiles_dir.mkdir(parents=True)
 
     sample_file = profiles_dir / "sample.json"

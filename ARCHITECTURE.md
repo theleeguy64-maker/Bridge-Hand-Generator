@@ -526,38 +526,13 @@ npx pyright bridge_engine/
 - Uses `getattr(sub, "name", None)` to handle SimpleNamespace test stubs
 - Edit mode 3 in `profile_cli.py` — "Edit sub-profile names" for existing profiles
 
-## Known Structural Issues
-
-### Duck-Typed Test Profiles
-
-Tests use `_DummyProfile` (SimpleNamespace) objects that lack newer HandProfile fields (e.g. `ns_bespoke_map`, `ew_bespoke_map`). Code in `hand_profile_validate.py` that handles both real profiles and test dummies must use `getattr()` with defaults for these fields. Do not replace with direct attribute access without updating all test stubs.
-
-### profile_cli.py vs profile_store.py Divergence
-
-These files have DUPLICATE but DIVERGED persistence functions — do NOT consolidate without careful analysis:
-- `_safe_file_stem()` keeps `&` in names; `_slugify()` removes it
-- `profile_cli._load_profiles()` loads ALL .json; `profile_store._load_profiles()` skips drafts
-- `profile_store._save_profile_to_path()` strips TEST suffix; `profile_cli` version doesn't
-- `_profile_path_for()` differs: profile_cli omits version if empty; profile_store defaults to "0.1"
-- Existing profile filenames depend on `&` preservation
-
-### Remaining Issues
-
-| File | Issue |
-|------|-------|
-| `orchestrator.py` | Unreachable try-except |
-
-### Resolved Issues (Historical)
-
-All duplicate definitions, orphaned/dead code, and missing implementations have been resolved through code reviews #4-#69. See TODO.md for full history.
-
 ## Dependencies
 
 | Package | Purpose |
 |---------|---------|
 | Python 3.13 | Runtime |
-| pytest | Test framework (608 tests) |
-| pyright | Static type checking (0 errors) |
+| pytest | Test framework |
+| pyright | Static type checking |
 | ruff | Linting + formatting |
 
 No external runtime dependencies — the engine uses only Python stdlib.
@@ -587,3 +562,28 @@ Approaches tried or considered and abandoned.
 - **Hardcoded dealing order** — user-configured order was fragile; replaced with auto-computed order based on constraint tightness
 - **Fixed subprofile re-roll intervals** — constant intervals couldn't adapt to profile difficulty; replaced with exponential decay (150 → 50, 0.7x)
 - **Random RS suit selection during matching** — too late to help; replaced with pre-selection before dealing so dispersion check and pre-allocation can see RS suits
+
+## Known Structural Issues
+
+### Duck-Typed Test Profiles
+
+Tests use `_DummyProfile` (SimpleNamespace) objects that lack newer HandProfile fields (e.g. `ns_bespoke_map`, `ew_bespoke_map`). Code in `hand_profile_validate.py` that handles both real profiles and test dummies must use `getattr()` with defaults for these fields. Do not replace with direct attribute access without updating all test stubs.
+
+### profile_cli.py vs profile_store.py Divergence
+
+These files have DUPLICATE but DIVERGED persistence functions — do NOT consolidate without careful analysis:
+- `_safe_file_stem()` keeps `&` in names; `_slugify()` removes it
+- `profile_cli._load_profiles()` loads ALL .json; `profile_store._load_profiles()` skips drafts
+- `profile_store._save_profile_to_path()` strips TEST suffix; `profile_cli` version doesn't
+- `_profile_path_for()` differs: profile_cli omits version if empty; profile_store defaults to "0.1"
+- Existing profile filenames depend on `&` preservation
+
+### Remaining Issues
+
+| File | Issue |
+|------|-------|
+| `orchestrator.py` | Unreachable try-except |
+
+### Resolved Issues (Historical)
+
+All duplicate definitions, orphaned/dead code, and missing implementations have been resolved through code reviews #4-#69. See TODO.md for full history.

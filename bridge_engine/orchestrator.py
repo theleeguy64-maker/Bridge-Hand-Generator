@@ -49,21 +49,14 @@ from . import profile_cli
 from . import profile_store
 from . import lin_tools
 from . import profile_diagnostic
-from .profile_store import PROFILE_DIR_NAME
-
-
 # ---------------------------------------------------------------------------
 # Profile discovery / selection for deal generation (Session bundles)
 # ---------------------------------------------------------------------------
 
 
 def _profiles_dir(base_dir: Path | None = None) -> Path:
-    """
-    Resolve the directory where profiles are stored.
-    """
-    if base_dir is None:
-        base_dir = Path.cwd()
-    return base_dir / PROFILE_DIR_NAME
+    """Delegate to profile_store — single source of truth for profiles/ path."""
+    return profile_store._profiles_dir(base_dir)
 
 
 def _discover_profiles(base_dir: Path | None = None) -> List[Tuple[Path, HandProfile]]:
