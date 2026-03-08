@@ -14,7 +14,7 @@ from bridge_engine.deal_generator import _build_single_constrained_deal_v2  # ok
 def test_f3_couples_responder_to_opener_by_index():
     """
     NS sub-profile index matching: the responder (South) should use the
-    same sub-profile index as the opener (North), once North’s index has
+    same sub-profile index as the opener (North), once North's index has
     been chosen by weighted random selection.
     """
     std = _standard_all_open()
@@ -43,7 +43,7 @@ def test_f3_couples_responder_to_opener_by_index():
 
     deal = _build_single_constrained_deal_v2(rng, validated, board_number=1)
 
-    # We don’t assert exact hands here, only that the coupling logic ran
+    # We don't assert exact hands here, only that the coupling logic ran
     # without violating any invariants and produced a valid deal.
     assert deal is not None
 
@@ -56,7 +56,7 @@ def test_f3_couples_responder_to_opener_by_index():
     n1b = SubProfile(standard=std, weight_percent=100.0)
     profile2 = HandProfile(
         profile_name="TEST_F3_NS_2",
-        description="F3 opener→responder coupling test (alt weights)",
+        description="F3 coupling test (alt weights)",
         dealer="N",
         tag="Opener",
         seat_profiles={
@@ -74,15 +74,13 @@ def test_f3_couples_responder_to_opener_by_index():
     assert deal2 is not None
 
 
-def _make_ns_coupling_profile(ns_role_mode: str | None = None) -> HandProfile:
+def _make_ns_coupling_profile() -> HandProfile:
     """
-    Build a minimal NS profile for F3 testing, with optional ns_role_mode.
+    Build a minimal NS profile for coupling testing.
 
     - N and S both have 2 subprofiles.
-    - N has 100/0 weights so, when N is the driver, subprofile index 0
-      is deterministically chosen.
-    - S has unconstrained weights (defaults) – the F3 coupling logic
-      will align S's subprofile index to the driver's choice.
+    - N has 100/0 weights so subprofile index 0 is deterministically chosen.
+    - S has unconstrained weights (defaults).
     """
     std = _standard_all_open()
 
@@ -101,18 +99,13 @@ def _make_ns_coupling_profile(ns_role_mode: str | None = None) -> HandProfile:
         ],
     )
 
-    extra_kwargs: dict[str, object] = {}
-    if ns_role_mode is not None:
-        extra_kwargs["ns_role_mode"] = ns_role_mode
-
     profile = HandProfile(
-        profile_name=f"TEST_F3_NS_mode_{ns_role_mode or 'default'}",
-        description="F3 opener→responder coupling NS test",
+        profile_name="TEST_F3_NS_coupling",
+        description="NS coupling test",
         dealer="N",
         tag="Opener",
         seat_profiles={"N": north, "S": south},
         hand_dealing_order=["N", "S", "E", "W"],
-        **extra_kwargs,
     )
 
     # Go through the real validator to pick up any future invariants.
@@ -121,49 +114,11 @@ def _make_ns_coupling_profile(ns_role_mode: str | None = None) -> HandProfile:
 
 def test_f3_ns_coupling_default_mode_still_works() -> None:
     """
-    Smoke test: with no explicit ns_role_mode, we still get a valid deal.
-
-    This locks in that introducing ns_role_mode metadata does not break
-    the default (Phase 2) behaviour of the generator or the NS
-    sub-profile index matching logic (formerly “F3 coupling”).
+    Smoke test: profile with N and S having 2 subprofiles each
+    still produces a valid deal.
     """
-
-    profile = _make_ns_coupling_profile()  # uses default ns_role_mode
+    profile = _make_ns_coupling_profile()
     rng = random.Random(1234)
 
     deal = _build_single_constrained_deal_v2(rng, profile, board_number=1)
     assert deal is not None
-
-
-def test_f3_ns_coupling_north_drives_metadata_is_accepted() -> None:
-    """
-    Smoke test: ns_role_mode='north_drives' is accepted end-to-end.
-
-    For now, we only assert that the generator runs without error. When
-    we later refine NS driver/follower semantics and sub-profile index
-    matching, we can extend this to check which side actually drives.
-    """
-
-    profile = _make_ns_coupling_profile(ns_role_mode="north_drives")
-    rng = random.Random(5678)
-
-    deal = _build_single_constrained_deal_v2(rng, profile, board_number=1)
-    assert deal is not None
-
-
-def test_f3_ns_coupling_south_or_random_modes_do_not_crash() -> None:
-    """
-    Smoke test for future modes: 'south_drives' and 'random_driver'.
-
-    Today, these may behave the same as the default from the generator's
-    perspective. This test simply guarantees that introducing these
-    ns_role_mode values does not crash deal generation or the NS
-    sub-profile index matching behaviour (formerly “F3 coupling”).
-    """
-
-    for mode in ("south_drives", "random_driver"):
-        profile = _make_ns_coupling_profile(ns_role_mode=mode)
-        rng = random.Random(9999)
-
-        deal = _build_single_constrained_deal_v2(rng, profile, board_number=1)
-        assert deal is not None

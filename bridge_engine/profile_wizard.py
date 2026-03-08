@@ -63,9 +63,8 @@ def create_profile_interactive() -> HandProfile:
       • User answers *metadata only* (name, description, tag, dealer,
         order, author, version, rotate flag).
       • Wizard attaches Base-style standard constraints in the background.
-      • NS behaviour defaults to 'no_driver_no_index' so there is
-        NO NS driver semantics and NO index matching until you
-        explicitly edit the profile later.
+      • No linked profiles are set by default — subprofile selection
+        for each seat is independent until you configure a linked profile.
     """
     clear_screen()
     print("=== Create New Profile ===")
@@ -74,15 +73,10 @@ def create_profile_interactive() -> HandProfile:
     # Build all kwargs (metadata + default standard constraints)
     kwargs = wizard_flow._build_profile(existing=None)
 
-    # Force backwards-compatible NS default for brand-new profiles:
-    # treat them as "no driver / no index" unless explicitly changed later.
-    kwargs["ns_role_mode"] = "no_driver_no_index"
-    kwargs["ew_role_mode"] = "no_driver_no_index"
-
     # Construct profile object from kwargs
     profile = HandProfile(**kwargs)
 
-    # Validate (this may normalise weights etc., but ns_role_mode is now fixed)
+    # Validate (this may normalise weights etc.)
     validate_profile(profile)
 
     return profile

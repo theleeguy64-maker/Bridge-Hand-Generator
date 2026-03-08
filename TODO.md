@@ -13,10 +13,11 @@
 - [x] Phase 6: Validation — _validate_linked_profile() in hand_profile_validate.py (surjective, bounds, exhaustive)
 - [x] Help text — linked_profile, yn_subprofile_map entries in menu_help.py
 - [x] Tests — 51 tests in test_linked_profiles.py (dataclass, fields, apply, select, E2E, migration, validation)
-- [ ] Phase 7: Cleanup — Remove old fields (ns_role_mode, ew_role_mode, bespoke maps, role usage), remove _try_pair_coupling, _eligible_indices_for_role, old tests
+- [x] Phase 7: Cleanup — Removed old fields (ns_role_mode, ew_role_mode, bespoke maps, role usage), removed _try_pair_coupling, _eligible_indices_for_role, old tests, rewrote migration to raw dicts
 - [x] Phase 8: OC/PC Safety Check — _ocpc_rs_consistent() in deal_generator.py, benchmarked (neutral perf), added as safety net
 
 ## Recent Code Reviews
+- [x] Code review #74: C1 — fix stale "Phase 3:" comment prefix in deal_generator_v2.py; C2 — update stale docstring in deal_generator_helpers.py (role filtering removed); C3 — fix stale "coupling" comment in profile_viability.py; C4 — update stale "5 steps" docstring in hand_profile_validate.py (now 3 steps)
 - [x] Code review #73: C1 — fix misleading comment in hand_profile_validate.py (fields() raises TypeError, not is_dataclass()); C2 — extract duplicate `suit_map` → module-level `_SUIT_ATTR` in profile_viability.py; C3 — move late `replace` import to module-level in seat_viability.py
 - [x] Code review #72: C1 — update stale HandProfile docstring to describe linked profiles instead of old role modes; C2 — replace "Phase 7" plan reference with "legacy fallback" in deal_generator.py; B1 — remove unused `yn_edit_weights` help key from menu_help.py (−21 lines)
 - [x] Code review #71: C1 — stale "role / index" help text → "linked profiles" in menu_help.py; C2 — standardize `set[int]` → `Set[int]` in hand_profile_validate.py; D1/D2 — remove redundant partner/opponent seat guards in PC/OC validation

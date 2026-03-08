@@ -11,7 +11,8 @@
 #   deal_generator_v2.py      — v2 shape-based help system (active path)
 #
 # This module retains:
-#   _try_pair_coupling()              — coupling helper (uses monkeypatchable SeatProfile)
+#   _apply_linked_profile()           — linked profile coupling
+#   _ocpc_rs_consistent()             — OC/PC-RS safety check
 #   _select_subprofiles_for_board()   — must live here because tests
 #       monkeypatch deal_generator.SeatProfile for isinstance checks
 #   generate_deals()                  — public entry point
@@ -53,7 +54,6 @@ from .deal_generator_types import (  # _-prefixed names for v2 late imports
 from .deal_generator_helpers import *  # noqa: F401,F403
 from .deal_generator_helpers import (  # _-prefixed names for this module + tests
     _choose_index_for_seat,
-    _eligible_indices_for_role,
     _card_hcp,
     _deck_hcp_stats,
     _check_hcp_feasibility,
@@ -140,89 +140,6 @@ def _apply_linked_profile(
     chosen_subprofiles[secondary] = secondary_sp.subprofiles[secondary_idx]
 
 
-def _try_pair_coupling(
-    rng: random.Random,
-    seat_profiles: Dict[str, SeatProfile],
-    seat_a: Seat,
-    seat_b: Seat,
-    driver_seat: Seat,
-    chosen_subprofiles: Dict[Seat, SubProfile],
-    chosen_indices: Dict[Seat, int],
-    pair: str = "ns",
-    bespoke_map: Optional[Dict[int, List[int]]] = None,
-) -> None:
-    """
-    Index-couple two seats if both have >1 subprofile.
-
-    When bespoke_map is None (default): requires equal subprofile counts;
-    picks a single subprofile index for *driver_seat* (by weight, filtered
-    by role eligibility) and forces the follower to use the same index.
-
-    When bespoke_map is provided: does NOT require equal counts; driver
-    picks an index (role-filtered), then follower picks from the map's
-    candidate list for that driver index (also role-filtered, weighted).
-
-    The *pair* parameter ("ns" or "ew") controls which role_usage field
-    is consulted for role filtering.
-
-    Mutates *chosen_subprofiles* and *chosen_indices* in place; does
-    nothing if coupling preconditions fail.
-    """
-    sp_a = seat_profiles.get(seat_a)
-    sp_b = seat_profiles.get(seat_b)
-
-    if bespoke_map is not None:
-        # Bespoke mode: only require both seats have >1 subprofile.
-        if not (
-            isinstance(sp_a, SeatProfile)
-            and isinstance(sp_b, SeatProfile)
-            and len(sp_a.subprofiles) > 1
-            and len(sp_b.subprofiles) > 1
-        ):
-            return  # Coupling not possible.
-    else:
-        # Standard index coupling: require equal subprofile counts.
-        if not (
-            isinstance(sp_a, SeatProfile)
-            and isinstance(sp_b, SeatProfile)
-            and len(sp_a.subprofiles) > 1
-            and len(sp_b.subprofiles) > 1
-            and len(sp_a.subprofiles) == len(sp_b.subprofiles)
-        ):
-            return  # Coupling not possible.
-
-    follower_seat: Seat = seat_b if driver_seat == seat_a else seat_a
-    # Both sp_a and sp_b are guaranteed to be SeatProfile after the
-    # isinstance guard above, so driver_sp/follower_sp are too.
-    driver_sp = seat_profiles[driver_seat]
-    follower_sp = seat_profiles[follower_seat]
-
-    # Role-filter driver's eligible indices.
-    driver_eligible = _eligible_indices_for_role(driver_sp, "driver", pair)
-    idx = _choose_index_for_seat(rng, driver_sp, eligible_indices=driver_eligible)
-
-    chosen_indices[driver_seat] = idx
-    chosen_subprofiles[driver_seat] = driver_sp.subprofiles[idx]
-
-    if bespoke_map is not None:
-        # Bespoke matching: look up follower candidates from map.
-        follower_candidates = bespoke_map.get(idx, [])
-        # Further filter by follower role eligibility.
-        follower_eligible = _eligible_indices_for_role(follower_sp, "follower", pair)
-        filtered = [i for i in follower_candidates if i in follower_eligible]
-        if not filtered:
-            # Safety fallback: use all candidates from map (skip role filter).
-            filtered = list(follower_candidates) if follower_candidates else list(range(len(follower_sp.subprofiles)))
-        # Weighted choice among filtered follower indices.
-        follower_idx = _choose_index_for_seat(rng, follower_sp, eligible_indices=filtered)
-    else:
-        # Standard index coupling: follower uses same index as driver.
-        follower_idx = idx
-
-    chosen_indices[follower_seat] = follower_idx
-    chosen_subprofiles[follower_seat] = follower_sp.subprofiles[follower_idx]
-
-
 # Partner/opponent maps for OC/PC-RS consistency checking.
 _PARTNER: Dict[str, str] = {"N": "S", "S": "N", "E": "W", "W": "E"}
 _OPPONENTS: Dict[str, Tuple[str, str]] = {
@@ -269,9 +186,7 @@ def _select_subprofiles_for_board(
     For each pair (NS, EW):
       1. If a LinkedProfile is set: primary picks by weight, secondary
          picks from the mapped subset with renormalized weights.
-      2. Else if legacy role mode coupling is active: old driver/follower
-         index coupling (legacy fallback, kept for backward compat).
-      3. Else: each seat picks independently by its own weights.
+      2. Else: each seat picks independently by its own weights.
 
     After selecting, _cross_seat_feasible() checks whether the chosen
     combination can possibly succeed (HCP sums, per-suit card counts).
@@ -285,8 +200,7 @@ def _select_subprofiles_for_board(
         chosen_subprofiles: Dict[Seat, SubProfile] = {}
         chosen_indices: Dict[Seat, int] = {}
 
-        # --- NS coupling ---
-        # New system: check for linked profile first.
+        # --- NS coupling via linked profile ---
         ns_linked = getattr(profile, "ns_linked_profile", None)
         if ns_linked is not None:
             _apply_linked_profile(
@@ -296,27 +210,8 @@ def _select_subprofiles_for_board(
                 chosen_subprofiles,
                 chosen_indices,
             )
-        else:
-            # Legacy fallback: old role mode coupling.
-            _ns_mode = getattr(profile, "ns_role_mode", None) or "no_driver_no_index"
-            if _ns_mode != "no_driver_no_index":
-                ns_driver: Optional[Seat] = profile.ns_driver_seat(rng)
-                if ns_driver not in ("N", "S"):
-                    ns_driver = next((s for s in dealing_order if s in ("N", "S")), "N")
-                _try_pair_coupling(
-                    rng,
-                    profile.seat_profiles,
-                    "N",
-                    "S",
-                    ns_driver,
-                    chosen_subprofiles,
-                    chosen_indices,
-                    pair="ns",
-                    bespoke_map=getattr(profile, "ns_bespoke_map", None),
-                )
 
-        # --- EW coupling ---
-        # New system: check for linked profile first.
+        # --- EW coupling via linked profile ---
         ew_linked = getattr(profile, "ew_linked_profile", None)
         if ew_linked is not None:
             _apply_linked_profile(
@@ -326,24 +221,6 @@ def _select_subprofiles_for_board(
                 chosen_subprofiles,
                 chosen_indices,
             )
-        else:
-            # Legacy fallback: old role mode coupling.
-            _ew_mode = getattr(profile, "ew_role_mode", None) or "no_driver_no_index"
-            if _ew_mode != "no_driver_no_index":
-                ew_driver: Optional[Seat] = profile.ew_driver_seat(rng)
-                if ew_driver not in ("E", "W"):
-                    ew_driver = next((s for s in dealing_order if s in ("E", "W")), "E")
-                _try_pair_coupling(
-                    rng,
-                    profile.seat_profiles,
-                    "E",
-                    "W",
-                    ew_driver,
-                    chosen_subprofiles,
-                    chosen_indices,
-                    pair="ew",
-                    bespoke_map=getattr(profile, "ew_bespoke_map", None),
-                )
 
         # --- Remaining seats (incl. unconstrained or single-subprofile) ----
         for seat_name, seat_profile in profile.seat_profiles.items():

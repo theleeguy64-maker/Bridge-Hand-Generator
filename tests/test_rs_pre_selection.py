@@ -62,7 +62,6 @@ class _DummySubProfile:
         self.partner_contingent_constraint = None
         self.opponents_contingent_suit_constraint = None
         self.weight_percent = 100.0
-        self.ns_role_usage = "any"
 
 
 # ===================================================================

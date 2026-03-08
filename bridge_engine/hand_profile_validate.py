@@ -1,12 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import is_dataclass, fields
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Set
 
-from .hand_profile_model import HandProfile, SubProfile, ProfileError
-
-# Type alias for seat names (N, E, S, W)
-Seat = str
+from .hand_profile_model import HandProfile, ProfileError
 
 
 def _to_raw_dict(data: Any) -> Dict[str, Any]:
@@ -225,157 +222,6 @@ def _normalise_subprofile_weights(raw: Dict[str, Any]) -> None:
 
         # Last one takes the slack so we hit 100.0 exactly.
         sub_list[-1]["weight_percent"] = 100.0 - running
-
-
-def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
-    """
-    Ensure that for each NS seat and each role that can occur under
-    ns_role_mode, there is at least one compatible SubProfile.
-
-    ns_role_usage semantics (per SubProfile, legacy system):
-      - "any"           → can be used whether the seat is driver or follower
-      - "driver_only"   → only usable when this seat is the NS driver
-      - "follower_only" → only usable when this seat is the NS follower
-
-    Backwards-compatible:
-        - If ns_role_mode is missing → treated as "no_driver_no_index".
-        - If ns_role_mode is "no_driver_no_index" → skip NS role coverage checks.
-        - If ns_role_mode is unknown/future → treat as "no_driver_no_index" (skip).
-        - If a SubProfile has no ns_role_usage → treated as "any".
-        - If a seat has no subprofiles → skipped.
-    """
-
-    # Only relevant if N or S actually has subprofiles.
-    ns_seats: List[Seat] = [
-        seat for seat in ("N", "S") if seat in profile.seat_profiles and profile.seat_profiles[seat].subprofiles
-    ]
-    if not ns_seats:
-        return
-
-    # Normalise ns_role_mode with backwards-compatible default.
-    #
-    # Modes:
-    #   - north_drives / south_drives / random_driver  → enforce ns_role_usage coverage
-    #   - no_driver_no_index                           → no driver semantics, skip checks
-    #
-    # Back-compat:
-    #   - missing/blank ns_role_mode → treated as "no_driver_no_index" (skip checks)
-    #   - unknown/future values      → treated as "no_driver_no_index" (lenient)
-    mode = (profile.ns_role_mode or "no_driver_no_index").strip()
-
-    if mode in ("no_driver", "no_driver_no_index"):
-        return
-
-    if mode not in ("north_drives", "south_drives", "random_driver"):
-        # Defensive: unknown future mode → disable NS role semantics rather than
-        # failing profile creation.
-        return
-
-    def roles_for(seat: Seat) -> Set[str]:
-        """Return roles ('driver', 'follower') that this seat may take."""
-        if seat not in ("N", "S"):
-            return set()
-
-        if mode == "north_drives":
-            # N drives, S follows.
-            return {"driver"} if seat == "N" else {"follower"}
-        if mode == "south_drives":
-            # S drives, N follows.
-            return {"driver"} if seat == "S" else {"follower"}
-
-        # random_driver (or unknown mapped to it):
-        # either N or S may be driver or follower.
-        return {"driver", "follower"}
-
-    def has_compatible_usage(sub: SubProfile, allowed: Tuple[str, str]) -> bool:
-        return sub.ns_role_usage in allowed
-
-    for seat in ("N", "S"):
-        sp = profile.seat_profiles.get(seat)
-        if sp is None or not sp.subprofiles:
-            continue
-
-        roles = roles_for(seat)
-        if not roles:
-            continue
-
-        for role in sorted(roles):
-            if role == "driver":
-                allowed = ("any", "driver_only")
-            else:
-                allowed = ("any", "follower_only")
-
-            if not any(has_compatible_usage(sub, allowed) for sub in sp.subprofiles):
-                raise ProfileError(
-                    "Invalid NS role configuration: seat "
-                    f"{seat} may act as {role} under ns_role_mode={mode!r}, "
-                    "but no subprofile has ns_role_usage in "
-                    f"{allowed}."
-                )
-
-
-def _validate_ew_role_usage_coverage(profile: HandProfile) -> None:
-    """
-    Ensure that for each EW seat and each role that can occur under
-    ew_role_mode, there is at least one compatible SubProfile.
-
-    Parallel to _validate_ns_role_usage_coverage() but for E/W seats.
-    """
-
-    # Only relevant if E or W actually has subprofiles.
-    ew_seats: List[Seat] = [
-        seat for seat in ("E", "W") if seat in profile.seat_profiles and profile.seat_profiles[seat].subprofiles
-    ]
-    if not ew_seats:
-        return
-
-    mode = (profile.ew_role_mode or "no_driver_no_index").strip()
-
-    if mode in ("no_driver", "no_driver_no_index"):
-        return
-
-    if mode not in ("east_drives", "west_drives", "random_driver"):
-        # Defensive: unknown future mode → disable EW role semantics.
-        return
-
-    def roles_for(seat: Seat) -> Set[str]:
-        """Return roles ('driver', 'follower') that this seat may take."""
-        if seat not in ("E", "W"):
-            return set()
-
-        if mode == "east_drives":
-            return {"driver"} if seat == "E" else {"follower"}
-        if mode == "west_drives":
-            return {"driver"} if seat == "W" else {"follower"}
-
-        # random_driver: either E or W may be driver or follower.
-        return {"driver", "follower"}
-
-    def has_compatible_usage(sub: SubProfile, allowed: Tuple[str, str]) -> bool:
-        return sub.ew_role_usage in allowed
-
-    for seat in ("E", "W"):
-        sp = profile.seat_profiles.get(seat)
-        if sp is None or not sp.subprofiles:
-            continue
-
-        roles = roles_for(seat)
-        if not roles:
-            continue
-
-        for role in sorted(roles):
-            if role == "driver":
-                allowed = ("any", "driver_only")
-            else:
-                allowed = ("any", "follower_only")
-
-            if not any(has_compatible_usage(sub, allowed) for sub in sp.subprofiles):
-                raise ProfileError(
-                    "Invalid EW role configuration: seat "
-                    f"{seat} may act as {role} under ew_role_mode={mode!r}, "
-                    "but no subprofile has ew_role_usage in "
-                    f"{allowed}."
-                )
 
 
 def _validate_partner_contingent(profile: HandProfile) -> None:
@@ -613,107 +459,6 @@ def _validate_linked_profile(profile: HandProfile) -> None:
                 )
 
 
-def _validate_bespoke_map(profile: HandProfile) -> None:
-    """
-    Validate ns_bespoke_map and ew_bespoke_map on a HandProfile.
-
-    For each map (when not None):
-      1. Reject if role_mode is "no_driver_no_index" or "random_driver"
-         (bespoke maps require a fixed driver).
-      2. All driver indices (keys) must be valid: 0 <= key < len(driver_seat.subprofiles).
-      3. All follower indices (values) must be valid: 0 <= idx < len(follower_seat.subprofiles).
-      4. Every driver sub index must be a key (exhaustive for driver).
-      5. Every follower sub index must appear in at least one value list (exhaustive for follower).
-      6. No empty value lists.
-    """
-    # getattr needed: tests pass duck-typed _DummyProfile objects that
-    # lack bespoke map and role mode fields.
-    ns_bmap = getattr(profile, "ns_bespoke_map", None)
-    ew_bmap = getattr(profile, "ew_bespoke_map", None)
-    ns_rmode = getattr(profile, "ns_role_mode", "no_driver_no_index")
-    ew_rmode = getattr(profile, "ew_role_mode", "no_driver_no_index")
-
-    for pair_label, bmap, role_mode, driver_seat_key, follower_seat_key in [
-        ("NS", ns_bmap, ns_rmode, "N", "S"),
-        ("EW", ew_bmap, ew_rmode, "E", "W"),
-    ]:
-        if bmap is None:
-            continue
-
-        # 1. Reject incompatible role modes.
-        if role_mode in ("no_driver_no_index", "random_driver"):
-            raise ProfileError(
-                f"{pair_label} bespoke map is not compatible with "
-                f"role_mode={role_mode!r}. Bespoke maps require a fixed driver."
-            )
-
-        # Determine which seat is driver based on role_mode.
-        if pair_label == "NS":
-            if role_mode == "north_drives":
-                d_key, f_key = "N", "S"
-            elif role_mode == "south_drives":
-                d_key, f_key = "S", "N"
-            else:
-                d_key, f_key = driver_seat_key, follower_seat_key
-        else:
-            if role_mode == "east_drives":
-                d_key, f_key = "E", "W"
-            elif role_mode == "west_drives":
-                d_key, f_key = "W", "E"
-            else:
-                d_key, f_key = driver_seat_key, follower_seat_key
-
-        driver_sp = profile.seat_profiles.get(d_key)
-        follower_sp = profile.seat_profiles.get(f_key)
-
-        if driver_sp is None or follower_sp is None:
-            raise ProfileError(f"{pair_label} bespoke map requires both {d_key} and {f_key} to have seat profiles.")
-
-        num_driver_subs = len(driver_sp.subprofiles)
-        num_follower_subs = len(follower_sp.subprofiles)
-
-        # 2. Validate driver index keys.
-        for key in bmap:
-            if not (0 <= key < num_driver_subs):
-                raise ProfileError(
-                    f"{pair_label} bespoke map: driver index {key} out of bounds "
-                    f"(driver seat {d_key} has {num_driver_subs} subprofiles)."
-                )
-
-        # 3. Validate follower index values.
-        for key, follower_indices in bmap.items():
-            for idx in follower_indices:
-                if not (0 <= idx < num_follower_subs):
-                    raise ProfileError(
-                        f"{pair_label} bespoke map: follower index {idx} (for driver key {key}) "
-                        f"out of bounds (follower seat {f_key} has {num_follower_subs} subprofiles)."
-                    )
-
-        # 4. Every driver sub index must be a key (exhaustive for driver).
-        for i in range(num_driver_subs):
-            if i not in bmap:
-                raise ProfileError(
-                    f"{pair_label} bespoke map: driver sub index {i} is missing as a key "
-                    f"(all {num_driver_subs} driver sub indices must be present)."
-                )
-
-        # 5. Every follower sub index must appear in at least one value list.
-        all_follower_indices: Set[int] = set()
-        for vals in bmap.values():
-            all_follower_indices.update(vals)
-        for i in range(num_follower_subs):
-            if i not in all_follower_indices:
-                raise ProfileError(
-                    f"{pair_label} bespoke map: follower sub index {i} does not appear "
-                    f"in any driver's candidate list (all follower subs must be reachable)."
-                )
-
-        # 6. No empty value lists.
-        for key, vals in bmap.items():
-            if not vals:
-                raise ProfileError(f"{pair_label} bespoke map: driver key {key} has an empty follower candidate list.")
-
-
 def validate_profile(data: Any) -> HandProfile:
     """
     Validate and normalise raw profile data, then build a HandProfile.
@@ -726,7 +471,6 @@ def validate_profile(data: Any) -> HandProfile:
     - Applies an F5 legacy normalisation shim for old schema_version=0 data:
         * rotate_deals_by_default defaults to True
         * subprofile_exclusions defaults to []
-        * ns_role_mode defaults to "no_driver_no_index"
     - Normalises subprofile weights as per tests in test_weighted_subprofiles:
         * If all weights are 0 → equalise to 100 / N each
         * If any weight is negative → ProfileError
@@ -748,66 +492,27 @@ def validate_profile(data: Any) -> HandProfile:
         # Legacy profiles: backfill missing metadata fields with sensible defaults.
         raw.setdefault("rotate_deals_by_default", True)
         raw.setdefault("subprofile_exclusions", [])
-        # Backwards-compat behaviour for NS roles:
-        # older JSON with no ns_role_mode should behave like
-        # "no driver, no index matching" between N and S.
-        raw.setdefault("ns_role_mode", "no_driver_no_index")
 
     # -----------------------------------
-    # 3. ns_role_mode sanity (including 'no_driver_no_index')
-    # -----------------------------------
-    mode = str(raw.get("ns_role_mode", "no_driver_no_index") or "no_driver_no_index").strip()
-    allowed_modes = {
-        "north_drives",
-        "south_drives",
-        "random_driver",
-        "no_driver",  # no driver roles, but index matching ON
-        "no_driver_no_index",  # no driver roles, and index matching OFF
-    }
-    if mode not in allowed_modes:
-        mode = "no_driver_no_index"
-    raw["ns_role_mode"] = mode
-
-    # -----------------------------------
-    # 3b. ew_role_mode sanity (parallel to NS)
-    # -----------------------------------
-    ew_mode = str(raw.get("ew_role_mode", "no_driver_no_index") or "no_driver_no_index").strip()
-    ew_allowed_modes = {
-        "east_drives",
-        "west_drives",
-        "random_driver",
-        "no_driver",  # no driver roles, but index matching ON
-        "no_driver_no_index",  # no driver roles, and index matching OFF
-    }
-    if ew_mode not in ew_allowed_modes:
-        ew_mode = "no_driver_no_index"
-    raw["ew_role_mode"] = ew_mode
-
-    # -----------------------------------
-    # 4. Subprofile weight normalisation
+    # 3. Subprofile weight normalisation
     # -----------------------------------
     _normalise_subprofile_weights(raw)
 
     # -----------------------------------
-    # 5. Build HandProfile from normalised dict
+    # 4. Build HandProfile from normalised dict
     # -----------------------------------
     profile = HandProfile.from_dict(raw)
 
     # -----------------------------------
-    # 6. Structural validations that rely on HandProfile objects
+    # 5. Structural validations that rely on HandProfile objects
     # -----------------------------------
     _validate_partner_contingent(profile)
     _validate_opponent_contingent(profile)
-    _validate_ns_role_usage_coverage(profile)
-    _validate_ew_role_usage_coverage(profile)
 
     # Random Suit vs standard suit constraints consistency
     _validate_random_suit_vs_standard(profile)
 
-    # Bespoke subprofile matching maps
-    _validate_bespoke_map(profile)
-
-    # Linked profile validation (new system)
+    # Linked profile validation
     _validate_linked_profile(profile)
 
     # 7. Seat-level viability check (light + cross-seat dead subprofile detection)

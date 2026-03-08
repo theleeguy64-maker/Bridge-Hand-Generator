@@ -60,7 +60,6 @@ class FakeSubProfile:
     partner_contingent_constraint: Optional[PartnerContingentData] = None
     opponents_contingent_suit_constraint: Optional[Any] = None
     weight_percent: float = 100.0
-    ns_role_usage: str = "any"
     subprofile_exclusions: Optional[Any] = None
 
 

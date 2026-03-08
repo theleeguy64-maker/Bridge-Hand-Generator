@@ -502,12 +502,12 @@ class TestSelectSubprofilesWithLinked:
             assert idxs["E"] == 0
             assert idxs["W"] in (0, 1)
 
-    def test_linked_profile_takes_priority_over_role_mode(self) -> None:
-        """When both linked profile and role mode are set, linked profile wins."""
+    def test_linked_profile_opposite_mapping(self) -> None:
+        """Linked profile with opposite mapping: N=0 → S=1, N=1 → S=0."""
         std = _standard_all_open()
         profile = HandProfile(
-            profile_name="TEST_LINKED_PRIORITY",
-            description="Linked takes priority over role mode",
+            profile_name="TEST_LINKED_OPPOSITE",
+            description="Linked with opposite mapping",
             dealer="N",
             tag="Opener",
             hand_dealing_order=["N", "S", "E", "W"],
@@ -527,9 +527,7 @@ class TestSelectSubprofilesWithLinked:
                     ],
                 ),
             },
-            # Old system: role mode is set (would couple N=S same index).
-            ns_role_mode="north_drives",
-            # New system: linked profile maps 0→[1], 1→[0] (opposite).
+            # Linked profile maps 0→[1], 1→[0] (opposite).
             ns_linked_profile=LinkedProfile(
                 primary_seat="N",
                 subprofile_map={0: [1], 1: [0]},
@@ -651,370 +649,167 @@ class TestLinkedProfileE2E:
 
 
 class TestMigrateProfileToLinked:
-    """Tests for migrate_profile_to_linked() — explicit migration function."""
+    """Tests for migrate_profile_to_linked() — explicit migration on raw dicts."""
+
+    def _make_raw(
+        self,
+        name: str = "TEST_MIGRATE",
+        ns_role_mode: str = "no_driver_no_index",
+        ew_role_mode: str = "no_driver_no_index",
+        ns_bespoke_map: Optional[Dict[int, List[int]]] = None,
+        ew_bespoke_map: Optional[Dict[int, List[int]]] = None,
+        ns_linked_profile: Optional[Dict] = None,
+        n_subs: int = 2,
+        s_subs: int = 2,
+        e_subs: int = 0,
+        w_subs: int = 0,
+        n_weights: Optional[List[float]] = None,
+        s_weights: Optional[List[float]] = None,
+    ) -> Dict:
+        """Build a raw dict suitable for migrate_profile_to_linked()."""
+        std = _standard_all_open()
+
+        def _make_sp(seat: str, count: int, weights: Optional[List[float]] = None) -> Dict:
+            if count == 0:
+                return {"seat": seat, "subprofiles": []}
+            w = weights or [round(100.0 / count, 1)] * count
+            subs = [SubProfile(standard=std, weight_percent=w[i]).to_dict() for i in range(count)]
+            return {"seat": seat, "subprofiles": subs}
+
+        raw: Dict = {
+            "profile_name": name,
+            "description": "test",
+            "dealer": "N",
+            "tag": "Opener",
+            "hand_dealing_order": ["N", "S", "E", "W"],
+            "ns_role_mode": ns_role_mode,
+            "ew_role_mode": ew_role_mode,
+            "seat_profiles": {},
+        }
+        if n_subs > 0:
+            raw["seat_profiles"]["N"] = _make_sp("N", n_subs, n_weights)
+        if s_subs > 0:
+            raw["seat_profiles"]["S"] = _make_sp("S", s_subs, s_weights)
+        if e_subs > 0:
+            raw["seat_profiles"]["E"] = _make_sp("E", e_subs)
+        if w_subs > 0:
+            raw["seat_profiles"]["W"] = _make_sp("W", w_subs)
+        if ns_bespoke_map is not None:
+            raw["ns_bespoke_map"] = {str(k): v for k, v in ns_bespoke_map.items()}
+        if ew_bespoke_map is not None:
+            raw["ew_bespoke_map"] = {str(k): v for k, v in ew_bespoke_map.items()}
+        if ns_linked_profile is not None:
+            raw["ns_linked_profile"] = ns_linked_profile
+        return raw
 
     def test_no_driver_no_index_unchanged(self) -> None:
         """no_driver_no_index → no linked profile (no change)."""
-        std = _standard_all_open()
-        profile = HandProfile(
-            profile_name="TEST_MIGRATE_NDNI",
-            description="test",
-            dealer="N",
-            tag="Opener",
-            hand_dealing_order=["N", "S", "E", "W"],
-            seat_profiles={
-                "N": SeatProfile(
-                    seat="N",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=50.0),
-                        SubProfile(standard=std, weight_percent=50.0),
-                    ],
-                ),
-                "S": SeatProfile(
-                    seat="S",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=50.0),
-                        SubProfile(standard=std, weight_percent=50.0),
-                    ],
-                ),
-            },
-            ns_role_mode="no_driver_no_index",
-        )
-        migrated = migrate_profile_to_linked(profile)
-        assert migrated.ns_linked_profile is None
-        assert migrated is profile  # Should return same object (no change)
+        raw = self._make_raw(ns_role_mode="no_driver_no_index")
+        result = migrate_profile_to_linked(raw)
+        assert result.get("ns_linked_profile") is None
+        assert result is raw  # Same dict (no change)
 
     def test_random_driver_unchanged(self) -> None:
         """random_driver → no linked profile (no change)."""
-        std = _standard_all_open()
-        profile = HandProfile(
-            profile_name="TEST_MIGRATE_RAND",
-            description="test",
-            dealer="N",
-            tag="Opener",
-            hand_dealing_order=["N", "S", "E", "W"],
-            seat_profiles={
-                "N": SeatProfile(
-                    seat="N",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=50.0),
-                        SubProfile(standard=std, weight_percent=50.0),
-                    ],
-                ),
-                "S": SeatProfile(
-                    seat="S",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=50.0),
-                        SubProfile(standard=std, weight_percent=50.0),
-                    ],
-                ),
-            },
-            ns_role_mode="random_driver",
-        )
-        migrated = migrate_profile_to_linked(profile)
-        assert migrated.ns_linked_profile is None
-        assert migrated is profile
+        raw = self._make_raw(ns_role_mode="random_driver")
+        result = migrate_profile_to_linked(raw)
+        assert result.get("ns_linked_profile") is None
+        assert result is raw
 
     def test_north_drives_without_bespoke_unchanged(self) -> None:
         """north_drives without bespoke map → no linked profile."""
-        std = _standard_all_open()
-        profile = HandProfile(
-            profile_name="TEST_MIGRATE_ND_NO_BESPOKE",
-            description="test",
-            dealer="N",
-            tag="Opener",
-            hand_dealing_order=["N", "S", "E", "W"],
-            seat_profiles={
-                "N": SeatProfile(
-                    seat="N",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=50.0),
-                        SubProfile(standard=std, weight_percent=50.0),
-                    ],
-                ),
-                "S": SeatProfile(
-                    seat="S",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=50.0),
-                        SubProfile(standard=std, weight_percent=50.0),
-                    ],
-                ),
-            },
-            ns_role_mode="north_drives",
-            ns_bespoke_map=None,
-        )
-        migrated = migrate_profile_to_linked(profile)
-        assert migrated.ns_linked_profile is None
-        assert migrated is profile
+        raw = self._make_raw(ns_role_mode="north_drives")
+        result = migrate_profile_to_linked(raw)
+        assert result.get("ns_linked_profile") is None
+        assert result is raw
 
     def test_north_drives_with_bespoke_migrates(self) -> None:
         """north_drives + bespoke map → LinkedProfile with N as primary."""
-        std = _standard_all_open()
         bmap = {0: [0, 1], 1: [1]}
-        profile = HandProfile(
-            profile_name="TEST_MIGRATE_ND_BESPOKE",
-            description="test",
-            dealer="N",
-            tag="Opener",
-            hand_dealing_order=["N", "S", "E", "W"],
-            seat_profiles={
-                "N": SeatProfile(
-                    seat="N",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=50.0),
-                        SubProfile(standard=std, weight_percent=50.0),
-                    ],
-                ),
-                "S": SeatProfile(
-                    seat="S",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=50.0),
-                        SubProfile(standard=std, weight_percent=50.0),
-                    ],
-                ),
-            },
-            ns_role_mode="north_drives",
-            ns_bespoke_map=bmap,
-        )
-        migrated = migrate_profile_to_linked(profile)
-        assert migrated.ns_linked_profile is not None
-        assert migrated.ns_linked_profile.primary_seat == "N"
-        assert migrated.ns_linked_profile.subprofile_map == bmap
-        # Old fields should be cleared.
-        assert migrated.ns_role_mode == "no_driver_no_index"
-        assert migrated.ns_bespoke_map is None
+        raw = self._make_raw(ns_role_mode="north_drives", ns_bespoke_map=bmap)
+        result = migrate_profile_to_linked(raw)
+        lp = result.get("ns_linked_profile")
+        assert lp is not None
+        assert lp["primary_seat"] == "N"
+        assert lp["subprofile_map"] == {"0": [0, 1], "1": [1]}
+        # Old fields should be cleaned up.
+        assert "ns_role_mode" not in result
+        assert "ns_bespoke_map" not in result
 
     def test_south_drives_with_bespoke_migrates(self) -> None:
         """south_drives + bespoke map → LinkedProfile with S as primary."""
-        std = _standard_all_open()
         bmap = {0: [0], 1: [0, 1], 2: [1]}
-        profile = HandProfile(
-            profile_name="TEST_MIGRATE_SD_BESPOKE",
-            description="test",
-            dealer="N",
-            tag="Opener",
-            hand_dealing_order=["N", "S", "E", "W"],
-            seat_profiles={
-                "N": SeatProfile(
-                    seat="N",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=50.0),
-                        SubProfile(standard=std, weight_percent=50.0),
-                    ],
-                ),
-                "S": SeatProfile(
-                    seat="S",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=34.0),
-                        SubProfile(standard=std, weight_percent=33.0),
-                        SubProfile(standard=std, weight_percent=33.0),
-                    ],
-                ),
-            },
+        raw = self._make_raw(
             ns_role_mode="south_drives",
             ns_bespoke_map=bmap,
+            s_subs=3,
+            s_weights=[34.0, 33.0, 33.0],
         )
-        migrated = migrate_profile_to_linked(profile)
-        assert migrated.ns_linked_profile is not None
-        assert migrated.ns_linked_profile.primary_seat == "S"
-        assert migrated.ns_linked_profile.subprofile_map == bmap
+        result = migrate_profile_to_linked(raw)
+        lp = result.get("ns_linked_profile")
+        assert lp is not None
+        assert lp["primary_seat"] == "S"
 
     def test_no_driver_index_matching_migrates(self) -> None:
         """no_driver (index matching) → LinkedProfile with identity map."""
-        std = _standard_all_open()
-        profile = HandProfile(
-            profile_name="TEST_MIGRATE_NO_DRIVER",
-            description="test",
-            dealer="N",
-            tag="Opener",
-            hand_dealing_order=["N", "S", "E", "W"],
-            seat_profiles={
-                "N": SeatProfile(
-                    seat="N",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=50.0),
-                        SubProfile(standard=std, weight_percent=50.0),
-                    ],
-                ),
-                "S": SeatProfile(
-                    seat="S",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=50.0),
-                        SubProfile(standard=std, weight_percent=50.0),
-                    ],
-                ),
-            },
-            ns_role_mode="no_driver",
-        )
-        migrated = migrate_profile_to_linked(profile)
-        assert migrated.ns_linked_profile is not None
-        assert migrated.ns_linked_profile.primary_seat == "N"
-        assert migrated.ns_linked_profile.subprofile_map == {0: [0], 1: [1]}
-        assert migrated.ns_role_mode == "no_driver_no_index"
+        raw = self._make_raw(ns_role_mode="no_driver")
+        result = migrate_profile_to_linked(raw)
+        lp = result.get("ns_linked_profile")
+        assert lp is not None
+        assert lp["primary_seat"] == "N"
+        assert lp["subprofile_map"] == {"0": [0], "1": [1]}
+        assert "ns_role_mode" not in result
 
     def test_no_driver_single_sub_no_migration(self) -> None:
         """no_driver with single subprofile → no linked profile."""
-        std = _standard_all_open()
-        profile = HandProfile(
-            profile_name="TEST_MIGRATE_NO_DRIVER_SINGLE",
-            description="test",
-            dealer="N",
-            tag="Opener",
-            hand_dealing_order=["N", "S", "E", "W"],
-            seat_profiles={
-                "N": SeatProfile(
-                    seat="N",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=100.0),
-                    ],
-                ),
-                "S": SeatProfile(
-                    seat="S",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=100.0),
-                    ],
-                ),
-            },
-            ns_role_mode="no_driver",
-        )
-        migrated = migrate_profile_to_linked(profile)
-        assert migrated.ns_linked_profile is None
+        raw = self._make_raw(ns_role_mode="no_driver", n_subs=1, s_subs=1)
+        result = migrate_profile_to_linked(raw)
+        assert result.get("ns_linked_profile") is None
 
     def test_ew_east_drives_with_bespoke_migrates(self) -> None:
         """EW east_drives + bespoke → LinkedProfile with E as primary."""
-        std = _standard_all_open()
         ew_map = {0: [0, 1], 1: [1]}
-        profile = HandProfile(
-            profile_name="TEST_MIGRATE_EW_BESPOKE",
-            description="test",
-            dealer="N",
-            tag="Opener",
-            hand_dealing_order=["N", "E", "S", "W"],
-            seat_profiles={
-                "E": SeatProfile(
-                    seat="E",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=50.0),
-                        SubProfile(standard=std, weight_percent=50.0),
-                    ],
-                ),
-                "W": SeatProfile(
-                    seat="W",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=50.0),
-                        SubProfile(standard=std, weight_percent=50.0),
-                    ],
-                ),
-            },
-            ew_role_mode="east_drives",
-            ew_bespoke_map=ew_map,
-        )
-        migrated = migrate_profile_to_linked(profile)
-        assert migrated.ew_linked_profile is not None
-        assert migrated.ew_linked_profile.primary_seat == "E"
-        assert migrated.ew_linked_profile.subprofile_map == ew_map
-        assert migrated.ew_role_mode == "no_driver_no_index"
-        assert migrated.ew_bespoke_map is None
+        raw = self._make_raw(ew_role_mode="east_drives", ew_bespoke_map=ew_map, e_subs=2, w_subs=2)
+        result = migrate_profile_to_linked(raw)
+        lp = result.get("ew_linked_profile")
+        assert lp is not None
+        assert lp["primary_seat"] == "E"
+        assert "ew_role_mode" not in result
+        assert "ew_bespoke_map" not in result
 
     def test_already_has_linked_profile_unchanged(self) -> None:
-        """Profile with existing linked profile is returned unchanged."""
-        std = _standard_all_open()
-        lp = LinkedProfile(primary_seat="N", subprofile_map={0: [0], 1: [1]})
-        profile = HandProfile(
-            profile_name="TEST_MIGRATE_ALREADY",
-            description="test",
-            dealer="N",
-            tag="Opener",
-            hand_dealing_order=["N", "S", "E", "W"],
-            seat_profiles={
-                "N": SeatProfile(
-                    seat="N",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=50.0),
-                        SubProfile(standard=std, weight_percent=50.0),
-                    ],
-                ),
-                "S": SeatProfile(
-                    seat="S",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=50.0),
-                        SubProfile(standard=std, weight_percent=50.0),
-                    ],
-                ),
-            },
-            ns_linked_profile=lp,
+        """Raw dict with existing linked profile is returned unchanged."""
+        raw = self._make_raw(
+            ns_linked_profile={"primary_seat": "N", "subprofile_map": {"0": [0], "1": [1]}},
         )
-        migrated = migrate_profile_to_linked(profile)
-        assert migrated is profile  # No change needed
+        result = migrate_profile_to_linked(raw)
+        assert result is raw  # No change needed
 
     def test_no_driver_3_subs_identity_map(self) -> None:
         """no_driver with 3 subprofiles → identity map {0:[0], 1:[1], 2:[2]}."""
-        std = _standard_all_open()
-        profile = HandProfile(
-            profile_name="TEST_MIGRATE_3SUB",
-            description="test",
-            dealer="N",
-            tag="Opener",
-            hand_dealing_order=["N", "S", "E", "W"],
-            seat_profiles={
-                "N": SeatProfile(
-                    seat="N",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=34.0),
-                        SubProfile(standard=std, weight_percent=33.0),
-                        SubProfile(standard=std, weight_percent=33.0),
-                    ],
-                ),
-                "S": SeatProfile(
-                    seat="S",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=34.0),
-                        SubProfile(standard=std, weight_percent=33.0),
-                        SubProfile(standard=std, weight_percent=33.0),
-                    ],
-                ),
-            },
+        raw = self._make_raw(
             ns_role_mode="no_driver",
+            n_subs=3,
+            s_subs=3,
+            n_weights=[34.0, 33.0, 33.0],
+            s_weights=[34.0, 33.0, 33.0],
         )
-        migrated = migrate_profile_to_linked(profile)
-        assert migrated.ns_linked_profile is not None
-        assert migrated.ns_linked_profile.subprofile_map == {0: [0], 1: [1], 2: [2]}
+        result = migrate_profile_to_linked(raw)
+        lp = result.get("ns_linked_profile")
+        assert lp is not None
+        assert lp["subprofile_map"] == {"0": [0], "1": [1], "2": [2]}
 
     def test_migrated_profile_works_e2e(self) -> None:
-        """A migrated profile with linked should produce valid deals."""
-        std = _standard_all_open()
+        """A migrated raw dict produces valid deals after from_dict()."""
         bmap = {0: [0, 1], 1: [0, 1]}
-        profile = HandProfile(
-            profile_name="TEST_MIGRATE_E2E",
-            description="test",
-            dealer="N",
-            tag="Opener",
-            hand_dealing_order=["N", "S", "E", "W"],
-            seat_profiles={
-                "N": SeatProfile(
-                    seat="N",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=50.0),
-                        SubProfile(standard=std, weight_percent=50.0),
-                    ],
-                ),
-                "S": SeatProfile(
-                    seat="S",
-                    subprofiles=[
-                        SubProfile(standard=std, weight_percent=50.0),
-                        SubProfile(standard=std, weight_percent=50.0),
-                    ],
-                ),
-            },
-            ns_role_mode="north_drives",
-            ns_bespoke_map=bmap,
-        )
-        migrated = migrate_profile_to_linked(profile)
-        assert migrated.ns_linked_profile is not None
+        raw = self._make_raw(ns_role_mode="north_drives", ns_bespoke_map=bmap)
+        migrated_raw = migrate_profile_to_linked(raw)
+        assert migrated_raw.get("ns_linked_profile") is not None
 
+        profile = HandProfile.from_dict(migrated_raw)
         rng = random.Random(42)
         for board in range(1, 6):
-            deal = _build_single_constrained_deal_v2(rng, migrated, board_number=board)
+            deal = _build_single_constrained_deal_v2(rng, profile, board_number=board)
             assert deal is not None
             for seat in ("N", "E", "S", "W"):
                 assert len(deal.hands[seat]) == 13

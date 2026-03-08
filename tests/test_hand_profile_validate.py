@@ -417,14 +417,11 @@ class TestValidateProfile:
         # Remove fields that should get defaults
         del raw["rotate_deals_by_default"]
         del raw["subprofile_exclusions"]
-        del raw["ns_role_mode"]
-
         profile = validate_profile(raw)
 
         # Should have defaults applied
         assert profile.rotate_deals_by_default is True
         assert profile.subprofile_exclusions == []
-        assert profile.ns_role_mode == "no_driver_no_index"
 
     def test_accepts_hand_profile_instance(self, make_valid_profile) -> None:
         """Should accept HandProfile instance as input."""

@@ -76,7 +76,6 @@ class _DummySubProfile:
         self.partner_contingent_constraint = pc
         self.opponents_contingent_suit_constraint = oc
         self.weight_percent = 100.0
-        self.ns_role_usage = "any"
 
 
 def _toy_sub(min_hcp=0, max_hcp=37):

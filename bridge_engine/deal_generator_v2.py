@@ -856,7 +856,7 @@ def _deal_with_help(
                 ):
                     return None, seat  # Early HCP rejection
 
-    # Phase 3: Fill each seat to 13 cards.
+    # Fill each seat to 13 cards.
     # For non-last seats, use constrained fill to skip cards that would
     # bust a suit maximum.  Skipped cards stay in the deck for later seats.
     for i, seat in enumerate(dealing_order):

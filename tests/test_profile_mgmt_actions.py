@@ -34,7 +34,6 @@ def _make_profile(name: str = "TestProfile", **overrides) -> HandProfile:
         seat_profiles={},
         author="Tester",
         version="0.1",
-        ns_role_mode="north_drives",
     )
     defaults.update(overrides)
     return HandProfile(**defaults)
@@ -50,7 +49,7 @@ def test_edit_metadata_saves_updated_fields(monkeypatch, tmp_path, capsys):
     edit_profile_action mode=1 should prompt for all metadata fields,
     construct a new HandProfile, and save it.
     """
-    profile = _make_profile(ns_role_mode="north_drives")
+    profile = _make_profile()
     path = tmp_path / "TestProfile.json"
 
     # Stub profile loading + selection
@@ -131,7 +130,7 @@ def test_edit_metadata_saves_updated_fields(monkeypatch, tmp_path, capsys):
     assert updated.rotate_deals_by_default is False
     # Role mode is preserved from original profile (Edit Overall Deal Data
     # no longer changes role modes — it manages linked profiles instead)
-    assert updated.ns_role_mode == "north_drives"
+    assert updated.profile_name is not None  # Profile preserved
     # Linked profiles should be None (seats have <2 subs)
     assert updated.ns_linked_profile is None
     assert updated.ew_linked_profile is None
@@ -265,7 +264,6 @@ def test_save_as_new_version_preserves_all_fields(monkeypatch, tmp_path, capsys)
     that were previously missing).
     """
     profile = _make_profile(
-        ns_role_mode="south_drives",
         rotate_deals_by_default=False,
     )
     path = tmp_path / "TestProfile.json"
@@ -297,7 +295,6 @@ def test_save_as_new_version_preserves_all_fields(monkeypatch, tmp_path, capsys)
     assert new_profile.dealer == profile.dealer
     assert new_profile.tag == profile.tag
     assert new_profile.author == profile.author
-    assert new_profile.ns_role_mode == "south_drives"
     assert new_profile.rotate_deals_by_default is False
     assert new_profile.subprofile_exclusions == list(profile.subprofile_exclusions)
     assert new_profile.is_invariants_safety_profile == profile.is_invariants_safety_profile

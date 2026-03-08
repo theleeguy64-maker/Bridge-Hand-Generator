@@ -147,114 +147,16 @@ def test_standard_constraints_bad_total_hcp_range_raises() -> None:
         )
 
 
-def test_ns_driver_seat_defaults_to_no_driver(make_valid_profile) -> None:
+def test_legacy_dict_with_ns_role_mode_loads_without_error(make_valid_profile) -> None:
     """
-    If ns_role_mode is not explicitly set in legacy data, we treat it as
-    'no_driver_no_index' and ns_driver_seat() returns None.
-    """
-    profile = make_valid_profile()
-    assert profile.ns_role_mode == "no_driver_no_index"
-    assert profile.ns_driver_seat() is None
-
-
-def test_ns_driver_seat_respects_ns_role_mode(make_valid_profile) -> None:
-    """
-    ns_driver_seat() should reflect ns_role_mode when explicitly set.
-    """
-    profile = make_valid_profile()
-
-    # South drives → S
-    profile.ns_role_mode = "south_drives"
-    assert profile.ns_driver_seat() == "S"
-
-    # North drives → N
-    profile.ns_role_mode = "north_drives"
-    assert profile.ns_driver_seat() == "N"
-
-    # Any unknown / future value should safely fall back to North
-    profile.ns_role_mode = "something_weird"
-    assert profile.ns_driver_seat() is None
-
-
-def test_ns_role_buckets_all_neutral_for_legacy_profiles(make_valid_profile) -> None:
-    """
-    For existing profiles (no ns_role_for_seat metadata),
-    ns_role_buckets() should classify all N/S subprofiles as neutral.
-    """
-    profile = make_valid_profile()
-
-    buckets = profile.ns_role_buckets()
-
-    for seat in ("N", "S"):
-        seat_buckets = buckets.get(seat)
-        # We expect a bucket entry for each NS seat
-        assert seat_buckets is not None
-        assert seat_buckets["driver"] == []
-        assert seat_buckets["follower"] == []
-        # Legacy profiles should still have at least one neutral subprofile
-        assert len(seat_buckets["neutral"]) >= 1
-
-
-def test_ns_role_mode_default_and_roundtrip(make_valid_profile) -> None:
-    """
-    For freshly-created profiles, ns_role_mode should default to
-    'no_driver_no_index', and at the metadata level that means
-    ns_driver_seat() returns None (no fixed NS driver).
-
-    A to_dict / from_dict round-trip must preserve both the mode
-    string and the ns_driver_seat() behaviour.
-    """
-    profile = make_valid_profile()
-
-    # Default on freshly-created profiles
-    assert profile.ns_role_mode == "no_driver_no_index"
-    assert profile.ns_driver_seat() is None
-
-    # Round-trip via to_dict / from_dict
-    raw = profile.to_dict()
-    rebuilt = HandProfile.from_dict(raw)
-
-    assert rebuilt.ns_role_mode == "no_driver_no_index"
-    assert rebuilt.ns_driver_seat() is None
-
-
-def test_ns_role_mode_defaults_for_legacy_dict(make_valid_profile) -> None:
-    """
-    If a legacy dict has no ns_role_mode key, HandProfile.from_dict()
-    should treat it as 'no_driver_no_index'.
+    Legacy dicts with ns_role_mode should load without error (field is ignored).
     """
     profile = make_valid_profile()
     raw = profile.to_dict()
-    raw.pop("ns_role_mode", None)
+    raw["ns_role_mode"] = "north_drives"  # Legacy field — should be tolerated.
 
     restored = HandProfile.from_dict(raw)
-    assert restored.ns_role_mode == "no_driver_no_index"
-
-
-def test_ns_driver_seat_south_drives(make_valid_profile) -> None:
-    profile = make_valid_profile()
-    profile = replace(profile, ns_role_mode="south_drives")
-    assert profile.ns_driver_seat() == "S"
-
-
-def test_ns_driver_seat_random_driver_only_ns(make_valid_profile) -> None:
-    profile = make_valid_profile()
-    profile = replace(profile, ns_role_mode="random_driver")
-
-    rng = random.Random(12345)
-    for _ in range(20):
-        seat = profile.ns_driver_seat(rng)
-        assert seat in ("N", "S")
-
-
-def test_ns_driver_seat_invalid_mode_falls_back_to_none(make_valid_profile) -> None:
-    """
-    Unknown ns_role_mode values should be treated as 'no driver' at metadata level.
-    """
-    profile = make_valid_profile()
-    profile = replace(profile, ns_role_mode="totally_bogus")
-
-    assert profile.ns_driver_seat() is None
+    assert restored.profile_name == profile.profile_name
 
 
 def test_rotate_default_on_new_profile_is_true(make_valid_profile) -> None:
@@ -492,95 +394,10 @@ def test_sub_label_without_name() -> None:
 # ===================================================================
 
 
-def test_ew_role_mode_default(make_valid_profile) -> None:
-    """ew_role_mode defaults to 'no_driver_no_index'."""
-    profile = make_valid_profile()
-    assert profile.ew_role_mode == "no_driver_no_index"
-    assert profile.ew_driver_seat() is None
-
-
-def test_ew_driver_seat_east_drives(make_valid_profile) -> None:
-    profile = make_valid_profile()
-    profile = replace(profile, ew_role_mode="east_drives")
-    assert profile.ew_driver_seat() == "E"
-
-
-def test_ew_driver_seat_west_drives(make_valid_profile) -> None:
-    profile = make_valid_profile()
-    profile = replace(profile, ew_role_mode="west_drives")
-    assert profile.ew_driver_seat() == "W"
-
-
-def test_ew_driver_seat_random_driver(make_valid_profile) -> None:
-    profile = make_valid_profile()
-    profile = replace(profile, ew_role_mode="random_driver")
-
-    rng = random.Random(12345)
-    results = {profile.ew_driver_seat(rng) for _ in range(20)}
-    assert results == {"E", "W"}
-
-
-def test_ew_driver_seat_unknown_mode(make_valid_profile) -> None:
-    profile = make_valid_profile()
-    profile = replace(profile, ew_role_mode="totally_bogus")
-    assert profile.ew_driver_seat() is None
-
-
-def test_ew_role_mode_roundtrip(make_valid_profile) -> None:
-    """ew_role_mode survives to_dict / from_dict."""
-    profile = make_valid_profile()
-    profile = replace(profile, ew_role_mode="east_drives")
-    raw = profile.to_dict()
-    assert raw["ew_role_mode"] == "east_drives"
-    restored = HandProfile.from_dict(raw)
-    assert restored.ew_role_mode == "east_drives"
-
-
-def test_ew_role_mode_missing_key_defaults(make_valid_profile) -> None:
-    """Legacy JSON without ew_role_mode defaults to 'no_driver_no_index'."""
+def test_legacy_ew_role_mode_tolerated(make_valid_profile) -> None:
+    """Legacy JSON with ew_role_mode loads without error (field ignored)."""
     profile = make_valid_profile()
     raw = profile.to_dict()
-    raw.pop("ew_role_mode", None)
+    raw["ew_role_mode"] = "east_drives"
     restored = HandProfile.from_dict(raw)
-    assert restored.ew_role_mode == "no_driver_no_index"
-
-
-def test_ew_role_usage_roundtrip() -> None:
-    """ew_role_usage survives SubProfile to_dict / from_dict."""
-    sub = SubProfile(standard=_standard_all_open(), ew_role_usage="driver_only")
-    raw = sub.to_dict()
-    assert raw["ew_role_usage"] == "driver_only"
-    restored = SubProfile.from_dict(raw)
-    assert restored.ew_role_usage == "driver_only"
-
-
-def test_ew_role_usage_default() -> None:
-    """ew_role_usage defaults to 'any'."""
-    sub = SubProfile(standard=_standard_all_open())
-    assert sub.ew_role_usage == "any"
-
-
-def test_ew_role_buckets(make_valid_profile) -> None:
-    """ew_role_buckets groups E/W subprofiles by ew_role_usage."""
-    std = _standard_all_open()
-    e_subs = [
-        SubProfile(standard=std, ew_role_usage="driver_only"),
-        SubProfile(standard=std, ew_role_usage="follower_only"),
-        SubProfile(standard=std, ew_role_usage="any"),
-    ]
-    w_subs = [
-        SubProfile(standard=std, ew_role_usage="any"),
-    ]
-    from bridge_engine.hand_profile_model import SeatProfile
-
-    profile = make_valid_profile()
-    seat_profiles = dict(profile.seat_profiles)
-    seat_profiles["E"] = SeatProfile(seat="E", subprofiles=e_subs)
-    seat_profiles["W"] = SeatProfile(seat="W", subprofiles=w_subs)
-    profile = replace(profile, seat_profiles=seat_profiles)
-
-    buckets = profile.ew_role_buckets()
-    assert len(buckets["E"]["driver"]) == 1
-    assert len(buckets["E"]["follower"]) == 1
-    assert len(buckets["E"]["neutral"]) == 1
-    assert len(buckets["W"]["neutral"]) == 1
+    assert restored.profile_name == profile.profile_name

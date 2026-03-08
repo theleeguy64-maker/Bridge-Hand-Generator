@@ -86,10 +86,11 @@ class MockHandProfile:
 
     The function accesses:
       - seat_profiles (dict of seat -> SeatProfile)
-      - ns_role_mode (str) — coupling enabled when not "no_driver_no_index"
+      - ns_role_mode (str) — legacy, used by _validate_pair_coupling via getattr
     """
 
     seat_profiles: Dict[str, SeatProfile] = field(default_factory=dict)
+    # Legacy: getattr fallback in _validate_pair_coupling.
     # "north_drives" enables coupling; "no_driver_no_index" disables it.
     ns_role_mode: str = "north_drives"
 
@@ -170,32 +171,6 @@ def test_validate_profile_viability_respects_coupling_disabled() -> None:
     validate_profile_viability(profile)
 
 
-def test_validate_profile_viability_respects_coupling_enabled() -> None:
-    """
-    When ns_role_mode enables coupling (e.g. "north_drives"), NS coupling
-    checks run. An impossible NS pair at any index should raise ProfileError.
-    """
-    # Index 0: viable pair (low spade requirements)
-    viable_n = _make_subprofile(spade_min=3, heart_min=3, diamond_min=3, club_min=3)
-    viable_s = _make_subprofile(spade_min=3, heart_min=3, diamond_min=3, club_min=3)
-
-    # Index 1: impossible pair (combined spades = 14 > 13)
-    impossible_n = _make_subprofile(spade_min=7)
-    impossible_s = _make_subprofile(spade_min=7)
-
-    profile = MockHandProfile(
-        seat_profiles={
-            "N": SeatProfile(seat="N", subprofiles=[viable_n, impossible_n]),
-            "S": SeatProfile(seat="S", subprofiles=[viable_s, impossible_s]),
-        },
-        ns_role_mode="north_drives",  # Enable coupling checks
-    )
-
-    # Should raise because index 1 is not jointly viable
-    with pytest.raises(ProfileError, match="not jointly viable"):
-        validate_profile_viability(profile)
-
-
 def test_validate_profile_viability_unequal_subprofile_lengths() -> None:
     """
     Unequal N/S subprofile counts should skip NS coupling checks.
@@ -241,34 +216,6 @@ def test_validate_profile_viability_single_subprofile() -> None:
     # Should NOT raise: single subprofile per seat skips coupling,
     # and cross-seat passes (6+6=12 ≤ 13 per suit).
     validate_profile_viability(profile)
-
-
-def test_validate_profile_viability_no_viable_pair_raises() -> None:
-    """
-    If no NS index has both sides viable, should raise ProfileError.
-
-    This happens when N[i] is viable but S[i] is not (or vice versa)
-    for all indices.
-    """
-    # N[0] is viable, S[0] is not viable (suit minima > 13)
-    # N[1] is not viable, S[1] is viable
-    viable_sub = _make_subprofile(spade_min=3, heart_min=3, diamond_min=3, club_min=3)
-    # Impossible: sum of minima = 4+4+4+4 = 16 > 13
-    impossible_sub = _make_subprofile(spade_min=4, heart_min=4, diamond_min=4, club_min=4)
-
-    profile = MockHandProfile(
-        seat_profiles={
-            "N": SeatProfile(seat="N", subprofiles=[viable_sub, impossible_sub]),
-            "S": SeatProfile(seat="S", subprofiles=[impossible_sub, viable_sub]),
-        },
-        ns_role_mode="north_drives",
-    )
-
-    # Index 0: N viable, S not viable (suit mins > 13)
-    # Index 1: N not viable, S viable
-    # No index where both are viable
-    with pytest.raises(ProfileError, match="No NS index-coupled subprofile pair is jointly viable"):
-        validate_profile_viability(profile)
 
 
 def test_validate_profile_viability_no_n_or_s_seat() -> None:

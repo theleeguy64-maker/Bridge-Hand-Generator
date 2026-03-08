@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
 
@@ -432,9 +431,6 @@ class SubProfile:
       - opponents_contingent_suit_constraint
     may be present, or none (Standard-only).
 
-    Phase 3: ns_role_usage controls how this subprofile is used when NS
-    driver/follower semantics are enabled on the HandProfile. For E/W seats
-    this should effectively remain "any".
     """
 
     standard: StandardSuitConstraints
@@ -447,26 +443,6 @@ class SubProfile:
     partner_contingent_constraint: Optional[PartnerContingentData] = None
     opponents_contingent_suit_constraint: Optional[OpponentContingentSuitData] = None
     weight_percent: float = 0.0
-
-    # Phase 3: NS role classification for this subprofile (for N/S seats).
-    #
-    # Allowed values:
-    #   - "any"           – usable whether the seat is NS driver or follower
-    #   - "driver_only"   – only usable when this seat is the NS driver
-    #   - "follower_only" – only usable when this seat is the NS follower
-    #
-    # For legacy profiles and for EW seats, this defaults to "any".
-    ns_role_usage: str = "any"
-
-    # EW role classification (parallel to ns_role_usage, for E/W seats).
-    #
-    # Allowed values:
-    #   - "any"           – usable whether the seat is EW driver or follower
-    #   - "driver_only"   – only usable when this seat is the EW driver
-    #   - "follower_only" – only usable when this seat is the EW follower
-    #
-    # For legacy profiles and for NS seats, this defaults to "any".
-    ew_role_usage: str = "any"
 
     def to_dict(self) -> Dict[str, Any]:
         d: Dict[str, Any] = {
@@ -483,9 +459,6 @@ class SubProfile:
                 else None
             ),
             "weight_percent": self.weight_percent,
-            # JSON field names for NS/EW role metadata.
-            "ns_role_usage": self.ns_role_usage,
-            "ew_role_usage": self.ew_role_usage,
         }
         # Only include name when set (keeps JSON clean for unnamed sub-profiles).
         if self.name is not None:
@@ -495,11 +468,9 @@ class SubProfile:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SubProfile":
         """
-        Backwards compatible loader for SubProfile, including Phase 3 metadata.
+        Backwards compatible loader for SubProfile.
 
-        Supports both:
-          - new-style "ns_role_usage" (preferred)
-          - earlier experimental "ns_role_for_seat" (mapped to usage)
+        Unknown keys in old profile JSON are silently ignored.
         """
         # Optional name (strip whitespace; treat empty/blank as None).
         raw_name = data.get("name")
@@ -508,24 +479,6 @@ class SubProfile:
         rsc_data = data.get("random_suit_constraint")
         pc_data = data.get("partner_contingent_constraint")
         oc_data = data.get("opponents_contingent_suit_constraint")
-
-        # Resolve NS role usage with legacy key support.
-        if "ns_role_usage" in data:
-            ns_role_usage = str(data["ns_role_usage"])
-        elif "ns_role_for_seat" in data:
-            legacy_role = str(data["ns_role_for_seat"]).lower()
-            if legacy_role == "driver":
-                ns_role_usage = "driver_only"
-            elif legacy_role == "follower":
-                ns_role_usage = "follower_only"
-            else:
-                # "neutral" or anything else → "any"
-                ns_role_usage = "any"
-        else:
-            ns_role_usage = "any"
-
-        # EW role usage (no legacy key support needed — new field).
-        ew_role_usage = str(data.get("ew_role_usage", "any"))
 
         return cls(
             standard=StandardSuitConstraints.from_dict(data["standard"]),
@@ -536,8 +489,6 @@ class SubProfile:
                 OpponentContingentSuitData.from_dict(oc_data) if oc_data is not None else None
             ),
             weight_percent=float(data.get("weight_percent", 0.0)),
-            ns_role_usage=ns_role_usage,
-            ew_role_usage=ew_role_usage,
         )
 
 
@@ -771,9 +722,8 @@ class HandProfile:
     subprofile selection.  When set, the primary seat picks its
     subprofile first by weighted random, then the secondary seat
     picks from a mapped subset (SubProfile Map) with renormalized
-    weights.  Legacy fields (ns_role_mode, ew_role_mode, etc.) are
-    retained for backward compatibility but ignored when a linked
-    profile is present.
+    weights.  Legacy fields (ns_role_mode, ew_role_mode, bespoke maps)
+    in old JSON are tolerated by from_dict() but ignored.
     """
 
     profile_name: str
@@ -785,22 +735,6 @@ class HandProfile:
     author: str = ""
     version: str = ""
     rotate_deals_by_default: bool = True
-    # "no_driver_no_index" (default), "north_drives", "south_drives", or "random_driver".
-    ns_role_mode: str = "no_driver_no_index"
-    # EW role mode (parallel to ns_role_mode for E/W partnership).
-    # "no_driver_no_index" (default), "east_drives", "west_drives", or "random_driver".
-    ew_role_mode: str = "no_driver_no_index"
-
-    # Bespoke subprofile matching maps (Phase 3).
-    #
-    # When set, these replace the default equal-index coupling with an explicit
-    # driver→follower map.  Keys are 0-based driver subprofile indices; values
-    # are lists of 0-based follower subprofile indices eligible to pair with
-    # that driver sub.  Allows unequal subprofile counts between paired seats.
-    #
-    # None (default) = use standard index coupling (same index for both seats).
-    ns_bespoke_map: Optional[Dict[int, List[int]]] = None
-    ew_bespoke_map: Optional[Dict[int, List[int]]] = None
 
     # Linked profiles: couple one pair of seats for coordinated subprofile
     # selection.  When set, the primary seat picks first by weight, then the
@@ -872,22 +806,10 @@ class HandProfile:
         else:
             dealing_order = _default_dealing_order(dealer)
 
-        # Bespoke maps: parse string keys → int, values → List[int].
-        # None when absent (legacy/standard profiles).
-        def _parse_bespoke_map(raw_map: Any) -> Optional[Dict[int, List[int]]]:
-            if raw_map is None:
-                return None
-            if not isinstance(raw_map, dict):
-                return None
-            return {int(k): [int(v) for v in vals] for k, vals in raw_map.items()}
-
-        ns_bespoke = _parse_bespoke_map(data.get("ns_bespoke_map"))
-        ew_bespoke = _parse_bespoke_map(data.get("ew_bespoke_map"))
-
-        # Linked profiles (new system, replacing role modes + bespoke maps).
-        # Explicit linked profile dicts are parsed here; migration from old
-        # role mode + bespoke fields is done via migrate_profile_to_linked()
-        # (called explicitly, not automatically on every load).
+        # Linked profiles: parsed from JSON when present.
+        # Legacy fields (ns_role_mode, ew_role_mode, ns_bespoke_map, ew_bespoke_map)
+        # in old JSON are silently ignored — migration is done via
+        # migrate_profile_to_linked() if needed.
         ns_lp_raw = data.get("ns_linked_profile")
         ns_linked = LinkedProfile.from_dict(ns_lp_raw) if isinstance(ns_lp_raw, dict) else None
         ew_lp_raw = data.get("ew_linked_profile")
@@ -904,13 +826,6 @@ class HandProfile:
             version=str(data.get("version", "")),
             # Legacy profiles may omit this – default to True.
             rotate_deals_by_default=bool(data.get("rotate_deals_by_default", True)),
-            # Missing ns_role_mode in raw dict ⇒ treat as "no driver, no index".
-            # validate_profile is responsible for rejecting unsupported values
-            # when loading from arbitrary JSON.
-            ns_role_mode=str(data.get("ns_role_mode", "no_driver_no_index") or "no_driver_no_index"),
-            ew_role_mode=str(data.get("ew_role_mode", "no_driver_no_index") or "no_driver_no_index"),
-            ns_bespoke_map=ns_bespoke,
-            ew_bespoke_map=ew_bespoke,
             ns_linked_profile=ns_linked,
             ew_linked_profile=ew_linked,
             subprofile_exclusions=exclusions,
@@ -921,163 +836,6 @@ class HandProfile:
             # Category for grouped display; auto-detect "Test" if name contains it.
             category=str(data.get("category", "")) or ("Test" if "Test" in str(data.get("profile_name", "")) else ""),
         )
-
-    def ns_driver_seat(
-        self,
-        rng: Optional[random.Random] = None,
-    ) -> Optional[Seat]:
-        """
-        Return a *metadata-level* preferred NS driver seat implied by ns_role_mode.
-
-        This helper is used for UI / tests and is distinct from the per-board
-        driver choice used by the deal generator.
-
-        Semantics:
-
-        - "north_drives"       -> "N"
-        - "south_drives"       -> "S"
-        - "random_driver":
-            * if rng is provided, return rng.choice(["N", "S"])
-            * if rng is None, return "N" (stable deterministic default)
-        - "no_driver_no_index" -> None (explicit “no fixed driver” for legacy/default)
-        - "no_driver"          -> None (explicit no-driver mode)
-        - anything else        -> None (defensive fallback for unknown values)
-        """
-        mode = (self.ns_role_mode or "no_driver_no_index").lower()
-
-        if mode == "north_drives":
-            return "N"
-        if mode == "south_drives":
-            return "S"
-        if mode == "random_driver":
-            if rng is None:
-                # Metadata-only usage without RNG: just pick N deterministically.
-                return "N"
-            return rng.choice(["N", "S"])
-        if mode in ("no_driver", "no_driver_no_index"):
-            return None
-
-        # Unknown / future values: treat as "no driver"
-        return None
-
-    def ew_driver_seat(
-        self,
-        rng: Optional[random.Random] = None,
-    ) -> Optional[Seat]:
-        """
-        Return a *metadata-level* preferred EW driver seat implied by ew_role_mode.
-
-        Parallel to ns_driver_seat() but for the E-W partnership.
-
-        Semantics:
-
-        - "east_drives"        -> "E"
-        - "west_drives"        -> "W"
-        - "random_driver":
-            * if rng is provided, return rng.choice(["E", "W"])
-            * if rng is None, return "E" (stable deterministic default)
-        - "no_driver_no_index" -> None (default)
-        - "no_driver"          -> None
-        - anything else        -> None (defensive fallback)
-        """
-        mode = (self.ew_role_mode or "no_driver_no_index").lower()
-
-        if mode == "east_drives":
-            return "E"
-        if mode == "west_drives":
-            return "W"
-        if mode == "random_driver":
-            if rng is None:
-                return "E"
-            return rng.choice(["E", "W"])
-        if mode in ("no_driver", "no_driver_no_index"):
-            return None
-
-        # Unknown / future values: treat as "no driver"
-        return None
-
-    def ns_role_buckets(self) -> Dict[Seat, Dict[str, List[SubProfile]]]:
-        """
-        For NS seats only, group subprofiles into three buckets by ns_role_usage:
-
-          - "driver":   subprofiles usable when the seat is the NS driver
-          - "follower": subprofiles usable when the seat is the NS follower
-          - "neutral":  subprofiles usable in either role (or with no metadata)
-
-        EW seats are currently treated as neutral for Phase 3; we still
-        return empty bucket dicts for completeness.
-        """
-        buckets: Dict[Seat, Dict[str, List[SubProfile]]] = {}
-
-        for seat in ("N", "S"):
-            sp = self.seat_profiles.get(seat)
-            seat_buckets: Dict[str, List[SubProfile]] = {
-                "driver": [],
-                "follower": [],
-                "neutral": [],
-            }
-
-            if sp is not None:
-                for sub in sp.subprofiles:
-                    # ns_role_usage is a declared field (default "any") — always present.
-                    usage_lc = sub.ns_role_usage.lower()
-                    if usage_lc == "driver_only":
-                        seat_buckets["driver"].append(sub)
-                    elif usage_lc == "follower_only":
-                        seat_buckets["follower"].append(sub)
-                    else:
-                        # "any" or anything else we treat as neutral.
-                        seat_buckets["neutral"].append(sub)
-
-            buckets[seat] = seat_buckets
-
-        # Ensure EW are present with empty buckets so callers don't need
-        # special cases.  The loop above only populates N/S.
-        for seat in ("E", "W"):
-            buckets[seat] = {"driver": [], "follower": [], "neutral": []}
-
-        return buckets
-
-    def ew_role_buckets(self) -> Dict[Seat, Dict[str, List[SubProfile]]]:
-        """
-        For EW seats only, group subprofiles into three buckets by ew_role_usage:
-
-          - "driver":   subprofiles usable when the seat is the EW driver
-          - "follower": subprofiles usable when the seat is the EW follower
-          - "neutral":  subprofiles usable in either role (or with no metadata)
-
-        NS seats get empty bucket dicts for completeness.
-        """
-        buckets: Dict[Seat, Dict[str, List[SubProfile]]] = {}
-
-        for seat in ("E", "W"):
-            sp = self.seat_profiles.get(seat)
-            seat_buckets: Dict[str, List[SubProfile]] = {
-                "driver": [],
-                "follower": [],
-                "neutral": [],
-            }
-
-            if sp is not None:
-                for sub in sp.subprofiles:
-                    # ew_role_usage is a declared field (default "any") — always present.
-                    usage_lc = sub.ew_role_usage.lower()
-                    if usage_lc == "driver_only":
-                        seat_buckets["driver"].append(sub)
-                    elif usage_lc == "follower_only":
-                        seat_buckets["follower"].append(sub)
-                    else:
-                        # "any" or anything else we treat as neutral.
-                        seat_buckets["neutral"].append(sub)
-
-            buckets[seat] = seat_buckets
-
-        # Ensure NS are present with empty buckets so callers don't need
-        # special cases.  The loop above only populates E/W.
-        for seat in ("N", "S"):
-            buckets[seat] = {"driver": [], "follower": [], "neutral": []}
-
-        return buckets
 
     # ------------------------------------------------------------------
     # Persistence helpers (JSON-friendly dicts)
@@ -1093,8 +851,6 @@ class HandProfile:
             "author": self.author,
             "version": self.version,
             "rotate_deals_by_default": self.rotate_deals_by_default,
-            "ns_role_mode": self.ns_role_mode,
-            "ew_role_mode": self.ew_role_mode,
             "seat_profiles": {seat: sp.to_dict() for seat, sp in self.seat_profiles.items()},
             "subprofile_exclusions": [e.to_dict() for e in self.subprofile_exclusions],
             "is_invariants_safety_profile": self.is_invariants_safety_profile,
@@ -1103,12 +859,6 @@ class HandProfile:
             d["sort_order"] = self.sort_order
         # Always emit category (keeps JSON explicit, even when empty).
         d["category"] = self.category
-        # Bespoke maps: emit with string keys (JSON requires string keys).
-        # Only include when set (keeps JSON clean for profiles without bespoke maps).
-        if self.ns_bespoke_map is not None:
-            d["ns_bespoke_map"] = {str(k): v for k, v in self.ns_bespoke_map.items()}
-        if self.ew_bespoke_map is not None:
-            d["ew_bespoke_map"] = {str(k): v for k, v in self.ew_bespoke_map.items()}
         # Linked profiles: only include when set.
         if self.ns_linked_profile is not None:
             d["ns_linked_profile"] = self.ns_linked_profile.to_dict()
@@ -1122,13 +872,13 @@ class HandProfile:
 # -----------------------------------------------------------------------
 
 
-def migrate_profile_to_linked(profile: "HandProfile") -> "HandProfile":
+def migrate_profile_to_linked(raw: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Migrate old role mode + bespoke map fields to linked profiles.
+    Migrate old role mode + bespoke map fields to linked profiles in a raw dict.
 
-    Returns a new HandProfile with ns/ew_linked_profile set (when applicable)
-    and old fields cleared. If the profile already has linked profiles, it is
-    returned unchanged.
+    Operates on the raw JSON-like dict (before or after from_dict). Returns
+    the dict with ns/ew_linked_profile added (when applicable) and old fields
+    removed. If already migrated or no migration needed, returns unchanged.
 
     Migration table:
       - no_driver_no_index        → no linked profile
@@ -1139,53 +889,44 @@ def migrate_profile_to_linked(profile: "HandProfile") -> "HandProfile":
       - no_driver (index matching) → LinkedProfile (N/E as primary,
                                       identity map {0:[0], 1:[1], ...})
     """
-    ns_linked = profile.ns_linked_profile
-    ew_linked = profile.ew_linked_profile
-    changed = False
+    # If already has linked profiles, nothing to do.
+    if raw.get("ns_linked_profile") is not None or raw.get("ew_linked_profile") is not None:
+        return raw
 
-    if ns_linked is None:
-        ns_linked = _migrate_to_linked_profile(
-            profile.ns_role_mode,
-            profile.ns_bespoke_map,
-            profile.seat_profiles,
-            pair="ns",
-        )
-        if ns_linked is not None:
-            changed = True
+    # Parse bespoke maps from raw dict (string keys → int keys).
+    def _parse_bmap(raw_map: Any) -> Optional[Dict[int, List[int]]]:
+        if raw_map is None or not isinstance(raw_map, dict):
+            return None
+        return {int(k): [int(v) for v in vals] for k, vals in raw_map.items()}
 
-    if ew_linked is None:
-        ew_linked = _migrate_to_linked_profile(
-            profile.ew_role_mode,
-            profile.ew_bespoke_map,
-            profile.seat_profiles,
-            pair="ew",
-        )
-        if ew_linked is not None:
-            changed = True
+    # Build temporary seat_profiles for sub count checks (only needed
+    # for "no_driver" identity-map migration).
+    sp_raw = raw.get("seat_profiles", {})
+    seat_profiles: Dict[str, SeatProfile] = {}
+    for seat, sp_data in sp_raw.items():
+        if isinstance(sp_data, SeatProfile):
+            seat_profiles[seat] = sp_data
+        elif isinstance(sp_data, dict):
+            seat_profiles[seat] = SeatProfile.from_dict(sp_data)
 
-    if not changed:
-        return profile
+    ns_role_mode = str(raw.get("ns_role_mode", "no_driver_no_index") or "no_driver_no_index")
+    ew_role_mode = str(raw.get("ew_role_mode", "no_driver_no_index") or "no_driver_no_index")
+    ns_bespoke = _parse_bmap(raw.get("ns_bespoke_map"))
+    ew_bespoke = _parse_bmap(raw.get("ew_bespoke_map"))
 
-    # Build a new profile with linked fields set and old fields cleared.
-    return HandProfile(
-        profile_name=profile.profile_name,
-        description=profile.description,
-        dealer=profile.dealer,
-        hand_dealing_order=list(profile.hand_dealing_order),
-        tag=profile.tag,
-        seat_profiles=dict(profile.seat_profiles),
-        author=profile.author,
-        version=profile.version,
-        rotate_deals_by_default=profile.rotate_deals_by_default,
-        # Clear old fields that were migrated.
-        ns_role_mode="no_driver_no_index" if ns_linked is not None else profile.ns_role_mode,
-        ew_role_mode="no_driver_no_index" if ew_linked is not None else profile.ew_role_mode,
-        ns_bespoke_map=None if ns_linked is not None else profile.ns_bespoke_map,
-        ew_bespoke_map=None if ew_linked is not None else profile.ew_bespoke_map,
-        ns_linked_profile=ns_linked,
-        ew_linked_profile=ew_linked,
-        subprofile_exclusions=list(profile.subprofile_exclusions),
-        is_invariants_safety_profile=profile.is_invariants_safety_profile,
-        sort_order=profile.sort_order,
-        category=profile.category,
-    )
+    ns_linked = _migrate_to_linked_profile(ns_role_mode, ns_bespoke, seat_profiles, pair="ns")
+    ew_linked = _migrate_to_linked_profile(ew_role_mode, ew_bespoke, seat_profiles, pair="ew")
+
+    if ns_linked is None and ew_linked is None:
+        return raw
+
+    # Return a copy with linked profiles added and old fields removed.
+    result = dict(raw)
+    if ns_linked is not None:
+        result["ns_linked_profile"] = ns_linked.to_dict()
+    if ew_linked is not None:
+        result["ew_linked_profile"] = ew_linked.to_dict()
+    # Clean up old fields from the dict.
+    for key in ("ns_role_mode", "ew_role_mode", "ns_bespoke_map", "ew_bespoke_map"):
+        result.pop(key, None)
+    return result

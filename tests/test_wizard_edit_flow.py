@@ -41,7 +41,6 @@ def _make_full_profile(name: str = "EditTest") -> HandProfile:
         sub = SubProfile(
             standard=std,
             weight_percent=100.0,
-            ns_role_usage="any",
         )
         seat_profiles[seat] = SeatProfile(seat=seat, subprofiles=[sub])
     return HandProfile(
@@ -53,7 +52,6 @@ def _make_full_profile(name: str = "EditTest") -> HandProfile:
         seat_profiles=seat_profiles,
         author="Tester",
         version="0.1",
-        ns_role_mode="north_drives",
     )
 
 
@@ -88,7 +86,7 @@ def test_edit_skip_all_seats_preserves_profile(monkeypatch, capsys):
     # Metadata preserved
     assert result["profile_name"] == profile.profile_name
     assert result["dealer"] == profile.dealer
-    assert result["ns_role_mode"] == "north_drives"
+    assert result["profile_name"] is not None  # Profile dict built OK
     assert result["rotate_deals_by_default"] is True
 
 
@@ -107,7 +105,10 @@ def test_edit_one_seat_updates_only_that_seat(monkeypatch, capsys):
     # Modified N seat profile (different HCP range)
     sr = SuitRange()
     new_std = StandardSuitConstraints(spades=sr, hearts=sr, diamonds=sr, clubs=sr, total_min_hcp=10, total_max_hcp=15)
-    new_sub = SubProfile(standard=new_std, weight_percent=100.0, ns_role_usage="any")
+    new_sub = SubProfile(
+        standard=new_std,
+        weight_percent=100.0,
+    )
     new_n_seat = SeatProfile(seat="N", subprofiles=[new_sub])
 
     # _yes_no: "no" for "Edit sub-profile names?" prompt
@@ -245,7 +246,7 @@ def test_edit_constraints_roundtrip(monkeypatch, capsys):
     assert isinstance(result, HandProfile)
     assert result.profile_name == profile.profile_name
     assert result.dealer == profile.dealer
-    assert result.ns_role_mode == "north_drives"
+    assert result.profile_name is not None  # Profile preserved
     assert set(result.seat_profiles.keys()) == {"N", "E", "S", "W"}
     for seat in ("N", "E", "S", "W"):
         assert result.seat_profiles[seat] is profile.seat_profiles[seat]

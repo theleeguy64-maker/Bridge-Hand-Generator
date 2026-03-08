@@ -465,7 +465,6 @@ def _make_default_standard_seat_profile(seat: str) -> SeatProfile:
       - Per suit: 0–6 cards, 0–10 HCP
       - No random / partner / opponent constraints
       - Weighting: left at 0.0; validate_profile() will normalise to 100%
-      - NS seats default ns_role_usage to 'any'
     """
     std = StandardSuitConstraints(
         total_min_hcp=0,
@@ -1086,9 +1085,6 @@ def _build_seat_profile(
     seat: str,
     existing: Optional[SeatProfile] = None,
     current_exclusions: Optional[List[SubprofileExclusionData]] = None,
-    *,
-    ns_role_mode: str = "no_driver_no_index",
-    ew_role_mode: str = "no_driver_no_index",
 ) -> tuple[SeatProfile, List[SubprofileExclusionData]]:
     """
     Build a SeatProfile interactively, including per-subprofile exclusion editing.
@@ -1098,8 +1094,6 @@ def _build_seat_profile(
         existing:           Existing SeatProfile to edit, or None for new.
         current_exclusions: Full list of all exclusions (all seats). This seat's
                             exclusions will be updated in-place for each subprofile.
-        ns_role_mode:       Legacy param (kept for backward compat). Ignored.
-        ew_role_mode:       Legacy param (kept for backward compat). Ignored.
 
     Returns:
         A tuple of (SeatProfile, updated_exclusions_list).
@@ -1373,10 +1367,6 @@ def _build_profile(
         # Brand-new profile: no exclusions yet
         subprofile_exclusions: List[SubprofileExclusionData] = []
 
-        # Default ns/ew_role_mode for new profiles
-        ns_role_mode = "no_driver_no_index"
-        ew_role_mode = "no_driver_no_index"
-
         # We do NOT autosave draft files for brand-new profiles here; the
         # profile will be validated and saved via profile_cli.
         return {
@@ -1389,8 +1379,6 @@ def _build_profile(
             "author": author,
             "version": version,
             "rotate_deals_by_default": rotate_flag,
-            "ns_role_mode": ns_role_mode,
-            "ew_role_mode": ew_role_mode,
             "subprofile_exclusions": subprofile_exclusions,
             "category": category,
         }
@@ -1433,8 +1421,6 @@ def _build_profile(
             seat,
             existing_seat_profile,
             subprofile_exclusions,
-            ns_role_mode=existing.ns_role_mode,
-            ew_role_mode=existing.ew_role_mode,
         )
         # Handle both tuple return (new) and plain SeatProfile (legacy monkeypatch)
         if isinstance(result, tuple):
@@ -1446,8 +1432,6 @@ def _build_profile(
         # --- Autosave draft after each seat (best-effort) ---
         if original_path is not None:
             try:
-                ns_role_mode = existing.ns_role_mode
-                ew_role_mode = existing.ew_role_mode
                 snapshot = HandProfile(
                     profile_name=profile_name,
                     description=description,
@@ -1458,8 +1442,6 @@ def _build_profile(
                     author=author,
                     version=version,
                     rotate_deals_by_default=rotate_flag,
-                    ns_role_mode=ns_role_mode,
-                    ew_role_mode=ew_role_mode,
                     subprofile_exclusions=list(subprofile_exclusions),
                     sort_order=existing.sort_order,
                 )
@@ -1468,8 +1450,6 @@ def _build_profile(
                 print(f"WARNING: Autosave failed after seat {seat}: {exc}")
 
     # ----- Final kwargs dict for HandProfile (edit flow) -----
-    ns_role_mode = existing.ns_role_mode
-    ew_role_mode = existing.ew_role_mode
 
     # --- Linked profile SubProfile Map (after all seats are configured) ---
     # If the profile already has linked profiles, offer to re-edit the maps.
@@ -1527,10 +1507,6 @@ def _build_profile(
         "author": author,
         "version": version,
         "rotate_deals_by_default": rotate_flag,
-        "ns_role_mode": ns_role_mode,
-        "ew_role_mode": ew_role_mode,
-        "ns_bespoke_map": getattr(existing, "ns_bespoke_map", None),
-        "ew_bespoke_map": getattr(existing, "ew_bespoke_map", None),
         "ns_linked_profile": ns_linked,
         "ew_linked_profile": ew_linked,
         "subprofile_exclusions": list(subprofile_exclusions),

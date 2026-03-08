@@ -36,7 +36,7 @@ def _make_seat_profiles():
     profiles = {}
     for seat in ("N", "E", "S", "W"):
         std = StandardSuitConstraints(spades=sr, hearts=sr, diamonds=sr, clubs=sr)
-        sub = SubProfile(standard=std, weight_percent=100.0, ns_role_usage="any")
+        sub = SubProfile(standard=std, weight_percent=100.0)
         profiles[seat] = SeatProfile(seat=seat, subprofiles=[sub])
     return profiles
 

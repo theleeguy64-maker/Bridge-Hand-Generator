@@ -10,7 +10,7 @@
 |-------|------------|
 | Language | Python 3.13 |
 | Testing | pytest |
-| Type Checking | pyright (0 errors, 27 files, 11.6K lines) |
+| Type Checking | pyright (0 errors, 27 files, 11.0K lines) |
 | Linting | ruff (check + format) |
 | Output | TXT + LIN format |
 
