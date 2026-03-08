@@ -337,7 +337,7 @@ def _prompt_linked_profile_setup(
     default_link = has_existing
 
     while True:
-        print(f"\n{pair_label} Linked Profile?")
+        print(f"{pair_label} Linked Profile?")
         print(f"  0) No – {seat_a} and {seat_b} pick subprofiles independently")
         print(f"  1) Yes – link {seat_a} and {seat_b} subprofile selection")
         print("  2) Help")

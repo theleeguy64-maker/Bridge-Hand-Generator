@@ -715,7 +715,8 @@
 - [x] Weight editing menu — 0=Exit, 1=Keep, 2=Even, 3=Manual (replaces old y/n prompt)
 - [x] Seat editing save & exit — press "e" to save and skip remaining seats
 - [x] Edit subprofile names before constraints — say Yes at prompt, rename subs, then verify names carry through
-- [ ] Profile JSON updates — Our 1 Major load correctly
+- [x] Profile JSON updates — Our 1 Major load correctly
+- [ ] Test new menu-driven sub-profile constraint editing — Standard/Non-Standard menu loop, SET/not set indicators, mutual exclusivity warnings
 
 ---
 

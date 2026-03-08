@@ -3,7 +3,6 @@
   "category": "Uncontested",
   "dealer": "N",
   "description": "Strong one or two suiter",
-  "ew_role_mode": "no_driver_no_index",
   "hand_dealing_order": [
     "N",
     "E",
@@ -11,7 +10,6 @@
     "W"
   ],
   "is_invariants_safety_profile": false,
-  "ns_role_mode": "no_driver",
   "profile_name": "Big Hands",
   "rotate_deals_by_default": true,
   "seat_profiles": {
@@ -19,8 +17,6 @@
       "seat": "E",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
@@ -60,8 +56,6 @@
       "seat": "N",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
@@ -101,8 +95,6 @@
       "seat": "S",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
@@ -142,8 +134,6 @@
       "seat": "W",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,

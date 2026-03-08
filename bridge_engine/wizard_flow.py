@@ -888,76 +888,171 @@ def _build_random_suit_constraint(
     )
 
 
+def _format_standard_constraints_summary(std: StandardSuitConstraints) -> str:
+    """
+    Return a compact multi-line summary of standard constraints.
+
+    If everything is wide open (all suits 0-13 cards / 0-37 HCP, total 0-37),
+    returns a short "(wide open -- no restrictions)" message instead.
+    """
+    wide_open = SuitRange()  # defaults: 0-13 cards, 0-37 HCP
+    suits_wide = all(getattr(std, s) == wide_open for s in ("spades", "hearts", "diamonds", "clubs"))
+    totals_wide = std.total_min_hcp == 0 and std.total_max_hcp == 37
+
+    if suits_wide and totals_wide:
+        return "  Standard constraints: (wide open -- no restrictions)"
+
+    lines = ["  Standard constraints:"]
+    lines.append(f"    HCP: {std.total_min_hcp}-{std.total_max_hcp}")
+
+    # Show suits in pairs: S|H then D|C
+    suit_labels = [("S", std.spades), ("H", std.hearts), ("D", std.diamonds), ("C", std.clubs)]
+    for i in range(0, 4, 2):
+        lbl1, sr1 = suit_labels[i]
+        lbl2, sr2 = suit_labels[i + 1]
+        part1 = f"{lbl1}: {sr1.min_cards}-{sr1.max_cards} cards, {sr1.min_hcp}-{sr1.max_hcp} HCP"
+        part2 = f"{lbl2}: {sr2.min_cards}-{sr2.max_cards} cards, {sr2.min_hcp}-{sr2.max_hcp} HCP"
+        lines.append(f"    {part1} | {part2}")
+
+    return "\n".join(lines)
+
+
+def _non_standard_label(constraint_name: str, is_set: bool) -> str:
+    """Format a non-standard constraint menu label with SET/not set indicator."""
+    tag = "SET" if is_set else "not set"
+    return f"{constraint_name}  [{tag}]"
+
+
 def _build_subprofile(
     seat: str,
     existing: Optional[SubProfile] = None,
 ) -> SubProfile:
     """
-    Interactive builder for a single SubProfile for a given seat.
+    Menu-driven interactive builder for a single SubProfile for a given seat.
+
+    Presents a top-level menu with Standard / Non-Standard / Exit options so
+    the user can visit each section independently without being forced through
+    all prompts linearly.
 
     If `existing` is provided, it is used to pre-fill defaults where possible.
     """
     print(f"\nBuilding sub-profile for seat {seat}:")
 
-    # Optional name for this sub-profile (purely cosmetic label).
+    # --- 1. Name prompt (unchanged) ---
     existing_name = existing.name if existing is not None else ""
     default_hint = f" [{existing_name}]" if existing_name else ""
     raw_name = wiz_io.prompt_str(f"  Sub-profile name (optional, Enter to skip){default_hint}: ")
     name: Optional[str] = raw_name.strip() or existing_name or None
 
-    # Standard constraints
-    std_existing = existing.standard if existing is not None else None
-    standard = _build_standard_constraints(std_existing)
-
-    # Default: 2 if existing had a random-suit, 3 for partner-contingent,
-    # 4 for opp-contingent, otherwise 1.
-    default_choice = 1
+    # --- 2. Initialize from existing or wide-open defaults ---
     if existing is not None:
-        if existing.random_suit_constraint is not None:
-            default_choice = 2
-        elif existing.partner_contingent_constraint is not None:
-            default_choice = 3
-        elif existing.opponents_contingent_suit_constraint is not None:
-            default_choice = 4
+        standard = existing.standard
+        random_constraint = existing.random_suit_constraint
+        partner_constraint = existing.partner_contingent_constraint
+        opponents_constraint = existing.opponents_contingent_suit_constraint
+    else:
+        # Wide-open defaults — user edits only what they want via the menu.
+        standard = StandardSuitConstraints(
+            spades=SuitRange(),
+            hearts=SuitRange(),
+            diamonds=SuitRange(),
+            clubs=SuitRange(),
+        )
+        random_constraint = None
+        partner_constraint = None
+        opponents_constraint = None
 
+    # --- 3. Menu loop: Standard / Non-Standard / Exit ---
     while True:
-        print("\nExtra constraint for this sub-profile:")
-        print("  1) None (Standard-only)")
-        print("  2) Random Suit constraint")
-        print("  3) Partner Contingent constraint (chosen or unchosen suit)")
-        print("  4) Opponent Contingent-Suit constraint (chosen or unchosen suit)")
-        print("  5) Help")
+        print("\nConstraints menu:")
+        print("  0) Exit (done editing)")
+        print("  1) Standard constraints")
+        print("  2) Non-Standard constraints")
 
-        choice = _input_int(
-            "  Choose [1-5]",
-            default=default_choice,
-            minimum=1,
-            maximum=5,
+        menu_choice = _input_int(
+            "  Choose [0-2]",
+            default=0,
+            minimum=0,
+            maximum=2,
             show_range_suffix=False,
         )
 
-        if choice == 5:
-            print(get_menu_help("extra_constraint"))
+        # --- Exit ---
+        if menu_choice == 0:
+            break
+
+        # --- Standard constraints ---
+        if menu_choice == 1:
+            print()
+            print(_format_standard_constraints_summary(standard))
+            if _yes_no("  Change standard constraints?", default=True):
+                standard = _build_standard_constraints(standard)
             continue
 
-        break
+        # --- Non-Standard constraints submenu ---
+        if menu_choice == 2:
+            while True:
+                has_rs = random_constraint is not None
+                has_pc = partner_constraint is not None
+                has_oc = opponents_constraint is not None
 
-    random_constraint = None
-    partner_constraint = None
-    opponents_constraint = None
+                print("\nNon-Standard constraints:")
+                print("  0) Back")
+                print(f"  1) {_non_standard_label('Random Suit constraint', has_rs)}")
+                print(f"  2) {_non_standard_label('Partner Contingent constraint', has_pc)}")
+                print(f"  3) {_non_standard_label('Opponent Contingent constraint', has_oc)}")
 
-    if choice == 2:
-        random_constraint = _build_random_suit_constraint(existing.random_suit_constraint if existing else None)
-    elif choice == 3:
-        partner_constraint = _build_partner_contingent_constraint(
-            existing.partner_contingent_constraint if existing else None
-        )
-    elif choice == 4:
-        opponents_constraint = _build_opponent_contingent_constraint(
-            existing.opponents_contingent_suit_constraint if existing else None
-        )
+                ns_choice = _input_int(
+                    "  Choose [0-3]",
+                    default=0,
+                    minimum=0,
+                    maximum=3,
+                    show_range_suffix=False,
+                )
 
-    # Weighting (seat-level weighting edits are handled separately.)
+                if ns_choice == 0:
+                    break
+
+                # Determine which type is currently set (if any) so we can warn
+                # when replacing one type with a different type.
+                current_type: Optional[str] = None
+                if has_rs:
+                    current_type = "RS"
+                elif has_pc:
+                    current_type = "PC"
+                elif has_oc:
+                    current_type = "OC"
+
+                chosen_type = {1: "RS", 2: "PC", 3: "OC"}[ns_choice]
+
+                # Warn if replacing a different type (mutual exclusivity).
+                if current_type is not None and current_type != chosen_type:
+                    type_names = {"RS": "Random Suit", "PC": "Partner Contingent", "OC": "Opponent Contingent"}
+                    print(
+                        f"\n  Note: Setting {type_names[chosen_type]} will replace "
+                        f"the current {type_names[current_type]} constraint."
+                    )
+
+                # Build the chosen constraint, passing existing value if same type.
+                if ns_choice == 1:
+                    random_constraint = _build_random_suit_constraint(random_constraint if has_rs else None)
+                    # Clear the other two (mutual exclusivity).
+                    partner_constraint = None
+                    opponents_constraint = None
+                elif ns_choice == 2:
+                    partner_constraint = _build_partner_contingent_constraint(partner_constraint if has_pc else None)
+                    random_constraint = None
+                    opponents_constraint = None
+                elif ns_choice == 3:
+                    opponents_constraint = _build_opponent_contingent_constraint(
+                        opponents_constraint if has_oc else None
+                    )
+                    random_constraint = None
+                    partner_constraint = None
+
+            continue
+
+    # --- 4. Build and return the SubProfile ---
     weight_percent = existing.weight_percent if existing is not None else 0.0
 
     return SubProfile(

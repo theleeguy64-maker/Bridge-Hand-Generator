@@ -20,7 +20,7 @@ bridge_engine/
 ├── profile_cli.py           (1,159 lines) - Profile commands (incl. linked profile setup, SubProfile Map)
 ├── profile_wizard.py          (125 lines) - Profile creation UI
 ├── profile_convert.py          (40 lines) - Legacy profile format conversion (standalone utility)
-├── wizard_flow.py           (1,539 lines) - Wizard steps, per-sub exclusion editing, SubProfile Map editing
+├── wizard_flow.py           (1,634 lines) - Wizard steps, menu-driven sub-profile editing, SubProfile Map editing
 ├── wizard_io.py               (104 lines) - Wizard I/O helpers
 ├── profile_viability.py       (312 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py           (348 lines) - JSON persistence (atomic writes, error-tolerant loading, category display)
