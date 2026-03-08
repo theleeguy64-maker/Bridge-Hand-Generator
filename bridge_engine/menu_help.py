@@ -158,6 +158,11 @@ Typical steps:
   6) Generation + output
       The engine:
         – Validates the profile
+        – For each board, selects sub-profiles for all four seats. If linked
+          profiles are active, the primary seat picks first and the secondary
+          picks from its mapped subset. The engine also checks that any seat
+          with a PC/OC constraint has its partner/opponent holding an RS
+          sub-profile this board (rejects impossible combos early).
         – Attempts to build each board respecting constraints, using shape-based
           pre-allocation for tight seats (seats with narrow suit requirements)
         – Retries each board up to 50 times; adaptively re-seeds the RNG if a
@@ -490,8 +495,8 @@ some distributions you don't want. For example, you want 12–14 HCP
 with a balanced hand but want to exclude the flattest shapes (4333).
 
 This prompt appears per-subprofile during constraint editing, right
-after each sub-profile's role usage. Answer Yes to add or edit
-exclusions for that sub-profile, No to skip.
+after each sub-profile's constraints are defined. Answer Yes to add
+or edit exclusions for that sub-profile, No to skip.
 """,
     "yn_rotate_deals": """\
 === Rotate Deals ===

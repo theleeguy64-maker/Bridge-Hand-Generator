@@ -644,7 +644,7 @@ def _print_profile_metadata(profile: HandProfile, path: Path) -> None:
                     s_labels = [f"Sub {si + 1}" for si in s_indices]
                 print(f"    {p_label} → [{', '.join(s_labels)}]")
         else:
-            # Legacy role mode display (no linked profile)
+            # No linked profile for this pair
             print(f"{pair_name} linked  : No")
 
     print(f"File name   : {path.name}")
