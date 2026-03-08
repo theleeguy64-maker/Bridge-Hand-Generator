@@ -177,6 +177,7 @@ def clear_screen() -> None:
 
 from .hand_profile import (
     HandProfile,
+    LinkedProfile,
     OpponentContingentSuitData,
     PartnerContingentData,
     RandomSuitConstraintData,
@@ -1213,16 +1214,15 @@ def _build_seat_profile(
     ew_role_mode: str = "no_driver_no_index",
 ) -> tuple[SeatProfile, List[SubprofileExclusionData]]:
     """
-    Build a SeatProfile interactively, including per-subprofile role and exclusion editing.
+    Build a SeatProfile interactively, including per-subprofile exclusion editing.
 
     Parameters:
         seat:               The seat letter (N/E/S/W).
         existing:           Existing SeatProfile to edit, or None for new.
         current_exclusions: Full list of all exclusions (all seats). This seat's
                             exclusions will be updated in-place for each subprofile.
-        ns_role_mode:       Profile-level NS role mode. Role prompts are only shown
-                            when a driver is configured (not "no_driver_no_index").
-        ew_role_mode:       Profile-level EW role mode. Same logic as ns_role_mode.
+        ns_role_mode:       Legacy param (kept for backward compat). Ignored.
+        ew_role_mode:       Legacy param (kept for backward compat). Ignored.
 
     Returns:
         A tuple of (SeatProfile, updated_exclusions_list).
@@ -1271,34 +1271,7 @@ def _build_seat_profile(
             sub = _build_subprofile(seat, existing_sub)
             subprofiles.append(sub)
 
-            # --- Per-subprofile role assignment (right after constraints) ---
-            # Only prompt for roles when a driver is configured for this pair.
-            # "no_driver_no_index" means roles are irrelevant — skip entirely.
-            current_sub = subprofiles[-1]
-            ns_has_driver = seat in ("N", "S") and ns_role_mode != "no_driver_no_index"
-            ew_has_driver = seat in ("E", "W") and ew_role_mode != "no_driver_no_index"
-
-            if ns_has_driver or ew_has_driver:
-                if num_sub > 1:
-                    active_role_mode = ns_role_mode if ns_has_driver else ew_role_mode
-                    current_sub = _assign_role_usage_for_subprofile(
-                        seat,
-                        current_sub,
-                        idx,
-                        existing_sub,
-                        role_mode=active_role_mode,
-                    )
-                    subprofiles[-1] = current_sub
-                else:
-                    # Single subprofile: auto-assign "any" (preserve existing if editing)
-                    if ns_has_driver:
-                        default_role = existing_sub.ns_role_usage if existing_sub is not None else "any"
-                        subprofiles[-1] = replace(current_sub, ns_role_usage=default_role)
-                    elif ew_has_driver:
-                        default_role = existing_sub.ew_role_usage if existing_sub is not None else "any"
-                        subprofiles[-1] = replace(current_sub, ew_role_usage=default_role)
-
-            # --- Per-subprofile exclusion editing (right after role) ---
+            # --- Per-subprofile exclusion editing (right after constraints) ---
             # Build a temporary SeatProfile so the display helpers work
             temp_sp = SeatProfile(seat=seat, subprofiles=list(subprofiles))
             updated_sub_excls = _edit_exclusions_for_subprofile(
@@ -1439,6 +1412,94 @@ def _edit_bespoke_map(
     return bespoke_map
 
 
+def _prompt_subprofile_map_wizard(
+    pair_label: str,
+    primary_sp: SeatProfile,
+    secondary_sp: SeatProfile,
+    existing_map: Optional[Dict[int, List[int]]] = None,
+) -> Dict[int, List[int]]:
+    """
+    Interactively build a SubProfile Map for a linked profile (wizard I/O).
+
+    Maps each primary subprofile index to one or more secondary subprofile
+    indices. The map must be surjective: every secondary sub must appear
+    in at least one mapping.
+
+    Uses wizard I/O helpers (_input_with_default, _yes_no_help) so tests
+    can monkeypatch them via profile_wizard.
+    """
+    primary = primary_sp.seat
+    secondary = secondary_sp.seat
+
+    if not _yes_no_help(
+        f"Edit SubProfile Map ({primary} → {secondary})?",
+        "yn_subprofile_map",
+        default=existing_map is not None,
+    ):
+        # Keep existing map or default to identity/all
+        if existing_map is not None:
+            return dict(existing_map)
+        # Default: each primary maps to all secondaries
+        num_secondary = len(secondary_sp.subprofiles)
+        return {i: list(range(num_secondary)) for i in range(len(primary_sp.subprofiles))}
+
+    subprofile_map: Dict[int, List[int]] = {}
+    num_secondary = len(secondary_sp.subprofiles)
+
+    print(f"\n  SubProfile Map ({primary} → {secondary}):")
+
+    for p_idx, p_sub in enumerate(primary_sp.subprofiles):
+        p_label = sub_label(p_idx + 1, p_sub)
+
+        # Default: existing map or all secondary subs
+        if existing_map is not None and p_idx in existing_map:
+            default_vals = existing_map[p_idx]
+        else:
+            default_vals = list(range(num_secondary))
+
+        default_str = ",".join(str(v + 1) for v in default_vals)
+
+        print(f"\n  {p_label} maps to which {secondary} subprofiles?")
+        for s_idx, s_sub in enumerate(secondary_sp.subprofiles):
+            print(f"    {s_idx + 1}) {sub_label(s_idx + 1, s_sub)}")
+
+        raw = _input_with_default(
+            f"  Select one or more [{default_str}]: ",
+            default_str,
+        )
+
+        # Parse input: 1-based → 0-based
+        chosen: List[int] = []
+        for part in raw.split(","):
+            part = part.strip()
+            if part.isdigit():
+                val = int(part) - 1
+                if 0 <= val < num_secondary:
+                    chosen.append(val)
+
+        if not chosen:
+            chosen = list(range(num_secondary))
+
+        subprofile_map[p_idx] = chosen
+
+    # Validate surjective: every secondary sub must appear at least once
+    all_secondary: set[int] = set()
+    for vals in subprofile_map.values():
+        all_secondary.update(vals)
+    orphaned = [i for i in range(num_secondary) if i not in all_secondary]
+    if orphaned:
+        orphaned_labels = [sub_label(i + 1, secondary_sp.subprofiles[i]) for i in orphaned]
+        print(f"\n  WARNING: The following {secondary} subs are not mapped:")
+        for lbl in orphaned_labels:
+            print(f"    - {lbl}")
+        print("  Every secondary subprofile must be used at least once.")
+        print("  Adding them to all primary entries to fix.")
+        for p_idx in subprofile_map:
+            subprofile_map[p_idx] = list(set(subprofile_map[p_idx]) | set(orphaned))
+
+    return subprofile_map
+
+
 def _build_profile(
     existing: Optional[HandProfile] = None,
     original_path: Optional[Path] = None,
@@ -1457,13 +1518,12 @@ def _build_profile(
               - 1 sub-profile per seat
               - Standard 'all-open' ranges
               - No non-standard constraints or exclusions
-              - N/S ns_role_usage = 'no_driver_no_index'
-              - E/W ew_role_usage = 'no_driver_no_index'
+              - No linked profiles
           * No constraints wizard prompts.
       - For edits (existing is not None):
           * Preserve the full constraints wizard behaviour, including
-            seat-by-seat editing, subprofile weights, NS/EW role usage, and
-            autosave of _TEST.json drafts.
+            seat-by-seat editing, subprofile weights, linked profile
+            SubProfile Map editing, and autosave of _TEST.json drafts.
     """
 
     # Route interaction helpers through profile_wizard when tests monkeypatch there.
@@ -1634,43 +1694,51 @@ def _build_profile(
     ns_role_mode = existing.ns_role_mode
     ew_role_mode = existing.ew_role_mode
 
-    # --- Bespoke subprofile matching (after all seats are configured) ---
-    ns_bespoke_map: Optional[Dict[int, List[int]]] = None
-    ew_bespoke_map: Optional[Dict[int, List[int]]] = None
+    # --- Linked profile SubProfile Map (after all seats are configured) ---
+    # If the profile already has linked profiles, offer to re-edit the maps.
+    # The linked profile on/off toggle is in Edit Overall Deal Data (profile_cli),
+    # so here we only rebuild the SubProfile Map if linking is active.
+    # Use getattr for backward compat with test mocks that lack these fields
+    ns_linked: Optional[LinkedProfile] = getattr(existing, "ns_linked_profile", None)
+    ew_linked: Optional[LinkedProfile] = getattr(existing, "ew_linked_profile", None)
 
-    # NS bespoke map: only if both N and S have >1 subprofile.
+    # NS linked profile: rebuild map if linked and both seats have ≥2 subs.
     n_sp = seat_profiles.get("N")
     s_sp = seat_profiles.get("S")
-    if n_sp is not None and s_sp is not None and (len(n_sp.subprofiles) > 1 or len(s_sp.subprofiles) > 1):
-        # Determine driver/follower order from role mode.
-        if ns_role_mode == "south_drives":
-            ns_driver_sp, ns_follower_sp = s_sp, n_sp
-        else:
-            # north_drives (or other modes): N is driver.
-            ns_driver_sp, ns_follower_sp = n_sp, s_sp
-        ns_bespoke_map = _edit_bespoke_map(
-            "NS",
-            ns_role_mode,
-            ns_driver_sp,
-            ns_follower_sp,
-            existing_map=existing.ns_bespoke_map,
-        )
+    if ns_linked is not None and n_sp is not None and s_sp is not None:
+        if len(n_sp.subprofiles) > 1 and len(s_sp.subprofiles) > 1:
+            primary_seat = ns_linked.primary_seat
+            primary_sp = seat_profiles[primary_seat]
+            secondary_sp = seat_profiles[ns_linked.secondary_seat()]
+            new_map = _prompt_subprofile_map_wizard(
+                "NS",
+                primary_sp,
+                secondary_sp,
+                existing_map=ns_linked.subprofile_map,
+            )
+            ns_linked = LinkedProfile(
+                primary_seat=primary_seat,
+                subprofile_map=new_map,
+            )
 
-    # EW bespoke map: only if both E and W have >1 subprofile.
+    # EW linked profile: same pattern.
     e_sp = seat_profiles.get("E")
     w_sp = seat_profiles.get("W")
-    if e_sp is not None and w_sp is not None and (len(e_sp.subprofiles) > 1 or len(w_sp.subprofiles) > 1):
-        if ew_role_mode == "west_drives":
-            ew_driver_sp, ew_follower_sp = w_sp, e_sp
-        else:
-            ew_driver_sp, ew_follower_sp = e_sp, w_sp
-        ew_bespoke_map = _edit_bespoke_map(
-            "EW",
-            ew_role_mode,
-            ew_driver_sp,
-            ew_follower_sp,
-            existing_map=existing.ew_bespoke_map,
-        )
+    if ew_linked is not None and e_sp is not None and w_sp is not None:
+        if len(e_sp.subprofiles) > 1 and len(w_sp.subprofiles) > 1:
+            primary_seat = ew_linked.primary_seat
+            primary_sp = seat_profiles[primary_seat]
+            secondary_sp = seat_profiles[ew_linked.secondary_seat()]
+            new_map = _prompt_subprofile_map_wizard(
+                "EW",
+                primary_sp,
+                secondary_sp,
+                existing_map=ew_linked.subprofile_map,
+            )
+            ew_linked = LinkedProfile(
+                primary_seat=primary_seat,
+                subprofile_map=new_map,
+            )
 
     return {
         "profile_name": profile_name,
@@ -1684,8 +1752,10 @@ def _build_profile(
         "rotate_deals_by_default": rotate_flag,
         "ns_role_mode": ns_role_mode,
         "ew_role_mode": ew_role_mode,
-        "ns_bespoke_map": ns_bespoke_map,
-        "ew_bespoke_map": ew_bespoke_map,
+        "ns_bespoke_map": getattr(existing, "ns_bespoke_map", None),
+        "ew_bespoke_map": getattr(existing, "ew_bespoke_map", None),
+        "ns_linked_profile": ns_linked,
+        "ew_linked_profile": ew_linked,
         "subprofile_exclusions": list(subprofile_exclusions),
         "sort_order": existing.sort_order,
     }

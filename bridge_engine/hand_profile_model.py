@@ -592,6 +592,134 @@ class SeatProfile:
 
 
 # -----------------------------------------------------------------------
+# LinkedProfile (pairs two seats for coordinated subprofile selection)
+# -----------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class LinkedProfile:
+    """
+    Couples one pair of seats (NS or EW) for coordinated subprofile selection.
+
+    The primary seat picks its subprofile first by weighted random. The
+    secondary seat then picks from a mapped subset of its own subprofiles,
+    using its own weights renormalized to sum to 1.
+
+    Attributes
+    ----------
+    primary_seat
+        The seat that picks first: "N" or "S" for NS, "E" or "W" for EW.
+    subprofile_map
+        Surjective map from primary 0-based index → list of secondary
+        0-based indices. Requirements:
+          - Every primary subprofile index must be a key exactly once.
+          - Every secondary subprofile index must appear in at least one
+            value list (surjective rule).
+          - No empty value lists.
+    """
+
+    primary_seat: str
+    subprofile_map: Dict[int, List[int]]
+
+    def __post_init__(self) -> None:
+        if self.primary_seat not in ("N", "S", "E", "W"):
+            raise ProfileError(f"Invalid primary_seat: {self.primary_seat}")
+
+    def secondary_seat(self) -> str:
+        """Return the other seat in the pair."""
+        return {"N": "S", "S": "N", "E": "W", "W": "E"}[self.primary_seat]
+
+    def pair_label(self) -> str:
+        """Return 'NS' or 'EW' depending on the primary seat."""
+        return "NS" if self.primary_seat in ("N", "S") else "EW"
+
+    def to_dict(self) -> Dict[str, Any]:
+        # JSON requires string keys for maps.
+        return {
+            "primary_seat": self.primary_seat,
+            "subprofile_map": {str(k): list(v) for k, v in self.subprofile_map.items()},
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "LinkedProfile":
+        raw_map = data.get("subprofile_map", {})
+        parsed_map: Dict[int, List[int]] = {int(k): [int(v) for v in vals] for k, vals in raw_map.items()}
+        return cls(
+            primary_seat=str(data["primary_seat"]),
+            subprofile_map=parsed_map,
+        )
+
+
+# -----------------------------------------------------------------------
+# Migration helper: old role modes → LinkedProfile
+# -----------------------------------------------------------------------
+
+
+def _migrate_to_linked_profile(
+    role_mode: str,
+    bespoke_map: Optional[Dict[int, List[int]]],
+    seat_profiles: Dict[str, "SeatProfile"],
+    pair: str,
+) -> Optional[LinkedProfile]:
+    """
+    Auto-migrate old role mode + bespoke map fields to a LinkedProfile.
+
+    Migration table:
+      - no_driver_no_index        → None (no linked profile)
+      - random_driver             → None (no linked profile)
+      - _drives without bespoke   → None (no linked profile)
+      - _drives with bespoke map  → LinkedProfile (driver seat as primary,
+                                     bespoke map as subprofile_map)
+      - no_driver (index matching) → LinkedProfile (N/E as primary,
+                                      identity map {0:[0], 1:[1], ...})
+
+    Returns None when no migration is needed.
+    """
+    mode = (role_mode or "no_driver_no_index").strip().lower()
+
+    # Determine first seat in pair (used for no_driver identity map).
+    seat_a = "N" if pair == "ns" else "E"
+
+    # Modes that produce no linked profile.
+    if mode == "no_driver_no_index":
+        return None
+    if mode == "random_driver":
+        return None
+
+    # Determine driver seat from mode.
+    driver_modes = {
+        "north_drives": "N",
+        "south_drives": "S",
+        "east_drives": "E",
+        "west_drives": "W",
+    }
+
+    if mode in driver_modes:
+        # _drives mode.
+        if bespoke_map is None:
+            # _drives without bespoke → no linked profile.
+            return None
+        # _drives with bespoke map → linked profile.
+        primary = driver_modes[mode]
+        return LinkedProfile(primary_seat=primary, subprofile_map=dict(bespoke_map))
+
+    if mode == "no_driver":
+        # Index matching mode: build identity map.
+        # Primary is first seat in the pair (N for NS, E for EW).
+        sp = seat_profiles.get(seat_a)
+        if sp is None:
+            return None
+        num_subs = len(sp.subprofiles)
+        if num_subs <= 1:
+            return None
+        identity_map = {i: [i] for i in range(num_subs)}
+        return LinkedProfile(primary_seat=seat_a, subprofile_map=identity_map)
+
+    # Unknown mode → no linked profile.
+    return None
+
+
+# -----------------------------------------------------------------------
 # HandProfile (whole profile)
 # -----------------------------------------------------------------------
 
@@ -673,6 +801,13 @@ class HandProfile:
     ns_bespoke_map: Optional[Dict[int, List[int]]] = None
     ew_bespoke_map: Optional[Dict[int, List[int]]] = None
 
+    # Linked profiles: couple one pair of seats for coordinated subprofile
+    # selection.  When set, the primary seat picks first by weight, then the
+    # secondary seat picks from the mapped subset with renormalized weights.
+    # None (default) = seats in this pair pick independently.
+    ns_linked_profile: Optional[LinkedProfile] = None
+    ew_linked_profile: Optional[LinkedProfile] = None
+
     subprofile_exclusions: List["SubprofileExclusionData"] = field(default_factory=list)
 
     # Explicit flag replacing magic profile name check (P1.1 refactor)
@@ -748,6 +883,15 @@ class HandProfile:
         ns_bespoke = _parse_bespoke_map(data.get("ns_bespoke_map"))
         ew_bespoke = _parse_bespoke_map(data.get("ew_bespoke_map"))
 
+        # Linked profiles (new system, replacing role modes + bespoke maps).
+        # Explicit linked profile dicts are parsed here; migration from old
+        # role mode + bespoke fields is done via migrate_profile_to_linked()
+        # (called explicitly, not automatically on every load).
+        ns_lp_raw = data.get("ns_linked_profile")
+        ns_linked = LinkedProfile.from_dict(ns_lp_raw) if isinstance(ns_lp_raw, dict) else None
+        ew_lp_raw = data.get("ew_linked_profile")
+        ew_linked = LinkedProfile.from_dict(ew_lp_raw) if isinstance(ew_lp_raw, dict) else None
+
         return cls(
             profile_name=str(data["profile_name"]),
             description=str(data.get("description", "")),
@@ -766,6 +910,8 @@ class HandProfile:
             ew_role_mode=str(data.get("ew_role_mode", "no_driver_no_index") or "no_driver_no_index"),
             ns_bespoke_map=ns_bespoke,
             ew_bespoke_map=ew_bespoke,
+            ns_linked_profile=ns_linked,
+            ew_linked_profile=ew_linked,
             subprofile_exclusions=exclusions,
             # P1.1 refactor: explicit flags (default False for production profiles)
             is_invariants_safety_profile=bool(data.get("is_invariants_safety_profile", False)),
@@ -962,4 +1108,83 @@ class HandProfile:
             d["ns_bespoke_map"] = {str(k): v for k, v in self.ns_bespoke_map.items()}
         if self.ew_bespoke_map is not None:
             d["ew_bespoke_map"] = {str(k): v for k, v in self.ew_bespoke_map.items()}
+        # Linked profiles: only include when set.
+        if self.ns_linked_profile is not None:
+            d["ns_linked_profile"] = self.ns_linked_profile.to_dict()
+        if self.ew_linked_profile is not None:
+            d["ew_linked_profile"] = self.ew_linked_profile.to_dict()
         return d
+
+
+# -----------------------------------------------------------------------
+# Explicit migration: old role modes → linked profiles
+# -----------------------------------------------------------------------
+
+
+def migrate_profile_to_linked(profile: "HandProfile") -> "HandProfile":
+    """
+    Migrate old role mode + bespoke map fields to linked profiles.
+
+    Returns a new HandProfile with ns/ew_linked_profile set (when applicable)
+    and old fields cleared. If the profile already has linked profiles, it is
+    returned unchanged.
+
+    Migration table:
+      - no_driver_no_index        → no linked profile
+      - random_driver             → no linked profile
+      - _drives without bespoke   → no linked profile
+      - _drives with bespoke map  → LinkedProfile (driver seat as primary,
+                                     bespoke map as subprofile_map)
+      - no_driver (index matching) → LinkedProfile (N/E as primary,
+                                      identity map {0:[0], 1:[1], ...})
+    """
+    ns_linked = profile.ns_linked_profile
+    ew_linked = profile.ew_linked_profile
+    changed = False
+
+    if ns_linked is None:
+        ns_linked = _migrate_to_linked_profile(
+            profile.ns_role_mode,
+            profile.ns_bespoke_map,
+            profile.seat_profiles,
+            pair="ns",
+        )
+        if ns_linked is not None:
+            changed = True
+
+    if ew_linked is None:
+        ew_linked = _migrate_to_linked_profile(
+            profile.ew_role_mode,
+            profile.ew_bespoke_map,
+            profile.seat_profiles,
+            pair="ew",
+        )
+        if ew_linked is not None:
+            changed = True
+
+    if not changed:
+        return profile
+
+    # Build a new profile with linked fields set and old fields cleared.
+    return HandProfile(
+        profile_name=profile.profile_name,
+        description=profile.description,
+        dealer=profile.dealer,
+        hand_dealing_order=list(profile.hand_dealing_order),
+        tag=profile.tag,
+        seat_profiles=dict(profile.seat_profiles),
+        author=profile.author,
+        version=profile.version,
+        rotate_deals_by_default=profile.rotate_deals_by_default,
+        # Clear old fields that were migrated.
+        ns_role_mode="no_driver_no_index" if ns_linked is not None else profile.ns_role_mode,
+        ew_role_mode="no_driver_no_index" if ew_linked is not None else profile.ew_role_mode,
+        ns_bespoke_map=None if ns_linked is not None else profile.ns_bespoke_map,
+        ew_bespoke_map=None if ew_linked is not None else profile.ew_bespoke_map,
+        ns_linked_profile=ns_linked,
+        ew_linked_profile=ew_linked,
+        subprofile_exclusions=list(profile.subprofile_exclusions),
+        is_invariants_safety_profile=profile.is_invariants_safety_profile,
+        sort_order=profile.sort_order,
+        category=profile.category,
+    )

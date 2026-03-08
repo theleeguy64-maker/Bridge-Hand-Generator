@@ -234,8 +234,8 @@ OVERALL DEAL DATA (option 1) — lightweight edits:
     • Dealer seat (N/E/S/W)
     • Sort order (custom display numbering in menus)
     • Rotate deals by default (swap N↔S and E↔W randomly)
-    • NS role mode (who drives the auction for North–South)
-    • EW role mode (who drives the auction for East–West)
+    • NS linked profile (coordinate N/S sub-profile selection)
+    • EW linked profile (coordinate E/W sub-profile selection)
 
   Note: Dealing order is auto-computed at runtime based on constraint
   difficulty — it is not user-editable.
@@ -249,25 +249,20 @@ EACH HAND CONSTRAINTS (option 2) — full wizard re-run:
 
   For each sub-profile, the wizard runs these steps in order:
     1. "Edit Sub-profile N?" — skip prompt (editing existing profiles
-       only). Answer No to keep that sub-profile's constraints, role
-       usage, AND exclusions entirely unchanged.
+       only). Answer No to keep that sub-profile's constraints and
+       exclusions entirely unchanged.
     2. Constraints — HCP range, per-suit card-count ranges, and
        optional extra constraint (RS / PC / OC).
-    3. Role usage — NS or EW driver/follower tag (only when a driver
-       mode is active for that pair).
-    4. Exclusions — reject specific shapes or shape families.
+    3. Exclusions — reject specific shapes or shape families.
 
   After all sub-profiles are defined:
-    5. Weights — how often each sub-profile is selected (must sum to
+    4. Weights — how often each sub-profile is selected (must sum to
        100% across all subs for the seat).
 
-  After all SEATS are configured:
-    6. Bespoke matching — if a pair (NS or EW) has a fixed driver
-       mode and multiple sub-profiles, the wizard offers bespoke
-       subprofile matching. For each driver sub-profile, you choose
-       which follower sub-profiles can pair with it. This replaces
-       the default same-index coupling and allows unequal sub-profile
-       counts between paired seats.
+  After saving a seat that is part of a linked profile, the wizard
+  prompts for the SubProfile Map — which primary sub-profiles map
+  to which secondary sub-profiles. Every secondary sub must appear
+  in at least one mapping.
 
   The wizard uses current constraints as defaults so you only change
   what you need.
@@ -360,127 +355,48 @@ Tips:
   • Inverse mode requires the referenced RS to have exactly 1 suit
     left over after picking (e.g., pick 1 from 2 allowed suits).
 """,
-    "ns_role_mode": """\
-=== NS Role Mode – Who Drives the Auction? ===
+    "linked_profile": """\
+=== Linked Profiles – Coordinated Sub-profile Selection ===
 
-When both North and South have multiple sub-profiles, "NS role mode"
-controls which seat's sub-profile index is chosen first each board.
-The other seat ("follower") then uses the same index, ensuring the
-partnership's sub-profiles stay coordinated.
+A Linked Profile couples one pair of seats (NS or EW) so their
+sub-profile selections are coordinated each board. Default: no
+linked profiles (each seat picks independently).
 
-The five modes:
+Structure:
+  • Primary seat — picks its sub-profile first by weighted random
+  • Secondary seat — picks from a mapped subset, using its own
+    weights renormalized to sum to 100%
+  • SubProfile Map — for each primary sub-profile, which secondary
+    sub-profiles can be chosen (surjective: every secondary sub
+    must appear in at least one mapping)
 
-1) NORTH DRIVES — North always drives
-   North's sub-profile index is chosen first (by weight), and South
-   follows with the same index.
-   Use when North is always the "opener" and South's hand should
-   match North's hand type.
+Requirements:
+  • Both seats must have at least 2 sub-profiles
+  • SubProfile Map must be explicitly defined
 
-2) SOUTH DRIVES — South always drives
-   South's sub-profile index is chosen first, North follows.
-   Symmetric opposite of mode 1.
+Example:
+  North primary, South secondary (3 sub-profiles each):
+    North Sub 1 → [South Sub 1, South Sub 3]
+    North Sub 2 → [South Sub 1]
+    North Sub 3 → [South Sub 2]
 
-3) RANDOM_DRIVER — Random driver per board
-   Each board, one of N or S is randomly designated as driver.
-   The other follows. Use when either player could be opener and
-   you want variety.
+  If North rolls Sub 1 → South picks from {Sub 1, Sub 3} using
+  their own weights renormalized. If North rolls Sub 3 → South
+  gets Sub 2 (100%).
 
-4) NO_DRIVER — No explicit driver, but index matching applies
-   Neither seat is the "driver", but both seats still use the same
-   sub-profile index each board. The index is chosen by combined
-   weight. Use when the sub-profiles are symmetric between N and S.
-
-5) NO_DRIVER_NO_INDEX — No driver, no index matching
-   Each seat's sub-profile is chosen independently. North might use
-   sub-profile 0 while South uses sub-profile 2 on the same board.
-   This is the simplest and most flexible default — use it unless
-   you specifically need coordinated NS sub-profile selection.
-
-Role filtering (active at runtime):
-  When a driver mode is selected (modes 1–3), per-sub-profile "role
-  usage" tags (any / driver_only / follower_only) control which
-  sub-profiles are eligible for the driver and follower. For example,
-  a sub-profile tagged "driver_only" will never be selected when the
-  seat is the follower.
-
-Bespoke matching (optional, modes 1–2 only):
-  After editing constraints, the wizard offers "bespoke subprofile
-  matching" for the pair. This replaces the default same-index
-  coupling with an explicit map: for each driver sub-profile, you
-  choose which follower sub-profiles can pair with it. This allows
-  unequal sub-profile counts between paired seats and fine-grained
-  control over which combinations are allowed.
+Setup:
+  1) In "Edit Overall Deal Data", answer Yes to "NS Linked Profile?"
+     and choose the primary seat (North or South)
+  2) In "Edit Each Hand Constraints", after saving a seat that is
+     part of a linked profile, define the SubProfile Map
 
 Tips:
-  • If North and South have DIFFERENT numbers of sub-profiles,
-    bespoke matching lets you define exactly which follower subs
-    pair with each driver sub (no padding needed).
-  • For most profiles (especially when only one seat has multiple
-    sub-profiles), mode 5 is the safest choice.
-  • Role filtering + bespoke matching can be combined: the driver
-    picks from role-eligible subs, then the follower picks from
-    the bespoke map entries that are also role-eligible.
-""",
-    "ew_role_mode": """\
-=== EW Role Mode – Who Drives the Auction? ===
-
-When both East and West have multiple sub-profiles, "EW role mode"
-controls which seat's sub-profile index is chosen first each board.
-The other seat ("follower") then uses the same index, ensuring the
-partnership's sub-profiles stay coordinated.
-
-The five modes:
-
-1) EAST DRIVES — East always drives
-   East's sub-profile index is chosen first (by weight), and West
-   follows with the same index.
-   Use when East is always the "opener" and West's hand should
-   match East's hand type.
-
-2) WEST DRIVES — West always drives
-   West's sub-profile index is chosen first, East follows.
-   Symmetric opposite of mode 1.
-
-3) RANDOM_DRIVER — Random driver per board
-   Each board, one of E or W is randomly designated as driver.
-   The other follows. Use when either player could be opener and
-   you want variety.
-
-4) NO_DRIVER — No explicit driver, but index matching applies
-   Neither seat is the "driver", but both seats still use the same
-   sub-profile index each board. The index is chosen by combined
-   weight. Use when the sub-profiles are symmetric between E and W.
-
-5) NO_DRIVER_NO_INDEX — No driver, no index matching
-   Each seat's sub-profile is chosen independently. East might use
-   sub-profile 0 while West uses sub-profile 2 on the same board.
-   This is the simplest and most flexible default — use it unless
-   you specifically need coordinated EW sub-profile selection.
-
-Role filtering (active at runtime):
-  When a driver mode is selected (modes 1–3), per-sub-profile "role
-  usage" tags (any / driver_only / follower_only) control which
-  sub-profiles are eligible for the driver and follower. For example,
-  a sub-profile tagged "driver_only" will never be selected when the
-  seat is the follower.
-
-Bespoke matching (optional, modes 1–2 only):
-  After editing constraints, the wizard offers "bespoke subprofile
-  matching" for the pair. This replaces the default same-index
-  coupling with an explicit map: for each driver sub-profile, you
-  choose which follower sub-profiles can pair with it. This allows
-  unequal sub-profile counts between paired seats and fine-grained
-  control over which combinations are allowed.
-
-Tips:
-  • If East and West have DIFFERENT numbers of sub-profiles,
-    bespoke matching lets you define exactly which follower subs
-    pair with each driver sub (no padding needed).
-  • For most profiles (especially when only one seat has multiple
-    sub-profiles), mode 5 is the safest choice.
-  • Role filtering + bespoke matching can be combined: the driver
-    picks from role-eligible subs, then the follower picks from
-    the bespoke map entries that are also role-eligible.
+  • Use linked profiles when you want to ensure the partnership's
+    sub-profiles stay coordinated (e.g., opener always pairs with
+    the right responder hand type)
+  • If you don't need coordination, leave linked profiles off —
+    each seat picks independently
+  • A profile can have both NS and EW linked profiles simultaneously
 """,
     # --- y/n help entries ---
     "yn_non_chosen_partner": """\
@@ -556,71 +472,27 @@ Options:
   2) Use even weights (equal across all sub-profiles)
   3) Manually define weights (enter percentages that sum to 100%)
 """,
-    "yn_edit_roles": """\
-=== NS Role Usage (Driver / Follower) ===
+    "yn_subprofile_map": """\
+=== SubProfile Map (Linked Profile) ===
 
-When both North and South have multiple sub-profiles AND NS role mode
-uses a driver/follower system (modes 1–3), each sub-profile can be
-tagged with a "role usage":
+When a linked profile is active for a pair (NS or EW), the SubProfile
+Map defines which secondary sub-profiles can be selected for each
+primary sub-profile choice.
 
-  • "any" — this sub-profile can be used whether the seat is driving
-    or following (default)
-  • "driver_only" — only used when THIS seat is the driver
-  • "follower_only" — only used when THIS seat is the follower
+The map is surjective: every secondary sub-profile must appear in at
+least one primary's mapping. This ensures all secondary sub-profiles
+are reachable.
 
-These tags are enforced at runtime: the deal generator filters
-sub-profiles by role before selecting. A "driver_only" sub will
-never be chosen when the seat is the follower, and vice versa.
+Example:
+  North (primary) has 2 sub-profiles, South (secondary) has 3:
+    North Sub 1 → [South Sub 1, South Sub 3]
+    North Sub 2 → [South Sub 1]
 
-Example: North has 2 named sub-profiles:
-  • Sub-profile 1 (Strong opener): driver_only
-  • Sub-profile 2 (Responder): follower_only
-When North drives, Sub-profile 1 is used; when South drives, North
-uses Sub-profile 2.
+  This would be INVALID because South Sub 2 is not mapped to any
+  North sub-profile. To fix, add South Sub 2 to at least one mapping.
 
-When combined with bespoke matching, role filtering applies first
-(narrowing eligible subs), then bespoke map entries are consulted
-to determine follower candidates.
-
-This prompt appears per-subprofile during constraint editing, right
-after each sub-profile's constraints are defined.
-
-Most profiles do not need this level of control. Answer No unless
-you specifically want different sub-profiles for driving vs following.
-
-Note: A parallel EW Role Usage prompt appears when EW role mode is active.
-""",
-    "yn_edit_ew_roles": """\
-=== EW Role Usage (Driver / Follower) ===
-
-When both East and West have multiple sub-profiles AND EW role mode
-uses a driver/follower system (modes 1–3), each sub-profile can be
-tagged with a "role usage":
-
-  • "any" — this sub-profile can be used whether the seat is driving
-    or following (default)
-  • "driver_only" — only used when THIS seat is the driver
-  • "follower_only" — only used when THIS seat is the follower
-
-These tags are enforced at runtime: the deal generator filters
-sub-profiles by role before selecting. A "driver_only" sub will
-never be chosen when the seat is the follower, and vice versa.
-
-Example: East has 2 named sub-profiles:
-  • Sub-profile 1 (Strong overcall): driver_only
-  • Sub-profile 2 (Responder): follower_only
-When East drives, Sub-profile 1 is used; when West drives, East
-uses Sub-profile 2.
-
-When combined with bespoke matching, role filtering applies first
-(narrowing eligible subs), then bespoke map entries are consulted
-to determine follower candidates.
-
-This prompt appears per-subprofile during constraint editing, right
-after each sub-profile's constraints are defined.
-
-Most profiles do not need this level of control. Answer No unless
-you specifically want different sub-profiles for driving vs following.
+When the primary picks a sub-profile, the secondary chooses from
+the mapped subset using its own weights renormalized to sum to 100%.
 """,
     "yn_exclusions": """\
 === Sub-profile Exclusions ===

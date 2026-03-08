@@ -63,7 +63,7 @@ def test_edit_metadata_saves_updated_fields(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(profile_store, "delete_draft_for_canonical", lambda p: None)
 
     # Stub _input_int for mode selection (1 = metadata edit), category choice,
-    # ns_role_mode choice, ew_role_mode choice, and loop exit (0 = done).
+    # NS linked profile (0 = No), EW linked profile (0 = No), and loop exit (0 = done).
     call_count = {"input_int": 0}
 
     def fake_input_int(prompt, default=0, minimum=0, maximum=99, show_range_suffix=True):
@@ -73,9 +73,9 @@ def test_edit_metadata_saves_updated_fields(monkeypatch, tmp_path, capsys):
         if call_count["input_int"] == 2:
             return 1  # category choice — option 1 (Uncontested)
         if call_count["input_int"] == 3:
-            return 5  # ns_role_mode choice — option 5 (no_driver_no_index)
+            return 0  # NS linked profile — No
         if call_count["input_int"] == 4:
-            return 5  # ew_role_mode choice — option 5 (no_driver_no_index)
+            return 0  # EW linked profile — No
         return 0  # exit the edit loop
 
     monkeypatch.setattr(pc, "_input_int", fake_input_int)
@@ -129,7 +129,12 @@ def test_edit_metadata_saves_updated_fields(monkeypatch, tmp_path, capsys):
     assert updated.author == "NewAuthor"
     assert updated.version == "0.2"
     assert updated.rotate_deals_by_default is False
-    assert updated.ns_role_mode == "no_driver_no_index"
+    # Role mode is preserved from original profile (Edit Overall Deal Data
+    # no longer changes role modes — it manages linked profiles instead)
+    assert updated.ns_role_mode == "north_drives"
+    # Linked profiles should be None (seats have <2 subs)
+    assert updated.ns_linked_profile is None
+    assert updated.ew_linked_profile is None
     # Verify the previously-missing fields are preserved (not reset to defaults)
     assert updated.subprofile_exclusions == list(profile.subprofile_exclusions)
     assert updated.is_invariants_safety_profile == profile.is_invariants_safety_profile

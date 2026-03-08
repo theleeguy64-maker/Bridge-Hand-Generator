@@ -511,6 +511,109 @@ def _validate_opponent_contingent(profile: HandProfile) -> None:
                         )
 
 
+def _validate_linked_profile(profile: HandProfile) -> None:
+    """
+    Validate ns_linked_profile and ew_linked_profile on a HandProfile.
+
+    For each linked profile (when not None):
+      1. Primary seat must be valid for the pair (N/S for NS, E/W for EW).
+      2. Both seats must have at least 2 subprofiles.
+      3. All primary indices (keys) must be valid: 0 <= key < len(primary_seat.subprofiles).
+      4. All secondary indices (values) must be valid: 0 <= idx < len(secondary_seat.subprofiles).
+      5. Every primary sub index must be a key (exhaustive for primary).
+      6. Every secondary sub index must appear in at least one value list (surjective).
+      7. No empty value lists.
+    """
+    from .hand_profile_model import LinkedProfile
+
+    for pair_label, linked in [
+        ("NS", getattr(profile, "ns_linked_profile", None)),
+        ("EW", getattr(profile, "ew_linked_profile", None)),
+    ]:
+        if linked is None:
+            continue
+        if not isinstance(linked, LinkedProfile):
+            continue
+
+        # 1. Primary seat must be valid for the pair.
+        valid_primaries = ("N", "S") if pair_label == "NS" else ("E", "W")
+        if linked.primary_seat not in valid_primaries:
+            raise ProfileError(
+                f"{pair_label} linked profile: primary_seat must be one of "
+                f"{valid_primaries}, got {linked.primary_seat!r}."
+            )
+
+        primary_seat = linked.primary_seat
+        secondary_seat = linked.secondary_seat()
+
+        primary_sp = profile.seat_profiles.get(primary_seat)
+        secondary_sp = profile.seat_profiles.get(secondary_seat)
+
+        # 2. Both seats must have seat profiles with ≥2 subprofiles.
+        if primary_sp is None or secondary_sp is None:
+            raise ProfileError(
+                f"{pair_label} linked profile requires both {primary_seat} and {secondary_seat} to have seat profiles."
+            )
+        if len(primary_sp.subprofiles) < 2:
+            raise ProfileError(
+                f"{pair_label} linked profile: primary seat {primary_seat} must have "
+                f"at least 2 subprofiles (has {len(primary_sp.subprofiles)})."
+            )
+        if len(secondary_sp.subprofiles) < 2:
+            raise ProfileError(
+                f"{pair_label} linked profile: secondary seat {secondary_seat} must have "
+                f"at least 2 subprofiles (has {len(secondary_sp.subprofiles)})."
+            )
+
+        smap = linked.subprofile_map
+        num_primary = len(primary_sp.subprofiles)
+        num_secondary = len(secondary_sp.subprofiles)
+
+        # 3. Validate primary index keys.
+        for key in smap:
+            if not (0 <= key < num_primary):
+                raise ProfileError(
+                    f"{pair_label} linked profile: primary index {key} out of bounds "
+                    f"(primary seat {primary_seat} has {num_primary} subprofiles)."
+                )
+
+        # 4. Validate secondary index values.
+        for key, sec_indices in smap.items():
+            for idx in sec_indices:
+                if not (0 <= idx < num_secondary):
+                    raise ProfileError(
+                        f"{pair_label} linked profile: secondary index {idx} "
+                        f"(for primary key {key}) out of bounds "
+                        f"(secondary seat {secondary_seat} has {num_secondary} subprofiles)."
+                    )
+
+        # 5. Every primary sub index must be a key (exhaustive).
+        for i in range(num_primary):
+            if i not in smap:
+                raise ProfileError(
+                    f"{pair_label} linked profile: primary sub index {i} is missing "
+                    f"as a key (all {num_primary} primary sub indices must be present)."
+                )
+
+        # 6. Every secondary sub index must appear in at least one value list (surjective).
+        all_secondary: set[int] = set()
+        for vals in smap.values():
+            all_secondary.update(vals)
+        for i in range(num_secondary):
+            if i not in all_secondary:
+                raise ProfileError(
+                    f"{pair_label} linked profile: secondary sub index {i} does not "
+                    f"appear in any primary's mapping (all secondary subs must be reachable)."
+                )
+
+        # 7. No empty value lists.
+        for key, vals in smap.items():
+            if not vals:
+                raise ProfileError(
+                    f"{pair_label} linked profile: primary key {key} has an empty secondary mapping list."
+                )
+
+
 def _validate_bespoke_map(profile: HandProfile) -> None:
     """
     Validate ns_bespoke_map and ew_bespoke_map on a HandProfile.
@@ -704,6 +807,9 @@ def validate_profile(data: Any) -> HandProfile:
 
     # Bespoke subprofile matching maps
     _validate_bespoke_map(profile)
+
+    # Linked profile validation (new system)
+    _validate_linked_profile(profile)
 
     # 7. Seat-level viability check (light + cross-seat dead subprofile detection)
     # validate_profile_viability() calls the light check first, then NS coupling,

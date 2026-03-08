@@ -51,6 +51,7 @@ from .hand_profile import (
     sub_label,
     SeatProfile,
     HandProfile,
+    LinkedProfile,
     ProfileError,
     VALID_CATEGORIES,
     validate_profile,
@@ -234,6 +235,172 @@ def _save_profile_to_path(profile: HandProfile, path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Linked profile helpers
+# ---------------------------------------------------------------------------
+
+
+def _prompt_subprofile_map(
+    pair_label: str,
+    primary_sp: SeatProfile,
+    secondary_sp: SeatProfile,
+    existing_map: Optional[dict[int, list[int]]] = None,
+) -> dict[int, list[int]]:
+    """
+    Interactively build a SubProfile Map for a linked profile.
+
+    Maps each primary subprofile index to one or more secondary subprofile
+    indices. The map must be surjective: every secondary sub must appear
+    in at least one mapping.
+
+    Returns a Dict[int, List[int]] (0-based indices).
+    """
+    primary = primary_sp.seat
+    secondary = secondary_sp.seat
+
+    subprofile_map: dict[int, list[int]] = {}
+    num_secondary = len(secondary_sp.subprofiles)
+
+    print(f"\n  SubProfile Map ({primary} → {secondary}):")
+
+    for p_idx, p_sub in enumerate(primary_sp.subprofiles):
+        p_label = sub_label(p_idx + 1, p_sub)
+
+        # Default: existing map or all secondary subs
+        if existing_map is not None and p_idx in existing_map:
+            default_vals = existing_map[p_idx]
+        else:
+            default_vals = list(range(num_secondary))
+
+        # Display default as 1-based
+        default_str = ",".join(str(v + 1) for v in default_vals)
+
+        print(f"\n  {p_label} maps to which {secondary} subprofiles?")
+        for s_idx, s_sub in enumerate(secondary_sp.subprofiles):
+            print(f"    {s_idx + 1}) {sub_label(s_idx + 1, s_sub)}")
+
+        raw = _input_with_default(
+            f"  Select one or more [{default_str}]: ",
+            default_str,
+        )
+
+        # Parse input: 1-based → 0-based
+        chosen: list[int] = []
+        for part in raw.split(","):
+            part = part.strip()
+            if part.isdigit():
+                val = int(part) - 1
+                if 0 <= val < num_secondary:
+                    chosen.append(val)
+
+        if not chosen:
+            # Fallback to all
+            chosen = list(range(num_secondary))
+
+        subprofile_map[p_idx] = chosen
+
+    # Validate surjective: every secondary sub must appear at least once
+    all_secondary = set()
+    for vals in subprofile_map.values():
+        all_secondary.update(vals)
+    orphaned = [i for i in range(num_secondary) if i not in all_secondary]
+    if orphaned:
+        orphaned_labels = [sub_label(i + 1, secondary_sp.subprofiles[i]) for i in orphaned]
+        print(f"\n  WARNING: The following {secondary} subs are not mapped:")
+        for lbl in orphaned_labels:
+            print(f"    - {lbl}")
+        print("  Every secondary subprofile must be used at least once.")
+        print("  Adding them to all primary entries to fix.")
+        for p_idx in subprofile_map:
+            subprofile_map[p_idx] = list(set(subprofile_map[p_idx]) | set(orphaned))
+
+    return subprofile_map
+
+
+def _prompt_linked_profile_setup(
+    pair_label: str,
+    pair_seats: tuple[str, str],
+    existing_linked: Optional[LinkedProfile],
+    seat_profiles: dict[str, SeatProfile],
+) -> Optional[LinkedProfile]:
+    """
+    Prompt user to set up (or remove) a linked profile for a pair.
+
+    Returns a LinkedProfile if the user wants linking, or None if not.
+    """
+    # Check if both seats have ≥2 subprofiles (required for linking)
+    seat_a, seat_b = pair_seats
+    sp_a = seat_profiles.get(seat_a)
+    sp_b = seat_profiles.get(seat_b)
+    both_have_subs = sp_a is not None and sp_b is not None and len(sp_a.subprofiles) > 1 and len(sp_b.subprofiles) > 1
+
+    has_existing = existing_linked is not None
+    default_link = has_existing
+
+    while True:
+        print(f"\n{pair_label} Linked Profile?")
+        print(f"  0) No – {seat_a} and {seat_b} pick subprofiles independently")
+        print(f"  1) Yes – link {seat_a} and {seat_b} subprofile selection")
+        print("  2) Help")
+
+        default_choice = 1 if default_link else 0
+        choice = _input_int(
+            "Choose [0-2]",
+            default=default_choice,
+            minimum=0,
+            maximum=2,
+            show_range_suffix=False,
+        )
+
+        if choice == 2:
+            print(get_menu_help("linked_profile"))
+            continue
+        break
+
+    if choice == 0:
+        return None
+
+    # User wants linking — check prerequisites
+    if not both_have_subs:
+        print(f"\n  Cannot link {pair_label}: both seats need ≥2 subprofiles.")
+        print("  Edit Each Hand Constraints first, then set up linking.")
+        return None
+
+    # Primary seat selection
+    existing_primary = existing_linked.primary_seat if existing_linked else seat_a
+    default_primary = 1 if existing_primary == seat_a else 2
+    print(f"\n{pair_label} primary seat (picks subprofile first):")
+    print(f"  1) {seat_a}")
+    print(f"  2) {seat_b}")
+    primary_choice = _input_int(
+        "Choose [1-2]",
+        default=default_primary,
+        minimum=1,
+        maximum=2,
+        show_range_suffix=False,
+    )
+    primary_seat = seat_a if primary_choice == 1 else seat_b
+    secondary_seat = seat_b if primary_choice == 1 else seat_a
+
+    primary_sp = seat_profiles[primary_seat]
+    secondary_sp = seat_profiles[secondary_seat]
+
+    # Retrieve existing map if primary seat matches
+    existing_map: Optional[dict[int, list[int]]] = None
+    if existing_linked is not None and existing_linked.primary_seat == primary_seat:
+        existing_map = existing_linked.subprofile_map
+
+    # Build SubProfile Map
+    subprofile_map = _prompt_subprofile_map(
+        pair_label,
+        primary_sp,
+        secondary_sp,
+        existing_map,
+    )
+
+    return LinkedProfile(primary_seat=primary_seat, subprofile_map=subprofile_map)
+
+
+# ---------------------------------------------------------------------------
 # Menu actions
 # ---------------------------------------------------------------------------
 
@@ -347,7 +514,7 @@ def create_profile_action() -> None:
     profile = create_profile_interactive()
 
     print()
-    print("Rotate set to Yes, NS and EW role modes set to no_driver_no_index")
+    print("Rotate set to Yes, no linked profiles")
     print()
     print("Metadata can be changed in 'Edit Profile'")
 
@@ -454,45 +621,31 @@ def _print_profile_metadata(profile: HandProfile, path: Path) -> None:
     print(f"Rotate deals: {profile.rotate_deals_by_default}")
     print(f"Category    : {profile.category or '(none)'}")
 
-    ns_mode = profile.ns_role_mode
-    ns_mode_pretty = {
-        "north_drives": "North usually drives",
-        "south_drives": "South usually drives",
-        "random_driver": "Random between N/S",
-    }.get(ns_mode, ns_mode)
-    print(f"NS mode     : {ns_mode_pretty}")
-
-    ew_mode = profile.ew_role_mode
-    ew_mode_pretty = {
-        "east_drives": "East usually drives",
-        "west_drives": "West usually drives",
-        "random_driver": "Random between E/W",
-    }.get(ew_mode, ew_mode)
-    print(f"EW mode     : {ew_mode_pretty}")
-
-    # Display bespoke maps when present.
-    for pair_name, bmap, d_key, f_key in [
-        ("NS", profile.ns_bespoke_map, "N", "S"),
-        ("EW", profile.ew_bespoke_map, "E", "W"),
+    # Display linked profiles (new system) or legacy role modes as fallback.
+    for pair_name, linked, role_mode, bmap in [
+        ("NS", profile.ns_linked_profile, profile.ns_role_mode, profile.ns_bespoke_map),
+        ("EW", profile.ew_linked_profile, profile.ew_role_mode, profile.ew_bespoke_map),
     ]:
-        if bmap is not None:
-            # Determine driver/follower from role mode.
-            if pair_name == "NS" and profile.ns_role_mode == "south_drives":
-                d_key, f_key = "S", "N"
-            elif pair_name == "EW" and profile.ew_role_mode == "west_drives":
-                d_key, f_key = "W", "E"
+        if linked is not None:
+            # Linked profile display
+            primary = linked.primary_seat
+            secondary = linked.secondary_seat()
+            print(f"{pair_name} linked  : Yes (primary={primary}, secondary={secondary})")
 
-            d_sp = profile.seat_profiles.get(d_key)
-            f_sp = profile.seat_profiles.get(f_key)
-            print(f"\n{pair_name} Bespoke Map (driver={d_key}, follower={f_key}):")
-            for d_idx in sorted(bmap.keys()):
-                d_label = sub_label(d_idx + 1, d_sp.subprofiles[d_idx]) if d_sp else f"Sub {d_idx + 1}"
-                f_indices = bmap[d_idx]
-                if f_sp:
-                    f_labels = [sub_label(fi + 1, f_sp.subprofiles[fi]) for fi in f_indices]
+            p_sp = profile.seat_profiles.get(primary)
+            s_sp = profile.seat_profiles.get(secondary)
+            print(f"\n  {pair_name} SubProfile Map ({primary} → {secondary}):")
+            for p_idx in sorted(linked.subprofile_map.keys()):
+                p_label = sub_label(p_idx + 1, p_sp.subprofiles[p_idx]) if p_sp else f"Sub {p_idx + 1}"
+                s_indices = linked.subprofile_map[p_idx]
+                if s_sp:
+                    s_labels = [sub_label(si + 1, s_sp.subprofiles[si]) for si in s_indices]
                 else:
-                    f_labels = [f"Sub {fi + 1}" for fi in f_indices]
-                print(f"  {d_label} → [{', '.join(f_labels)}]")
+                    s_labels = [f"Sub {si + 1}" for si in s_indices]
+                print(f"    {p_label} → [{', '.join(s_labels)}]")
+        else:
+            # Legacy role mode display (no linked profile)
+            print(f"{pair_name} linked  : No")
 
     print(f"File name   : {path.name}")
 
@@ -738,108 +891,21 @@ def edit_profile_action() -> None:
             )
             new_category = cat_options[cat_choice - 1]
 
-            # NS role mode (5 options)
-            existing_ns_mode = profile.ns_role_mode or "no_driver_no_index"
-            ns_mode_options = [
-                ("north_drives", "North almost always drives"),
-                ("south_drives", "South almost always drives"),
-                (
-                    "random_driver",
-                    "Random driver (per board) – N or S is randomly assigned to drive the hand",
-                ),
-                (
-                    "no_driver",
-                    "Index matching – no driver",
-                ),
-                ("no_driver_no_index", "No driver / no index matching"),
-            ]
-
-            ns_default_label = next(
-                (label for m, label in ns_mode_options if m == existing_ns_mode),
-                "No driver / no index matching",
+            # --- NS Linked Profile ---
+            new_ns_linked = _prompt_linked_profile_setup(
+                "NS",
+                ("N", "S"),
+                profile.ns_linked_profile,
+                profile.seat_profiles,
             )
 
-            default_idx = next(
-                (i for i, (_, label) in enumerate(ns_mode_options, start=1) if label == ns_default_label),
-                len(ns_mode_options),
+            # --- EW Linked Profile ---
+            new_ew_linked = _prompt_linked_profile_setup(
+                "EW",
+                ("E", "W"),
+                profile.ew_linked_profile,
+                profile.seat_profiles,
             )
-
-            # Number of real mode options (help is appended as last item)
-            n_modes = len(ns_mode_options)
-            help_idx = n_modes + 1
-
-            while True:
-                print("NS role mode (who probably drives the auction for NS?)")
-                for i, (_, label) in enumerate(ns_mode_options, start=1):
-                    print(f"  {i}) {label}")
-                print(f"  {help_idx}) Help")
-
-                choice = _input_int(
-                    f"Choose [1-{help_idx}]",
-                    default=default_idx,
-                    minimum=1,
-                    maximum=help_idx,
-                    show_range_suffix=False,
-                )
-
-                if choice == help_idx:
-                    print(get_menu_help("ns_role_mode"))
-                    continue
-
-                break
-
-            new_ns_role_mode = ns_mode_options[choice - 1][0]
-
-            # EW role mode (5 options, parallel to NS)
-            existing_ew_mode = profile.ew_role_mode or "no_driver_no_index"
-            ew_mode_options = [
-                ("east_drives", "East almost always drives"),
-                ("west_drives", "West almost always drives"),
-                (
-                    "random_driver",
-                    "Random driver (per board) – E or W is randomly assigned to drive the hand",
-                ),
-                (
-                    "no_driver",
-                    "Index matching – no driver",
-                ),
-                ("no_driver_no_index", "No driver / no index matching"),
-            ]
-
-            ew_default_label = next(
-                (label for m, label in ew_mode_options if m == existing_ew_mode),
-                "No driver / no index matching",
-            )
-
-            ew_default_idx = next(
-                (i for i, (_, label) in enumerate(ew_mode_options, start=1) if label == ew_default_label),
-                len(ew_mode_options),
-            )
-
-            ew_n_modes = len(ew_mode_options)
-            ew_help_idx = ew_n_modes + 1
-
-            while True:
-                print("EW role mode (who probably drives the auction for EW?)")
-                for i, (_, label) in enumerate(ew_mode_options, start=1):
-                    print(f"  {i}) {label}")
-                print(f"  {ew_help_idx}) Help")
-
-                ew_choice = _input_int(
-                    f"Choose [1-{ew_help_idx}]",
-                    default=ew_default_idx,
-                    minimum=1,
-                    maximum=ew_help_idx,
-                    show_range_suffix=False,
-                )
-
-                if ew_choice == ew_help_idx:
-                    print(get_menu_help("ew_role_mode"))
-                    continue
-
-                break
-
-            new_ew_role_mode = ew_mode_options[ew_choice - 1][0]
 
             updated = HandProfile(
                 profile_name=new_name,
@@ -851,10 +917,12 @@ def edit_profile_action() -> None:
                 author=new_author,
                 version=new_version,
                 rotate_deals_by_default=rotate_default,
-                ns_role_mode=new_ns_role_mode,
-                ew_role_mode=new_ew_role_mode,
+                ns_role_mode=profile.ns_role_mode,
+                ew_role_mode=profile.ew_role_mode,
                 ns_bespoke_map=profile.ns_bespoke_map,
                 ew_bespoke_map=profile.ew_bespoke_map,
+                ns_linked_profile=new_ns_linked,
+                ew_linked_profile=new_ew_linked,
                 subprofile_exclusions=list(profile.subprofile_exclusions),
                 is_invariants_safety_profile=profile.is_invariants_safety_profile,
                 sort_order=profile.sort_order,
@@ -946,6 +1014,8 @@ def edit_profile_action() -> None:
                     ew_role_mode=profile.ew_role_mode,
                     ns_bespoke_map=profile.ns_bespoke_map,
                     ew_bespoke_map=profile.ew_bespoke_map,
+                    ns_linked_profile=profile.ns_linked_profile,
+                    ew_linked_profile=profile.ew_linked_profile,
                     subprofile_exclusions=list(profile.subprofile_exclusions),
                     is_invariants_safety_profile=profile.is_invariants_safety_profile,
                     sort_order=profile.sort_order,
@@ -1001,6 +1071,8 @@ def save_as_new_version_action() -> None:
         ew_role_mode=profile.ew_role_mode,
         ns_bespoke_map=profile.ns_bespoke_map,
         ew_bespoke_map=profile.ew_bespoke_map,
+        ns_linked_profile=profile.ns_linked_profile,
+        ew_linked_profile=profile.ew_linked_profile,
         subprofile_exclusions=list(profile.subprofile_exclusions),
         is_invariants_safety_profile=profile.is_invariants_safety_profile,
         sort_order=profile.sort_order,

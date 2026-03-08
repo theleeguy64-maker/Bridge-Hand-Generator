@@ -26,6 +26,7 @@ import time
 from .setup_env import SetupResult
 from .hand_profile import (
     HandProfile,
+    LinkedProfile,
     SeatProfile,
     SubProfile,
 )
@@ -86,6 +87,57 @@ from .deal_generator_v2 import (
 # deal_generator.SeatProfile with dummy classes. Keeping them in this module
 # ensures the isinstance checks resolve through the monkeypatchable name.
 # ---------------------------------------------------------------------------
+
+
+def _apply_linked_profile(
+    rng: random.Random,
+    seat_profiles: Dict[str, SeatProfile],
+    linked: LinkedProfile,
+    chosen_subprofiles: Dict[Seat, SubProfile],
+    chosen_indices: Dict[Seat, int],
+) -> None:
+    """
+    Apply a linked profile to select coordinated subprofiles for a pair.
+
+    The primary seat picks its subprofile first by weighted random. The
+    secondary seat picks from the mapped subset of its own subprofiles,
+    using its own weights renormalized (via _choose_index_for_seat with
+    eligible_indices).
+
+    Mutates chosen_subprofiles and chosen_indices in place. Does nothing
+    if preconditions fail (missing seats or too few subprofiles).
+    """
+    primary = linked.primary_seat
+    secondary = linked.secondary_seat()
+
+    primary_sp = seat_profiles.get(primary)
+    secondary_sp = seat_profiles.get(secondary)
+
+    # Both seats must exist, be SeatProfile, and have ≥2 subprofiles.
+    if not (
+        isinstance(primary_sp, SeatProfile)
+        and isinstance(secondary_sp, SeatProfile)
+        and len(primary_sp.subprofiles) > 1
+        and len(secondary_sp.subprofiles) > 1
+    ):
+        return  # Linked profile preconditions not met.
+
+    # Primary picks by weight (no role filtering — linked profiles replace roles).
+    primary_idx = _choose_index_for_seat(rng, primary_sp)
+    chosen_indices[primary] = primary_idx
+    chosen_subprofiles[primary] = primary_sp.subprofiles[primary_idx]
+
+    # Secondary picks from the mapped subset with renormalized weights.
+    secondary_candidates = linked.subprofile_map.get(primary_idx, [])
+    if not secondary_candidates:
+        # Safety fallback: if map has no entry for this primary index,
+        # let secondary pick independently.
+        secondary_idx = _choose_index_for_seat(rng, secondary_sp)
+    else:
+        secondary_idx = _choose_index_for_seat(rng, secondary_sp, eligible_indices=secondary_candidates)
+
+    chosen_indices[secondary] = secondary_idx
+    chosen_subprofiles[secondary] = secondary_sp.subprofiles[secondary_idx]
 
 
 def _try_pair_coupling(
@@ -209,44 +261,64 @@ def _select_subprofiles_for_board(
         chosen_indices: Dict[Seat, int] = {}
 
         # --- NS coupling ---
-        # Enabled for all ns_role_mode values EXCEPT "no_driver_no_index".
-        # getattr needed: tests use duck-typed DummyProfile without this field
-        _ns_mode = getattr(profile, "ns_role_mode", None) or "no_driver_no_index"
-        if _ns_mode != "no_driver_no_index":
-            ns_driver: Optional[Seat] = profile.ns_driver_seat(rng)
-            if ns_driver not in ("N", "S"):
-                ns_driver = next((s for s in dealing_order if s in ("N", "S")), "N")
-            _try_pair_coupling(
+        # New system: check for linked profile first.
+        ns_linked = getattr(profile, "ns_linked_profile", None)
+        if ns_linked is not None:
+            _apply_linked_profile(
                 rng,
                 profile.seat_profiles,
-                "N",
-                "S",
-                ns_driver,
+                ns_linked,
                 chosen_subprofiles,
                 chosen_indices,
-                pair="ns",
-                bespoke_map=getattr(profile, "ns_bespoke_map", None),
             )
+        else:
+            # Legacy fallback: old role mode coupling.
+            _ns_mode = getattr(profile, "ns_role_mode", None) or "no_driver_no_index"
+            if _ns_mode != "no_driver_no_index":
+                ns_driver: Optional[Seat] = profile.ns_driver_seat(rng)
+                if ns_driver not in ("N", "S"):
+                    ns_driver = next((s for s in dealing_order if s in ("N", "S")), "N")
+                _try_pair_coupling(
+                    rng,
+                    profile.seat_profiles,
+                    "N",
+                    "S",
+                    ns_driver,
+                    chosen_subprofiles,
+                    chosen_indices,
+                    pair="ns",
+                    bespoke_map=getattr(profile, "ns_bespoke_map", None),
+                )
 
         # --- EW coupling ---
-        # Enabled for all ew_role_mode values EXCEPT "no_driver_no_index".
-        # getattr needed: tests use duck-typed DummyProfile without this field
-        _ew_mode = getattr(profile, "ew_role_mode", None) or "no_driver_no_index"
-        if _ew_mode != "no_driver_no_index":
-            ew_driver: Optional[Seat] = profile.ew_driver_seat(rng)
-            if ew_driver not in ("E", "W"):
-                ew_driver = next((s for s in dealing_order if s in ("E", "W")), "E")
-            _try_pair_coupling(
+        # New system: check for linked profile first.
+        ew_linked = getattr(profile, "ew_linked_profile", None)
+        if ew_linked is not None:
+            _apply_linked_profile(
                 rng,
                 profile.seat_profiles,
-                "E",
-                "W",
-                ew_driver,
+                ew_linked,
                 chosen_subprofiles,
                 chosen_indices,
-                pair="ew",
-                bespoke_map=getattr(profile, "ew_bespoke_map", None),
             )
+        else:
+            # Legacy fallback: old role mode coupling.
+            _ew_mode = getattr(profile, "ew_role_mode", None) or "no_driver_no_index"
+            if _ew_mode != "no_driver_no_index":
+                ew_driver: Optional[Seat] = profile.ew_driver_seat(rng)
+                if ew_driver not in ("E", "W"):
+                    ew_driver = next((s for s in dealing_order if s in ("E", "W")), "E")
+                _try_pair_coupling(
+                    rng,
+                    profile.seat_profiles,
+                    "E",
+                    "W",
+                    ew_driver,
+                    chosen_subprofiles,
+                    chosen_indices,
+                    pair="ew",
+                    bespoke_map=getattr(profile, "ew_bespoke_map", None),
+                )
 
         # --- Remaining seats (incl. unconstrained or single-subprofile) ----
         for seat_name, seat_profile in profile.seat_profiles.items():

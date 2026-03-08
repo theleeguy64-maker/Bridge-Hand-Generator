@@ -8,23 +8,23 @@ The Bridge Hand Generator is a Python CLI application that produces constrained 
 
 ```
 bridge_engine/
-├── deal_generator.py          (406 lines) - Facade: subprofile selection + generate_deals() + re-exports
+├── deal_generator.py          (478 lines) - Facade: subprofile selection + linked profiles + generate_deals() + re-exports
 ├── deal_generator_v2.py     (1,394 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py    (240 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py  (438 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
-├── hand_profile_model.py      (965 lines) - Data models (incl. EW role mode, bespoke maps)
+├── hand_profile_model.py    (1,190 lines) - Data models (incl. LinkedProfile, legacy role modes)
 ├── seat_viability.py          (623 lines) - Constraint matching + RS pre-selection threading
-├── hand_profile_validate.py   (722 lines) - Validation (incl. role usage coverage, bespoke map validation)
+├── hand_profile_validate.py   (828 lines) - Validation (incl. linked profile, legacy bespoke map validation)
 ├── profile_diagnostic.py      (213 lines) - Profile diagnostic runner (Admin menu)
 ├── orchestrator.py            (444 lines) - CLI/session management + generic menu loop
-├── profile_cli.py           (1,103 lines) - Profile commands (incl. role mode editing, bespoke map display)
+├── profile_cli.py           (1,171 lines) - Profile commands (incl. linked profile setup, SubProfile Map)
 ├── profile_wizard.py          (125 lines) - Profile creation UI
 ├── profile_convert.py          (40 lines) - Legacy profile format conversion (standalone utility)
-├── wizard_flow.py           (1,716 lines) - Wizard steps, per-sub role/exclusion editing, bespoke map editing
+├── wizard_flow.py           (1,786 lines) - Wizard steps, per-sub exclusion editing, SubProfile Map editing
 ├── wizard_io.py               (104 lines) - Wizard I/O helpers
 ├── profile_viability.py       (394 lines) - Profile-level viability + cross-seat feasibility + EW coupling
 ├── profile_store.py           (348 lines) - JSON persistence (atomic writes, error-tolerant loading, category display)
-├── menu_help.py               (680 lines) - Menu help text (incl. role mode, bespoke matching)
+├── menu_help.py               (552 lines) - Menu help text (incl. linked profiles, SubProfile Map)
 ├── lin_tools.py               (407 lines) - LIN file operations
 ├── deal_output.py             (326 lines) - Deal rendering
 ├── lin_encoder.py             (188 lines) - LIN format encoding
@@ -56,20 +56,29 @@ HandProfile (frozen dataclass)
 │               │   └── use_non_chosen_suit: bool  (target inverse of partner's RS choice)
 │               ├── opponents_contingent_suit_constraint: Optional[OpponentContingentSuitData]
 │               │   └── use_non_chosen_suit: bool  (target inverse of opponent's RS choice)
-│               ├── weight_percent: float
-│               ├── ns_role_usage: str ("any", "driver_only", "follower_only")
-│               └── ew_role_usage: str ("any", "driver_only", "follower_only")
+│               └── weight_percent: float
 ├── hand_dealing_order: List[Seat]
 ├── dealer: Seat
-├── ns_role_mode: str ("no_driver_no_index", "north_drives", etc.)
-├── ns_driver_seat: Optional[Callable]
-├── ns_bespoke_map: Optional[Dict[int, List[int]]]  (driver→follower sub mapping)
-├── ew_role_mode: str ("no_driver_no_index", "east_drives", etc.)
-├── ew_driver_seat: Optional[Callable]
-├── ew_bespoke_map: Optional[Dict[int, List[int]]]  (driver→follower sub mapping)
+├── ns_linked_profile: Optional[LinkedProfile]  (NEW — linked subprofile selection)
+├── ew_linked_profile: Optional[LinkedProfile]  (NEW — linked subprofile selection)
+├── ns_role_mode: str  (LEGACY — kept for backward compat during transition)
+├── ns_bespoke_map: Optional[Dict[int, List[int]]]  (LEGACY)
+├── ew_role_mode: str  (LEGACY)
+├── ew_bespoke_map: Optional[Dict[int, List[int]]]  (LEGACY)
 ├── is_invariants_safety_profile: bool
 ├── category: str  (Uncontested/Contested/Competitive/Test, default "")
 └── sort_order: Optional[int]  (custom display numbering)
+
+LinkedProfile (frozen dataclass)
+├── primary_seat: str  ("N"/"S" for NS, "E"/"W" for EW)
+├── subprofile_map: Dict[int, List[int]]  (surjective: primary → secondary indices)
+├── secondary_seat() → str
+├── pair_label() → str
+├── to_dict() / from_dict()
+└── Invariants:
+    - Every primary sub index is a key (exhaustive)
+    - Every secondary sub index appears ≥1 time (surjective)
+    - No empty value lists
 ```
 
 ## Pipeline Flow
@@ -261,38 +270,36 @@ generates 6 boards in ~1.5s (was ~50s before full RS pre-allocation, was 0/20 be
 
 **Tests:** 75 in `test_shape_help_v3.py`, 36 in `test_hcp_feasibility.py`, 7 in `test_profile_e_v2_hcp_gate.py`, 32 in `test_rs_pre_selection.py`, 2 in `test_defense_weak2s_diagnostic.py`
 
-## Index Coupling + Bespoke Matching
+## Linked Profiles (replacing Index Coupling + Bespoke Matching)
 
-### NS Coupling
+### New System: LinkedProfile
 ```
-If ns_role_mode != "no_driver_no_index" AND both N/S have >1 subprofile:
-  driver = ns_driver_seat() or first NS seat in dealing_order
-  follower = the other NS seat
+If ns_linked_profile is set AND both N/S have >1 subprofile:
+  primary = linked.primary_seat  (picks subprofile first)
+  secondary = linked.secondary_seat()  (picks from mapped subset)
 
-  Role filtering: driver picks from eligible subs (any/driver_only)
-  driver_index = weighted_choice(eligible driver subprofiles)
+  primary_idx = weighted_choice(primary subprofiles)
+  secondary_candidates = linked.subprofile_map[primary_idx]
+  secondary_idx = weighted_choice(secondary subprofiles filtered to candidates,
+                                   weights renormalized to sum to 1)
+```
+Same for EW with `ew_linked_profile`.
 
-  If ns_bespoke_map is set:
-    follower candidates = bespoke_map[driver_index]  (explicit mapping)
-    Further filtered by role (any/follower_only)
-    follower_index = weighted_choice(filtered candidates)
-  Else:
-    follower_index = driver_index  # Standard index coupling
+### SubProfile Map Format
+```
+Dict[int, List[int]]  — primary sub index → list of secondary sub indices
+  - Surjective: every secondary sub appears in ≥1 mapping
+  - Exhaustive: every primary sub is a key
+  - No empty value lists
+  - Allows unequal subprofile counts between primary and secondary
 ```
 
-### EW Coupling
-```
-Same logic as NS, using ew_role_mode, ew_bespoke_map, ew_role_usage.
-```
-
-### Bespoke Map Format
-```
-Dict[int, List[int]]  — driver sub index → list of eligible follower sub indices
-  - Every driver sub must be a key (exhaustive for driver)
-  - Every follower sub must appear in at least one value list (exhaustive for follower)
-  - Allows unequal subprofile counts between driver and follower
-  - Only valid with fixed-driver modes (north_drives, south_drives, etc.)
-```
+### Legacy System (kept during transition)
+The old driver/index-matching system (`ns_role_mode`, `ew_role_mode`,
+`ns_bespoke_map`, `ew_bespoke_map`, role tags) is preserved for backward
+compatibility. Linked profiles take priority when present; profiles without
+linked profiles fall back to the old coupling path. Legacy fields will be
+removed in Phase 7 cleanup.
 
 ## Processing Order
 
@@ -421,13 +428,14 @@ _deal_single_board_simple(rng, board_number, dealer, dealing_order) -> Deal
 _apply_vulnerability_and_rotation(rng, deals, rotate) -> List[Deal]
 ```
 
-### deal_generator.py (facade — 406 lines)
+### deal_generator.py (facade — 478 lines)
 ```python
 # Public API
 generate_deals(setup, profile, num_deals, enable_rotation) -> DealSet
 
-# Coupling + subprofile selection (kept here for monkeypatch compatibility)
-_try_pair_coupling(rng, seat_profiles, seat_a, seat_b, driver_seat, chosen_subs, chosen_indices, pair, bespoke_map)
+# Linked profile + coupling + subprofile selection
+_apply_linked_profile(rng, seat_profiles, linked, chosen_subs, chosen_indices)
+_try_pair_coupling(rng, seat_profiles, seat_a, seat_b, driver_seat, chosen_subs, chosen_indices, pair, bespoke_map)  # LEGACY
 _select_subprofiles_for_board(rng, profile, dealing_order) -> (subs, indices)
 
 # Re-exports from deal_generator_v2
@@ -481,7 +489,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Type Checking
 
-**pyright** — 0 errors across 27 source files (11,631 total lines).
+**pyright** — 0 errors across 27 source files (12,041 total lines).
 
 ```bash
 npx pyright bridge_engine/
@@ -489,7 +497,7 @@ npx pyright bridge_engine/
 
 ## Test Coverage
 
-**608 passed** organized by:
+**659 passed** organized by:
 - Core matching: `test_seat_viability*.py`
 - Index coupling: `test_f3_opener_responder_coupling.py`
 - Profile viability: `test_profile_viability_*.py`
@@ -506,8 +514,9 @@ npx pyright bridge_engine/
 - **LIN split/renumber**: `test_lin_tools_split_renumber.py` (12 tests — split into boards, renumber, edge cases)
 - **Diagnostic helpers**: `test_profile_diagnostic_helpers.py` (14 tests — hand_hcp, suit_count, hand_shape, fmt_row, smoke test)
 
-- **Role filtering**: `test_role_filtering.py` (tests — driver/follower role filtering, eligible indices, weight respect, random_driver mode)
-- **Bespoke matching**: `test_bespoke_matching.py` (tests — bespoke map validation, runtime matching, unequal sub counts, role+bespoke combined, serialization)
+- **Linked profiles**: `test_linked_profiles.py` (51 tests — dataclass, fields, apply, select, E2E, migration, validation)
+- **Role filtering**: `test_role_filtering.py` (tests — LEGACY, driver/follower role filtering)
+- **Bespoke matching**: `test_bespoke_matching.py` (tests — LEGACY, bespoke map validation/matching)
 
 - **Profile mgmt actions**: `test_profile_mgmt_actions.py` (9 tests — edit/delete/save-as/draft-tools)
 - **Menu dispatch**: `test_profile_mgmt_menus.py` (4 tests — profile manager + admin menu loops)
@@ -567,7 +576,7 @@ Approaches tried or considered and abandoned.
 
 ### Duck-Typed Test Profiles
 
-Tests use `_DummyProfile` (SimpleNamespace) objects that lack newer HandProfile fields (e.g. `ns_bespoke_map`, `ew_bespoke_map`). Code in `hand_profile_validate.py` that handles both real profiles and test dummies must use `getattr()` with defaults for these fields. Do not replace with direct attribute access without updating all test stubs.
+Tests use `_DummyProfile` (SimpleNamespace) objects that lack newer HandProfile fields (e.g. `ns_bespoke_map`, `ns_linked_profile`). Code in `hand_profile_validate.py` and `wizard_flow.py` that handles both real profiles and test dummies must use `getattr()` with defaults for these fields. Do not replace with direct attribute access without updating all test stubs.
 
 ### profile_cli.py vs profile_store.py Divergence
 

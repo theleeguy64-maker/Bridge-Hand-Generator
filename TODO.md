@@ -4,6 +4,18 @@
 - [x] Run profile management in program
 - [ ] Review all profiles (check constraints, metadata, dealing order)
 
+## Linked Profiles (replacing Driver/Index-Matching)
+- [x] Phase 1: Data Model — LinkedProfile dataclass, ns/ew_linked_profile fields on HandProfile
+- [x] Phase 2: Stage 2 Logic — _apply_linked_profile() in deal_generator.py, priority over old coupling
+- [x] Phase 3: Migration — migrate_profile_to_linked() explicit function (not auto-migration)
+- [x] Phase 4: UI — Linked profile prompts in profile_cli.py (Edit Overall Deal Data), SubProfile Map display
+- [x] Phase 5: Wizard — Remove role usage prompts from _build_seat_profile(), add SubProfile Map editing
+- [x] Phase 6: Validation — _validate_linked_profile() in hand_profile_validate.py (surjective, bounds, exhaustive)
+- [x] Help text — linked_profile, yn_subprofile_map entries in menu_help.py
+- [x] Tests — 51 tests in test_linked_profiles.py (dataclass, fields, apply, select, E2E, migration, validation)
+- [ ] Phase 7: Cleanup — Remove old fields (ns_role_mode, ew_role_mode, bespoke maps, role usage), remove _try_pair_coupling, _eligible_indices_for_role, old tests
+- [ ] Phase 8: OC/PC Safety Check — Add OC/PC-RS consistency check, benchmark, decide to keep/revert
+
 ## Recent Fixes (UI prompts, UI rename, #69, #68, #42-#45)
 - [x] Fix Tag prompt duplication and standardize `prompt_choice` default format: remove redundant "(Opener / Overcaller)" label, change `(default X)` → `[X]` to match `_input_with_default` and `_input_int` (profile_cli.py)
 - [x] Rename Edit mode menu labels: "metadata" → "Overall Deal Data", "constraints" → "Each Hand Constraints", "sub-profile" → "Sub-Profile" (profile_cli.py + menu_help.py)
