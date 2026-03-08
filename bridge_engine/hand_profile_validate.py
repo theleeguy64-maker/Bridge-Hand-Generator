@@ -52,7 +52,8 @@ def _extract_seat_names_from_constraint(constraint: Any) -> List[str]:
                 elif isinstance(val, (list, tuple, set)):
                     seats.extend([s for s in val if isinstance(s, str)])
     except TypeError:
-        # Not a dataclass – fall back to dir() probing.
+        # fields() raises TypeError for non-dataclass objects.
+        # Fall back to dir() probing below.
         pass
 
     # 2) Fallback: scan attributes for anything with "seat" in the name.

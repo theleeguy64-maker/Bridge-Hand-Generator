@@ -13,6 +13,9 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
+# Short suit letter → full attribute name on StandardSuitConstraints.
+_SUIT_ATTR = {"S": "spades", "H": "hearts", "D": "diamonds", "C": "clubs"}
+
 import warnings
 from types import SimpleNamespace
 
@@ -42,8 +45,7 @@ def _get_suit_min(sub: Any, suit: str) -> int:
     # Try real SubProfile structure first
     std = getattr(sub, "standard", None)
     if std is not None:
-        suit_map = {"S": "spades", "H": "hearts", "D": "diamonds", "C": "clubs"}
-        suit_obj = getattr(std, suit_map.get(suit, ""), None)
+        suit_obj = getattr(std, _SUIT_ATTR.get(suit, ""), None)
         if suit_obj is not None:
             return getattr(suit_obj, "min_cards", 0)
 
@@ -64,8 +66,7 @@ def _get_suit_max(sub: Any, suit: str) -> int:
     """
     std = getattr(sub, "standard", None)
     if std is not None:
-        suit_map = {"S": "spades", "H": "hearts", "D": "diamonds", "C": "clubs"}
-        suit_obj = getattr(std, suit_map.get(suit, ""), None)
+        suit_obj = getattr(std, _SUIT_ATTR.get(suit, ""), None)
         if suit_obj is not None:
             return getattr(suit_obj, "max_cards", 13)
 

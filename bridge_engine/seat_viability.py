@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import random
+from dataclasses import replace
 from typing import Dict, List, Literal, Optional, Tuple, Union, overload
 
 from .hand_profile import (
@@ -582,8 +583,6 @@ def _subprofile_is_viable(
 
     # Create a temporary SeatProfile narrowed to a single subprofile,
     # swap it into seat_profiles for validation, then restore the original.
-    from dataclasses import replace
-
     temp_sp = replace(seat_profile, subprofiles=[subprofile])
     try:
         seat_profiles[seat] = temp_sp

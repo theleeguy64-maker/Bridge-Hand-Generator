@@ -223,6 +223,40 @@ def _try_pair_coupling(
     chosen_subprofiles[follower_seat] = follower_sp.subprofiles[follower_idx]
 
 
+# Partner/opponent maps for OC/PC-RS consistency checking.
+_PARTNER: Dict[str, str] = {"N": "S", "S": "N", "E": "W", "W": "E"}
+_OPPONENTS: Dict[str, Tuple[str, str]] = {
+    "N": ("E", "W"),
+    "S": ("E", "W"),
+    "E": ("N", "S"),
+    "W": ("N", "S"),
+}
+
+
+def _ocpc_rs_consistent(chosen_subprofiles: Dict[Seat, SubProfile]) -> bool:
+    """
+    Check OC/PC-RS consistency: every seat with a PC or OC constraint
+    must have its referenced partner/opponent holding an RS subprofile
+    this board.  Returns True if consistent (or no PC/OC seats).
+    """
+    for seat, sub in chosen_subprofiles.items():
+        # PC requires partner to have RS
+        if sub.partner_contingent_constraint is not None:
+            partner = _PARTNER.get(seat)
+            if partner and partner in chosen_subprofiles:
+                partner_sub = chosen_subprofiles[partner]
+                if partner_sub.random_suit_constraint is None:
+                    return False
+        # OC requires at least one opponent to have RS
+        if sub.opponents_contingent_suit_constraint is not None:
+            opps = _OPPONENTS.get(seat, ())
+            if not any(
+                opp in chosen_subprofiles and chosen_subprofiles[opp].random_suit_constraint is not None for opp in opps
+            ):
+                return False
+    return True
+
+
 def _select_subprofiles_for_board(
     rng: random.Random,
     profile: HandProfile,
@@ -336,6 +370,9 @@ def _select_subprofiles_for_board(
     chosen_indices: Dict[Seat, int] = {}
     for _ in range(MAX_SUBPROFILE_FEASIBILITY_RETRIES):
         chosen_subprofiles, chosen_indices = _pick_once()
+        # Quick OC/PC-RS consistency check — skip impossible combos early
+        if not _ocpc_rs_consistent(chosen_subprofiles):
+            continue
         feasible, _reason = _cross_seat_feasible(chosen_subprofiles)
         if feasible:
             return chosen_subprofiles, chosen_indices
