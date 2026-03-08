@@ -24,7 +24,7 @@ bridge_engine/
 ├── wizard_io.py               (104 lines) - Wizard I/O helpers
 ├── profile_viability.py       (394 lines) - Profile-level viability + cross-seat feasibility + EW coupling
 ├── profile_store.py           (348 lines) - JSON persistence (atomic writes, error-tolerant loading, category display)
-├── menu_help.py               (552 lines) - Menu help text (incl. linked profiles, SubProfile Map)
+├── menu_help.py               (530 lines) - Menu help text (incl. linked profiles, SubProfile Map)
 ├── lin_tools.py               (402 lines) - LIN file operations
 ├── deal_output.py             (326 lines) - Deal rendering
 ├── lin_encoder.py             (188 lines) - LIN format encoding
@@ -489,7 +489,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Type Checking
 
-**pyright** — 0 errors across 27 source files (11,802 total lines).
+**pyright** — 0 errors across 27 source files (11,637 total lines).
 
 ```bash
 npx pyright bridge_engine/

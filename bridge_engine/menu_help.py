@@ -450,28 +450,6 @@ and not supported.
 
 Enter C for chosen suit, U for unchosen suit.
 """,
-    "yn_edit_weights": """\
-=== Sub-profile Weights ===
-
-Each sub-profile has a weight that controls how often it is selected
-when generating deals. By default, all sub-profiles have equal weight.
-
-Example: If a seat has 3 sub-profiles with weights 60%, 20%, 20%:
-  • ~60% of boards will use sub-profile 1
-  • ~20% of boards will use sub-profile 2
-  • ~20% of boards will use sub-profile 3
-
-Weights are percentages and must sum to 100%. Use weights when one
-hand type is more common than another — for example, if you want
-most boards to feature a balanced opener but occasionally include
-a strong 2-club hand.
-
-Options:
-  0) Exit — keep weights as shown (default)
-  1) Keep current weights
-  2) Use even weights (equal across all sub-profiles)
-  3) Manually define weights (enter percentages that sum to 100%)
-""",
     "yn_subprofile_map": """\
 === SubProfile Map (Linked Profile) ===
 

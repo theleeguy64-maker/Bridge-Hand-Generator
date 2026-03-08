@@ -236,7 +236,7 @@ def _select_subprofiles_for_board(
       1. If a LinkedProfile is set: primary picks by weight, secondary
          picks from the mapped subset with renormalized weights.
       2. Else if legacy role mode coupling is active: old driver/follower
-         index coupling (backward compat, to be removed in Phase 7).
+         index coupling (legacy fallback, kept for backward compat).
       3. Else: each seat picks independently by its own weights.
 
     After selecting, _cross_seat_feasible() checks whether the chosen

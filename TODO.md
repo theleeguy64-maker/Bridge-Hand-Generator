@@ -17,6 +17,7 @@
 - [ ] Phase 8: OC/PC Safety Check — Add OC/PC-RS consistency check, benchmark, decide to keep/revert
 
 ## Recent Code Reviews
+- [x] Code review #72: C1 — update stale HandProfile docstring to describe linked profiles instead of old role modes; C2 — replace "Phase 7" plan reference with "legacy fallback" in deal_generator.py; B1 — remove unused `yn_edit_weights` help key from menu_help.py (−21 lines)
 - [x] Code review #71: C1 — stale "role / index" help text → "linked profiles" in menu_help.py; C2 — standardize `set[int]` → `Set[int]` in hand_profile_validate.py; D1/D2 — remove redundant partner/opponent seat guards in PC/OC validation
 - [x] Code review #70: B1-B3 — remove dead `_edit_bespoke_map`, `_assign_role_usage_for_subprofile`, `_valid_role_options_for_seat` from wizard_flow.py (−217 lines); B4 — remove deprecated `combine_lin_files_interactive` from lin_tools.py; C1 — update stale docstring on `_select_subprofiles_for_board`; C2 — remove unused `role_mode`/`bmap` vars in profile_cli.py; C3 — fix stale "index matching" comment; D1 — remove stale "C2:" marker
 

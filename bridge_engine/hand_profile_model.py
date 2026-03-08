@@ -767,12 +767,13 @@ class HandProfile:
 
     Full hand profile for one scenario.
 
-    NOTE: ns_role_mode controls who “drives” the N-S partnership at
-    runtime.  When set to a driver mode (north_drives, south_drives,
-    random_driver), the deal generator uses role filtering to restrict
-    subprofile selection based on ns_role_usage.  When combined with
-    ns_bespoke_map, it also enables bespoke subprofile matching.
-    The default “no_driver_no_index” disables both features.
+    NOTE: ns_linked_profile / ew_linked_profile control coupled
+    subprofile selection.  When set, the primary seat picks its
+    subprofile first by weighted random, then the secondary seat
+    picks from a mapped subset (SubProfile Map) with renormalized
+    weights.  Legacy fields (ns_role_mode, ew_role_mode, etc.) are
+    retained for backward compatibility but ignored when a linked
+    profile is present.
     """
 
     profile_name: str
