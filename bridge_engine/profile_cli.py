@@ -621,10 +621,10 @@ def _print_profile_metadata(profile: HandProfile, path: Path) -> None:
     print(f"Rotate deals: {profile.rotate_deals_by_default}")
     print(f"Category    : {profile.category or '(none)'}")
 
-    # Display linked profiles (new system) or legacy role modes as fallback.
-    for pair_name, linked, role_mode, bmap in [
-        ("NS", profile.ns_linked_profile, profile.ns_role_mode, profile.ns_bespoke_map),
-        ("EW", profile.ew_linked_profile, profile.ew_role_mode, profile.ew_bespoke_map),
+    # Display linked profiles for each pair.
+    for pair_name, linked in [
+        ("NS", profile.ns_linked_profile),
+        ("EW", profile.ew_linked_profile),
     ]:
         if linked is not None:
             # Linked profile display

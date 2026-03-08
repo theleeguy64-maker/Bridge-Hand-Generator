@@ -232,21 +232,12 @@ def _select_subprofiles_for_board(
     Select a concrete subprofile index for each seat, with cross-seat
     feasibility rejection.
 
-    NS:
-      * If ns_role_mode is not "no_driver_no_index" and both N/S have >1
-        subprofiles and equal lengths, use index coupling:
-          - choose an NS "driver" (via ns_driver_seat or opener in dealing order),
-          - pick its index by weights,
-          - force responder to use same index.
-
-    EW:
-      * If ew_role_mode is set (not "no_driver_no_index") and both E/W have
-        >1 subprofiles with equal lengths, use index coupling:
-          - choose an EW "driver" (via ew_driver_seat or first EW in dealing order),
-          - pick its index by weights,
-          - force the other seat to use same index.
-
-    Any remaining seats just choose their own index by their local weights.
+    For each pair (NS, EW):
+      1. If a LinkedProfile is set: primary picks by weight, secondary
+         picks from the mapped subset with renormalized weights.
+      2. Else if legacy role mode coupling is active: old driver/follower
+         index coupling (backward compat, to be removed in Phase 7).
+      3. Else: each seat picks independently by its own weights.
 
     After selecting, _cross_seat_feasible() checks whether the chosen
     combination can possibly succeed (HCP sums, per-suit card counts).

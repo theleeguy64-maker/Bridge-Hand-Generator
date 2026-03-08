@@ -8,24 +8,24 @@ The Bridge Hand Generator is a Python CLI application that produces constrained 
 
 ```
 bridge_engine/
-├── deal_generator.py          (478 lines) - Facade: subprofile selection + linked profiles + generate_deals() + re-exports
+├── deal_generator.py          (469 lines) - Facade: subprofile selection + linked profiles + generate_deals() + re-exports
 ├── deal_generator_v2.py     (1,394 lines) - v2 shape-help helpers + v2 builder (active path)
 ├── deal_generator_types.py    (240 lines) - Types, constants, dataclasses, exception, debug hooks (leaf module)
 ├── deal_generator_helpers.py  (438 lines) - Shared utilities: viability, HCP, deck, subprofile weights, vulnerability/rotation
 ├── hand_profile_model.py    (1,190 lines) - Data models (incl. LinkedProfile, legacy role modes)
 ├── seat_viability.py          (623 lines) - Constraint matching + RS pre-selection threading
-├── hand_profile_validate.py   (828 lines) - Validation (incl. linked profile, legacy bespoke map validation)
+├── hand_profile_validate.py   (826 lines) - Validation (incl. linked profile, legacy bespoke map validation)
 ├── profile_diagnostic.py      (213 lines) - Profile diagnostic runner (Admin menu)
 ├── orchestrator.py            (444 lines) - CLI/session management + generic menu loop
 ├── profile_cli.py           (1,171 lines) - Profile commands (incl. linked profile setup, SubProfile Map)
 ├── profile_wizard.py          (125 lines) - Profile creation UI
 ├── profile_convert.py          (40 lines) - Legacy profile format conversion (standalone utility)
-├── wizard_flow.py           (1,786 lines) - Wizard steps, per-sub exclusion editing, SubProfile Map editing
+├── wizard_flow.py           (1,563 lines) - Wizard steps, per-sub exclusion editing, SubProfile Map editing
 ├── wizard_io.py               (104 lines) - Wizard I/O helpers
 ├── profile_viability.py       (394 lines) - Profile-level viability + cross-seat feasibility + EW coupling
 ├── profile_store.py           (348 lines) - JSON persistence (atomic writes, error-tolerant loading, category display)
 ├── menu_help.py               (552 lines) - Menu help text (incl. linked profiles, SubProfile Map)
-├── lin_tools.py               (407 lines) - LIN file operations
+├── lin_tools.py               (402 lines) - LIN file operations
 ├── deal_output.py             (326 lines) - Deal rendering
 ├── lin_encoder.py             (188 lines) - LIN format encoding
 ├── setup_env.py               (216 lines) - RNG seed management
@@ -489,7 +489,7 @@ HandProfile(seat_profiles, dealer, dealing_order, ...)
 
 ## Type Checking
 
-**pyright** — 0 errors across 27 source files (12,041 total lines).
+**pyright** — 0 errors across 27 source files (11,802 total lines).
 
 ```bash
 npx pyright bridge_engine/

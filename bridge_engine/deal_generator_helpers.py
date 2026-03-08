@@ -379,7 +379,7 @@ def _vulnerability_for_board(board_number: int) -> str:
 
 
 # ---------------------------------------------------------------------------
-# C2: vulnerability & rotation
+# Vulnerability & rotation
 # ---------------------------------------------------------------------------
 
 

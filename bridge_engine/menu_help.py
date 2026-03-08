@@ -23,7 +23,7 @@ Options:
           pre-attached)
         • View / print full profile details
         • Edit Overall Deal Data only (name, description, tag, dealer, author,
-          version, sort order, rotate flag, NS/EW role / index settings)
+          version, sort order, rotate flag, NS/EW linked profiles)
         • Edit Each Hand Constraints only (keep metadata, change seat constraints)
         • Delete profiles
         • Save a profile as a new version

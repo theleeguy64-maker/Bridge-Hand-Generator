@@ -253,11 +253,6 @@ def combine_lin_files(
     return len(combined)
 
 
-def combine_lin_files_interactive() -> None:
-    """Deprecated wrapper — use run_lin_combiner() directly."""
-    run_lin_combiner()
-
-
 def run_lin_combiner() -> None:
     """
     Interactive LIN combiner used by the Admin menu.

@@ -231,12 +231,10 @@ def _validate_ns_role_usage_coverage(profile: HandProfile) -> None:
     Ensure that for each NS seat and each role that can occur under
     ns_role_mode, there is at least one compatible SubProfile.
 
-    ns_role_usage semantics (per SubProfile):
+    ns_role_usage semantics (per SubProfile, legacy system):
       - "any"           → can be used whether the seat is driver or follower
       - "driver_only"   → only usable when this seat is the NS driver
       - "follower_only" → only usable when this seat is the NS follower
-
-    # NS sub-profile index matching: tie N/S sub-profile indices together.
 
     Backwards-compatible:
         - If ns_role_mode is missing → treated as "no_driver_no_index".
@@ -424,23 +422,22 @@ def _validate_partner_contingent(profile: HandProfile) -> None:
             # When use_non_chosen_suit is True, the partner must have an
             # RS constraint with exactly 1 non-chosen suit
             # (allowed_suits - required_suits_count == 1).
+            # Note: partner_seat existence already validated above (line 405).
             if constraint.use_non_chosen_suit:
-                if partner_seat in profile.seat_profiles:
-                    partner_sp = profile.seat_profiles[partner_seat]
-                    has_exactly_one_non_chosen = False
-                    for partner_sub in partner_sp.subprofiles:
-                        rs = partner_sub.random_suit_constraint
-                        if rs is not None:
-                            surplus = len(rs.allowed_suits) - rs.required_suits_count
-                            if surplus == 1:
-                                has_exactly_one_non_chosen = True
-                                break
-                    if not has_exactly_one_non_chosen:
-                        raise ProfileError(
-                            f"Seat {seat!r} uses non-chosen-suit PC, but partner "
-                            f"{partner_seat!r} does not have an RS constraint with "
-                            f"exactly 1 non-chosen suit (allowed - required must be 1)."
-                        )
+                has_exactly_one_non_chosen = False
+                for partner_sub in partner_sp.subprofiles:
+                    rs = partner_sub.random_suit_constraint
+                    if rs is not None:
+                        surplus = len(rs.allowed_suits) - rs.required_suits_count
+                        if surplus == 1:
+                            has_exactly_one_non_chosen = True
+                            break
+                if not has_exactly_one_non_chosen:
+                    raise ProfileError(
+                        f"Seat {seat!r} uses non-chosen-suit PC, but partner "
+                        f"{partner_seat!r} does not have an RS constraint with "
+                        f"exactly 1 non-chosen suit (allowed - required must be 1)."
+                    )
 
 
 def _validate_opponent_contingent(profile: HandProfile) -> None:
@@ -491,24 +488,25 @@ def _validate_opponent_contingent(profile: HandProfile) -> None:
             # RS constraint with exactly 1 non-chosen suit
             # (allowed_suits - required_suits_count == 1).
             # Multi-suit non-chosen is not yet supported.
+            # Note: opp_seats non-empty (guarded at line 464) and each
+            # element validated in loop above (line 470).
             if constraint.use_non_chosen_suit:
-                opp_seat_key = opp_seats[0] if opp_seats else None
-                if opp_seat_key and opp_seat_key in profile.seat_profiles:
-                    opp_sp = profile.seat_profiles[opp_seat_key]
-                    has_exactly_one_non_chosen = False
-                    for opp_sub in opp_sp.subprofiles:
-                        rs = opp_sub.random_suit_constraint
-                        if rs is not None:
-                            surplus = len(rs.allowed_suits) - rs.required_suits_count
-                            if surplus == 1:
-                                has_exactly_one_non_chosen = True
-                                break
-                    if not has_exactly_one_non_chosen:
-                        raise ProfileError(
-                            f"Seat {seat!r} uses non-chosen-suit OC, but opponent "
-                            f"{opp_seat_key!r} does not have an RS constraint with "
-                            f"exactly 1 non-chosen suit (allowed - required must be 1)."
-                        )
+                opp_seat_key = opp_seats[0]
+                opp_sp = profile.seat_profiles[opp_seat_key]
+                has_exactly_one_non_chosen = False
+                for opp_sub in opp_sp.subprofiles:
+                    rs = opp_sub.random_suit_constraint
+                    if rs is not None:
+                        surplus = len(rs.allowed_suits) - rs.required_suits_count
+                        if surplus == 1:
+                            has_exactly_one_non_chosen = True
+                            break
+                if not has_exactly_one_non_chosen:
+                    raise ProfileError(
+                        f"Seat {seat!r} uses non-chosen-suit OC, but opponent "
+                        f"{opp_seat_key!r} does not have an RS constraint with "
+                        f"exactly 1 non-chosen suit (allowed - required must be 1)."
+                    )
 
 
 def _validate_linked_profile(profile: HandProfile) -> None:
@@ -596,7 +594,7 @@ def _validate_linked_profile(profile: HandProfile) -> None:
                 )
 
         # 6. Every secondary sub index must appear in at least one value list (surjective).
-        all_secondary: set[int] = set()
+        all_secondary: Set[int] = set()
         for vals in smap.values():
             all_secondary.update(vals)
         for i in range(num_secondary):
