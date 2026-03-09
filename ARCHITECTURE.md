@@ -20,7 +20,7 @@ bridge_engine/
 ├── profile_cli.py           (1,159 lines) - Profile commands (incl. linked profile setup, SubProfile Map)
 ├── profile_wizard.py          (125 lines) - Profile creation UI
 ├── profile_convert.py          (40 lines) - Legacy profile format conversion (standalone utility)
-├── wizard_flow.py           (1,634 lines) - Wizard steps, menu-driven sub-profile editing, SubProfile Map editing
+├── wizard_flow.py           (1,539 lines) - Wizard steps, per-sub exclusion editing, SubProfile Map editing
 ├── wizard_io.py               (104 lines) - Wizard I/O helpers
 ├── profile_viability.py       (312 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py           (348 lines) - JSON persistence (atomic writes, error-tolerant loading, category display)
@@ -484,7 +484,7 @@ npx pyright bridge_engine/
 
 ## Test Coverage
 
-**571 passed** organized by:
+**576 passed** organized by:
 - Core matching: `test_seat_viability*.py`
 - Index coupling: `test_f3_opener_responder_coupling.py`
 - Profile viability: `test_profile_viability_*.py`
@@ -506,6 +506,7 @@ npx pyright bridge_engine/
 - **Profile mgmt actions**: `test_profile_mgmt_actions.py` (9 tests — edit/delete/save-as/draft-tools)
 - **Menu dispatch**: `test_profile_mgmt_menus.py` (4 tests — profile manager + admin menu loops)
 - **Wizard editing**: `test_wizard_edit_flow.py` (5 tests — skip/edit seats, autosave, constraints roundtrip, exclusions)
+- **Subprofile gate menu**: `test_subprofile_menu.py` (5 tests — exit/standard/non-standard gate choices)
 
 **Untested modules** (low risk):
 - `profile_convert.py` - file I/O logic (should add tests)

@@ -16,6 +16,9 @@
 - [x] Phase 7: Cleanup — Removed old fields (ns_role_mode, ew_role_mode, bespoke maps, role usage), removed _try_pair_coupling, _eligible_indices_for_role, old tests, rewrote migration to raw dicts
 - [x] Phase 8: OC/PC Safety Check — _ocpc_rs_consistent() in deal_generator.py, benchmarked (neutral perf), added as safety net
 
+## CLI Menu Improvements
+- [x] Constraint type gate menu in `_build_subprofile()` — choose Standard, Non-Standard, or Exit before entering constraint prompts (wizard_flow.py, 5 tests in test_subprofile_menu.py)
+
 ## Recent Code Reviews
 - [x] Code review #74: C1 — fix stale "Phase 3:" comment prefix in deal_generator_v2.py; C2 — update stale docstring in deal_generator_helpers.py (role filtering removed); C3 — fix stale "coupling" comment in profile_viability.py; C4 — update stale "5 steps" docstring in hand_profile_validate.py (now 3 steps)
 - [x] Code review #73: C1 — fix misleading comment in hand_profile_validate.py (fields() raises TypeError, not is_dataclass()); C2 — extract duplicate `suit_map` → module-level `_SUIT_ATTR` in profile_viability.py; C3 — move late `replace` import to module-level in seat_viability.py
@@ -715,8 +718,7 @@
 - [x] Weight editing menu — 0=Exit, 1=Keep, 2=Even, 3=Manual (replaces old y/n prompt)
 - [x] Seat editing save & exit — press "e" to save and skip remaining seats
 - [x] Edit subprofile names before constraints — say Yes at prompt, rename subs, then verify names carry through
-- [x] Profile JSON updates — Our 1 Major load correctly
-- [ ] Test new menu-driven sub-profile constraint editing — Standard/Non-Standard menu loop, SET/not set indicators, mutual exclusivity warnings
+- [ ] Profile JSON updates — Our 1 Major load correctly
 
 ---
 
