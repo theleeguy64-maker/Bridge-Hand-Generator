@@ -368,7 +368,7 @@ def run_lin_combiner() -> None:
 
     # 6) Ask for output filename (stem; we always write .lin)
     default_stem = "combined"
-    out_stem = input(f"\nUser can determine combined LIN file name [{default_stem}]: ").strip() or default_stem
+    out_stem = input(f"\nEnter combined LIN file name [{default_stem}]: ").strip() or default_stem
 
     if not out_stem.lower().endswith(".lin"):
         out_name = out_stem + ".lin"

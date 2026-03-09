@@ -11,7 +11,7 @@ generation run. It does NOT generate deals — it only:
     • Applies seeded or random seed logic
     • Returns a SetupResult object consumed by Section C
 
-This version (v3) reflects the updated project architecture (Nov 2025).
+This version (v3) reflects the current project architecture.
 """
 
 from __future__ import annotations

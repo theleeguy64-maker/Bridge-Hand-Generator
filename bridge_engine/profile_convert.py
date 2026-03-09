@@ -11,7 +11,8 @@ def convert_profiles(dir_path: Path, write: bool = False) -> None:
 
     Validates each profile via validate_profile() and writes it back with
     schema_version=1.  This was used during early development to canonicalize
-    profiles; it is not part of the normal runtime flow.
+    profiles; it is not part of the normal runtime flow.  Not called from
+    anywhere in the codebase — kept as a standalone CLI utility if needed.
 
     Args:
         dir_path: Directory containing .json profile files

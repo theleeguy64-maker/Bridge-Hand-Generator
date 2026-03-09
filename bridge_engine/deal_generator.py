@@ -140,33 +140,32 @@ def _apply_linked_profile(
     chosen_subprofiles[secondary] = secondary_sp.subprofiles[secondary_idx]
 
 
-# Partner/opponent maps for OC/PC-RS consistency checking.
-_PARTNER: Dict[str, str] = {"N": "S", "S": "N", "E": "W", "W": "E"}
-_OPPONENTS: Dict[str, Tuple[str, str]] = {
-    "N": ("E", "W"),
-    "S": ("E", "W"),
-    "E": ("N", "S"),
-    "W": ("N", "S"),
-}
-
-
 def _ocpc_rs_consistent(chosen_subprofiles: Dict[Seat, SubProfile]) -> bool:
     """
     Check OC/PC-RS consistency: every seat with a PC or OC constraint
     must have its referenced partner/opponent holding an RS subprofile
     this board.  Returns True if consistent (or no PC/OC seats).
     """
+    # Partner/opponent maps — local to this function (sole consumer).
+    partner_map: Dict[str, str] = {"N": "S", "S": "N", "E": "W", "W": "E"}
+    opponents_map: Dict[str, Tuple[str, str]] = {
+        "N": ("E", "W"),
+        "S": ("E", "W"),
+        "E": ("N", "S"),
+        "W": ("N", "S"),
+    }
+
     for seat, sub in chosen_subprofiles.items():
         # PC requires partner to have RS
         if sub.partner_contingent_constraint is not None:
-            partner = _PARTNER.get(seat)
+            partner = partner_map.get(seat)
             if partner and partner in chosen_subprofiles:
                 partner_sub = chosen_subprofiles[partner]
                 if partner_sub.random_suit_constraint is None:
                     return False
         # OC requires at least one opponent to have RS
         if sub.opponents_contingent_suit_constraint is not None:
-            opps = _OPPONENTS.get(seat, ())
+            opps = opponents_map.get(seat, ())
             if not any(
                 opp in chosen_subprofiles and chosen_subprofiles[opp].random_suit_constraint is not None for opp in opps
             ):
