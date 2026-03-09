@@ -938,8 +938,11 @@ def _build_subprofile(
         )
 
     if gate == 1:
-        # Run the full standard constraints builder, then fall through to extras
-        standard = _build_standard_constraints(standard)
+        # Run the full standard constraints builder, then fall through to extras.
+        # Pass None for new subprofiles so _build_suit_range_for_prompt uses its
+        # tighter fresh defaults (0-6 cards, 0-10 HCP) instead of wide-open.
+        std_existing = existing.standard if existing is not None else None
+        standard = _build_standard_constraints(std_existing)
 
     # If gate == 2, skip standard (keep existing/wide-open), fall through to extras
 
