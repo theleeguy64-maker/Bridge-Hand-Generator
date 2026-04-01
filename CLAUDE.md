@@ -1,9 +1,37 @@
 # Bridge Hand Generator
 
+**You are working in the Bridge Hand Generator project.** Always be aware of this context — the user should not need to tell you which project this is.
+
 ## Project
 - **Path**: `~/Applications/BridgeHandGenerator/Exec`
 - **Launcher**: `python -m bridge_engine` (CLI menu)
 - **Description**: Generates bridge card deals satisfying complex constraint profiles (HCP ranges, suit lengths, contingent constraints) with shape-based help, failure attribution, and adaptive re-seeding.
+
+## Optimization
+
+**Project Weight:** Heavy  
+**Message Threshold:** 12 messages  
+**Default Model:** Opus  
+
+**Feature Defaults:**
+- Web Search: OFF (use Firecrawl for specific URLs)
+- Advanced Thinking: OFF (enable for tricky bugs only)
+- MCP Servers: Firebase ON, Firecrawl OFF, Context7 OFF
+
+**Model Selection Guide**
+
+| Task Type | Model | Why |
+|-----------|-------|-----|
+| Bug diagnosis | Opus | Complex multi-file logic; use full power |
+| Quick fixes | Sonnet | Lighter; straightforward changes |
+| Code review | Sonnet | Pattern matching; downgrade from default |
+| Architecture/design | Opus | Keep default; needs deep thinking |
+| Documentation | Haiku | Simplest task; no reasoning needed |
+| Refactoring | Sonnet | Complex but structured; Sonnet sufficient |
+
+**When to Start Fresh**
+
+After 12 messages, run `lee status` to check message count and session age. If starting new work, run `lee fresh` for auto-fresh-chat with context pre-loaded.
 
 ## Tech Stack
 | Layer | Technology |
@@ -44,46 +72,15 @@ npx pyright bridge_engine/
 - Reference `PROJECT_OVERVIEW.md` for high-level context (purpose, concepts, current state)
 - Reference `ARCHITECTURE.md` for technical details (pipeline, data models, known issues)
 
-## Shortcuts
-- **"Lee Title"** - Change terminal title to "Bridge Hand Generator"
-- **"Lee commit"** - Update CLAUDE.md, TODO.md, and ARCHITECTURE.md, then commit, then git push, then output "/usage" so user can check usage
-- **"Lee code review"** - Run pyright (`npx pyright bridge_engine/`), then perform a full code review of all `bridge_engine/` files looking for: bugs, dead code, incorrect types, missing imports, unreachable code, narrowable exceptions, inconsistent naming, stale comments/docstrings. Present findings grouped by severity (A=bugs, B=dead code, C=consistency, D=simplification). Use "Lee slow" mode for all fixes.
-- **"Lee slow"** - Careful mode. After EACH code change:
-  1. Run tests (`.venv/bin/pytest -v`)
-  2. If passed: Explicitly state "✅ All X tests passed"
-  3. If failed: STOP and give 3 options:
-     - **Review further** - investigate what went wrong
-     - **Fix** - attempt to fix the issue
-     - **Restore** - revert to prior code
+## Lee Shortcuts, Testing, Planning
+See global `~/.claude/CLAUDE.md` — Lee Shortcuts, testing policy, and planning conventions apply to all projects.
 
-## Documentation
-- Proactively suggest updating `CLAUDE.md` when: new commands are added, project structure changes, new conventions are established, or key files are created/renamed
-- After completing work, prompt: "Do you want to update CLAUDE.md and TODO.md, then commit?"
+### Project-specific additions to Lee code review
+- Run pyright first: `npx pyright bridge_engine/`
+- Run ruff: `.venv/bin/ruff check bridge_engine/ tests/` + `.venv/bin/ruff format bridge_engine/ tests/`
+- Keep both at 0 errors before committing
 
-## Code Quality
-- Focus on the stability of large files - be careful with changes that could introduce bugs
-- Prefer early returns and guard statements for error handling
-- Put lots of remarks/comments in code for the benefit of all of us (future developers, Claude, and you)
-
-## Linting & Formatting (ruff)
-- Run ruff after code changes: `.venv/bin/ruff check bridge_engine/ tests/` + `.venv/bin/ruff format bridge_engine/ tests/`
+## Linting & Formatting
+- **ruff**: `.venv/bin/ruff check bridge_engine/ tests/` + `.venv/bin/ruff format bridge_engine/ tests/`
 - Config in `ruff.toml` — per-file ignores for facades, late imports, and test patterns
-- Keep ruff at 0 errors before committing
-
-## Type Checking (pyright)
-- Run pyright after code changes: `npx pyright bridge_engine/`
-- Keep pyright at 0 errors — fix any new type errors before committing
-
-## Testing
-- Run the full test suite after every change to ensure no bugs are introduced
-- Write extensive and specific tests - thorough coverage is preferred
-- Never skip tests unless explicitly agreed
-- Find bugs early - test frequently during development, not just at the end
-
-## Planning
-- Focus on low-risk, incremental changes with heavy testing at each step
-- Avoid big-bang changes - break work into small, testable pieces
-
-## Committing
-- Keep pushing to commit regularly
-- Before committing, always ask: "Do you want to update CLAUDE.md and TODO.md, then commit?"
+- **pyright**: `npx pyright bridge_engine/` — keep at 0 errors
