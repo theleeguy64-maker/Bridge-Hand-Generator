@@ -39,7 +39,12 @@ def _make_standard(hcp_min: int = 0, hcp_max: int = 37) -> StandardSuitConstrain
 
 
 def _patch_io(monkeypatch, prompts, ints):
-    """Patch wiz_io.prompt_str and profile_wizard._input_int with iterators."""
+    """Patch wiz_io.prompt_str and profile_wizard._input_int with iterators.
+
+    Patches profile_wizard._input_int (not wizard_flow._input_int) because
+    wizard_flow delegates _input_int via _pw_attr, which resolves to profile_wizard
+    at runtime — that's the effective seam for all integer input in _build_subprofile.
+    """
     monkeypatch.setattr(wiz_io, "prompt_str", lambda prompt, default="": next(prompts))
     monkeypatch.setattr(profile_wizard, "_input_int", lambda prompt, **kw: next(ints))
 
@@ -67,11 +72,18 @@ def test_gate_exit_new_subprofile(monkeypatch):
 
 
 def test_gate_exit_preserves_existing(monkeypatch):
-    """Choice 0 with an existing subprofile preserves its values."""
+    """Choice 0 with an existing subprofile preserves its values including RS."""
+    fake_rs = RandomSuitConstraintData(
+        allowed_suits=["S", "H"],
+        required_suits_count=1,
+        suit_ranges={"S": SuitRange(min_cards=5, max_cards=7)},
+        pair_overrides=[],
+    )
     existing = SubProfile(
         standard=_make_standard(10, 15),
         name="Opener",
         weight_percent=40.0,
+        random_suit_constraint=fake_rs,
     )
 
     _patch_io(monkeypatch, iter([""]), iter([0]))
@@ -82,6 +94,7 @@ def test_gate_exit_preserves_existing(monkeypatch):
     assert result.standard.total_max_hcp == 15
     assert result.name == "Opener"
     assert result.weight_percent == 40.0
+    assert result.random_suit_constraint is fake_rs
 
 
 # ---------------------------------------------------------------------------
@@ -164,3 +177,74 @@ def test_gate_nonstandard_reaches_extra_menu(monkeypatch):
     assert result.random_suit_constraint is fake_rs
     # Standard untouched (wide-open)
     assert result.standard.total_min_hcp == 0
+
+
+# ---------------------------------------------------------------------------
+# Gate choice 1 — existing subprofile with RS: threading through extra menu
+# ---------------------------------------------------------------------------
+
+
+def test_gate_standard_preserves_existing_rs_threading(monkeypatch):
+    """Gate=1 on an existing sub with RS passes existing RS to the builder."""
+    fake_rs = RandomSuitConstraintData(
+        allowed_suits=["S", "H", "D", "C"],
+        required_suits_count=1,
+        suit_ranges={"S": SuitRange(min_cards=5, max_cards=7)},
+        pair_overrides=[],
+    )
+    existing = SubProfile(
+        standard=_make_standard(10, 15),
+        random_suit_constraint=fake_rs,
+    )
+
+    custom_std = _make_standard(12, 20)
+    monkeypatch.setattr(
+        wizard_flow,
+        "_build_standard_constraints",
+        lambda existing=None, label_suffix="": custom_std,
+    )
+
+    # Capture what existing value the RS builder receives.
+    rs_existing_received: list = []
+
+    def capture_rs(existing=None):
+        rs_existing_received.append(existing)
+        return fake_rs
+
+    monkeypatch.setattr(wizard_flow, "_build_random_suit_constraint", capture_rs)
+
+    # gate=1 (standard), extra=2 (RS) — default_choice should be 2 since existing has RS
+    _patch_io(monkeypatch, iter([""]), iter([1, 2]))
+
+    result = wizard_flow._build_subprofile("N", existing=existing)
+
+    assert result.random_suit_constraint is fake_rs
+    # Builder should have received the existing RS, not None
+    assert rs_existing_received == [fake_rs]
+
+
+# ---------------------------------------------------------------------------
+# Help loop — choice 5 loops back, then exits on next choice
+# ---------------------------------------------------------------------------
+
+
+def test_extra_menu_help_loops_and_exits(monkeypatch):
+    """Choice 5 (Help) prints help and loops; next choice exits cleanly."""
+    help_printed = []
+    monkeypatch.setattr(wizard_flow, "get_menu_help", lambda key: help_printed.append(key) or "")
+
+    # gate=1, extra=5 (help), extra=1 (None — exit)
+    _patch_io(monkeypatch, iter([""]), iter([1, 5, 1]))
+
+    monkeypatch.setattr(
+        wizard_flow,
+        "_build_standard_constraints",
+        lambda existing=None, label_suffix="": _make_standard(),
+    )
+
+    result = wizard_flow._build_subprofile("N")
+
+    assert help_printed == ["extra_constraint"]
+    assert result.random_suit_constraint is None
+    assert result.partner_contingent_constraint is None
+    assert result.opponents_contingent_suit_constraint is None
