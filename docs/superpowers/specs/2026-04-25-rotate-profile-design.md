@@ -116,24 +116,23 @@ When only one slot is populated (the other is `None`), the populated slot moves 
 
 ### Profile-name swap algorithm
 
-The source `profile_name` is expected to follow the form **"X does A and Y does B"** — two halves joined by " and " (or " & " for the `&`-style profiles). Rotation swaps the first word of each half (the *actors*), keeping each action in place:
+Two-step pronoun swap on `profile_name`:
 
-> **"X does A and Y does B"** → **"Y does A and X does B"**
+1. **Normalise:** replace every whole-word `Our` with `We` and every whole-word `our` with `we`.
+2. **Swap:** swap whole-word `Opps` ↔ `We` and `opps` ↔ `we` throughout the string.
 
-Algorithm:
-1. Split `profile_name` on the first occurrence of ` and ` (case-sensitive). If not found, split on ` & `. If neither found → refuse with exit 2: `Source profile_name does not match the "X does A and Y does B" pattern; supply --name explicitly.`
-2. Each half: take the first whitespace-delimited word as the actor, the rest as the action.
-3. Swap the two actors; recombine each half as `"<actor> <action>"`; rejoin with the original separator.
-4. Capitalise the first letter of the result.
+"Whole-word" means surrounded by word boundaries, so `Open` is not affected by the `Our` → `We` step. Both replacements are case-sensitive (the case-preserving pair `Our/our` and `Opps/opps`/`We/we` is handled by running each pair separately).
+
+If the resulting name is byte-identical to the source (no `Opps`/`We`/`Our`/`our`/`opps`/`we` tokens were present), refuse with exit 2: `Source profile_name does not contain Opps/We/Our pronouns to swap; supply --name explicitly.`
 
 Worked examples (the four target profiles):
 
-| Source | Output |
-|---|---|
-| `Opps Open Strong 1NT and we Overcall Cappeletti` | `We Open Strong 1NT and Opps Overcall Cappeletti` |
-| `Opps Open 3 Weak 2s and we Compete` | `We Open 3 Weak 2s and Opps Compete` |
-| `Opps Open & Our TO Dbl` | `Our Open & Opps TO Dbl` |
-| `Opps Open & Our TO Dbl Balancing` | `Our Open & Opps TO Dbl Balancing` |
+| Source | After normalise | Output |
+|---|---|---|
+| `Opps Open Strong 1NT and we Overcall Cappeletti` | (unchanged) | `We Open Strong 1NT and Opps Overcall Cappeletti` |
+| `Opps Open 3 Weak 2s and we Compete` | (unchanged) | `We Open 3 Weak 2s and Opps Compete` |
+| `Opps Open & Our TO Dbl` | `Opps Open & We TO Dbl` | `We Open & Opps TO Dbl` |
+| `Opps Open & Our TO Dbl Balancing` | `Opps Open & We TO Dbl Balancing` | `We Open & Opps TO Dbl Balancing` |
 
 `--name "X"` bypasses the algorithm entirely.
 
@@ -161,7 +160,7 @@ If the source profile has a non-null `rotated_from` field, refuse with exit 2: `
 | Success | 0 | (success summary on stdout — see below) |
 | File not found / bad JSON on input | 1 | propagated underlying error |
 | Source already rotated (`rotated_from` non-null) | 2 | `Source is already a rotated profile (rotated_from: <X>); rotation refused.` |
-| Source `profile_name` doesn't match the swap pattern | 2 | `Source profile_name does not match the "X does A and Y does B" pattern; supply --name explicitly.` |
+| Source `profile_name` has no swappable pronouns | 2 | `Source profile_name does not contain Opps/We/Our pronouns to swap; supply --name explicitly.` |
 | Validation failure on rotated profile | 2 | `Rotation produced invalid profile: <error>` |
 | Output file already exists, no `--force` | 4 | `Output exists: <path>. Pass --force to overwrite.` |
 | Argparse / bad CLI args | 2 (argparse default) | argparse error text |
@@ -246,8 +245,8 @@ Tests write to `tmp_path`, not to `profiles/`. The four real source profiles are
 - Either via the CLI (one invocation per file) or via Admin → "Rotate a profile", produce a rotated copy of each of the 4 target profiles:
   - `profiles/Opps_Open_3_Weak_2s_and_we_Compete_v1.0.json` → `profiles/We_Open_3_Weak_2s_and_Opps_Compete_v0.1.json`
   - `profiles/Opps_Open_Strong_1NT_and_we_Overcall_Cappeletti_v1.0.json` → `profiles/We_Open_Strong_1NT_and_Opps_Overcall_Cappeletti_v0.1.json`
-  - `profiles/Opps_Open_&_Our_TO_Dbl_v0.9.json` → `profiles/Our_Open_&_Opps_TO_Dbl_v0.1.json` (note: shell-quote the `&`)
-  - `profiles/Opps_Open_&_Our_TO_Dbl_Balancing_v0.9.json` → `profiles/Our_Open_&_Opps_TO_Dbl_Balancing_v0.1.json`
+  - `profiles/Opps_Open_&_Our_TO_Dbl_v0.9.json` → `profiles/We_Open_&_Opps_TO_Dbl_v0.1.json` (note: shell-quote the `&`)
+  - `profiles/Opps_Open_&_Our_TO_Dbl_Balancing_v0.9.json` → `profiles/We_Open_&_Opps_TO_Dbl_Balancing_v0.1.json`
 - Confirm 4 new JSON files appear in `profiles/` with the expected derived names.
 - Launch the app, load each rotated profile, generate deals, eyeball the seat assignments and HCP/shape distributions match expectations.
 
