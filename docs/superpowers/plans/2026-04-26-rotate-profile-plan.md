@@ -127,16 +127,12 @@ The fixture is shared across the unit-test files. Putting it in `conftest.py` me
 
 - [ ] **Step 2.1: Add the fixture**
 
-If `tests/conftest.py` does NOT exist, create it with the content below. If it does exist, append the function (and the imports if missing) — do not overwrite.
+`tests/conftest.py` already exists (verified at Step 0b). It already imports `pytest` and `copy`, and has a `from __future__ import annotations` line at the top. **Append only the new symbols** — do NOT re-add `from __future__ import annotations`, `import pytest`, or any duplicate imports. The only new top-level import you need is `from typing import Any` (verify whether it's already present; add only if missing). Then append the two new symbols (`_canonical_profile_dict` and `make_profile_dict`) to the bottom of the file. Use `copy.deepcopy(...)` (matches the existing file's style — it uses `import copy`, not `from copy import deepcopy`).
 
 ```python
-"""Shared fixtures for tests."""
-from __future__ import annotations
-
-from copy import deepcopy
-from typing import Any
-
-import pytest
+# Append to existing tests/conftest.py — do NOT re-add `from __future__`,
+# `import pytest`, or `import copy` (already present). Add `from typing import Any`
+# at the top only if not already imported.
 
 
 def _canonical_profile_dict() -> dict[str, Any]:
@@ -382,13 +378,35 @@ def test_subprofile_exclusions_rotated(make_profile_dict):
     # Subprofile indices unchanged.
     indices = sorted(e["subprofile_index"] for e in out["subprofile_exclusions"])
     assert indices == [1, 2]
+
+
+def test_legacy_fields_stripped(make_profile_dict):
+    src = make_profile_dict()
+    src["ns_role_mode"] = "stale"
+    src["ew_role_mode"] = "stale"
+    src["ns_bespoke_map"] = {"1": "stale"}
+    src["ew_bespoke_map"] = {"1": "stale"}
+    out = rotate_profile(src)
+    for key in ("ns_role_mode", "ew_role_mode", "ns_bespoke_map", "ew_bespoke_map"):
+        assert key not in out, f"{key} should have been stripped"
+
+
+def test_unknown_top_level_keys_passthrough(make_profile_dict):
+    src = make_profile_dict()
+    src["custom_extension"] = {"author_note": "hi"}
+    src["future_flag"] = 42
+    out = rotate_profile(src)
+    assert out["custom_extension"] == {"author_note": "hi"}
+    assert out["future_flag"] == 42
 ```
 
 - [ ] **Step 4.2: Run tests to confirm failure**
 
 Run: `.venv/bin/pytest tests/test_rotate_profile.py -v`
 
-Expected: the 2 new tests fail (existing seat keys preserved instead of rotated; exclusions seats unchanged).
+Expected: 4 new tests fail (existing seat keys preserved instead of rotated; exclusions seats unchanged; legacy strip + unknown-key passthrough fail because the implementation isn't there yet — the strip code lands here in Step 4.3 and unknown-key passthrough is implicit via deepcopy from Task 3 but needs verification).
+
+Note: legacy-key strip was added in Task 3 (Step 3.3, `_LEGACY_KEYS`); `test_legacy_fields_stripped` will pass already if Task 3 is intact. Unknown-key passthrough is achieved by `deepcopy(profile_dict)` in Task 3 — should already pass. Both tests will go green without Task 4 code changes; they're defensive coverage.
 
 - [ ] **Step 4.3: Implement seat-profile rekey + exclusions rotation**
 
@@ -419,7 +437,7 @@ Edit `bridge_engine/rotate_profile.py` — replace the TODO line in `rotate_prof
 
 Run: `.venv/bin/pytest tests/test_rotate_profile.py -v`
 
-Expected: all 9 tests pass.
+Expected: all 11 tests pass.
 
 - [ ] **Step 4.5: Commit**
 
@@ -507,7 +525,7 @@ Then update the seat-profile loop in `rotate_profile()` to call it. Replace the 
 
 Run: `.venv/bin/pytest tests/test_rotate_profile.py -v`
 
-Expected: all 12 tests pass.
+Expected: all 14 tests pass.
 
 - [ ] **Step 5.5: Commit**
 
@@ -593,7 +611,7 @@ Then call it inside `rotate_profile()` — add before the `return out` line:
 
 Run: `.venv/bin/pytest tests/test_rotate_profile.py -v`
 
-Expected: all 15 tests pass.
+Expected: all 17 tests pass.
 
 - [ ] **Step 6.5: Commit**
 
@@ -714,6 +732,9 @@ def _swap_pronouns(name: str) -> str:
 Then update `rotate_profile()` to use it. Replace the existing function body's *opening* (right after the docstring) with:
 
 ```python
+    # Guard ordering: already-rotated check runs first, so a source with both
+    # rotated_from set AND no swappable pronouns still gets the more specific
+    # "already rotated" error rather than the generic pronoun message.
     if profile_dict.get("rotated_from"):
         raise ProfileError(
             f"Source is already a rotated profile (rotated_from: "
@@ -747,7 +768,7 @@ Then, just before the existing `_swap_and_rotate_linked(out)` call, add:
 
 Run: `.venv/bin/pytest tests/test_rotate_profile.py -v`
 
-Expected: all 23 tests pass.
+Expected: all 25 tests pass.
 
 - [ ] **Step 7.5: Commit**
 
@@ -801,7 +822,7 @@ def test_idempotent_to_full_cycle_seat_fields(make_profile_dict):
 
 Run: `.venv/bin/pytest tests/test_rotate_profile.py -v`
 
-Expected: all 24 tests pass — `rotate_profile()` is functionally complete for the pure function. (No code change needed; this is purely a check.)
+Expected: all 26 tests pass — `rotate_profile()` is functionally complete for the pure function. (No code change needed; this is purely a check.)
 
 - [ ] **Step 8.3: Run pyright + ruff**
 
@@ -885,7 +906,7 @@ def _derived_output_path(profile_name: str, profiles_dir: Path) -> Path:
 
 Run: `.venv/bin/pytest tests/test_rotate_profile.py -v`
 
-Expected: all 26 tests pass.
+Expected: all 28 tests pass.
 
 - [ ] **Step 9.5: Commit**
 
@@ -979,7 +1000,7 @@ Expected: ImportError on `main`.
 
 - [ ] **Step 10.3: Implement `main()`**
 
-Append to `bridge_engine/rotate_profile.py`:
+Append to `bridge_engine/rotate_profile.py`. Note: `ProfileError` was imported in Task 7 (Step 7.3); do NOT re-import it here. `Path` was imported in Task 9 (Step 9.3); do NOT re-import.
 
 ```python
 import argparse
@@ -1147,8 +1168,10 @@ def test_cli_validation_failure_exit_2(tmp_path, make_profile_dict, monkeypatch)
     profiles_dir = tmp_path / "profiles"
     profiles_dir.mkdir()
     src = make_profile_dict()
-    # Break the profile so validation fails: HCP min > max.
-    src["seat_profiles"]["W"]["subprofiles"][0]["standard"]["total_min_hcp"] = 30
+    # Break the linked profile so validate_profile() fails: out-of-bounds primary
+    # subprofile index in the map. (Each seat in the fixture has exactly 1
+    # subprofile, so primary index 99 is invalid.)
+    src["ns_linked_profile"]["subprofile_map"] = {"99": [1]}
     src_path = profiles_dir / "Opps_Open_1NT_and_we_Overcall_v1.0.json"
     _write_profile_json(src_path, src)
     rc = main([str(src_path)])
@@ -1193,7 +1216,7 @@ Run: `.venv/bin/pytest tests/test_rotate_profile_cli.py -v`
 
 Expected: 9 passed (2 from Task 10 + 7 new).
 
-If `test_cli_validation_failure_exit_2` doesn't actually fail validation, the chosen field doesn't trigger validation. Try a different breakage (e.g. `src["dealer"] = "Z"`), or check `validate_profile()` to find a reliable invalidator. The test must verify the error path, not coincidentally succeed.
+If `test_cli_validation_failure_exit_2` doesn't actually fail validation, the chosen breakage isn't strict enough. Fallback known-invalidators: `src["dealer"] = "Z"` (rejected by `HandProfile.from_dict`) or set `ns_linked_profile.primary_seat = "Z"`. The test must verify the error path, not coincidentally succeed.
 
 - [ ] **Step 11.3: Commit**
 
@@ -1341,23 +1364,25 @@ Read `bridge_engine/orchestrator.py` to confirm the current Admin menu shape:
 sed -n '410,425p' bridge_engine/orchestrator.py
 ```
 
-Expected: a section like
+Expected (verified against current code at the time of writing):
 
 ```python
 def admin_menu() -> None:
+    """Admin / tools submenu (LIN combiner, draft tools, diagnostics, etc.)."""
     _run_menu_loop(
         title="Bridge Hand Generator – Admin",
-        ...
         items=[
+            ("Exit", None),
             ("LIN Combiner", lin_tools.run_lin_combiner),
             ("Recover/Delete *_TEST.json drafts", profile_cli.run_draft_tools),
+            ("Profile Diagnostic", _run_profile_diagnostic_interactive),
             ("Help", _help_admin),
         ],
-        ...
+        help_key="admin_menu",
     )
 ```
 
-Add a new entry. Use the Edit tool to insert `("Rotate a profile", rotate_profile.run_rotation_menu),` immediately after the LIN Combiner line.
+Add a new entry. Use the Edit tool to insert `("Rotate a profile", rotate_profile.run_rotation_menu),` immediately after the LIN Combiner line. (Result: it sits between LIN Combiner and the Recover/Delete drafts entry.)
 
 Also add at the top of `orchestrator.py` (alongside the other `from . import` lines):
 
@@ -1375,7 +1400,7 @@ Expected: `ok`. If ImportError, check the import line you added.
 
 Run: `.venv/bin/pytest -q`
 
-Expected: all tests pass (the existing 578 + ~33 new = ~611). Investigate any regressions before continuing.
+Expected: all tests pass (the existing 578 + ~37 new = ~615). Investigate any regressions before continuing.
 
 - [ ] **Step 13.5: Run pyright + ruff on everything modified**
 
