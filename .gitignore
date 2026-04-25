@@ -22,3 +22,8 @@ setup_log.txt
 
 # Local scratch / patch artifacts
 /Zips/
+
+# Session artifacts (claude fresh-chat)
+.coverage
+.auto-restart-fresh
+.fresh-chat-context.md
