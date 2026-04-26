@@ -222,3 +222,27 @@ def test_rotate_profile_already_rotated_refused(make_profile_dict):
 
     with pytest.raises(ProfileError, match="already a rotated profile"):
         rotate_profile(src)
+
+
+def test_idempotent_to_full_cycle_seat_fields(make_profile_dict):
+    """Four rotations of the seat-bearing fields return to the original."""
+    src = make_profile_dict()
+    cur = src
+    for _ in range(4):
+        # Reset profile_name each iteration so the pronoun-swap guard fires
+        # only once per cycle. We're testing seat-rotation idempotence here.
+        cur = {**cur, "profile_name": src["profile_name"]}
+        cur = rotate_profile(cur)
+    # After 4 rotations the seat-bearing fields match the source.
+    assert cur["dealer"] == src["dealer"]
+    assert cur["hand_dealing_order"] == src["hand_dealing_order"]
+    assert cur["seat_profiles"].keys() == src["seat_profiles"].keys()
+    for seat, sp in src["seat_profiles"].items():
+        assert cur["seat_profiles"][seat]["seat"] == sp["seat"]
+        assert cur["seat_profiles"][seat]["subprofiles"] == sp["subprofiles"]
+    src_excl_sorted = sorted((e["seat"], e["subprofile_index"]) for e in src["subprofile_exclusions"])
+    cur_excl_sorted = sorted((e["seat"], e["subprofile_index"]) for e in cur["subprofile_exclusions"])
+    assert cur_excl_sorted == src_excl_sorted
+    # Linked profiles return to their original NS/EW positions and primary_seats.
+    assert cur["ns_linked_profile"]["primary_seat"] == src["ns_linked_profile"]["primary_seat"]
+    assert cur["ew_linked_profile"]["primary_seat"] == src["ew_linked_profile"]["primary_seat"]
