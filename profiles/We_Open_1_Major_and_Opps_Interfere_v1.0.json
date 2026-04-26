@@ -432,6 +432,7 @@
       ]
     }
   },
+  "sort_order": 5,
   "subprofile_exclusions": [],
   "tag": "Opener",
   "version": "1.0"

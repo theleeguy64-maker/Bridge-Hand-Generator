@@ -10,7 +10,7 @@
 ## Optimization
 
 **Project Weight:** Heavy  
-**Message Threshold:** 12 messages  
+**Message Threshold:** 24 messages  
 **Default Model:** Opus  
 
 **Feature Defaults:**

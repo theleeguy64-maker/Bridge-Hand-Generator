@@ -424,6 +424,7 @@
       ]
     }
   },
+  "sort_order": 6,
   "subprofile_exclusions": [
     {
       "clauses": [

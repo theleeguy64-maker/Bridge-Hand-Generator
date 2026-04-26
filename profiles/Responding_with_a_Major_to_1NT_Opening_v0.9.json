@@ -186,6 +186,7 @@
       ]
     }
   },
+  "sort_order": 1,
   "subprofile_exclusions": [],
   "tag": "Opener",
   "version": "0.9"
