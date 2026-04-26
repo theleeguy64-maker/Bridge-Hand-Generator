@@ -49,6 +49,7 @@ from . import profile_cli
 from . import profile_store
 from . import lin_tools
 from . import profile_diagnostic
+from . import rotate_profile
 # ---------------------------------------------------------------------------
 # Profile discovery / selection for deal generation (Session bundles)
 # ---------------------------------------------------------------------------
@@ -416,6 +417,7 @@ def admin_menu() -> None:
         items=[
             ("Exit", None),
             ("LIN Combiner", lin_tools.run_lin_combiner),
+            ("Rotate a profile", rotate_profile.run_rotation_menu),
             ("Recover/Delete *_TEST.json drafts", profile_cli.run_draft_tools),
             ("Profile Diagnostic", _run_profile_diagnostic_interactive),
             ("Help", _help_admin),

@@ -3,7 +3,7 @@
 Tests for the profile management and admin menu loops:
   - run_profile_manager() dispatches to all 7 actions
   - run_profile_manager() error recovery for wizard exceptions
-  - admin_menu() dispatches to all 4 actions
+  - admin_menu() dispatches to all 5 actions
   - admin_menu() exits immediately on 0
 """
 
@@ -12,6 +12,7 @@ from __future__ import annotations
 from bridge_engine import profile_cli as pc
 from bridge_engine import orchestrator
 from bridge_engine import lin_tools
+from bridge_engine import rotate_profile
 
 
 # ---------------------------------------------------------------------------
@@ -86,11 +87,12 @@ def test_profile_manager_error_recovery(monkeypatch, capsys):
 
 def test_admin_menu_dispatches_all_actions(monkeypatch, capsys):
     """
-    Walking through choices 1-4 then 0 should call each action exactly once.
+    Walking through choices 1-5 then 0 should call each action exactly once.
     """
-    calls = {"lin": 0, "drafts": 0, "diag": 0, "help": 0}
+    calls = {"lin": 0, "rotate": 0, "drafts": 0, "diag": 0, "help": 0}
 
     monkeypatch.setattr(lin_tools, "run_lin_combiner", lambda: _inc(calls, "lin"))
+    monkeypatch.setattr(rotate_profile, "run_rotation_menu", lambda: _inc(calls, "rotate"))
     monkeypatch.setattr(pc, "run_draft_tools", lambda: _inc(calls, "drafts"))
     monkeypatch.setattr(
         orchestrator,
@@ -100,12 +102,12 @@ def test_admin_menu_dispatches_all_actions(monkeypatch, capsys):
     monkeypatch.setattr(orchestrator, "get_menu_help", lambda key: _inc(calls, "help") or "help")
 
     # admin_menu imports _input_int directly, so patch on orchestrator module
-    choices = iter([1, 2, 3, 4, 0])
+    choices = iter([1, 2, 3, 4, 5, 0])
     monkeypatch.setattr(orchestrator, "_input_int", lambda prompt, **kw: next(choices))
 
     orchestrator.admin_menu()
 
-    assert calls == {"lin": 1, "drafts": 1, "diag": 1, "help": 1}
+    assert calls == {"lin": 1, "rotate": 1, "drafts": 1, "diag": 1, "help": 1}
 
 
 def test_admin_menu_exit_immediately(monkeypatch, capsys):

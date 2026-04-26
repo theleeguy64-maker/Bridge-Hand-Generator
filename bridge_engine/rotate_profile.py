@@ -225,5 +225,44 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
+def run_rotation_menu() -> None:
+    """Interactive entry for Admin → 'Rotate a profile'."""
+    from bridge_engine import profile_cli
+
+    profiles = profile_cli._load_profiles()
+    if not profiles:
+        print("No profiles available to rotate.")
+        return
+
+    print("Choose a profile to rotate:")
+    for i, (path, profile) in enumerate(profiles, start=1):
+        print(f"  {i}) {profile.profile_name} ({path.name})")
+    print("  0) Cancel")
+
+    raw = input("Selection: ").strip()
+    try:
+        idx = int(raw)
+    except ValueError:
+        print("Invalid selection.")
+        return
+    if idx == 0:
+        return
+    if not (1 <= idx <= len(profiles)):
+        print("Invalid selection.")
+        return
+
+    src_path, _ = profiles[idx - 1]
+
+    new_name = input("New name (blank = auto pronoun-swap): ").strip() or None
+
+    argv: list[str] = [str(src_path)]
+    if new_name is not None:
+        argv += ["--name", new_name]
+
+    rc = main(argv)
+    if rc != 0:
+        print(f"(rotation failed with exit code {rc})")
+
+
 if __name__ == "__main__":
     sys.exit(main())
