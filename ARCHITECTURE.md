@@ -342,6 +342,10 @@ Within each category, sorted by version (highest first) then alphabetically.
 | Contested | Opps_Open_&_Our_TO_Dbl_Balancing | `Opps_Open_&_Our_TO_Dbl_Balancing_v0.9.json` |
 | Competitive | We Open 1 Major and Opps Interfere | `We_Open_1_Major_and_Opps_Interfere_v1.0.json` |
 | Competitive | We Open Strong 1NT and Opps Cappeletti (BBO) | `We_Open_Strong_1NT_and_Opps_Cappeletti_(BBO)_v1.0.json` |
+| Competitive | We Open 3 Weak 2s and Opps Compete | `We_Open_3_Weak_2s_and_Opps_Compete_v0.1.json` |
+| Competitive | We Open Strong 1NT and Opps Overcall Cappeletti | `We_Open_Strong_1NT_and_Opps_Overcall_Cappeletti_v0.1.json` |
+| Competitive | We_Open_&_Opps_TO_Dbl | `We_Open_&_Opps_TO_Dbl_v0.1.json` |
+| Competitive | We_Open_&_Opps_TO_Dbl_Balancing | `We_Open_&_Opps_TO_Dbl_Balancing_v0.1.json` |
 | Test | Profile A Test - Loose constraints | `Profile_A_Test_-_Loose_constraints_v0.1.json` |
 | Test | Profile B Test - tight Suit constraints | `Profile_B_Test_-_tight_suit_constraints_v0.1.json` |
 | Test | Profile C Test - tight points constraints | `Profile_C_Test_-_tight_points_constraints_v0.1.json` |

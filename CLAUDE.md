@@ -38,7 +38,7 @@ After 12 messages, run `lee status` to check message count and session age. If s
 |-------|------------|
 | Language | Python 3.13 |
 | Testing | pytest |
-| Type Checking | pyright (0 errors, 27 files, 11.0K lines) |
+| Type Checking | pyright (0 errors, 28 files, 11.3K lines) |
 | Linting | ruff (check + format) |
 | Output | TXT + LIN format |
 
