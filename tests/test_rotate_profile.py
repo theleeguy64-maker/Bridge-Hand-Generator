@@ -112,3 +112,29 @@ def test_unknown_top_level_keys_passthrough(make_profile_dict):
     out = rotate_profile(src)
     assert out["custom_extension"] == {"author_note": "hi"}
     assert out["future_flag"] == 42
+
+
+def test_subprofile_partner_contingent_seat_rotated(make_profile_dict):
+    out = rotate_profile(make_profile_dict())
+    # Source: N's subprofile had partner_seat="S". After rotation, that subprofile
+    # lives at E (N→E), and partner_seat S→W.
+    sub = out["seat_profiles"]["E"]["subprofiles"][0]
+    assert sub["partner_contingent_constraint"]["partner_seat"] == "W"
+
+
+def test_subprofile_opponent_contingent_seat_rotated(make_profile_dict):
+    out = rotate_profile(make_profile_dict())
+    # Source: E's subprofile had opponent_seat="W". After rotation, that subprofile
+    # lives at S (E→S), and opponent_seat W→N.
+    sub = out["seat_profiles"]["S"]["subprofiles"][0]
+    assert sub["opponents_contingent_suit_constraint"]["opponent_seat"] == "N"
+
+
+def test_subprofile_without_contingents_unchanged(make_profile_dict):
+    src = make_profile_dict()
+    out = rotate_profile(src)
+    # Source: S's subprofile had no contingents (only N and E did).
+    # After rotation it lives at W. Both contingent fields stay None.
+    sub = out["seat_profiles"]["W"]["subprofiles"][0]
+    assert sub["partner_contingent_constraint"] is None
+    assert sub["opponents_contingent_suit_constraint"] is None

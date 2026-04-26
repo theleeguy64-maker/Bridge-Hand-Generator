@@ -21,6 +21,16 @@ def _rotate_seat(seat: str) -> str:
     return ROTATE_MAP[seat]
 
 
+def _rotate_subprofile_contingents(sub: dict[str, Any]) -> None:
+    """Rotate seat references inside a single subprofile dict (in place)."""
+    pc = sub.get("partner_contingent_constraint")
+    if isinstance(pc, dict) and "partner_seat" in pc:
+        pc["partner_seat"] = _rotate_seat(pc["partner_seat"])
+    oc = sub.get("opponents_contingent_suit_constraint")
+    if isinstance(oc, dict) and "opponent_seat" in oc:
+        oc["opponent_seat"] = _rotate_seat(oc["opponent_seat"])
+
+
 def rotate_profile(
     profile_dict: dict[str, Any],
     *,
@@ -54,6 +64,9 @@ def rotate_profile(
         for src_seat, sp in out["seat_profiles"].items():
             new_seat = _rotate_seat(src_seat)
             sp["seat"] = new_seat
+            for sub in sp.get("subprofiles", []):
+                if isinstance(sub, dict):
+                    _rotate_subprofile_contingents(sub)
             rekeyed[new_seat] = sp
         out["seat_profiles"] = rekeyed
 
