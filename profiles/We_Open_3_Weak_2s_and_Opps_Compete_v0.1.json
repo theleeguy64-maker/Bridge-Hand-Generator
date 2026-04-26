@@ -1,6 +1,6 @@
 {
   "author": "Lee",
-  "category": "We Compete",
+  "category": "Opps Interference",
   "dealer": "N",
   "description": "Defense to Weak 2s with Multiple Overcaller Hand Types and action in 2nd and 4th Hand [todo]",
   "ew_linked_profile": null,
@@ -425,7 +425,8 @@
       ]
     }
   },
+  "sort_order": 1,
   "subprofile_exclusions": [],
-  "tag": "Overcaller",
+  "tag": "Opener",
   "version": "0.1"
 }

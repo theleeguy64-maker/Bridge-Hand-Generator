@@ -10,6 +10,9 @@ class _DummyProfile:
     def __init__(self) -> None:
         # validate_profile may iterate subprofile_exclusions, so make it harmless
         self.subprofile_exclusions = []
+        # _validate_metadata reads tag/category; defaults satisfy VALID_TAGS / VALID_CATEGORIES
+        self.tag = ""
+        self.category = ""
 
 
 def _install_common_patches(monkeypatch, dummy_profile):

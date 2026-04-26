@@ -1,6 +1,6 @@
 {
   "author": "Lee",
-  "category": "We Compete",
+  "category": "Opps Interference",
   "dealer": "N",
   "description": "Managing our action after balancing T/O Dbl particularly with strong hands",
   "ew_linked_profile": null,
@@ -12,7 +12,7 @@
   ],
   "is_invariants_safety_profile": false,
   "ns_linked_profile": null,
-  "profile_name": "We_Open_&_Opps_TO_Dbl_Balancing",
+  "profile_name": "We Open & Opps TO Dbl Balancing",
   "rotate_deals_by_default": true,
   "rotated_from": "Opps_Open_&_Our_TO_Dbl_Balancing_v0.9.json",
   "seat_profiles": {
@@ -258,7 +258,8 @@
       ]
     }
   },
+  "sort_order": 4,
   "subprofile_exclusions": [],
-  "tag": "Overcaller",
+  "tag": "Opener",
   "version": "0.1"
 }

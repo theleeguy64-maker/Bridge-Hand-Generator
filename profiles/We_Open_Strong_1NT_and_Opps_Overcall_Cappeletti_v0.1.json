@@ -1,6 +1,6 @@
 {
   "author": "Lee",
-  "category": "We Compete",
+  "category": "Opps Interference",
   "dealer": "N",
   "description": "Opps open 1NT, we overcall Cappeletti (BBO) - single suiter and two suiters",
   "ew_linked_profile": null,
@@ -418,6 +418,7 @@
       ]
     }
   },
+  "sort_order": 2,
   "subprofile_exclusions": [
     {
       "clauses": [

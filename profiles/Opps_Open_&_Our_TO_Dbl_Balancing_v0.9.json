@@ -11,7 +11,7 @@
   ],
   "is_invariants_safety_profile": false,
   "ns_role_mode": "no_driver_no_index",
-  "profile_name": "Opps_Open_&_Our_TO_Dbl_Balancing",
+  "profile_name": "Opps Open & Our TO Dbl Balancing",
   "rotate_deals_by_default": true,
   "seat_profiles": {
     "E": {
@@ -256,6 +256,7 @@
       ]
     }
   },
+  "sort_order": 9,
   "subprofile_exclusions": [],
   "tag": "Overcaller",
   "version": "0.9"

@@ -442,3 +442,49 @@ class TestValidateProfile:
 
         with pytest.raises(ProfileError, match="Random-Suit"):
             validate_profile(raw)
+
+
+class TestValidateMetadata:
+    """Tests for tag/category validation against VALID_TAGS / VALID_CATEGORIES.
+
+    `tag` is enforced at HandProfile.__post_init__ (Opener/Overcaller required).
+    `category` is enforced by _validate_metadata in validate_profile.
+    """
+
+    def test_accepts_known_tag_opener(self) -> None:
+        raw = _make_minimal_profile_dict()
+        raw["tag"] = "Opener"
+        validate_profile(raw)  # no raise
+
+    def test_accepts_known_tag_overcaller(self) -> None:
+        raw = _make_minimal_profile_dict()
+        raw["tag"] = "Overcaller"
+        validate_profile(raw)  # no raise
+
+    def test_rejects_empty_tag(self) -> None:
+        raw = _make_minimal_profile_dict()
+        raw["tag"] = ""
+        with pytest.raises(ProfileError, match="tag must be one of"):
+            validate_profile(raw)
+
+    def test_rejects_unknown_tag(self) -> None:
+        raw = _make_minimal_profile_dict()
+        raw["tag"] = "Defender"
+        with pytest.raises(ProfileError, match="tag must be one of"):
+            validate_profile(raw)
+
+    def test_accepts_known_category(self) -> None:
+        raw = _make_minimal_profile_dict()
+        raw["category"] = "Opps Interference"
+        validate_profile(raw)  # no raise
+
+    def test_accepts_empty_category(self) -> None:
+        raw = _make_minimal_profile_dict()
+        raw["category"] = ""
+        validate_profile(raw)  # no raise
+
+    def test_rejects_unknown_category(self) -> None:
+        raw = _make_minimal_profile_dict()
+        raw["category"] = "Garbage Category"
+        with pytest.raises(ProfileError, match="Invalid category"):
+            validate_profile(raw)

@@ -3,7 +3,11 @@ from __future__ import annotations
 from dataclasses import is_dataclass, fields
 from typing import Any, Dict, List, Set
 
-from .hand_profile_model import HandProfile, ProfileError
+from .hand_profile_model import (
+    HandProfile,
+    ProfileError,
+    VALID_CATEGORIES,
+)
 
 
 def _to_raw_dict(data: Any) -> Dict[str, Any]:
@@ -68,6 +72,13 @@ def _extract_seat_names_from_constraint(constraint: Any) -> List[str]:
                 seats.extend([s for s in val if isinstance(s, str)])
 
     return seats
+
+
+def _validate_metadata(profile: HandProfile) -> None:
+    """Reject unknown `category` values. `tag` is already enforced at
+    `HandProfile.__post_init__` time."""
+    if profile.category not in VALID_CATEGORIES:
+        raise ProfileError(f"Invalid category {profile.category!r}; expected one of {VALID_CATEGORIES}")
 
 
 def _validate_random_suit_vs_standard(profile: HandProfile) -> None:
@@ -506,6 +517,7 @@ def validate_profile(data: Any) -> HandProfile:
     # -----------------------------------
     # 5. Structural validations that rely on HandProfile objects
     # -----------------------------------
+    _validate_metadata(profile)
     _validate_partner_contingent(profile)
     _validate_opponent_contingent(profile)
 

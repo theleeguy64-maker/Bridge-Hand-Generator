@@ -417,6 +417,7 @@
       ]
     }
   },
+  "sort_order": 7,
   "subprofile_exclusions": [
     {
       "clauses": [
@@ -462,6 +463,6 @@
       "subprofile_index": 2
     }
   ],
-  "tag": "Opener",
+  "tag": "Overcaller",
   "version": "1.0"
 }

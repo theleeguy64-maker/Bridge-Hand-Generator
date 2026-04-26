@@ -18,6 +18,7 @@ from .hand_profile_model import (
     SuitPairOverride,
     SuitRange,
     VALID_CATEGORIES,
+    VALID_TAGS,
 )
 
 from .hand_profile_validate import validate_profile
@@ -40,5 +41,6 @@ __all__ = [
     "SuitPairOverride",
     "SuitRange",
     "VALID_CATEGORIES",
+    "VALID_TAGS",
     "validate_profile",
 ]

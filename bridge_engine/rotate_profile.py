@@ -24,6 +24,17 @@ ROTATE_MAP: dict[str, str] = {"W": "N", "N": "E", "E": "S", "S": "W"}
 
 _LEGACY_KEYS = ("ns_role_mode", "ew_role_mode", "ns_bespoke_map", "ew_bespoke_map")
 
+# Perspective-flipping metadata. Rotation swaps the W↔E and N↔S sides, which
+# also flips which side is "us" and which is "opps". `tag` and `category`
+# values that encode this perspective must swap. Unknown values pass through
+# unchanged so non-perspective categories ("Uncontested", "Test", future tags)
+# survive rotation untouched.
+_TAG_SWAP: dict[str, str] = {"Opener": "Overcaller", "Overcaller": "Opener"}
+_CATEGORY_SWAP: dict[str, str] = {
+    "Opps Interference": "We Compete",
+    "We Compete": "Opps Interference",
+}
+
 
 def _rotate_seat(seat: str) -> str:
     if seat not in ROTATE_MAP:
@@ -126,6 +137,12 @@ def rotate_profile(
 
     # Reset version
     out["version"] = "0.1"
+
+    # Perspective-flipping metadata (tag, category). Unknown values untouched.
+    if isinstance(out.get("tag"), str) and out["tag"] in _TAG_SWAP:
+        out["tag"] = _TAG_SWAP[out["tag"]]
+    if isinstance(out.get("category"), str) and out["category"] in _CATEGORY_SWAP:
+        out["category"] = _CATEGORY_SWAP[out["category"]]
 
     # seat_profiles: rekey by R(seat), and update inner `seat` field
     if "seat_profiles" in out and isinstance(out["seat_profiles"], dict):

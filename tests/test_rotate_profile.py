@@ -59,9 +59,7 @@ def test_unchanged_top_level_fields(make_profile_dict):
     out = rotate_profile(src)
     for key in (
         "description",
-        "category",
         "author",
-        "tag",
         "schema_version",
         "sort_order",
         "rotate_deals_by_default",
@@ -261,3 +259,52 @@ def test_derived_output_path_preserves_ampersand(tmp_path):
     profiles_dir.mkdir()
     out = _derived_output_path("We Open & Opps TO Dbl", profiles_dir)
     assert out.name == "We_Open_&_Opps_TO_Dbl_v0.1.json"
+
+
+def test_tag_swapped_overcaller_to_opener(make_profile_dict):
+    src = make_profile_dict()
+    src["tag"] = "Overcaller"
+    out = rotate_profile(src)
+    assert out["tag"] == "Opener"
+
+
+def test_tag_swapped_opener_to_overcaller(make_profile_dict):
+    src = make_profile_dict()
+    src["tag"] = "Opener"
+    out = rotate_profile(src)
+    assert out["tag"] == "Overcaller"
+
+
+def test_tag_unknown_value_passes_through(make_profile_dict):
+    src = make_profile_dict()
+    src["tag"] = "Defender"  # not in _TAG_SWAP
+    out = rotate_profile(src)
+    assert out["tag"] == "Defender"
+
+
+def test_category_swapped_we_compete_to_opps_interference(make_profile_dict):
+    src = make_profile_dict()
+    src["category"] = "We Compete"
+    out = rotate_profile(src)
+    assert out["category"] == "Opps Interference"
+
+
+def test_category_swapped_opps_interference_to_we_compete(make_profile_dict):
+    src = make_profile_dict()
+    src["category"] = "Opps Interference"
+    out = rotate_profile(src)
+    assert out["category"] == "We Compete"
+
+
+def test_category_unchanged_for_uncontested(make_profile_dict):
+    src = make_profile_dict()
+    src["category"] = "Uncontested"
+    out = rotate_profile(src)
+    assert out["category"] == "Uncontested"
+
+
+def test_category_unchanged_for_test(make_profile_dict):
+    src = make_profile_dict()
+    src["category"] = "Test"
+    out = rotate_profile(src)
+    assert out["category"] == "Test"

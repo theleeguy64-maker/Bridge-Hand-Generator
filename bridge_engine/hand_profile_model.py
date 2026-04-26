@@ -18,6 +18,9 @@ VALID_CATEGORIES = ("Uncontested", "Opps Interference", "We Compete", "Test", ""
 # Display order for category headers in the profile listing.
 CATEGORY_DISPLAY_ORDER = ("Uncontested", "Opps Interference", "We Compete", "Test", "")
 
+# Valid tag values for HandProfile.tag. Required (no empty default).
+VALID_TAGS = ("Opener", "Overcaller")
+
 
 # ---------------------------------------------------------------------------
 # Low-level constraint building blocks
@@ -777,8 +780,8 @@ class HandProfile:
         # Dealing order is auto-computed at runtime by the v2 builder
         # (_compute_dealing_order in deal_generator_v2.py).  The stored
         # hand_dealing_order is a display hint only.
-        if self.tag not in ("Opener", "Overcaller"):
-            raise ProfileError("tag must be 'Opener' or 'Overcaller'.")
+        if self.tag not in VALID_TAGS:
+            raise ProfileError(f"tag must be one of {VALID_TAGS}; got {self.tag!r}.")
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "HandProfile":
