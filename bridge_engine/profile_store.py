@@ -272,34 +272,21 @@ def build_profile_display_map(
             )
         )
 
-    # Build the flat ordering: categories in display order, within each
-    # category separate sort_order profiles from sequential ones.
-    ordered: List[Tuple[int, Path, HandProfile]] = []
-    unordered_flat: List[Tuple[Path, HandProfile]] = []
+    # Build the flat ordering: per-category sort_order (relative within category),
+    # then assign global sequential display numbers across categories in order.
+    flat_ordered: List[Tuple[Path, HandProfile]] = []
 
     for cat in CATEGORY_DISPLAY_ORDER:
-        for path, profile in by_category.get(cat, []):
-            so = profile.sort_order
-            if so is not None:
-                ordered.append((so, path, profile))
-            else:
-                unordered_flat.append((path, profile))
+        cat_profiles = by_category.get(cat, [])
+        with_so = [(p, pr) for p, pr in cat_profiles if pr.sort_order is not None]
+        without_so = [(p, pr) for p, pr in cat_profiles if pr.sort_order is None]
+        with_so.sort(key=lambda pair: pair[1].sort_order)  # type: ignore[arg-type]
+        flat_ordered.extend(with_so)
+        flat_ordered.extend(without_so)
 
-    # Collect claimed numbers from sort_order profiles
-    claimed = {so for so, _, _ in ordered}
-
-    # Assign sequential numbers to unordered profiles, skipping claimed
     result: Dict[int, Tuple[Path, HandProfile]] = {}
-    seq = 1
-    for path, profile in unordered_flat:
-        while seq in claimed:
-            seq += 1
-        result[seq] = (path, profile)
-        seq += 1
-
-    # Add ordered profiles at their declared positions
-    for so, path, profile in sorted(ordered):
-        result[so] = (path, profile)
+    for i, (path, profile) in enumerate(flat_ordered, start=1):
+        result[i] = (path, profile)
 
     return result
 
