@@ -16,7 +16,7 @@ bridge_engine/
 ├── seat_viability.py          (622 lines) - Constraint matching + RS pre-selection threading
 ├── hand_profile_validate.py   (532 lines) - Validation (incl. linked profile validation)
 ├── profile_diagnostic.py      (213 lines) - Profile diagnostic runner (Admin menu)
-├── orchestrator.py            (579 lines) - CLI/session management + generic menu loop (incl. batch generation)
+├── orchestrator.py            (580 lines) - CLI/session management + generic menu loop (incl. batch generation)
 ├── rotate_profile.py          (288 lines) - Profile rotation (W→N→E→S→W), pronoun/category swap, Admin menu entry
 ├── profile_cli.py           (1,159 lines) - Profile commands (incl. linked profile setup, SubProfile Map)
 ├── profile_wizard.py          (125 lines) - Profile creation UI
@@ -26,7 +26,7 @@ bridge_engine/
 ├── profile_viability.py       (312 lines) - Profile-level viability + cross-seat feasibility
 ├── profile_store.py           (348 lines) - JSON persistence (atomic writes, error-tolerant loading, category display)
 ├── menu_help.py               (530 lines) - Menu help text (incl. linked profiles, SubProfile Map)
-├── lin_tools.py               (418 lines) - LIN file operations (incl. weight-by-hand-count for LIN combiner)
+├── lin_tools.py               (417 lines) - LIN file operations (incl. weight-by-hand-count for LIN combiner)
 ├── deal_output.py             (326 lines) - Deal rendering
 ├── lin_encoder.py             (188 lines) - LIN format encoding
 ├── setup_env.py               (216 lines) - RNG seed management
