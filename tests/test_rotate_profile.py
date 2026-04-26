@@ -20,3 +20,10 @@ def test_rotate_seat_rejects_bad_input():
         _rotate_seat("X")
     with pytest.raises(ValueError):
         _rotate_seat("")
+
+
+def test_fixture_factory_returns_independent_dicts(make_profile_dict):
+    a = make_profile_dict()
+    b = make_profile_dict()
+    a["dealer"] = "X"
+    assert b["dealer"] == "W"

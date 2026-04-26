@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-import pytest
 import copy
+from typing import Any
+
+import pytest
 
 from bridge_engine.hand_profile import (
     HandProfile,
@@ -100,3 +102,83 @@ def make_valid_profile():
         return HandProfile.from_dict(data)
 
     return _make
+
+
+def _canonical_profile_dict() -> dict[str, Any]:
+    """A canonical HandProfile-shaped dict exercising every field touched
+    by the rotation rules. Deep-copy via the fixture before mutating."""
+    return {
+        "profile_name": "Opps Open 1NT and we Overcall",
+        "description": "Opps open 1NT, we overcall",
+        "category": "We Compete",
+        "author": "Lee",
+        "tag": "Overcaller",
+        "version": "1.0",
+        "schema_version": 1,
+        "sort_order": 5,
+        "dealer": "W",
+        "hand_dealing_order": ["W", "N", "E", "S"],
+        "rotate_deals_by_default": True,
+        "is_invariants_safety_profile": False,
+        "subprofile_exclusions": [
+            {"seat": "W", "subprofile_index": 1},
+            {"seat": "E", "subprofile_index": 2},
+        ],
+        "ns_linked_profile": {
+            "primary_seat": "N",
+            "subprofile_map": {"1": [1], "2": [1, 2]},
+        },
+        "ew_linked_profile": {
+            "primary_seat": "E",
+            "subprofile_map": {"1": [1]},
+        },
+        "seat_profiles": {
+            seat: {
+                "seat": seat,
+                "subprofiles": [
+                    {
+                        "name": "Balanced",
+                        "weight_percent": 100.0,
+                        "standard": {
+                            "clubs": {"min_cards": 0, "max_cards": 5, "min_hcp": 0, "max_hcp": 8},
+                            "diamonds": {"min_cards": 0, "max_cards": 5, "min_hcp": 0, "max_hcp": 8},
+                            "hearts": {"min_cards": 0, "max_cards": 5, "min_hcp": 0, "max_hcp": 8},
+                            "spades": {"min_cards": 0, "max_cards": 5, "min_hcp": 0, "max_hcp": 8},
+                            "total_min_hcp": 6,
+                            "total_max_hcp": 10,
+                        },
+                        "random_suit_constraint": None,
+                        "partner_contingent_constraint": (
+                            {
+                                "partner_seat": "S",
+                                "use_non_chosen_suit": False,
+                                "suit_range": {"min_cards": 4, "max_cards": 6, "min_hcp": 0, "max_hcp": 7},
+                            }
+                            if seat == "N"
+                            else None
+                        ),
+                        "opponents_contingent_suit_constraint": (
+                            {
+                                "opponent_seat": "W",
+                                "use_non_chosen_suit": True,
+                                "suit_range": {"min_cards": 0, "max_cards": 3, "min_hcp": 0, "max_hcp": 8},
+                            }
+                            if seat == "E"
+                            else None
+                        ),
+                    }
+                ],
+            }
+            for seat in ("N", "E", "S", "W")
+        },
+    }
+
+
+@pytest.fixture
+def make_profile_dict():
+    """Return a factory that produces a fresh deep copy on each call."""
+
+    def _factory() -> dict[str, Any]:
+        return copy.deepcopy(_canonical_profile_dict())
+
+    return _factory
