@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import copy
+from pathlib import Path
 
 import pytest
 
-from bridge_engine.rotate_profile import ROTATE_MAP, _rotate_seat, _swap_pronouns, rotate_profile
+from bridge_engine.rotate_profile import ROTATE_MAP, _derived_output_path, _rotate_seat, _swap_pronouns, rotate_profile
 
 
 def test_rotate_seat_map():
@@ -246,3 +247,17 @@ def test_idempotent_to_full_cycle_seat_fields(make_profile_dict):
     # Linked profiles return to their original NS/EW positions and primary_seats.
     assert cur["ns_linked_profile"]["primary_seat"] == src["ns_linked_profile"]["primary_seat"]
     assert cur["ew_linked_profile"]["primary_seat"] == src["ew_linked_profile"]["primary_seat"]
+
+
+def test_derived_output_path(tmp_path):
+    profiles_dir = tmp_path / "profiles"
+    profiles_dir.mkdir()
+    out = _derived_output_path("We Open 1NT and Opps Overcall", profiles_dir)
+    assert out == profiles_dir / "We_Open_1NT_and_Opps_Overcall_v0.1.json"
+
+
+def test_derived_output_path_preserves_ampersand(tmp_path):
+    profiles_dir = tmp_path / "profiles"
+    profiles_dir.mkdir()
+    out = _derived_output_path("We Open & Opps TO Dbl", profiles_dir)
+    assert out.name == "We_Open_&_Opps_TO_Dbl_v0.1.json"

@@ -9,9 +9,11 @@ from __future__ import annotations
 
 import re
 from copy import deepcopy
+from pathlib import Path
 from typing import Any
 
 from bridge_engine.hand_profile_model import ProfileError
+from bridge_engine.profile_cli import _safe_file_stem
 
 ROTATE_MAP: dict[str, str] = {"W": "N", "N": "E", "E": "S", "S": "W"}
 
@@ -72,6 +74,12 @@ def _swap_pronouns(name: str) -> str:
     for src, dst in _SWAP_RULES:
         s = s.replace(f"__ROT_{src}__", dst)
     return s
+
+
+def _derived_output_path(profile_name: str, profiles_dir: Path) -> Path:
+    """Filename = '<safe_stem>_v0.1.json' inside profiles_dir."""
+    stem = _safe_file_stem(profile_name)
+    return profiles_dir / f"{stem}_v0.1.json"
 
 
 def rotate_profile(
