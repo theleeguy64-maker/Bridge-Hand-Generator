@@ -67,3 +67,48 @@ def test_unchanged_top_level_fields(make_profile_dict):
         "is_invariants_safety_profile",
     ):
         assert out[key] == src[key], f"{key} unexpectedly changed"
+
+
+def test_seat_profiles_rekeyed(make_profile_dict):
+    src = make_profile_dict()
+    out = rotate_profile(src)
+    # Source had keys N/E/S/W; each rotates.
+    assert set(out["seat_profiles"].keys()) == {"N", "E", "S", "W"}
+    # Source W's seat-profile content (its subprofiles) ends up under N.
+    src_w = src["seat_profiles"]["W"]
+    out_n = out["seat_profiles"]["N"]
+    assert out_n["seat"] == "N"  # inner seat field rotated
+    # subprofile bodies preserved here; rotation of contingents tested separately
+    assert out_n["subprofiles"] == src_w["subprofiles"]
+    # Same check for N → E.
+    assert out["seat_profiles"]["E"]["seat"] == "E"
+
+
+def test_subprofile_exclusions_rotated(make_profile_dict):
+    out = rotate_profile(make_profile_dict())
+    # Source had W and E exclusion seats → N and S.
+    seats = sorted(e["seat"] for e in out["subprofile_exclusions"])
+    assert seats == ["N", "S"]
+    # Subprofile indices unchanged.
+    indices = sorted(e["subprofile_index"] for e in out["subprofile_exclusions"])
+    assert indices == [1, 2]
+
+
+def test_legacy_fields_stripped(make_profile_dict):
+    src = make_profile_dict()
+    src["ns_role_mode"] = "stale"
+    src["ew_role_mode"] = "stale"
+    src["ns_bespoke_map"] = {"1": "stale"}
+    src["ew_bespoke_map"] = {"1": "stale"}
+    out = rotate_profile(src)
+    for key in ("ns_role_mode", "ew_role_mode", "ns_bespoke_map", "ew_bespoke_map"):
+        assert key not in out, f"{key} should have been stripped"
+
+
+def test_unknown_top_level_keys_passthrough(make_profile_dict):
+    src = make_profile_dict()
+    src["custom_extension"] = {"author_note": "hi"}
+    src["future_flag"] = 42
+    out = rotate_profile(src)
+    assert out["custom_extension"] == {"author_note": "hi"}
+    assert out["future_flag"] == 42

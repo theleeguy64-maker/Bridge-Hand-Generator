@@ -48,5 +48,19 @@ def rotate_profile(
     # Reset version
     out["version"] = "0.1"
 
-    # Subprofiles, exclusions, linked profiles — TODO: subsequent tasks.
+    # seat_profiles: rekey by R(seat), and update inner `seat` field
+    if "seat_profiles" in out and isinstance(out["seat_profiles"], dict):
+        rekeyed: dict[str, Any] = {}
+        for src_seat, sp in out["seat_profiles"].items():
+            new_seat = _rotate_seat(src_seat)
+            sp["seat"] = new_seat
+            rekeyed[new_seat] = sp
+        out["seat_profiles"] = rekeyed
+
+    # subprofile_exclusions: rotate each entry's seat
+    if "subprofile_exclusions" in out and isinstance(out["subprofile_exclusions"], list):
+        for entry in out["subprofile_exclusions"]:
+            if isinstance(entry, dict) and "seat" in entry:
+                entry["seat"] = _rotate_seat(entry["seat"])
+
     return out
