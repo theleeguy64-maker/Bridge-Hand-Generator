@@ -1,4 +1,5 @@
 """Tests for bridge_engine.rotate_profile."""
+
 from __future__ import annotations
 
 import pytest
