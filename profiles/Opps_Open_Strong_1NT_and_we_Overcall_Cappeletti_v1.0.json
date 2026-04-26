@@ -2,8 +2,7 @@
   "author": "Lee",
   "category": "We Compete",
   "dealer": "W",
-  "description": "Opps open 1NT, we overcall Cappeletti (BBO) - single suiter and two suiters",
-  "ew_role_mode": "no_driver_no_index",
+  "description": "Opps open Strong 1NT, we overcall Cappeletti (BBO) - single suiter and two suiters",
   "hand_dealing_order": [
     "W",
     "N",
@@ -11,7 +10,6 @@
     "S"
   ],
   "is_invariants_safety_profile": false,
-  "ns_role_mode": "no_driver",
   "profile_name": "Opps Open Strong 1NT and we Overcall Cappeletti",
   "rotate_deals_by_default": true,
   "seat_profiles": {
@@ -19,9 +17,7 @@
       "seat": "E",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
           "name": "Balanced",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
@@ -56,9 +52,7 @@
           "weight_percent": 25.0
         },
         {
-          "ew_role_usage": "any",
           "name": "1 suiter",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -110,9 +104,7 @@
           "weight_percent": 25.0
         },
         {
-          "ew_role_usage": "any",
           "name": "weak",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
@@ -152,9 +144,7 @@
       "seat": "N",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
           "name": "1 suiter",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -206,9 +196,7 @@
           "weight_percent": 50.0
         },
         {
-          "ew_role_usage": "any",
           "name": "2 suiter",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -290,9 +278,7 @@
       "seat": "S",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
           "name": "Partner has single suit",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": {
             "partner_seat": "N",
@@ -336,9 +322,7 @@
           "weight_percent": 50.0
         },
         {
-          "ew_role_usage": "any",
           "name": "Partner has two suits",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
@@ -378,9 +362,7 @@
       "seat": "W",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
           "name": "Strong 1NT",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,

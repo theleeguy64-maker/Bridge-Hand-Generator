@@ -104,6 +104,21 @@ def test_legacy_fields_stripped(make_profile_dict):
         assert key not in out, f"{key} should have been stripped"
 
 
+def test_legacy_subprofile_fields_stripped(make_profile_dict):
+    """ns_role_usage / ew_role_usage on subprofiles must not survive rotation."""
+    src = make_profile_dict()
+    # Inject the legacy fields into every subprofile in every seat.
+    for sp in src["seat_profiles"].values():
+        for sub in sp["subprofiles"]:
+            sub["ns_role_usage"] = "any"
+            sub["ew_role_usage"] = "any"
+    out = rotate_profile(src)
+    for sp in out["seat_profiles"].values():
+        for sub in sp["subprofiles"]:
+            assert "ns_role_usage" not in sub
+            assert "ew_role_usage" not in sub
+
+
 def test_unknown_top_level_keys_passthrough(make_profile_dict):
     src = make_profile_dict()
     src["custom_extension"] = {"author_note": "hi"}

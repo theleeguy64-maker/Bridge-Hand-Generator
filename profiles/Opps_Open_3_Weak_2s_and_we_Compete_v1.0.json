@@ -3,7 +3,6 @@
   "category": "We Compete",
   "dealer": "W",
   "description": "Defense to Weak 2s with Multiple Overcaller Hand Types and action in 2nd and 4th Hand [todo]",
-  "ew_role_mode": "no_driver_no_index",
   "hand_dealing_order": [
     "W",
     "N",
@@ -11,7 +10,6 @@
     "S"
   ],
   "is_invariants_safety_profile": false,
-  "ns_role_mode": "no_driver_no_index",
   "profile_name": "Opps Open 3 Weak 2s and we Compete",
   "rotate_deals_by_default": true,
   "seat_profiles": {
@@ -19,9 +17,7 @@
       "seat": "E",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
           "name": "Support",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": {
             "partner_seat": "W",
@@ -65,9 +61,7 @@
           "weight_percent": 50.0
         },
         {
-          "ew_role_usage": "any",
           "name": "Value no support",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": {
             "partner_seat": "W",
@@ -116,9 +110,7 @@
       "seat": "N",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
           "name": "NT",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": {
             "opponent_seat": "W",
             "suit_range": {
@@ -162,9 +154,7 @@
           "weight_percent": 25.0
         },
         {
-          "ew_role_usage": "any",
           "name": "2 suiter",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -222,9 +212,7 @@
           "weight_percent": 25.0
         },
         {
-          "ew_role_usage": "any",
           "name": "t/o dbl",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": {
             "opponent_seat": "W",
             "suit_range": {
@@ -268,9 +256,7 @@
           "weight_percent": 25.0
         },
         {
-          "ew_role_usage": "any",
           "name": "1 suiter",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -327,9 +313,7 @@
       "seat": "S",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
           "name": "any",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
@@ -369,9 +353,7 @@
       "seat": "W",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
           "name": "Weak 2",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {

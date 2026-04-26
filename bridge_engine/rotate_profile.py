@@ -23,6 +23,7 @@ from bridge_engine.profile_cli import _safe_file_stem
 ROTATE_MAP: dict[str, str] = {"W": "N", "N": "E", "E": "S", "S": "W"}
 
 _LEGACY_KEYS = ("ns_role_mode", "ew_role_mode", "ns_bespoke_map", "ew_bespoke_map")
+_LEGACY_SUBPROFILE_KEYS = ("ns_role_usage", "ew_role_usage")
 
 # Perspective-flipping metadata. Rotation swaps the W↔E and N↔S sides, which
 # also flips which side is "us" and which is "opps". `tag` and `category`
@@ -153,6 +154,8 @@ def rotate_profile(
             for sub in sp.get("subprofiles", []):
                 if isinstance(sub, dict):
                     _rotate_subprofile_contingents(sub)
+                    for k in _LEGACY_SUBPROFILE_KEYS:
+                        sub.pop(k, None)
             rekeyed[new_seat] = sp
         out["seat_profiles"] = rekeyed
 

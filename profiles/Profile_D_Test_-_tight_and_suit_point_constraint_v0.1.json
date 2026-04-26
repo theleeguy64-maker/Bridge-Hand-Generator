@@ -17,7 +17,6 @@
       "seat": "E",
       "subprofiles": [
         {
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
@@ -57,7 +56,6 @@
       "seat": "N",
       "subprofiles": [
         {
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
@@ -97,7 +95,6 @@
       "seat": "S",
       "subprofiles": [
         {
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
@@ -137,7 +134,6 @@
       "seat": "W",
       "subprofiles": [
         {
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,

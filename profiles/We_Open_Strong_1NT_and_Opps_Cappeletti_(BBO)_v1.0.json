@@ -19,9 +19,7 @@
       "seat": "E",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
           "name": "1 suiter",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -73,9 +71,7 @@
           "weight_percent": 50.0
         },
         {
-          "ew_role_usage": "any",
           "name": "2 suiter",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -157,9 +153,7 @@
       "seat": "N",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
           "name": "Strong 1NT",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
@@ -199,9 +193,7 @@
       "seat": "S",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
           "name": "Balanced",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
@@ -236,9 +228,7 @@
           "weight_percent": 50.0
         },
         {
-          "ew_role_usage": "any",
           "name": "1 suiter",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -290,9 +280,7 @@
           "weight_percent": 25.0
         },
         {
-          "ew_role_usage": "any",
           "name": "2 suiter",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -355,9 +343,7 @@
       "seat": "W",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
           "name": "Partner has single suit",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": {
             "partner_seat": "E",
@@ -401,9 +387,7 @@
           "weight_percent": 50.0
         },
         {
-          "ew_role_usage": "any",
           "name": "Partner has two suits",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,

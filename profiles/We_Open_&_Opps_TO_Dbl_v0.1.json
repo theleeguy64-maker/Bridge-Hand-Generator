@@ -20,7 +20,6 @@
       "seat": "E",
       "subprofiles": [
         {
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": {
             "opponent_seat": "N",
             "suit_range": {
@@ -68,7 +67,6 @@
       "seat": "N",
       "subprofiles": [
         {
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -118,7 +116,6 @@
           "weight_percent": 55.0
         },
         {
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -173,7 +170,6 @@
       "seat": "S",
       "subprofiles": [
         {
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": {
             "partner_seat": "N",
@@ -221,7 +217,6 @@
       "seat": "W",
       "subprofiles": [
         {
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,

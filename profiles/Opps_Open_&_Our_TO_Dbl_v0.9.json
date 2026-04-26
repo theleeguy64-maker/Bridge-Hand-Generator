@@ -10,7 +10,6 @@
     "S"
   ],
   "is_invariants_safety_profile": false,
-  "ns_role_mode": "no_driver_no_index",
   "profile_name": "Opps Open & Our TO Dbl",
   "rotate_deals_by_default": true,
   "seat_profiles": {
@@ -18,7 +17,6 @@
       "seat": "E",
       "subprofiles": [
         {
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": {
             "partner_seat": "W",
@@ -66,7 +64,6 @@
       "seat": "N",
       "subprofiles": [
         {
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": {
             "opponent_seat": "W",
             "suit_range": {
@@ -114,7 +111,6 @@
       "seat": "S",
       "subprofiles": [
         {
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
@@ -154,7 +150,6 @@
       "seat": "W",
       "subprofiles": [
         {
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -204,7 +199,6 @@
           "weight_percent": 55.0
         },
         {
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {

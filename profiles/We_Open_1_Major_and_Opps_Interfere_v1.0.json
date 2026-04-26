@@ -19,9 +19,7 @@
       "seat": "E",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
           "name": "Other Major",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": {
             "opponent_seat": "N",
             "suit_range": {
@@ -65,9 +63,7 @@
           "weight_percent": 25.0
         },
         {
-          "ew_role_usage": "any",
           "name": "t/o dbl",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": {
             "opponent_seat": "N",
             "suit_range": {
@@ -111,9 +107,7 @@
           "weight_percent": 25.0
         },
         {
-          "ew_role_usage": "any",
           "name": "Minor",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -163,9 +157,7 @@
           "weight_percent": 25.0
         },
         {
-          "ew_role_usage": "any",
           "name": "1NT",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": {
             "opponent_seat": "N",
             "suit_range": {
@@ -214,9 +206,7 @@
       "seat": "N",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
           "name": "Open a major",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -271,9 +261,7 @@
       "seat": "S",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
           "name": "Major Suppport",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": {
             "partner_seat": "N",
@@ -317,9 +305,7 @@
           "weight_percent": 33.3
         },
         {
-          "ew_role_usage": "any",
           "name": "Big Minor",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": {
@@ -369,9 +355,7 @@
           "weight_percent": 33.3
         },
         {
-          "ew_role_usage": "any",
           "name": "values",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
@@ -411,9 +395,7 @@
       "seat": "W",
       "subprofiles": [
         {
-          "ew_role_usage": "any",
           "name": "anything",
-          "ns_role_usage": "any",
           "opponents_contingent_suit_constraint": null,
           "partner_contingent_constraint": null,
           "random_suit_constraint": null,
