@@ -31,6 +31,18 @@ def _rotate_subprofile_contingents(sub: dict[str, Any]) -> None:
         oc["opponent_seat"] = _rotate_seat(oc["opponent_seat"])
 
 
+def _swap_and_rotate_linked(out: dict[str, Any]) -> None:
+    """Swap ns↔ew slots and rotate primary_seat inside each (in place)."""
+    ns = out.get("ns_linked_profile")
+    ew = out.get("ew_linked_profile")
+    if isinstance(ns, dict) and "primary_seat" in ns:
+        ns["primary_seat"] = _rotate_seat(ns["primary_seat"])
+    if isinstance(ew, dict) and "primary_seat" in ew:
+        ew["primary_seat"] = _rotate_seat(ew["primary_seat"])
+    out["ns_linked_profile"] = ew
+    out["ew_linked_profile"] = ns
+
+
 def rotate_profile(
     profile_dict: dict[str, Any],
     *,
@@ -75,5 +87,7 @@ def rotate_profile(
         for entry in out["subprofile_exclusions"]:
             if isinstance(entry, dict) and "seat" in entry:
                 entry["seat"] = _rotate_seat(entry["seat"])
+
+    _swap_and_rotate_linked(out)
 
     return out

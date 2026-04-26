@@ -138,3 +138,34 @@ def test_subprofile_without_contingents_unchanged(make_profile_dict):
     sub = out["seat_profiles"]["W"]["subprofiles"][0]
     assert sub["partner_contingent_constraint"] is None
     assert sub["opponents_contingent_suit_constraint"] is None
+
+
+def test_linked_profiles_swap_ns_ew(make_profile_dict):
+    src = make_profile_dict()
+    out = rotate_profile(src)
+    # Source ns had primary N (rotates to E, lives in EW slot now).
+    assert out["ew_linked_profile"]["primary_seat"] == "E"
+    # Source ew had primary E (rotates to S, lives in NS slot now).
+    assert out["ns_linked_profile"]["primary_seat"] == "S"
+    # subprofile_map (index-keyed) byte-identical.
+    assert out["ew_linked_profile"]["subprofile_map"] == src["ns_linked_profile"]["subprofile_map"]
+    assert out["ns_linked_profile"]["subprofile_map"] == src["ew_linked_profile"]["subprofile_map"]
+
+
+def test_linked_profile_one_none_handled(make_profile_dict):
+    src = make_profile_dict()
+    src["ew_linked_profile"] = None
+    out = rotate_profile(src)
+    # Source ns moves to ew slot with primary rotated; ns slot becomes None.
+    assert out["ew_linked_profile"] is not None
+    assert out["ew_linked_profile"]["primary_seat"] == "E"
+    assert out["ns_linked_profile"] is None
+
+
+def test_linked_profile_both_none_handled(make_profile_dict):
+    src = make_profile_dict()
+    src["ns_linked_profile"] = None
+    src["ew_linked_profile"] = None
+    out = rotate_profile(src)
+    assert out["ns_linked_profile"] is None
+    assert out["ew_linked_profile"] is None
