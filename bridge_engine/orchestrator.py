@@ -290,13 +290,160 @@ def _run_deal_generation_session() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Batch deal generation session
+# ---------------------------------------------------------------------------
+
+
+def _run_batch_generation_session() -> None:
+    """
+    Batch generation: collect a list of (profile, num_deals) jobs from the
+    user, then run them all sequentially.  Each job produces its own standard
+    TXT + LIN output files (same as a single-session run).
+    """
+    print("\n=== Batch Deal Generation ===")
+    print("Build a list of jobs (profile + hand count), then run them all.\n")
+
+    owner = _input_with_default("Owner / player name", "Lee")
+    base_dir_str = _input_with_default(
+        "Base output directory (will contain txt/ and lin/)", "out"
+    )
+    base_dir = Path(base_dir_str).expanduser().resolve()
+
+    # Collect jobs
+    jobs: List[Tuple[HandProfile, int]] = []
+
+    profiles = _discover_profiles()
+    if not profiles:
+        print("No profiles found. Please create one in Profile Management first.")
+        return
+
+    display_map = profile_store.build_profile_display_map(profiles)
+
+    while True:
+        print(f"\nJobs so far: {len(jobs)}")
+        if jobs:
+            for i, (p, n) in enumerate(jobs, 1):
+                print(f"  {i}. {p.profile_name} — {n} hand(s)")
+
+        print("\nAvailable profiles:")
+        profile_store.print_profile_display_map(display_map)
+        valid_nums = sorted(display_map)
+
+        raw = input(
+            "\nChoose a profile by number, or press Enter to finish: "
+        ).strip()
+        if not raw:
+            break
+
+        try:
+            choice = int(raw)
+        except ValueError:
+            print("Please enter a number.")
+            continue
+
+        if choice not in display_map:
+            print(f"Invalid choice. Valid numbers: {valid_nums}")
+            continue
+
+        _, profile = display_map[choice]
+        num_deals = _input_int(
+            f"Number of hands for '{profile.profile_name}'",
+            default=6,
+            minimum=1,
+            maximum=9999,
+            show_range_suffix=False,
+        )
+        jobs.append((profile, num_deals))
+
+    if not jobs:
+        print("No jobs entered — returning to menu.")
+        return
+
+    print(f"\n=== Running {len(jobs)} batch job(s) ===")
+    total_start = time.monotonic()
+    success_count = 0
+
+    for job_idx, (profile, num_deals) in enumerate(jobs, 1):
+        print(f"\n--- Job {job_idx}/{len(jobs)}: {profile.profile_name} ({num_deals} hand(s)) ---")
+
+        profile = _validate_for_session(profile)
+        if profile is None:
+            print(f"Job {job_idx} skipped (validation failed).")
+            continue
+
+        default_rotate = profile.rotate_deals_by_default
+        rotate_deals = _yes_no_help(
+            "Randomly rotate deals (swap N/S and E/W) for this job?",
+            "yn_rotate_deals",
+            default_rotate,
+        )
+
+        try:
+            setup: SetupResult = run_setup(
+                base_dir=base_dir,
+                owner=owner,
+                profile_name=profile.profile_name,
+                ask_seed_choice=True,
+            )
+        except (SetupError, OSError) as exc:  # pragma: no cover
+            print(f"ERROR running setup: {exc}")
+            print(f"Job {job_idx} skipped.")
+            continue
+
+        print(f"Generating {num_deals} deal(s) ...")
+        gen_start = time.monotonic()
+        try:
+            deal_set: DealSet = generate_deals(
+                setup=setup,
+                profile=profile,
+                num_deals=num_deals,
+                enable_rotation=rotate_deals,
+            )
+        except DealGenerationError as exc:
+            print(f"ERROR during deal generation: {exc}")
+            print(f"Job {job_idx} skipped.")
+            continue
+        gen_elapsed = time.monotonic() - gen_start
+
+        try:
+            summary: DealOutputSummary = render_deals(
+                setup=setup,
+                profile=profile,
+                deal_set=deal_set,
+                print_to_console=False,
+                append_txt=False,
+            )
+        except OutputError as exc:  # pragma: no cover
+            print(f"ERROR while writing output: {exc}")
+            print(f"Job {job_idx} skipped.")
+            continue
+
+        print(f"  Done in {gen_elapsed:.1f}s — LIN: {summary.lin_path}")
+        success_count += 1
+
+    total_elapsed = time.monotonic() - total_start
+    print(
+        f"\n=== Batch complete: {success_count}/{len(jobs)} job(s) succeeded "
+        f"in {total_elapsed:.1f}s ==="
+    )
+
+
+# ---------------------------------------------------------------------------
 # Profile Management wrapper
 # ---------------------------------------------------------------------------
 
 
-# Public wrapper (kept for main_menu call site)
 def run_deal_generation() -> None:
-    _run_deal_generation_session()
+    """Deal generation submenu: single run or batch."""
+    _run_menu_loop(
+        title="Bridge Hand Generator – Deal Generation",
+        items=[
+            ("Back", None),
+            ("Single generation", _run_deal_generation_session),
+            ("Batch generation", _run_batch_generation_session),
+        ],
+        help_key="main_menu",
+    )
 
 
 # ---------------------------------------------------------------------------
