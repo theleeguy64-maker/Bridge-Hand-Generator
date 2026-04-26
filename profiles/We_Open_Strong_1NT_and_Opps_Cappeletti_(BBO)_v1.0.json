@@ -2,7 +2,8 @@
   "author": "Lee",
   "category": "Opps Interference",
   "dealer": "N",
-  "description": "Opps Interference using Cappeletti over our 1NT - single suiter and two suiters",
+  "description": "We open Strong 1NT, opps overcall Cappeletti (BBO) - single suiter and two suiters",
+  "ew_linked_profile": null,
   "hand_dealing_order": [
     "N",
     "E",
@@ -10,7 +11,8 @@
     "W"
   ],
   "is_invariants_safety_profile": false,
-  "profile_name": "We Open Strong 1NT and Opps Cappeletti (BBO)",
+  "ns_linked_profile": null,
+  "profile_name": "We Open Strong 1NT and Opps Overcall Cappeletti (BBO)",
   "rotate_deals_by_default": true,
   "seat_profiles": {
     "E": {
