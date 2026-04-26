@@ -229,8 +229,7 @@
           "random_suit_constraint": {
             "allowed_suits": [
               "S",
-              "H",
-              "D"
+              "H"
             ],
             "pair_overrides": [],
             "required_suits_count": 1,
