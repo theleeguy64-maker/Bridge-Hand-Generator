@@ -7,12 +7,17 @@ for the full rule set.
 
 from __future__ import annotations
 
+import argparse
+import json
 import re
+import sys
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
-from bridge_engine.hand_profile_model import ProfileError
+from bridge_engine import profile_store
+from bridge_engine.hand_profile_model import HandProfile, ProfileError
+from bridge_engine.hand_profile_validate import validate_profile
 from bridge_engine.profile_cli import _safe_file_stem
 
 ROTATE_MAP: dict[str, str] = {"W": "N", "N": "E", "E": "S", "S": "W"}
@@ -153,3 +158,68 @@ def rotate_profile(
     _swap_and_rotate_linked(out)
 
     return out
+
+
+def _build_argparser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="python -m bridge_engine.rotate_profile",
+        description="Rotate a hand profile around the table (W→N→E→S→W).",
+    )
+    p.add_argument("input", help="Path to the source profile JSON file.")
+    p.add_argument(
+        "--name", dest="new_name", default=None, help="Override the rotated profile_name (bypasses the pronoun swap)."
+    )
+    p.add_argument("--description", dest="new_description", default=None, help="Override the rotated description.")
+    p.add_argument("--output", dest="output", default=None, help="Override the derived output path.")
+    p.add_argument("--force", action="store_true", help="Overwrite the output file if it already exists.")
+    return p
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _build_argparser().parse_args(argv)
+
+    src_path = Path(args.input)
+    try:
+        with src_path.open("r", encoding="utf-8") as f:
+            src_dict = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError) as e:
+        print(f"Cannot read input: {e}", file=sys.stderr)
+        return 1
+
+    try:
+        rotated = rotate_profile(src_dict, new_name=args.new_name, new_description=args.new_description)
+    except ProfileError as e:
+        print(str(e), file=sys.stderr)
+        return 2
+
+    rotated["rotated_from"] = src_path.name
+
+    try:
+        profile = HandProfile.from_dict(rotated)
+        validate_profile(profile)
+    except (ProfileError, KeyError, TypeError, ValueError) as e:
+        print(f"Rotation produced invalid profile: {e}", file=sys.stderr)
+        return 2
+
+    profiles_dir = profile_store._profiles_dir()
+    out_path = (
+        Path(args.output) if args.output is not None else _derived_output_path(rotated["profile_name"], profiles_dir)
+    )
+    if out_path.exists() and not args.force:
+        print(f"Output exists: {out_path}. Pass --force to overwrite.", file=sys.stderr)
+        return 4
+
+    profile_store._atomic_write(out_path, json.dumps(rotated, indent=2, sort_keys=True) + "\n")
+
+    src = src_dict.get("dealer", "?")
+    print(
+        f"Rotated: dealer {src} → {rotated.get('dealer', '?')}, "
+        f"NS↔EW linked profiles swapped, "
+        f"{len(rotated.get('seat_profiles', {}))} seat profiles rekeyed. "
+        f"Wrote {out_path}."
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
