@@ -68,13 +68,18 @@ def _swap_pronouns(name: str) -> str:
 
     1. Normalise: Our/our → We/we (whole-word).
     2. Swap (simultaneous via sentinels): Opps↔We, We→Opps, we→Opps.
+
+    Uses ``(?<![a-zA-Z])…(?![a-zA-Z])`` instead of ``\\b`` so that
+    underscore-delimited names (e.g. ``Opps_Open_&_Our_TO_Dbl``) are
+    handled correctly — ``\\b`` treats ``_`` as a word character and would
+    silently fail to match tokens surrounded by underscores.
     """
     s = name
     for src, dst in _PRONOUN_PAIRS:
-        s = re.sub(rf"\b{src}\b", dst, s)
+        s = re.sub(rf"(?<![a-zA-Z]){re.escape(src)}(?![a-zA-Z])", dst, s)
     # Replace each source with a unique sentinel first.
     for src, _dst in _SWAP_RULES:
-        s = re.sub(rf"\b{re.escape(src)}\b", f"__ROT_{src}__", s)
+        s = re.sub(rf"(?<![a-zA-Z]){re.escape(src)}(?![a-zA-Z])", f"__ROT_{src}__", s)
     # Then resolve all sentinels to their targets.
     for src, dst in _SWAP_RULES:
         s = s.replace(f"__ROT_{src}__", dst)
