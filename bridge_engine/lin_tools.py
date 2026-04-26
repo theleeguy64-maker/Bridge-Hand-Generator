@@ -342,18 +342,14 @@ def run_lin_combiner() -> None:
     file_weights: List[float] | None = None
     use_weights = input("\nUse weighted selection by source file? [y/N]: ").strip().lower()
     if use_weights.startswith("y"):
-        print(
-            "  W) Weight by number of hands in each file\n"
-            "  M) Enter weights manually"
-        )
+        print("  W) Weight by number of hands in each file\n  M) Enter weights manually")
         mode = input("Choice [W/m]: ").strip().lower()
         if mode in ("", "w"):
             # Auto-weight by board count
             file_weights = []
             for p in chosen_files:
                 try:
-                    text = p.read_text(encoding="utf-8")
-                    count = float(len(_split_lin_into_boards(text)))
+                    count = float(p.read_text(encoding="utf-8").count("qx|"))
                 except OSError:
                     count = 1.0
                 file_weights.append(count)

@@ -97,6 +97,29 @@ def _discover_profiles(base_dir: Path | None = None) -> List[Tuple[Path, HandPro
     return results
 
 
+def _pick_profile_from_map(
+    display_map: dict,
+    cancel_prompt: str,
+    cancel_message: str,
+) -> HandProfile | None:
+    """Pick one profile from an already-built display_map. Returns None on cancel."""
+    valid_nums = sorted(display_map)
+    while True:
+        raw = input(cancel_prompt).strip()
+        if not raw:
+            print(cancel_message)
+            return None
+        try:
+            choice = int(raw)
+        except ValueError:
+            print("Please enter a number.")
+            continue
+        if choice in display_map:
+            _, profile = display_map[choice]
+            return profile
+        print(f"Invalid choice. Valid numbers: {valid_nums}")
+
+
 def _choose_profile_for_session() -> HandProfile | None:
     """
     Interactively let the user choose a profile from disk for a deal-generation
@@ -113,27 +136,13 @@ def _choose_profile_for_session() -> HandProfile | None:
         return None
 
     display_map = profile_store.build_profile_display_map(profiles)
-
     print("\nAvailable profiles on disk:")
     profile_store.print_profile_display_map(display_map)
-
-    valid_nums = sorted(display_map)
-    while True:
-        raw = input("\nChoose a profile by number or press Enter to cancel: ").strip()
-        if not raw:
-            print("Cancelled profile selection.")
-            return None
-        try:
-            choice = int(raw)
-        except ValueError:
-            print("Please enter a number.")
-            continue
-
-        if choice in display_map:
-            _, profile = display_map[choice]
-            return profile
-
-        print(f"Invalid choice. Valid numbers: {valid_nums}")
+    return _pick_profile_from_map(
+        display_map,
+        cancel_prompt="\nChoose a profile by number or press Enter to cancel: ",
+        cancel_message="Cancelled profile selection.",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -304,9 +313,7 @@ def _run_batch_generation_session() -> None:
     print("Build a list of jobs (profile + hand count), then run them all.\n")
 
     owner = _input_with_default("Owner / player name", "Lee")
-    base_dir_str = _input_with_default(
-        "Base output directory (will contain txt/ and lin/)", "out"
-    )
+    base_dir_str = _input_with_default("Base output directory (will contain txt/ and lin/)", "out")
     base_dir = Path(base_dir_str).expanduser().resolve()
 
     # Collect jobs
@@ -327,25 +334,15 @@ def _run_batch_generation_session() -> None:
 
         print("\nAvailable profiles:")
         profile_store.print_profile_display_map(display_map)
-        valid_nums = sorted(display_map)
 
-        raw = input(
-            "\nChoose a profile by number, or press Enter to finish: "
-        ).strip()
-        if not raw:
+        profile = _pick_profile_from_map(
+            display_map,
+            cancel_prompt="\nChoose a profile by number, or press Enter to finish: ",
+            cancel_message="",
+        )
+        if profile is None:
             break
 
-        try:
-            choice = int(raw)
-        except ValueError:
-            print("Please enter a number.")
-            continue
-
-        if choice not in display_map:
-            print(f"Invalid choice. Valid numbers: {valid_nums}")
-            continue
-
-        _, profile = display_map[choice]
         num_deals = _input_int(
             f"Number of hands for '{profile.profile_name}'",
             default=6,
@@ -382,7 +379,7 @@ def _run_batch_generation_session() -> None:
             setup: SetupResult = run_setup(
                 base_dir=base_dir,
                 owner=owner,
-                profile_name=profile.profile_name,
+                profile_name=f"{profile.profile_name}_job{job_idx}",
                 ask_seed_choice=True,
             )
         except (SetupError, OSError) as exc:  # pragma: no cover
@@ -422,10 +419,7 @@ def _run_batch_generation_session() -> None:
         success_count += 1
 
     total_elapsed = time.monotonic() - total_start
-    print(
-        f"\n=== Batch complete: {success_count}/{len(jobs)} job(s) succeeded "
-        f"in {total_elapsed:.1f}s ==="
-    )
+    print(f"\n=== Batch complete: {success_count}/{len(jobs)} job(s) succeeded in {total_elapsed:.1f}s ===")
 
 
 # ---------------------------------------------------------------------------
@@ -442,7 +436,7 @@ def run_deal_generation() -> None:
             ("Single generation", _run_deal_generation_session),
             ("Batch generation", _run_batch_generation_session),
         ],
-        help_key="main_menu",
+        help_key="deal_generation_menu",
     )
 
 
