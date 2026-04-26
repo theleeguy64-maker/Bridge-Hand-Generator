@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from bridge_engine import profile_store
-from bridge_engine.hand_profile_model import HandProfile, ProfileError
+from bridge_engine.hand_profile_model import ProfileError
 from bridge_engine.hand_profile_validate import validate_profile
 from bridge_engine.profile_cli import _safe_file_stem
 
@@ -195,8 +195,7 @@ def main(argv: list[str] | None = None) -> int:
     rotated["rotated_from"] = src_path.name
 
     try:
-        profile = HandProfile.from_dict(rotated)
-        validate_profile(profile)
+        validate_profile(rotated)
     except (ProfileError, KeyError, TypeError, ValueError) as e:
         print(f"Rotation produced invalid profile: {e}", file=sys.stderr)
         return 2
