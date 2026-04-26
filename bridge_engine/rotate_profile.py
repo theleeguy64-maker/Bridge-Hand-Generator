@@ -7,8 +7,11 @@ for the full rule set.
 
 from __future__ import annotations
 
+import re
 from copy import deepcopy
 from typing import Any
+
+from bridge_engine.hand_profile_model import ProfileError
 
 ROTATE_MAP: dict[str, str] = {"W": "N", "N": "E", "E": "S", "S": "W"}
 
@@ -43,6 +46,34 @@ def _swap_and_rotate_linked(out: dict[str, Any]) -> None:
     out["ew_linked_profile"] = ns
 
 
+_PRONOUN_PAIRS = (("Our", "We"), ("our", "we"))
+# After normalisation, swap rules (all fire simultaneously via sentinels):
+#   Opps → We  |  We → Opps  |  we → Opps
+_SWAP_RULES: tuple[tuple[str, str], ...] = (
+    ("Opps", "We"),
+    ("We", "Opps"),
+    ("we", "Opps"),
+)
+
+
+def _swap_pronouns(name: str) -> str:
+    """Two-step pronoun swap on a profile_name string.
+
+    1. Normalise: Our/our → We/we (whole-word).
+    2. Swap (simultaneous via sentinels): Opps↔We, We→Opps, we→Opps.
+    """
+    s = name
+    for src, dst in _PRONOUN_PAIRS:
+        s = re.sub(rf"\b{src}\b", dst, s)
+    # Replace each source with a unique sentinel first.
+    for src, _dst in _SWAP_RULES:
+        s = re.sub(rf"\b{re.escape(src)}\b", f"__ROT_{src}__", s)
+    # Then resolve all sentinels to their targets.
+    for src, dst in _SWAP_RULES:
+        s = s.replace(f"__ROT_{src}__", dst)
+    return s
+
+
 def rotate_profile(
     profile_dict: dict[str, Any],
     *,
@@ -55,6 +86,14 @@ def rotate_profile(
     position around the cycle W→N→E→S→W. See the module docstring for
     the full rule set.
     """
+    # Guard ordering: already-rotated check runs first, so a source with both
+    # rotated_from set AND no swappable pronouns still gets the more specific
+    # "already rotated" error rather than the generic pronoun message.
+    if profile_dict.get("rotated_from"):
+        raise ProfileError(
+            f"Source is already a rotated profile (rotated_from: {profile_dict['rotated_from']!r}); rotation refused."
+        )
+
     out = deepcopy(profile_dict)
 
     # Top-level seat fields
@@ -87,6 +126,21 @@ def rotate_profile(
         for entry in out["subprofile_exclusions"]:
             if isinstance(entry, dict) and "seat" in entry:
                 entry["seat"] = _rotate_seat(entry["seat"])
+
+    # profile_name swap (or override)
+    if new_name is not None:
+        out["profile_name"] = new_name
+    else:
+        original = out.get("profile_name", "")
+        swapped = _swap_pronouns(original)
+        if swapped == original:
+            raise ProfileError(
+                "Source profile_name does not contain Opps/We/Our pronouns to swap; supply --name explicitly."
+            )
+        out["profile_name"] = swapped
+
+    if new_description is not None:
+        out["description"] = new_description
 
     _swap_and_rotate_linked(out)
 

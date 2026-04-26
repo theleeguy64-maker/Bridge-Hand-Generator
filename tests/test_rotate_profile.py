@@ -6,7 +6,7 @@ import copy
 
 import pytest
 
-from bridge_engine.rotate_profile import ROTATE_MAP, _rotate_seat, rotate_profile
+from bridge_engine.rotate_profile import ROTATE_MAP, _rotate_seat, _swap_pronouns, rotate_profile
 
 
 def test_rotate_seat_map():
@@ -169,3 +169,56 @@ def test_linked_profile_both_none_handled(make_profile_dict):
     out = rotate_profile(src)
     assert out["ns_linked_profile"] is None
     assert out["ew_linked_profile"] is None
+
+
+@pytest.mark.parametrize(
+    "source, expected",
+    [
+        ("Opps Open Strong 1NT and we Overcall Cappeletti", "We Open Strong 1NT and Opps Overcall Cappeletti"),
+        ("Opps Open 3 Weak 2s and we Compete", "We Open 3 Weak 2s and Opps Compete"),
+        ("Opps Open & Our TO Dbl", "We Open & Opps TO Dbl"),
+        ("Opps Open & Our TO Dbl Balancing", "We Open & Opps TO Dbl Balancing"),
+    ],
+)
+def test_swap_pronouns(source, expected):
+    assert _swap_pronouns(source) == expected
+
+
+def test_swap_pronouns_no_pronouns_returns_unchanged():
+    # Returns the input verbatim; the rotate_profile() wrapper raises.
+    assert _swap_pronouns("Big Hands") == "Big Hands"
+
+
+def test_rotate_profile_default_name_uses_swap(make_profile_dict):
+    src = make_profile_dict()
+    src["profile_name"] = "Opps Open 1NT and we Overcall"
+    out = rotate_profile(src)
+    assert out["profile_name"] == "We Open 1NT and Opps Overcall"
+
+
+def test_rotate_profile_name_override(make_profile_dict):
+    out = rotate_profile(make_profile_dict(), new_name="Custom Name")
+    assert out["profile_name"] == "Custom Name"
+
+
+def test_rotate_profile_description_override(make_profile_dict):
+    out = rotate_profile(make_profile_dict(), new_description="Custom desc")
+    assert out["description"] == "Custom desc"
+
+
+def test_rotate_profile_no_pronouns_raises(make_profile_dict):
+    src = make_profile_dict()
+    src["profile_name"] = "Big Hands"
+    from bridge_engine.hand_profile_model import ProfileError
+
+    with pytest.raises(ProfileError, match="Opps/We/Our pronouns"):
+        rotate_profile(src)
+
+
+def test_rotate_profile_already_rotated_refused(make_profile_dict):
+    src = make_profile_dict()
+    src["rotated_from"] = "earlier.json"
+    from bridge_engine.hand_profile_model import ProfileError
+
+    with pytest.raises(ProfileError, match="already a rotated profile"):
+        rotate_profile(src)
